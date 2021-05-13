@@ -14,8 +14,10 @@
             "elm/time": "1.0.0",
             "elm/url": "1.0.0",
             "erlandsona/assoc-set": "1.1.0",
+            "ianmackenzie/elm-units": "2.9.0",
             "lamdera/codecs": "1.0.0",
             "lamdera/core": "1.0.0",
+            "mdgriffith/elm-ui": "1.1.8",
             "mgold/elm-nonempty-list": "4.2.0",
             "miniBill/elm-avataaars": "1.0.0",
             "pzp1997/assoc-list": "1.0.0"
@@ -32,7 +34,9 @@
         }
     },
     "test-dependencies": {
-        "direct": {},
+        "direct": {
+            "elm-explorations/test": "1.2.2"
+        },
         "indirect": {}
     }
 }

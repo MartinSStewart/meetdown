@@ -6,7 +6,7 @@ import Avataaars exposing (Avataaar)
 import Browser exposing (UrlRequest)
 import Browser.Navigation
 import Email exposing (Email)
-import Lamdera
+import Id exposing (ClientId, GroupId, SessionId, UserId)
 import List.Nonempty exposing (Nonempty)
 import String.Nonempty exposing (NonemptyString)
 import Time
@@ -27,29 +27,10 @@ type alias LoadedFrontend =
     { navigationKey : NavigationKey
     , loginStatus : LoginStatus
     , route : Route
-    , group : Maybe ( GroupId, Group )
+    , group : Maybe ( GroupId, Result () FrontendGroup )
     , time : Time.Posix
     , lastConnectionCheck : Time.Posix
     }
-
-
-initLoadedFrontend : NavigationKey -> Route -> Time.Posix -> LoadedFrontend
-initLoadedFrontend navigationKey route time =
-    { navigationKey = navigationKey
-    , loginStatus = NotLoggedIn
-    , route = route
-    , group = Nothing
-    , time = time
-    , lastConnectionCheck = time
-    }
-
-
-type SessionId
-    = SessionId Lamdera.SessionId
-
-
-type ClientId
-    = ClientId Lamdera.ClientId
 
 
 type Route
@@ -58,26 +39,18 @@ type Route
 
 
 type LoginStatus
-    = LoggedIn UserId User
+    = LoggedIn UserId BackendUser
     | NotLoggedIn
 
 
 type alias BackendModel =
-    { users : Dict UserId User
-    , groups : Dict GroupId Group
+    { users : Dict UserId BackendUser
+    , groups : Dict GroupId BackendGroup
     , sessions : Dict SessionId { userId : UserId, connections : Nonempty ClientId }
     }
 
 
-type UserId
-    = UserId Int
-
-
-type GroupId
-    = GroupId Int
-
-
-type alias User =
+type alias BackendUser =
     { name : NonemptyString
     , emailAddress : Email
     , emailConfirmed : Bool
@@ -85,9 +58,26 @@ type alias User =
     }
 
 
-type alias Group =
-    { owner : UserId
+type alias FrontendUser =
+    { name : NonemptyString
+    , profileImage : Avataaar
+    }
+
+
+type alias BackendGroup =
+    { ownerId : UserId
+    , name : NonemptyString
     , events : List Event
+    , isPrivate : Bool
+    }
+
+
+type alias FrontendGroup =
+    { ownerId : UserId
+    , owner : FrontendUser
+    , name : NonemptyString
+    , events : List Event
+    , isPrivate : Bool
     }
 
 
@@ -107,7 +97,9 @@ type FrontendMsg
 
 
 type ToBackend
-    = NoOpToBackend
+    = CheckLoginAndGetGroupRequest GroupId
+    | GetGroupRequest GroupId
+    | CheckLoginRequest
 
 
 type BackendMsg
@@ -115,4 +107,6 @@ type BackendMsg
 
 
 type ToFrontend
-    = NoOpToFrontend
+    = CheckLoginAndGetGroupResponse LoginStatus GroupId (Maybe FrontendGroup)
+    | GetGroupResponse GroupId (Maybe FrontendGroup)
+    | CheckLoginResponse LoginStatus
