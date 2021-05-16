@@ -1,15 +1,19 @@
 module Types exposing (..)
 
+import Array exposing (Array)
 import AssocList exposing (Dict)
 import AssocSet exposing (Set)
 import Avataaars exposing (Avataaar)
 import Browser exposing (UrlRequest)
 import Browser.Navigation
 import Email exposing (Email)
-import Id exposing (ClientId, GroupId, SessionId, UserId)
+import Id exposing (ClientId, CryptoHash, GroupId, LoginToken, SessionId, UserId)
 import List.Nonempty exposing (Nonempty)
+import Route exposing (Route)
+import SendGrid
 import String.Nonempty exposing (NonemptyString)
 import Time
+import Untrusted exposing (Untrusted)
 import Url exposing (Url)
 
 
@@ -19,7 +23,7 @@ type NavigationKey
 
 
 type FrontendModel
-    = Loading NavigationKey Route
+    = Loading NavigationKey ( Route, Maybe (CryptoHash LoginToken) )
     | Loaded LoadedFrontend
 
 
@@ -27,15 +31,16 @@ type alias LoadedFrontend =
     { navigationKey : NavigationKey
     , loginStatus : LoginStatus
     , route : Route
-    , group : Maybe ( GroupId, Result () FrontendGroup )
+    , group : Maybe ( GroupId, Maybe FrontendGroup )
     , time : Time.Posix
     , lastConnectionCheck : Time.Posix
+    , showLogin : Bool
+    , email : String
+    , pressedSubmitEmail : Bool
+    , emailSent : Bool
+    , logs : Maybe (Array Log)
+    , hasLoginError : Bool
     }
-
-
-type Route
-    = Homepage
-    | GroupRoute GroupId
 
 
 type LoginStatus
@@ -47,13 +52,19 @@ type alias BackendModel =
     { users : Dict UserId BackendUser
     , groups : Dict GroupId BackendGroup
     , sessions : Dict SessionId { userId : UserId, connections : Nonempty ClientId }
+    , logs : Array Log
+    , time : Time.Posix
+    , secretCounter : Int
     }
+
+
+type alias Log =
+    { isError : Bool, title : NonemptyString, message : String, time : Time.Posix }
 
 
 type alias BackendUser =
     { name : NonemptyString
     , emailAddress : Email
-    , emailConfirmed : Bool
     , profileImage : Avataaar
     }
 
@@ -93,20 +104,31 @@ type alias Event =
 type FrontendMsg
     = UrlClicked UrlRequest
     | UrlChanged Url
-    | NoOpFrontendMsg
+    | GotTime Time.Posix
+    | PressedLogin
+    | TypedEmail String
+    | PressedSubmitEmail
 
 
-type ToBackend
-    = CheckLoginAndGetGroupRequest GroupId
-    | GetGroupRequest GroupId
+type alias ToBackend =
+    Nonempty ToBackendRequest
+
+
+type ToBackendRequest
+    = GetGroupRequest GroupId
     | CheckLoginRequest
+    | LoginWithTokenRequest (CryptoHash LoginToken)
+    | LoginRequest Route (Untrusted Email)
+    | GetAdminDataRequest
 
 
 type BackendMsg
-    = NoOpBackendMsg
+    = SentLoginEmail Email (Result SendGrid.Error ())
+    | BackendGotTime Time.Posix
 
 
 type ToFrontend
-    = CheckLoginAndGetGroupResponse LoginStatus GroupId (Maybe FrontendGroup)
-    | GetGroupResponse GroupId (Maybe FrontendGroup)
+    = GetGroupResponse GroupId (Maybe FrontendGroup)
     | CheckLoginResponse LoginStatus
+    | LoginWithTokenResponse (Result () ( UserId, BackendUser ))
+    | GetAdminDataResponse (Array Log)

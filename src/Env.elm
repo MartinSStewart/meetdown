@@ -1,8 +1,28 @@
 module Env exposing (..)
 
--- The Env.elm file is for per-environment configuration.
--- See https://dashboard.lamdera.app/docs/environment for more info.
+import SendGrid
 
 
-dummyConfigItem =
-  ""
+sendGridApiKey_ : String
+sendGridApiKey_ =
+    ""
+
+
+sendGridApiKey : SendGrid.ApiKey
+sendGridApiKey =
+    SendGrid.apiKey sendGridApiKey_
+
+
+adminUserId_ : String
+adminUserId_ =
+    "0"
+
+
+secretKey : String
+secretKey =
+    "123"
+
+
+domain : String
+domain =
+    "localhost:8000"

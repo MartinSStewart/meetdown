@@ -1,8 +1,11 @@
-module FrontendEffect exposing (FrontendEffect, batch, navigationLoad, navigationPushUrl, none, sendToBackend, toCmd)
+module FrontendEffect exposing (FrontendEffect, batch, getTime, manyToBackend, navigationLoad, navigationPushUrl, none, sendToBackend, toCmd)
 
 import Browser.Navigation
 import Lamdera
-import Types exposing (FrontendMsg, NavigationKey(..), ToBackend)
+import List.Nonempty exposing (Nonempty(..))
+import Task
+import Time
+import Types exposing (FrontendMsg, NavigationKey(..), ToBackend, ToBackendRequest)
 
 
 type FrontendEffect
@@ -10,6 +13,7 @@ type FrontendEffect
     | SendToBackend ToBackend
     | NavigationPushUrl NavigationKey String
     | NavigationLoad String
+    | GetTime (Time.Posix -> FrontendMsg)
 
 
 none : FrontendEffect
@@ -22,9 +26,14 @@ batch =
     Batch
 
 
-sendToBackend : ToBackend -> FrontendEffect
+sendToBackend : ToBackendRequest -> FrontendEffect
 sendToBackend =
-    SendToBackend
+    List.Nonempty.fromElement >> SendToBackend
+
+
+manyToBackend : ToBackendRequest -> List ToBackendRequest -> FrontendEffect
+manyToBackend firstRequest restOfRequests =
+    Nonempty firstRequest restOfRequests |> SendToBackend
 
 
 navigationPushUrl : NavigationKey -> String -> FrontendEffect
@@ -35,6 +44,11 @@ navigationPushUrl =
 navigationLoad : String -> FrontendEffect
 navigationLoad =
     NavigationLoad
+
+
+getTime : (Time.Posix -> FrontendMsg) -> FrontendEffect
+getTime =
+    GetTime
 
 
 toCmd : FrontendEffect -> Cmd FrontendMsg
@@ -56,3 +70,6 @@ toCmd frontendEffect =
 
         NavigationLoad string ->
             Browser.Navigation.load string
+
+        GetTime msg ->
+            Time.now |> Task.perform msg
