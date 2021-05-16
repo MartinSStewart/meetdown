@@ -33,7 +33,7 @@ app =
 
 init : Url -> NavigationKey -> ( FrontendModel, FrontendEffect )
 init url key =
-    ( Url.Parser.parse Route.decode url |> Debug.log "route" |> Maybe.withDefault ( Homepage, Nothing ) |> Loading key
+    ( Url.Parser.parse Route.decode url |> Maybe.withDefault ( Homepage, Nothing ) |> Loading key
     , FrontendEffect.getTime GotTime
     )
 
@@ -66,6 +66,9 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
       , emailSent = False
       , logs = Nothing
       , hasLoginError = False
+      , groupName = ""
+      , pressedSubmitGroup = False
+      , groupCreated = False
       }
     , case route of
         Homepage ->
@@ -126,6 +129,16 @@ updateLoaded msg model =
 
         PressedSubmitEmail ->
             case validateEmail model.email of
+                Ok email ->
+                    ( { model | emailSent = True }
+                    , Untrusted.untrust email |> LoginRequest model.route |> FrontendEffect.sendToBackend
+                    )
+
+                Err _ ->
+                    ( { model | pressedSubmitEmail = True }, FrontendEffect.none )
+
+        PressedCreateGroup ->
+            case validateGroup model.groupName of
                 Ok email ->
                     ( { model | emailSent = True }
                     , Untrusted.untrust email |> LoginRequest model.route |> FrontendEffect.sendToBackend

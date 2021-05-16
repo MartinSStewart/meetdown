@@ -40,6 +40,9 @@ type alias LoadedFrontend =
     , emailSent : Bool
     , logs : Maybe (Array Log)
     , hasLoginError : Bool
+    , groupName : String
+    , pressedSubmitGroup : Bool
+    , groupCreated : Bool
     }
 
 
@@ -110,6 +113,7 @@ type FrontendMsg
     | PressedLogout
     | TypedEmail String
     | PressedSubmitEmail
+    | PressedCreateGroup
 
 
 type ToBackend
