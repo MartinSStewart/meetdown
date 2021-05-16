@@ -7,9 +7,8 @@ import Element.Border
 import Element.Font
 import Element.Input
 import ElementExtra as Element
-import Email exposing (Email)
+import EmailAddress exposing (EmailAddress)
 import FrontendEffect exposing (FrontendEffect)
-import Html exposing (Html)
 import Id exposing (CryptoHash, LoginToken)
 import Lamdera
 import Route exposing (Route(..))
@@ -34,7 +33,7 @@ app =
 
 init : Url -> NavigationKey -> ( FrontendModel, FrontendEffect )
 init url key =
-    ( Url.Parser.parse Route.decode url |> Maybe.withDefault ( Homepage, Nothing ) |> Loading key
+    ( Url.Parser.parse Route.decode url |> Debug.log "route" |> Maybe.withDefault ( Homepage, Nothing ) |> Loading key
     , FrontendEffect.getTime GotTime
     )
 
@@ -119,6 +118,9 @@ updateLoaded msg model =
         PressedLogin ->
             ( { model | showLogin = True }, FrontendEffect.none )
 
+        PressedLogout ->
+            ( { model | loginStatus = NotLoggedIn }, FrontendEffect.sendToBackend LogoutRequest )
+
         TypedEmail text ->
             ( { model | email = text }, FrontendEffect.none )
 
@@ -184,8 +186,22 @@ view model =
 viewLoaded : LoadedFrontend -> Element FrontendMsg
 viewLoaded model =
     Element.column
-        [ Element.width Element.fill, Element.height Element.fill ]
-        [ header
+        [ Element.width Element.fill
+        , Element.height Element.fill
+        , Element.inFront
+            (if model.hasLoginError then
+                Element.el
+                    [ Element.width Element.fill
+                    , Element.height Element.fill
+                    , Element.Background.color <| Element.rgb 1 1 1
+                    ]
+                    (Element.text "Sorry, the link you used is either invalid or has expired.")
+
+             else
+                Element.none
+            )
+        ]
+        [ header (isLoggedIn model)
         , if model.showLogin then
             loginView model
 
@@ -222,23 +238,39 @@ viewLoaded model =
         ]
 
 
-header : Element FrontendMsg
-header =
+isLoggedIn : LoadedFrontend -> Bool
+isLoggedIn model =
+    case model.loginStatus of
+        LoggedIn _ _ ->
+            True
+
+        NotLoggedIn ->
+            False
+
+
+header : Bool -> Element FrontendMsg
+header isLoggedIn_ =
     Element.row
         [ Element.width Element.fill
         , Element.Background.color <| Element.rgb 0.8 0.8 0.8
         , Element.padding 8
         ]
-        [ signUp ]
+        (if isLoggedIn_ then
+            [ Element.button
+                [ Element.alignRight ]
+                { onPress = PressedLogout
+                , label = Element.text "Log out"
+                }
+            ]
 
-
-signUp : Element FrontendMsg
-signUp =
-    Element.button
-        [ Element.alignRight ]
-        { onPress = PressedLogin
-        , label = Element.text "Sign up/Login"
-        }
+         else
+            [ Element.button
+                [ Element.alignRight ]
+                { onPress = PressedLogin
+                , label = Element.text "Sign up/Login"
+                }
+            ]
+        )
 
 
 loginView : { a | email : String, pressedSubmitEmail : Bool } -> Element FrontendMsg
@@ -274,9 +306,9 @@ buttonAttributes =
     ]
 
 
-validateEmail : String -> Result String Email
+validateEmail : String -> Result String EmailAddress
 validateEmail text =
-    case Email.fromString text of
+    case EmailAddress.fromString text of
         Just email ->
             Ok email
 

@@ -1,14 +1,23 @@
 module Backend exposing (app, init, update, updateFromFrontend)
 
 import Array
-import AssocList as Dict
+import AssocList as Dict exposing (Dict)
+import Avataaars.Clothes
+import Avataaars.Eyebrow
+import Avataaars.Eyes
+import Avataaars.FacialHair
+import Avataaars.Mouth
+import Avataaars.SkinTone
+import Avataaars.Top exposing (TopFacialHair(..))
 import BackendEffect exposing (BackendEffect)
 import BackendSub exposing (BackendSub)
 import Duration
-import Email
-import Id exposing (ClientId, GroupId, SessionId, UserId)
+import EmailAddress
+import Id exposing (ClientId, CryptoHash, GroupId, SessionId, UserId)
 import Lamdera
+import List.Extra as List
 import List.Nonempty
+import Quantity
 import SendGrid
 import String.Nonempty exposing (NonemptyString(..))
 import Time
@@ -40,6 +49,7 @@ init =
       , logs = Array.empty
       , time = Time.millisToPosix 0
       , secretCounter = 0
+      , pendingLoginTokens = Dict.empty
       }
     , Cmd.none
     )
@@ -59,7 +69,7 @@ update msg model =
                     ( addLog
                         True
                         (NonemptyString 'S' "endGrid")
-                        ("Sent a login email to " ++ Email.toString email)
+                        ("Sent a login email to " ++ EmailAddress.toString email)
                         model
                     , BackendEffect.none
                     )
@@ -68,7 +78,7 @@ update msg model =
                     let
                         errorText =
                             "Tried sending a login email to "
-                                ++ Email.toString email
+                                ++ EmailAddress.toString email
                                 ++ " but got this error "
                                 ++ (case error of
                                         SendGrid.StatusCode400 errors ->
@@ -114,12 +124,12 @@ addLog : Bool -> NonemptyString -> String -> BackendModel -> BackendModel
 addLog isError title message model =
     { model
         | logs =
-            Array.push { isError = isError, title = title, message = message, time = model.time } model.logs
+            Array.push { isError = isError, title = title, message = message, creationTime = model.time } model.logs
     }
 
 
 updateFromFrontend : SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, BackendEffect )
-updateFromFrontend sessionId clientId msgs model =
+updateFromFrontend sessionId clientId (ToBackend msgs) model =
     List.Nonempty.foldl
         (\msg ( newModel, effects ) ->
             updateFromRequest sessionId clientId msg newModel
@@ -150,7 +160,15 @@ updateFromRequest sessionId clientId msg model =
                         ( model2, loginToken ) =
                             Id.getCryptoHash model
                     in
-                    ( model2, BackendEffect.sendLoginEmail (SentLoginEmail email) email route loginToken )
+                    ( { model2
+                        | pendingLoginTokens =
+                            Dict.insert
+                                loginToken
+                                { creationTime = model2.time, emailAddress = email }
+                                model2.pendingLoginTokens
+                      }
+                    , BackendEffect.sendLoginEmail (SentLoginEmail email) email route loginToken
+                    )
 
                 Err invalidEmail ->
                     ( addLog
@@ -170,13 +188,80 @@ updateFromRequest sessionId clientId msg model =
                 )
 
         LoginWithTokenRequest loginToken ->
-            Debug.todo ""
+            case Dict.get loginToken model.pendingLoginTokens of
+                Just { creationTime, emailAddress } ->
+                    if Duration.from creationTime model.time |> Quantity.lessThan Duration.hour then
+                        case Dict.toList model.users |> List.find (Tuple.second >> .emailAddress >> (==) emailAddress) of
+                            Just userEntry ->
+                                ( addSession sessionId clientId (Tuple.first userEntry) model
+                                , Ok userEntry |> LoginWithTokenResponse |> BackendEffect.sendToFrontend clientId
+                                )
+
+                            Nothing ->
+                                let
+                                    ( model2, userId ) =
+                                        Id.getCryptoHash model
+
+                                    newUser : BackendUser
+                                    newUser =
+                                        { name = NonemptyString 'A' ""
+                                        , emailAddress = emailAddress
+                                        , profileImage =
+                                            { circleBg = False
+                                            , skinTone = Avataaars.SkinTone.brown
+                                            , clothes = Avataaars.Clothes.BlazerShirt
+                                            , face =
+                                                { mouth = Avataaars.Mouth.Concerned
+                                                , eyes = Avataaars.Eyes.Cry
+                                                , eyebrow = Avataaars.Eyebrow.AngryNatural
+                                                }
+                                            , top = Avataaars.Top.TopFacialHair Eyepatch (Avataaars.FacialHair.BeardLight "#FFFFFF")
+                                            }
+                                        }
+                                in
+                                ( { model2 | users = Dict.insert userId newUser model2.users }
+                                    |> addSession sessionId clientId userId
+                                , Ok ( userId, newUser ) |> LoginWithTokenResponse |> BackendEffect.sendToFrontend clientId
+                                )
+
+                    else
+                        ( model, Err () |> LoginWithTokenResponse |> BackendEffect.sendToFrontend clientId )
+
+                Nothing ->
+                    ( model, Err () |> LoginWithTokenResponse |> BackendEffect.sendToFrontend clientId )
+
+        LogoutRequest ->
+            ( { model | sessions = Dict.remove sessionId model.sessions }, BackendEffect.none )
+
+
+addSession : SessionId -> ClientId -> CryptoHash UserId -> BackendModel -> BackendModel
+addSession sessionId clientId userId model =
+    { model
+        | sessions =
+            Dict.update sessionId
+                (\maybeSession ->
+                    case maybeSession of
+                        Just session ->
+                            Just
+                                { session
+                                    | connections =
+                                        List.Nonempty.cons clientId session.connections
+                                }
+
+                        Nothing ->
+                            Just
+                                { userId = userId
+                                , connections = List.Nonempty.fromElement clientId
+                                }
+                )
+                model.sessions
+    }
 
 
 userAuthorization :
     SessionId
     -> BackendModel
-    -> (( UserId, BackendUser ) -> ( BackendModel, BackendEffect ))
+    -> (( CryptoHash UserId, BackendUser ) -> ( BackendModel, BackendEffect ))
     -> ( BackendModel, BackendEffect )
 userAuthorization sessionId model updateFunc =
     case checkLogin sessionId model of
@@ -190,12 +275,12 @@ userAuthorization sessionId model updateFunc =
 adminAuthorization :
     SessionId
     -> BackendModel
-    -> (( UserId, BackendUser ) -> ( BackendModel, BackendEffect ))
+    -> (( CryptoHash UserId, BackendUser ) -> ( BackendModel, BackendEffect ))
     -> ( BackendModel, BackendEffect )
 adminAuthorization sessionId model updateFunc =
     case checkLogin sessionId model of
         LoggedIn userId user ->
-            if Id.adminUserId == Just userId then
+            if Id.adminUserId == userId then
                 updateFunc ( userId, user )
 
             else
@@ -225,7 +310,7 @@ getGroup groupId model =
     Dict.get groupId model.groups
 
 
-getUser : UserId -> BackendModel -> Maybe BackendUser
+getUser : CryptoHash UserId -> BackendModel -> Maybe BackendUser
 getUser userId model =
     Dict.get userId model.users
 

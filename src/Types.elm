@@ -6,7 +6,7 @@ import AssocSet exposing (Set)
 import Avataaars exposing (Avataaar)
 import Browser exposing (UrlRequest)
 import Browser.Navigation
-import Email exposing (Email)
+import EmailAddress exposing (EmailAddress)
 import Id exposing (ClientId, CryptoHash, GroupId, LoginToken, SessionId, UserId)
 import List.Nonempty exposing (Nonempty)
 import Route exposing (Route)
@@ -44,27 +44,28 @@ type alias LoadedFrontend =
 
 
 type LoginStatus
-    = LoggedIn UserId BackendUser
+    = LoggedIn (CryptoHash UserId) BackendUser
     | NotLoggedIn
 
 
 type alias BackendModel =
-    { users : Dict UserId BackendUser
+    { users : Dict (CryptoHash UserId) BackendUser
     , groups : Dict GroupId BackendGroup
-    , sessions : Dict SessionId { userId : UserId, connections : Nonempty ClientId }
+    , sessions : Dict SessionId { userId : CryptoHash UserId, connections : Nonempty ClientId }
     , logs : Array Log
     , time : Time.Posix
     , secretCounter : Int
+    , pendingLoginTokens : Dict (CryptoHash LoginToken) { creationTime : Time.Posix, emailAddress : EmailAddress }
     }
 
 
 type alias Log =
-    { isError : Bool, title : NonemptyString, message : String, time : Time.Posix }
+    { isError : Bool, title : NonemptyString, message : String, creationTime : Time.Posix }
 
 
 type alias BackendUser =
     { name : NonemptyString
-    , emailAddress : Email
+    , emailAddress : EmailAddress
     , profileImage : Avataaar
     }
 
@@ -76,7 +77,7 @@ type alias FrontendUser =
 
 
 type alias BackendGroup =
-    { ownerId : UserId
+    { ownerId : CryptoHash UserId
     , name : NonemptyString
     , events : List Event
     , isPrivate : Bool
@@ -84,7 +85,7 @@ type alias BackendGroup =
 
 
 type alias FrontendGroup =
-    { ownerId : UserId
+    { ownerId : CryptoHash UserId
     , owner : FrontendUser
     , name : NonemptyString
     , events : List Event
@@ -93,7 +94,7 @@ type alias FrontendGroup =
 
 
 type alias Event =
-    { attendees : Set UserId
+    { attendees : Set (CryptoHash UserId)
     , startTime : Time.Posix
     , endTime : Time.Posix
     , isCancelled : Bool
@@ -106,29 +107,31 @@ type FrontendMsg
     | UrlChanged Url
     | GotTime Time.Posix
     | PressedLogin
+    | PressedLogout
     | TypedEmail String
     | PressedSubmitEmail
 
 
-type alias ToBackend =
-    Nonempty ToBackendRequest
+type ToBackend
+    = ToBackend (Nonempty ToBackendRequest)
 
 
 type ToBackendRequest
     = GetGroupRequest GroupId
     | CheckLoginRequest
     | LoginWithTokenRequest (CryptoHash LoginToken)
-    | LoginRequest Route (Untrusted Email)
+    | LoginRequest Route (Untrusted EmailAddress)
     | GetAdminDataRequest
+    | LogoutRequest
 
 
 type BackendMsg
-    = SentLoginEmail Email (Result SendGrid.Error ())
+    = SentLoginEmail EmailAddress (Result SendGrid.Error ())
     | BackendGotTime Time.Posix
 
 
 type ToFrontend
     = GetGroupResponse GroupId (Maybe FrontendGroup)
     | CheckLoginResponse LoginStatus
-    | LoginWithTokenResponse (Result () ( UserId, BackendUser ))
+    | LoginWithTokenResponse (Result () ( CryptoHash UserId, BackendUser ))
     | GetAdminDataResponse (Array Log)

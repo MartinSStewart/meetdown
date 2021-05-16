@@ -14,7 +14,6 @@ module Id exposing
     , groupIdFromString
     , groupIdToString
     , sessionIdFromString
-    , userIdFromInt
     )
 
 import Env
@@ -23,7 +22,7 @@ import Sha256
 
 
 type UserId
-    = UserId Int
+    = UserId Never
 
 
 type GroupId
@@ -71,14 +70,9 @@ groupIdToString (GroupId groupId) =
     groupId
 
 
-userIdFromInt : Int -> UserId
-userIdFromInt =
-    UserId
-
-
-adminUserId : Maybe UserId
+adminUserId : CryptoHash UserId
 adminUserId =
-    String.toInt Env.adminUserId_ |> Maybe.map userIdFromInt
+    cryptoHashFromString Env.adminUserId_
 
 
 getCryptoHash : { a | secretCounter : Int } -> ( { a | secretCounter : Int }, CryptoHash b )

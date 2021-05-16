@@ -1,19 +1,19 @@
 module Untrusted exposing (Untrusted, untrust, validateEmail)
 
-import Email exposing (Email)
+import EmailAddress exposing (EmailAddress)
 
 
 type Untrusted a
     = Untrusted a
 
 
-validateEmail : Untrusted Email -> Result String Email
+validateEmail : Untrusted EmailAddress -> Result String EmailAddress
 validateEmail (Untrusted email) =
     let
         emailText =
-            Email.toString email
+            EmailAddress.toString email
     in
-    Email.fromString emailText |> Result.fromMaybe emailText
+    EmailAddress.fromString emailText |> Result.fromMaybe emailText
 
 
 untrust : a -> Untrusted a

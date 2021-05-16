@@ -5,7 +5,7 @@ import Lamdera
 import List.Nonempty exposing (Nonempty(..))
 import Task
 import Time
-import Types exposing (FrontendMsg, NavigationKey(..), ToBackend, ToBackendRequest)
+import Types exposing (FrontendMsg, NavigationKey(..), ToBackend(..), ToBackendRequest)
 
 
 type FrontendEffect
@@ -28,12 +28,12 @@ batch =
 
 sendToBackend : ToBackendRequest -> FrontendEffect
 sendToBackend =
-    List.Nonempty.fromElement >> SendToBackend
+    List.Nonempty.fromElement >> ToBackend >> SendToBackend
 
 
 manyToBackend : ToBackendRequest -> List ToBackendRequest -> FrontendEffect
 manyToBackend firstRequest restOfRequests =
-    Nonempty firstRequest restOfRequests |> SendToBackend
+    Nonempty firstRequest restOfRequests |> ToBackend |> SendToBackend
 
 
 navigationPushUrl : NavigationKey -> String -> FrontendEffect
