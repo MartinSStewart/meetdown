@@ -9,6 +9,7 @@ import Element.Input
 import ElementExtra as Element
 import EmailAddress exposing (EmailAddress)
 import FrontendEffect exposing (FrontendEffect)
+import GroupName
 import Id exposing (CryptoHash, LoginToken)
 import Lamdera
 import Route exposing (Route(..))
@@ -67,6 +68,7 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
       , logs = Nothing
       , hasLoginError = False
       , groupName = ""
+      , groupVisibility = Nothing
       , pressedSubmitGroup = False
       , groupCreated = False
       }
@@ -131,20 +133,20 @@ updateLoaded msg model =
             case validateEmail model.email of
                 Ok email ->
                     ( { model | emailSent = True }
-                    , Untrusted.untrust email |> LoginRequest model.route |> FrontendEffect.sendToBackend
+                    , Untrusted.untrust email |> GetLoginTokenRequest model.route |> FrontendEffect.sendToBackend
                     )
 
                 Err _ ->
                     ( { model | pressedSubmitEmail = True }, FrontendEffect.none )
 
         PressedCreateGroup ->
-            case validateGroup model.groupName of
-                Ok email ->
+            case ( GroupName.fromString model.groupName, model.groupVisibility ) of
+                ( Ok groupName, Just groupVisibility ) ->
                     ( { model | emailSent = True }
-                    , Untrusted.untrust email |> LoginRequest model.route |> FrontendEffect.sendToBackend
+                    , CreateGroupRequest groupVisibility (Untrusted.untrust groupName) |> FrontendEffect.sendToBackend
                     )
 
-                Err _ ->
+                _ ->
                     ( { model | pressedSubmitEmail = True }, FrontendEffect.none )
 
 
@@ -177,6 +179,12 @@ updateLoadedFromBackend msg model =
 
         GetAdminDataResponse logs ->
             ( { model | logs = Just logs }, FrontendEffect.none )
+
+        CreateGroupResponse result ->
+            Debug.todo "CreateGroupResponse"
+
+        LogoutResponse ->
+            ( { model | loginStatus = NotLoggedIn }, FrontendEffect.none )
 
 
 view : FrontendModel -> Browser.Document FrontendMsg
@@ -229,7 +237,7 @@ viewLoaded model =
                             if groupId == loadedGroupId then
                                 Element.column
                                     [ Element.spacing 16 ]
-                                    [ Element.el [ Element.Font.size 32 ] (Element.nonemptyText group.name)
+                                    [ Element.el [ Element.Font.size 32 ] (Element.text (GroupName.toString group.name))
                                     , Element.nonemptyText group.owner.name
                                     ]
 

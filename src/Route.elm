@@ -10,7 +10,7 @@ import Url.Parser.Query
 
 type Route
     = Homepage
-    | GroupRoute GroupId
+    | GroupRoute (CryptoHash GroupId)
     | AdminRoute
 
 
@@ -18,7 +18,7 @@ decode : Url.Parser.Parser (( Route, Maybe (CryptoHash LoginToken) ) -> c) c
 decode =
     Url.Parser.oneOf
         [ Url.Parser.top |> Url.Parser.map Homepage
-        , Url.Parser.s "group" </> Url.Parser.string |> Url.Parser.map (Id.groupIdFromString >> GroupRoute)
+        , Url.Parser.s "group" </> Url.Parser.string |> Url.Parser.map (Id.cryptoHashFromString >> GroupRoute)
         , Url.Parser.s "admin" |> Url.Parser.map AdminRoute
         ]
         <?> decodeLoginToken
@@ -43,7 +43,7 @@ encode route maybeLoginToken =
                 []
 
             GroupRoute groupId ->
-                [ "group", Url.percentEncode (Id.groupIdToString groupId) ]
+                [ "group", Url.percentEncode (Id.cryptoHashToString groupId) ]
 
             AdminRoute ->
                 [ "admin" ]

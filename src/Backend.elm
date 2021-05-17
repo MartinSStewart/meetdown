@@ -12,13 +12,12 @@ import Avataaars.Top exposing (TopFacialHair(..))
 import BackendEffect exposing (BackendEffect)
 import BackendSub exposing (BackendSub)
 import Duration
-import EmailAddress
-import Id exposing (ClientId, CryptoHash, GroupId, SessionId, UserId)
+import GroupName exposing (GroupName)
+import Id exposing (ClientId, CryptoHash, GroupId, LoginToken, SessionId, UserId)
 import Lamdera
 import List.Extra as List
 import List.Nonempty
 import Quantity
-import SendGrid
 import String.Nonempty exposing (NonemptyString(..))
 import Time
 import Types exposing (..)
@@ -46,6 +45,7 @@ init =
     ( { users = Dict.empty
       , groups = Dict.empty
       , sessions = Dict.empty
+      , connections = Dict.empty
       , logs = Array.empty
       , time = Time.millisToPosix 0
       , secretCounter = 0
@@ -57,75 +57,53 @@ init =
 
 subscriptions : BackendModel -> BackendSub
 subscriptions _ =
-    BackendSub.timeEvery (Duration.seconds 15) BackendGotTime
+    BackendSub.batch
+        [ BackendSub.timeEvery (Duration.seconds 15) BackendGotTime
+        , BackendSub.onConnect Connected
+        , BackendSub.onDisconnect Disconnected
+        ]
 
 
 update : BackendMsg -> BackendModel -> ( BackendModel, BackendEffect )
 update msg model =
     case msg of
         SentLoginEmail email result ->
-            case result of
-                Ok () ->
-                    ( addLog
-                        True
-                        (NonemptyString 'S' "endGrid")
-                        ("Sent a login email to " ++ EmailAddress.toString email)
-                        model
-                    , BackendEffect.none
-                    )
-
-                Err error ->
-                    let
-                        errorText =
-                            "Tried sending a login email to "
-                                ++ EmailAddress.toString email
-                                ++ " but got this error "
-                                ++ (case error of
-                                        SendGrid.StatusCode400 errors ->
-                                            List.map (\a -> a.message) errors
-                                                |> String.join ", "
-                                                |> (++) "StatusCode400: "
-
-                                        SendGrid.StatusCode401 errors ->
-                                            List.map (\a -> a.message) errors
-                                                |> String.join ", "
-                                                |> (++) "StatusCode401: "
-
-                                        SendGrid.StatusCode403 { errors } ->
-                                            List.filterMap (\a -> a.message) errors
-                                                |> String.join ", "
-                                                |> (++) "StatusCode403: "
-
-                                        SendGrid.StatusCode413 errors ->
-                                            List.map (\a -> a.message) errors
-                                                |> String.join ", "
-                                                |> (++) "StatusCode413: "
-
-                                        SendGrid.UnknownError { statusCode, body } ->
-                                            "UnknownError: " ++ String.fromInt statusCode ++ " " ++ body
-
-                                        SendGrid.NetworkError ->
-                                            "NetworkError"
-
-                                        SendGrid.Timeout ->
-                                            "Timeout"
-
-                                        SendGrid.BadUrl url ->
-                                            "BadUrl: " ++ url
-                                   )
-                    in
-                    ( addLog True (NonemptyString 'S' "endGrid") errorText model, BackendEffect.none )
+            ( addLog (SendGridSendEmail model.time result email) model, BackendEffect.none )
 
         BackendGotTime time ->
             ( { model | time = time }, BackendEffect.none )
 
+        Connected sessionId clientId ->
+            let
+                _ =
+                    Debug.log "connected" clientId
+            in
+            ( { model
+                | connections =
+                    Dict.update sessionId
+                        (Maybe.map (List.Nonempty.cons clientId)
+                            >> Maybe.withDefault (List.Nonempty.fromElement clientId)
+                            >> Just
+                        )
+                        model.connections
+              }
+            , BackendEffect.none
+            )
 
-addLog : Bool -> NonemptyString -> String -> BackendModel -> BackendModel
-addLog isError title message model =
-    { model
-        | logs =
-            Array.push { isError = isError, title = title, message = message, creationTime = model.time } model.logs
-    }
+        Disconnected sessionId clientId ->
+            ( { model
+                | connections =
+                    Dict.update sessionId
+                        (Maybe.andThen (List.Nonempty.toList >> List.remove clientId >> List.Nonempty.fromList))
+                        model.connections
+              }
+            , BackendEffect.none
+            )
+
+
+addLog : Log -> BackendModel -> BackendModel
+addLog log model =
+    { model | logs = Array.push log model.logs }
 
 
 updateFromFrontend : SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, BackendEffect )
@@ -153,7 +131,7 @@ updateFromRequest sessionId clientId msg model =
         CheckLoginRequest ->
             ( model, checkLogin sessionId model |> CheckLoginResponse |> BackendEffect.sendToFrontend clientId )
 
-        LoginRequest route untrustedEmail ->
+        GetLoginTokenRequest route untrustedEmail ->
             case Untrusted.validateEmail untrustedEmail of
                 Ok email ->
                     let
@@ -170,12 +148,8 @@ updateFromRequest sessionId clientId msg model =
                     , BackendEffect.sendLoginEmail (SentLoginEmail email) email route loginToken
                     )
 
-                Err invalidEmail ->
-                    ( addLog
-                        True
-                        (NonemptyString 'T' "rust check failed")
-                        ("LoginRequest with " ++ invalidEmail ++ " failed due to invalid email.")
-                        model
+                Err _ ->
+                    ( addLog (UntrustedCheckFailed model.time msg) model
                     , BackendEffect.none
                     )
 
@@ -188,74 +162,123 @@ updateFromRequest sessionId clientId msg model =
                 )
 
         LoginWithTokenRequest loginToken ->
-            case Dict.get loginToken model.pendingLoginTokens of
-                Just { creationTime, emailAddress } ->
-                    if Duration.from creationTime model.time |> Quantity.lessThan Duration.hour then
-                        case Dict.toList model.users |> List.find (Tuple.second >> .emailAddress >> (==) emailAddress) of
-                            Just userEntry ->
-                                ( addSession sessionId clientId (Tuple.first userEntry) model
-                                , Ok userEntry |> LoginWithTokenResponse |> BackendEffect.sendToFrontend clientId
-                                )
-
-                            Nothing ->
-                                let
-                                    ( model2, userId ) =
-                                        Id.getCryptoHash model
-
-                                    newUser : BackendUser
-                                    newUser =
-                                        { name = NonemptyString 'A' ""
-                                        , emailAddress = emailAddress
-                                        , profileImage =
-                                            { circleBg = False
-                                            , skinTone = Avataaars.SkinTone.brown
-                                            , clothes = Avataaars.Clothes.BlazerShirt
-                                            , face =
-                                                { mouth = Avataaars.Mouth.Concerned
-                                                , eyes = Avataaars.Eyes.Cry
-                                                , eyebrow = Avataaars.Eyebrow.AngryNatural
-                                                }
-                                            , top = Avataaars.Top.TopFacialHair Eyepatch (Avataaars.FacialHair.BeardLight "#FFFFFF")
-                                            }
-                                        }
-                                in
-                                ( { model2 | users = Dict.insert userId newUser model2.users }
-                                    |> addSession sessionId clientId userId
-                                , Ok ( userId, newUser ) |> LoginWithTokenResponse |> BackendEffect.sendToFrontend clientId
-                                )
-
-                    else
-                        ( model, Err () |> LoginWithTokenResponse |> BackendEffect.sendToFrontend clientId )
-
-                Nothing ->
-                    ( model, Err () |> LoginWithTokenResponse |> BackendEffect.sendToFrontend clientId )
+            getAndRemoveLoginToken (loginWithToken sessionId clientId) loginToken model
 
         LogoutRequest ->
-            ( { model | sessions = Dict.remove sessionId model.sessions }, BackendEffect.none )
+            ( { model | sessions = Dict.remove sessionId model.sessions }
+            , case Dict.get sessionId model.connections of
+                Just clientIds ->
+                    BackendEffect.sendToFrontends clientIds LogoutResponse
 
+                Nothing ->
+                    BackendEffect.none
+            )
 
-addSession : SessionId -> ClientId -> CryptoHash UserId -> BackendModel -> BackendModel
-addSession sessionId clientId userId model =
-    { model
-        | sessions =
-            Dict.update sessionId
-                (\maybeSession ->
-                    case maybeSession of
-                        Just session ->
-                            Just
-                                { session
-                                    | connections =
-                                        List.Nonempty.cons clientId session.connections
-                                }
+        CreateGroupRequest groupVisibility untrustedGroupName ->
+            userAuthorization
+                sessionId
+                model
+                (\( userId, _ ) ->
+                    case Untrusted.validateGroupName untrustedGroupName of
+                        Ok groupName ->
+                            addGroup userId groupVisibility groupName model
 
-                        Nothing ->
-                            Just
-                                { userId = userId
-                                , connections = List.Nonempty.fromElement clientId
-                                }
+                        Err _ ->
+                            ( addLog (UntrustedCheckFailed model.time msg) model
+                            , BackendEffect.none
+                            )
                 )
-                model.sessions
-    }
+
+
+loginWithToken : SessionId -> ClientId -> Maybe LoginTokenData -> BackendModel -> ( BackendModel, BackendEffect )
+loginWithToken sessionId clientId maybeLoginTokenData model =
+    let
+        loginResponse : ( CryptoHash UserId, BackendUser ) -> BackendEffect
+        loginResponse userEntry =
+            case Dict.get sessionId model.connections of
+                Just clientIds ->
+                    Ok userEntry |> LoginWithTokenResponse |> BackendEffect.sendToFrontends clientIds
+
+                Nothing ->
+                    BackendEffect.none
+
+        addSession : CryptoHash UserId -> BackendModel -> BackendModel
+        addSession userId model_ =
+            { model_ | sessions = Dict.insert sessionId userId model_.sessions }
+    in
+    case maybeLoginTokenData of
+        Just { creationTime, emailAddress } ->
+            if Duration.from creationTime model.time |> Quantity.lessThan Duration.hour then
+                case Dict.toList model.users |> List.find (Tuple.second >> .emailAddress >> (==) emailAddress) of
+                    Just userEntry ->
+                        ( addSession (Tuple.first userEntry) model
+                        , loginResponse userEntry
+                        )
+
+                    Nothing ->
+                        let
+                            ( model2, userId ) =
+                                Id.getCryptoHash model
+
+                            newUser : BackendUser
+                            newUser =
+                                { name = NonemptyString 'A' ""
+                                , emailAddress = emailAddress
+                                , profileImage =
+                                    { circleBg = False
+                                    , skinTone = Avataaars.SkinTone.brown
+                                    , clothes = Avataaars.Clothes.BlazerShirt
+                                    , face =
+                                        { mouth = Avataaars.Mouth.Concerned
+                                        , eyes = Avataaars.Eyes.Cry
+                                        , eyebrow = Avataaars.Eyebrow.AngryNatural
+                                        }
+                                    , top = Avataaars.Top.TopFacialHair Eyepatch (Avataaars.FacialHair.BeardLight "#FFFFFF")
+                                    }
+                                }
+                        in
+                        ( { model2 | users = Dict.insert userId newUser model2.users }
+                            |> addSession userId
+                        , loginResponse ( userId, newUser )
+                        )
+
+            else
+                ( model, Err () |> LoginWithTokenResponse |> BackendEffect.sendToFrontend clientId )
+
+        Nothing ->
+            ( model, Err () |> LoginWithTokenResponse |> BackendEffect.sendToFrontend clientId )
+
+
+getAndRemoveLoginToken :
+    (Maybe LoginTokenData -> BackendModel -> ( BackendModel, BackendEffect ))
+    -> CryptoHash LoginToken
+    -> BackendModel
+    -> ( BackendModel, BackendEffect )
+getAndRemoveLoginToken updateFunc loginToken model =
+    updateFunc
+        (Dict.get loginToken model.pendingLoginTokens)
+        { model | pendingLoginTokens = Dict.remove loginToken model.pendingLoginTokens }
+
+
+addGroup : CryptoHash UserId -> GroupVisibility -> GroupName -> BackendModel -> ( BackendModel, BackendEffect )
+addGroup userId groupVisibility groupName model =
+    let
+        ( model2, groupId ) =
+            Id.getCryptoHash model
+    in
+    ( { model2
+        | groups =
+            Dict.insert
+                groupId
+                { ownerId = userId
+                , name = groupName
+                , events = []
+                , visibility = groupVisibility
+                }
+                model.groups
+      }
+    , BackendEffect.none
+    )
 
 
 userAuthorization :
@@ -293,10 +316,10 @@ adminAuthorization sessionId model updateFunc =
 checkLogin : SessionId -> BackendModel -> LoginStatus
 checkLogin sessionId model =
     case Dict.get sessionId model.sessions of
-        Just session ->
-            case Dict.get session.userId model.users of
+        Just userId ->
+            case Dict.get userId model.users of
                 Just user ->
-                    LoggedIn session.userId user
+                    LoggedIn userId user
 
                 Nothing ->
                     NotLoggedIn
@@ -305,7 +328,7 @@ checkLogin sessionId model =
             NotLoggedIn
 
 
-getGroup : GroupId -> BackendModel -> Maybe BackendGroup
+getGroup : CryptoHash GroupId -> BackendModel -> Maybe BackendGroup
 getGroup groupId model =
     Dict.get groupId model.groups
 
@@ -323,7 +346,7 @@ groupToFrontend model backendGroup =
             , owner = userToFrontend owner
             , name = backendGroup.name
             , events = backendGroup.events
-            , isPrivate = backendGroup.isPrivate
+            , visibility = backendGroup.visibility
             }
                 |> Just
 

@@ -11,8 +11,6 @@ module Id exposing
     , cryptoHashFromString
     , cryptoHashToString
     , getCryptoHash
-    , groupIdFromString
-    , groupIdToString
     , sessionIdFromString
     )
 
@@ -26,7 +24,7 @@ type UserId
 
 
 type GroupId
-    = GroupId String
+    = GroupId Never
 
 
 type SessionId
@@ -58,16 +56,6 @@ clientIdFromString =
 clientIdToString : ClientId -> Lamdera.ClientId
 clientIdToString (ClientId clientId) =
     clientId
-
-
-groupIdFromString : String -> GroupId
-groupIdFromString =
-    GroupId
-
-
-groupIdToString : GroupId -> String
-groupIdToString (GroupId groupId) =
-    groupId
 
 
 adminUserId : CryptoHash UserId

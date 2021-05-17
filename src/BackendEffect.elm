@@ -1,4 +1,4 @@
-module BackendEffect exposing (BackendEffect, batch, none, sendLoginEmail, sendToFrontend, toCmd)
+module BackendEffect exposing (BackendEffect, batch, none, sendLoginEmail, sendToFrontend, sendToFrontends, toCmd)
 
 import Email.Html
 import Email.Html.Attributes
@@ -6,7 +6,7 @@ import EmailAddress exposing (EmailAddress)
 import Env
 import Id exposing (ClientId, CryptoHash, LoginToken)
 import Lamdera
-import List.Nonempty
+import List.Nonempty exposing (Nonempty)
 import Route exposing (Route)
 import SendGrid
 import String.Nonempty exposing (NonemptyString(..))
@@ -32,6 +32,11 @@ batch =
 sendToFrontend : ClientId -> ToFrontend -> BackendEffect
 sendToFrontend =
     SendToFrontend
+
+
+sendToFrontends : Nonempty ClientId -> ToFrontend -> BackendEffect
+sendToFrontends clientIds toFrontend =
+    List.Nonempty.toList clientIds |> List.map (\clientId -> sendToFrontend clientId toFrontend) |> batch
 
 
 sendLoginEmail :

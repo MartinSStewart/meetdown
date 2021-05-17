@@ -7,10 +7,11 @@ import Avataaars exposing (Avataaar)
 import Browser exposing (UrlRequest)
 import Browser.Navigation
 import EmailAddress exposing (EmailAddress)
+import GroupName exposing (GroupName)
 import Id exposing (ClientId, CryptoHash, GroupId, LoginToken, SessionId, UserId)
 import List.Nonempty exposing (Nonempty)
 import Route exposing (Route)
-import SendGrid
+import SendGrid exposing (Email)
 import String.Nonempty exposing (NonemptyString)
 import Time
 import Untrusted exposing (Untrusted)
@@ -31,7 +32,7 @@ type alias LoadedFrontend =
     { navigationKey : NavigationKey
     , loginStatus : LoginStatus
     , route : Route
-    , group : Maybe ( GroupId, Maybe FrontendGroup )
+    , group : Maybe ( CryptoHash GroupId, Maybe FrontendGroup )
     , time : Time.Posix
     , lastConnectionCheck : Time.Posix
     , showLogin : Bool
@@ -41,6 +42,7 @@ type alias LoadedFrontend =
     , logs : Maybe (Array Log)
     , hasLoginError : Bool
     , groupName : String
+    , groupVisibility : Maybe GroupVisibility
     , pressedSubmitGroup : Bool
     , groupCreated : Bool
     }
@@ -53,17 +55,98 @@ type LoginStatus
 
 type alias BackendModel =
     { users : Dict (CryptoHash UserId) BackendUser
-    , groups : Dict GroupId BackendGroup
-    , sessions : Dict SessionId { userId : CryptoHash UserId, connections : Nonempty ClientId }
+    , groups : Dict (CryptoHash GroupId) BackendGroup
+    , sessions : Dict SessionId (CryptoHash UserId)
+    , connections : Dict SessionId (Nonempty ClientId)
     , logs : Array Log
     , time : Time.Posix
     , secretCounter : Int
-    , pendingLoginTokens : Dict (CryptoHash LoginToken) { creationTime : Time.Posix, emailAddress : EmailAddress }
+    , pendingLoginTokens : Dict (CryptoHash LoginToken) LoginTokenData
     }
 
 
-type alias Log =
-    { isError : Bool, title : NonemptyString, message : String, creationTime : Time.Posix }
+type alias LoginTokenData =
+    { creationTime : Time.Posix, emailAddress : EmailAddress }
+
+
+type Log
+    = UntrustedCheckFailed Time.Posix ToBackendRequest
+    | SendGridSendEmail Time.Posix (Result SendGrid.Error ()) EmailAddress
+
+
+logTime : Log -> Time.Posix
+logTime log =
+    case log of
+        UntrustedCheckFailed time _ ->
+            time
+
+        SendGridSendEmail time _ _ ->
+            time
+
+
+logIsError : Log -> Bool
+logIsError log =
+    case log of
+        UntrustedCheckFailed _ _ ->
+            True
+
+        SendGridSendEmail _ result _ ->
+            case result of
+                Ok _ ->
+                    False
+
+                Err _ ->
+                    True
+
+
+logToString : Log -> String
+logToString log =
+    case log of
+        SendGridSendEmail _ result email ->
+            case result of
+                Ok () ->
+                    "Sent an email to " ++ EmailAddress.toString email
+
+                Err error ->
+                    "Tried sending a login email to "
+                        ++ EmailAddress.toString email
+                        ++ " but got this error "
+                        ++ (case error of
+                                SendGrid.StatusCode400 errors ->
+                                    List.map (\a -> a.message) errors
+                                        |> String.join ", "
+                                        |> (++) "StatusCode400: "
+
+                                SendGrid.StatusCode401 errors ->
+                                    List.map (\a -> a.message) errors
+                                        |> String.join ", "
+                                        |> (++) "StatusCode401: "
+
+                                SendGrid.StatusCode403 { errors } ->
+                                    List.filterMap (\a -> a.message) errors
+                                        |> String.join ", "
+                                        |> (++) "StatusCode403: "
+
+                                SendGrid.StatusCode413 errors ->
+                                    List.map (\a -> a.message) errors
+                                        |> String.join ", "
+                                        |> (++) "StatusCode413: "
+
+                                SendGrid.UnknownError { statusCode, body } ->
+                                    "UnknownError: " ++ String.fromInt statusCode ++ " " ++ body
+
+                                SendGrid.NetworkError ->
+                                    "NetworkError"
+
+                                SendGrid.Timeout ->
+                                    "Timeout"
+
+                                SendGrid.BadUrl url ->
+                                    "BadUrl: " ++ url
+                           )
+
+        UntrustedCheckFailed _ toBackend ->
+            "Trust check failed: TODO"
 
 
 type alias BackendUser =
@@ -81,19 +164,24 @@ type alias FrontendUser =
 
 type alias BackendGroup =
     { ownerId : CryptoHash UserId
-    , name : NonemptyString
+    , name : GroupName
     , events : List Event
-    , isPrivate : Bool
+    , visibility : GroupVisibility
     }
 
 
 type alias FrontendGroup =
     { ownerId : CryptoHash UserId
     , owner : FrontendUser
-    , name : NonemptyString
+    , name : GroupName
     , events : List Event
-    , isPrivate : Bool
+    , visibility : GroupVisibility
     }
+
+
+type GroupVisibility
+    = PrivateGroup
+    | PublicGroup
 
 
 type alias Event =
@@ -121,21 +209,26 @@ type ToBackend
 
 
 type ToBackendRequest
-    = GetGroupRequest GroupId
+    = GetGroupRequest (CryptoHash GroupId)
     | CheckLoginRequest
     | LoginWithTokenRequest (CryptoHash LoginToken)
-    | LoginRequest Route (Untrusted EmailAddress)
+    | GetLoginTokenRequest Route (Untrusted EmailAddress)
     | GetAdminDataRequest
     | LogoutRequest
+    | CreateGroupRequest GroupVisibility (Untrusted GroupName)
 
 
 type BackendMsg
     = SentLoginEmail EmailAddress (Result SendGrid.Error ())
     | BackendGotTime Time.Posix
+    | Connected SessionId ClientId
+    | Disconnected SessionId ClientId
 
 
 type ToFrontend
-    = GetGroupResponse GroupId (Maybe FrontendGroup)
+    = GetGroupResponse (CryptoHash GroupId) (Maybe FrontendGroup)
     | CheckLoginResponse LoginStatus
     | LoginWithTokenResponse (Result () ( CryptoHash UserId, BackendUser ))
     | GetAdminDataResponse (Array Log)
+    | CreateGroupResponse (Result () BackendGroup)
+    | LogoutResponse
