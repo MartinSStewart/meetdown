@@ -7,6 +7,8 @@ import Avataaars exposing (Avataaar)
 import Browser exposing (UrlRequest)
 import Browser.Navigation
 import EmailAddress exposing (EmailAddress)
+import GroupDescription exposing (GroupDescription)
+import GroupForm exposing (CreateGroupError, GroupFormValidated, GroupVisibility, Model)
 import GroupName exposing (GroupName)
 import Id exposing (ClientId, CryptoHash, GroupId, LoginToken, SessionId, UserId)
 import List.Nonempty exposing (Nonempty)
@@ -36,15 +38,19 @@ type alias LoadedFrontend =
     , time : Time.Posix
     , lastConnectionCheck : Time.Posix
     , showLogin : Bool
-    , email : String
-    , pressedSubmitEmail : Bool
-    , emailSent : Bool
+    , loginForm : LoginForm
     , logs : Maybe (Array Log)
     , hasLoginError : Bool
-    , groupName : String
-    , groupVisibility : Maybe GroupVisibility
-    , pressedSubmitGroup : Bool
+    , groupForm : Model
     , groupCreated : Bool
+    , showCreateGroup : Bool
+    }
+
+
+type alias LoginForm =
+    { email : String
+    , pressedSubmitEmail : Bool
+    , emailSent : Bool
     }
 
 
@@ -165,6 +171,7 @@ type alias FrontendUser =
 type alias BackendGroup =
     { ownerId : CryptoHash UserId
     , name : GroupName
+    , description : GroupDescription
     , events : List Event
     , visibility : GroupVisibility
     }
@@ -179,9 +186,21 @@ type alias FrontendGroup =
     }
 
 
-type GroupVisibility
-    = PrivateGroup
-    | PublicGroup
+groupToFrontend : BackendUser -> BackendGroup -> FrontendGroup
+groupToFrontend owner backendGroup =
+    { ownerId = backendGroup.ownerId
+    , owner = userToFrontend owner
+    , name = backendGroup.name
+    , events = backendGroup.events
+    , visibility = backendGroup.visibility
+    }
+
+
+userToFrontend : BackendUser -> FrontendUser
+userToFrontend backendUser =
+    { name = backendUser.name
+    , profileImage = backendUser.profileImage
+    }
 
 
 type alias Event =
@@ -202,6 +221,7 @@ type FrontendMsg
     | TypedEmail String
     | PressedSubmitEmail
     | PressedCreateGroup
+    | GroupFormMsg GroupForm.Msg
 
 
 type ToBackend
@@ -215,7 +235,7 @@ type ToBackendRequest
     | GetLoginTokenRequest Route (Untrusted EmailAddress)
     | GetAdminDataRequest
     | LogoutRequest
-    | CreateGroupRequest GroupVisibility (Untrusted GroupName)
+    | CreateGroupRequest (Untrusted GroupName) (Untrusted GroupDescription) GroupVisibility
 
 
 type BackendMsg
@@ -230,5 +250,5 @@ type ToFrontend
     | CheckLoginResponse LoginStatus
     | LoginWithTokenResponse (Result () ( CryptoHash UserId, BackendUser ))
     | GetAdminDataResponse (Array Log)
-    | CreateGroupResponse (Result () BackendGroup)
+    | CreateGroupResponse (Result CreateGroupError ( CryptoHash GroupId, BackendGroup ))
     | LogoutResponse

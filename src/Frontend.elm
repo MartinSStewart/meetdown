@@ -3,18 +3,18 @@ module Frontend exposing (app, init, update, updateFromBackend, view)
 import Browser exposing (UrlRequest(..))
 import Element exposing (Element)
 import Element.Background
-import Element.Border
 import Element.Font
-import Element.Input
 import ElementExtra as Element
-import EmailAddress exposing (EmailAddress)
 import FrontendEffect exposing (FrontendEffect)
+import GroupForm
 import GroupName
 import Id exposing (CryptoHash, LoginToken)
 import Lamdera
+import LoginForm
 import Route exposing (Route(..))
 import Time
 import Types exposing (..)
+import Ui
 import Untrusted
 import Url exposing (Url)
 import Url.Parser exposing ((</>))
@@ -62,15 +62,16 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
       , time = time
       , lastConnectionCheck = time
       , showLogin = False
-      , email = ""
-      , pressedSubmitEmail = False
-      , emailSent = False
+      , loginForm =
+            { email = ""
+            , pressedSubmitEmail = False
+            , emailSent = False
+            }
       , logs = Nothing
       , hasLoginError = False
-      , groupName = ""
-      , groupVisibility = Nothing
-      , pressedSubmitGroup = False
+      , groupForm = GroupForm.init
       , groupCreated = False
+      , showCreateGroup = False
       }
     , case route of
         Homepage ->
@@ -114,7 +115,7 @@ updateLoaded msg model =
                 External url ->
                     ( model, FrontendEffect.navigationLoad url )
 
-        UrlChanged url ->
+        UrlChanged _ ->
             ( model, FrontendEffect.none )
 
         GotTime time ->
@@ -127,27 +128,36 @@ updateLoaded msg model =
             ( { model | loginStatus = NotLoggedIn }, FrontendEffect.sendToBackend LogoutRequest )
 
         TypedEmail text ->
-            ( { model | email = text }, FrontendEffect.none )
+            ( { model | loginForm = LoginForm.typedEmail text model.loginForm }, FrontendEffect.none )
 
         PressedSubmitEmail ->
-            case validateEmail model.email of
-                Ok email ->
-                    ( { model | emailSent = True }
-                    , Untrusted.untrust email |> GetLoginTokenRequest model.route |> FrontendEffect.sendToBackend
-                    )
-
-                Err _ ->
-                    ( { model | pressedSubmitEmail = True }, FrontendEffect.none )
+            LoginForm.submitForm model.route model.loginForm
+                |> Tuple.mapFirst (\a -> { model | loginForm = a })
 
         PressedCreateGroup ->
-            case ( GroupName.fromString model.groupName, model.groupVisibility ) of
-                ( Ok groupName, Just groupVisibility ) ->
-                    ( { model | emailSent = True }
-                    , CreateGroupRequest groupVisibility (Untrusted.untrust groupName) |> FrontendEffect.sendToBackend
+            ( { model | showCreateGroup = True }, FrontendEffect.none )
+
+        GroupFormMsg groupFormMsg ->
+            let
+                ( newModel, outMsg ) =
+                    GroupForm.update groupFormMsg model.groupForm
+                        |> Tuple.mapFirst (\a -> { model | groupForm = a })
+            in
+            case outMsg of
+                GroupForm.Submitted submitted ->
+                    ( newModel
+                    , CreateGroupRequest
+                        (Untrusted.untrust submitted.name)
+                        (Untrusted.untrust submitted.description)
+                        submitted.visibility
+                        |> FrontendEffect.sendToBackend
                     )
 
-                _ ->
-                    ( { model | pressedSubmitEmail = True }, FrontendEffect.none )
+                GroupForm.Cancelled ->
+                    ( { newModel | showCreateGroup = False }, FrontendEffect.none )
+
+                GroupForm.NoChange ->
+                    ( newModel, FrontendEffect.none )
 
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, FrontendEffect )
@@ -169,7 +179,9 @@ updateLoadedFromBackend msg model =
         LoginWithTokenResponse result ->
             case result of
                 Ok ( userId, userData ) ->
-                    ( { model | loginStatus = LoggedIn userId userData }, FrontendEffect.none )
+                    ( { model | loginStatus = LoggedIn userId userData, showLogin = False }
+                    , FrontendEffect.none
+                    )
 
                 Err () ->
                     ( { model | hasLoginError = True }, FrontendEffect.none )
@@ -181,7 +193,26 @@ updateLoadedFromBackend msg model =
             ( { model | logs = Just logs }, FrontendEffect.none )
 
         CreateGroupResponse result ->
-            Debug.todo "CreateGroupResponse"
+            case model.loginStatus of
+                LoggedIn _ userData ->
+                    case result of
+                        Ok ( groupId, groupData ) ->
+                            ( { model
+                                | route = GroupRoute groupId
+                                , group = Just ( groupId, Types.groupToFrontend userData groupData |> Just )
+                                , showCreateGroup = False
+                                , groupForm = GroupForm.init
+                              }
+                            , FrontendEffect.none
+                            )
+
+                        Err error ->
+                            ( { model | groupForm = GroupForm.submitFailed error model.groupForm }
+                            , FrontendEffect.none
+                            )
+
+                NotLoggedIn ->
+                    ( model, FrontendEffect.none )
 
         LogoutResponse ->
             ( { model | loginStatus = NotLoggedIn }, FrontendEffect.none )
@@ -224,7 +255,10 @@ viewLoaded model =
         ]
         [ header (isLoggedIn model)
         , if model.showLogin then
-            loginView model
+            LoginForm.view model.loginForm
+
+          else if model.showCreateGroup then
+            GroupForm.view model.groupForm |> Element.map GroupFormMsg
 
           else
             case model.route of
@@ -274,68 +308,25 @@ header isLoggedIn_ =
     Element.row
         [ Element.width Element.fill
         , Element.Background.color <| Element.rgb 0.8 0.8 0.8
-        , Element.padding 8
         ]
         (if isLoggedIn_ then
-            [ Element.button
-                [ Element.alignRight ]
+            [ Ui.button
+                (Element.alignRight :: Ui.headerButtonAttributes)
+                { onPress = PressedCreateGroup
+                , label = Element.text "Create group"
+                }
+            , Ui.button
+                (Element.alignRight :: Ui.headerButtonAttributes)
                 { onPress = PressedLogout
                 , label = Element.text "Log out"
                 }
             ]
 
          else
-            [ Element.button
-                [ Element.alignRight ]
+            [ Ui.button
+                (Element.alignRight :: Ui.headerButtonAttributes)
                 { onPress = PressedLogin
                 , label = Element.text "Sign up/Login"
                 }
             ]
         )
-
-
-loginView : { a | email : String, pressedSubmitEmail : Bool } -> Element FrontendMsg
-loginView { email, pressedSubmitEmail } =
-    Element.el
-        [ Element.width Element.fill, Element.height Element.fill ]
-        (Element.column
-            [ Element.centerX, Element.centerY, Element.spacing 16 ]
-            [ Element.Input.text
-                []
-                { onChange = TypedEmail
-                , text = email
-                , placeholder = Nothing
-                , label = Element.Input.labelAbove [] (Element.text "Enter your email address")
-                }
-            , case ( pressedSubmitEmail, validateEmail email ) of
-                ( True, Err error ) ->
-                    Element.text error
-
-                _ ->
-                    Element.none
-            , Element.button buttonAttributes { onPress = PressedSubmitEmail, label = Element.text "Sign up/Login" }
-            ]
-        )
-
-
-buttonAttributes =
-    [ Element.Background.color <| Element.rgb 0.9 0.9 0.9
-    , Element.Border.width 2
-    , Element.Border.color <| Element.rgb 0.3 0.3 0.3
-    , Element.padding 8
-    , Element.Border.rounded 4
-    ]
-
-
-validateEmail : String -> Result String EmailAddress
-validateEmail text =
-    case EmailAddress.fromString text of
-        Just email ->
-            Ok email
-
-        Nothing ->
-            if String.isEmpty text then
-                Err "Enter your email first"
-
-            else
-                Err "Invalid email address"

@@ -12,6 +12,8 @@ import Avataaars.Top exposing (TopFacialHair(..))
 import BackendEffect exposing (BackendEffect)
 import BackendSub exposing (BackendSub)
 import Duration
+import GroupDescription exposing (GroupDescription)
+import GroupForm exposing (CreateGroupError(..), GroupVisibility)
 import GroupName exposing (GroupName)
 import Id exposing (ClientId, CryptoHash, GroupId, LoginToken, SessionId, UserId)
 import Lamdera
@@ -74,10 +76,6 @@ update msg model =
             ( { model | time = time }, BackendEffect.none )
 
         Connected sessionId clientId ->
-            let
-                _ =
-                    Debug.log "connected" clientId
-            in
             ( { model
                 | connections =
                     Dict.update sessionId
@@ -123,7 +121,11 @@ updateFromRequest sessionId clientId msg model =
         GetGroupRequest groupId ->
             ( model
             , getGroup groupId model
-                |> Maybe.andThen (groupToFrontend model)
+                |> Maybe.andThen
+                    (\group ->
+                        getUser group.ownerId model
+                            |> Maybe.map (\user -> groupToFrontend user group)
+                    )
                 |> GetGroupResponse groupId
                 |> BackendEffect.sendToFrontend clientId
             )
@@ -174,16 +176,20 @@ updateFromRequest sessionId clientId msg model =
                     BackendEffect.none
             )
 
-        CreateGroupRequest groupVisibility untrustedGroupName ->
+        CreateGroupRequest untrustedName untrustedDescription visibility ->
             userAuthorization
                 sessionId
                 model
                 (\( userId, _ ) ->
-                    case Untrusted.validateGroupName untrustedGroupName of
-                        Ok groupName ->
-                            addGroup userId groupVisibility groupName model
+                    case
+                        ( Untrusted.validateGroupName untrustedName
+                        , Untrusted.validateGroupDescription untrustedDescription
+                        )
+                    of
+                        ( Ok groupName, Ok description ) ->
+                            addGroup clientId userId groupName description visibility model
 
-                        Err _ ->
+                        _ ->
                             ( addLog (UntrustedCheckFailed model.time msg) model
                             , BackendEffect.none
                             )
@@ -260,25 +266,27 @@ getAndRemoveLoginToken updateFunc loginToken model =
         { model | pendingLoginTokens = Dict.remove loginToken model.pendingLoginTokens }
 
 
-addGroup : CryptoHash UserId -> GroupVisibility -> GroupName -> BackendModel -> ( BackendModel, BackendEffect )
-addGroup userId groupVisibility groupName model =
-    let
-        ( model2, groupId ) =
-            Id.getCryptoHash model
-    in
-    ( { model2
-        | groups =
-            Dict.insert
-                groupId
+addGroup : ClientId -> CryptoHash UserId -> GroupName -> GroupDescription -> GroupVisibility -> BackendModel -> ( BackendModel, BackendEffect )
+addGroup clientId userId name description visibility model =
+    if Dict.values model.groups |> List.any (.name >> GroupName.namesMatch name) then
+        ( model, Err GroupNameAlreadyInUse |> CreateGroupResponse |> BackendEffect.sendToFrontend clientId )
+
+    else
+        let
+            ( model2, groupId ) =
+                Id.getCryptoHash model
+
+            newGroup =
                 { ownerId = userId
-                , name = groupName
+                , name = name
+                , description = description
                 , events = []
-                , visibility = groupVisibility
+                , visibility = visibility
                 }
-                model.groups
-      }
-    , BackendEffect.none
-    )
+        in
+        ( { model2 | groups = Dict.insert groupId newGroup model.groups }
+        , Ok ( groupId, newGroup ) |> CreateGroupResponse |> BackendEffect.sendToFrontend clientId
+        )
 
 
 userAuthorization :
@@ -336,26 +344,3 @@ getGroup groupId model =
 getUser : CryptoHash UserId -> BackendModel -> Maybe BackendUser
 getUser userId model =
     Dict.get userId model.users
-
-
-groupToFrontend : BackendModel -> BackendGroup -> Maybe FrontendGroup
-groupToFrontend model backendGroup =
-    case getUser backendGroup.ownerId model of
-        Just owner ->
-            { ownerId = backendGroup.ownerId
-            , owner = userToFrontend owner
-            , name = backendGroup.name
-            , events = backendGroup.events
-            , visibility = backendGroup.visibility
-            }
-                |> Just
-
-        Nothing ->
-            Nothing
-
-
-userToFrontend : BackendUser -> FrontendUser
-userToFrontend backendUser =
-    { name = backendUser.name
-    , profileImage = backendUser.profileImage
-    }

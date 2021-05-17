@@ -1,4 +1,4 @@
-module GroupName exposing (Error(..), GroupName, fromString, toString)
+module GroupName exposing (Error(..), GroupName, fromString, maxLength, minLength, namesMatch, toString)
 
 
 type GroupName
@@ -10,18 +10,37 @@ type Error
     | GroupNameTooLong
 
 
+minLength : number
+minLength =
+    4
+
+
+maxLength : number
+maxLength =
+    50
+
+
 fromString : String -> Result Error GroupName
 fromString text =
-    if String.length text < 4 then
+    let
+        trimmed =
+            String.trim text
+    in
+    if String.length trimmed < minLength then
         Err GroupNameTooShort
 
-    else if String.length text > 50 then
+    else if String.length trimmed > maxLength then
         Err GroupNameTooLong
 
     else
-        Ok (GroupName text)
+        Ok (GroupName trimmed)
 
 
 toString : GroupName -> String
 toString (GroupName groupName) =
     groupName
+
+
+namesMatch : GroupName -> GroupName -> Bool
+namesMatch (GroupName name0) (GroupName name1) =
+    String.toLower name0 == String.toLower name1
