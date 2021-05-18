@@ -258,7 +258,12 @@ viewLoaded model =
             LoginForm.view model.loginForm
 
           else if model.showCreateGroup then
-            GroupForm.view model.groupForm |> Element.map GroupFormMsg
+            GroupForm.view model.groupForm
+                |> Element.el
+                    [ Element.width <| Element.maximum 800 Element.fill
+                    , Element.centerX
+                    ]
+                |> Element.map GroupFormMsg
 
           else
             case model.route of
@@ -271,7 +276,9 @@ viewLoaded model =
                             if groupId == loadedGroupId then
                                 Element.column
                                     [ Element.spacing 16 ]
-                                    [ Element.el [ Element.Font.size 32 ] (Element.text (GroupName.toString group.name))
+                                    [ Element.el
+                                        [ Element.Font.size 32 ]
+                                        (Element.text (GroupName.toString group.name))
                                     , Element.nonemptyText group.owner.name
                                     ]
 
@@ -309,24 +316,24 @@ header isLoggedIn_ =
         [ Element.width Element.fill
         , Element.Background.color <| Element.rgb 0.8 0.8 0.8
         ]
-        (if isLoggedIn_ then
-            [ Ui.button
-                (Element.alignRight :: Ui.headerButtonAttributes)
-                { onPress = PressedCreateGroup
-                , label = Element.text "Create group"
-                }
-            , Ui.button
-                (Element.alignRight :: Ui.headerButtonAttributes)
-                { onPress = PressedLogout
-                , label = Element.text "Log out"
-                }
-            ]
+        [ Element.row
+            [ Element.alignRight ]
+            (if isLoggedIn_ then
+                [ Ui.headerButton
+                    { onPress = PressedCreateGroup
+                    , label = Element.text "Create group"
+                    }
+                , Ui.headerButton
+                    { onPress = PressedLogout
+                    , label = Element.text "Log out"
+                    }
+                ]
 
-         else
-            [ Ui.button
-                (Element.alignRight :: Ui.headerButtonAttributes)
-                { onPress = PressedLogin
-                , label = Element.text "Sign up/Login"
-                }
-            ]
-        )
+             else
+                [ Ui.headerButton
+                    { onPress = PressedLogin
+                    , label = Element.text "Sign up/Login"
+                    }
+                ]
+            )
+        ]

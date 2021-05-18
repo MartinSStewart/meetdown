@@ -29,7 +29,7 @@ view { email, pressedSubmitEmail } =
 
                 _ ->
                     Element.none
-            , Ui.button Ui.buttonAttributes { onPress = PressedSubmitEmail, label = Element.text "Sign up/Login" }
+            , Ui.button { onPress = PressedSubmitEmail, label = "Sign up/Login" }
             ]
         )
 

@@ -1,6 +1,8 @@
 module GroupForm exposing (CreateGroupError(..), GroupFormValidated, GroupVisibility(..), Model, Msg, OutMsg(..), init, submitFailed, update, view)
 
 import Element exposing (Element)
+import Element.Background
+import Element.Border
 import Element.Input
 import GroupDescription exposing (GroupDescription)
 import GroupName exposing (GroupName)
@@ -114,24 +116,24 @@ view : Model -> Element Msg
 view model =
     case model of
         Editting form ->
-            formView form
+            formView Nothing False form
 
         Submitting validated ->
             Element.column
                 [ Element.width Element.fill ]
-                [ formView (validatedToForm validated)
-                , Element.text "Submitting..."
+                [ formView Nothing True (validatedToForm validated)
                 ]
 
         SubmitFailed error form ->
             Element.column
                 [ Element.width Element.fill ]
-                [ formView form
-                , Element.text
+                [ formView
                     (case error of
                         GroupNameAlreadyInUse ->
-                            "Sorry, that group name is already being used."
+                            Just "Sorry, that group name is already being used."
                     )
+                    False
+                    form
                 ]
 
 
@@ -152,68 +154,53 @@ submitFailed error model =
             SubmitFailed createGroupError form
 
 
-formView : Form -> Element Msg
-formView form =
+formView : Maybe String -> Bool -> Form -> Element Msg
+formView maybeSubmitError isSubmitting form =
     Element.column
-        [ Element.width Element.fill, Element.spacing 16 ]
+        [ Element.width Element.fill
+        , Element.spacing 8
+        , Element.padding 8
+        ]
         [ Ui.header "Create a new group"
-        , case ( form.pressedSubmit, GroupName.fromString form.name ) of
-            ( True, Err error ) ->
-                case error of
-                    GroupName.GroupNameTooShort ->
-                        "Name must be at least "
-                            ++ String.fromInt GroupName.minLength
-                            ++ " characters long."
-                            |> Ui.error
+        , Ui.textInput (\a -> FormChanged { form | name = a })
+            form.name
+            "What's the name of your group?"
+            (case ( form.pressedSubmit, GroupName.fromString form.name ) of
+                ( True, Err error ) ->
+                    case error of
+                        GroupName.GroupNameTooShort ->
+                            "Name must be at least "
+                                ++ String.fromInt GroupName.minLength
+                                ++ " characters long."
+                                |> Just
 
-                    GroupName.GroupNameTooLong ->
-                        "Name is too long. Keep it under "
-                            ++ String.fromInt (GroupName.maxLength + 1)
-                            ++ " characters."
-                            |> Ui.error
+                        GroupName.GroupNameTooLong ->
+                            "Name is too long. Keep it under "
+                                ++ String.fromInt (GroupName.maxLength + 1)
+                                ++ " characters."
+                                |> Just
 
-            _ ->
-                Element.none
-        , Element.Input.text
-            [ Element.width Element.fill ]
-            { text = form.name
-            , onChange = \a -> FormChanged { form | name = a }
-            , placeholder = Nothing
-            , label =
-                Element.Input.labelAbove
-                    []
-                    (Element.paragraph [] [ Element.text "What's the name of your group?" ])
-            }
-        , case ( form.pressedSubmit, GroupDescription.fromString form.description ) of
-            ( True, Err error ) ->
-                case error of
-                    GroupDescription.GroupDescriptionTooLong ->
-                        "Description is "
-                            ++ String.fromInt (String.length form.description)
-                            ++ " characters long. Keep it under "
-                            ++ String.fromInt GroupDescription.maxLength
-                            ++ "."
-                            |> Ui.error
+                _ ->
+                    Nothing
+            )
+        , Ui.multiline
+            (\a -> FormChanged { form | description = a })
+            form.description
+            "Describe what your group is about (you can fill out this later)"
+            (case ( form.pressedSubmit, GroupDescription.fromString form.description ) of
+                ( True, Err error ) ->
+                    case error of
+                        GroupDescription.GroupDescriptionTooLong ->
+                            "Description is "
+                                ++ String.fromInt (String.length form.description)
+                                ++ " characters long. Keep it under "
+                                ++ String.fromInt GroupDescription.maxLength
+                                ++ "."
+                                |> Just
 
-            _ ->
-                Element.none
-        , Element.Input.multiline
-            [ Element.width Element.fill, Element.height (Element.px 200) ]
-            { text = form.description
-            , onChange = \a -> FormChanged { form | description = a }
-            , placeholder = Nothing
-            , label =
-                Element.Input.labelAbove
-                    []
-                    (Element.paragraph [] [ Element.text "Describe what your group is about! (you can fill out this later)" ])
-            , spellcheck = True
-            }
-        , case ( form.pressedSubmit, form.visibility ) of
-            ( True, Nothing ) ->
-                Ui.error "Pick a visibility setting"
-
-            _ ->
-                Element.none
+                _ ->
+                    Nothing
+            )
         , Ui.radioGroup
             (\a -> FormChanged { form | visibility = Just a })
             (Nonempty PublicGroup [ PrivateGroup ])
@@ -226,9 +213,25 @@ formView form =
                     PublicGroup ->
                         "I want this group to be publicly visible"
             )
-        , Element.row
-            [ Element.spacing 16, Element.width Element.fill ]
-            [ Ui.button Ui.buttonAttributes { onPress = PressedSubmit, label = Element.text "Submit" }
-            , Ui.button Ui.buttonAttributes { onPress = PressedCancel, label = Element.text "Cancel" }
+            (case ( form.pressedSubmit, form.visibility ) of
+                ( True, Nothing ) ->
+                    Just "Pick a visibility setting"
+
+                _ ->
+                    Nothing
+            )
+        , Element.column
+            [ Element.spacing 8, Element.paddingXY 0 16 ]
+            [ case maybeSubmitError of
+                Just error ->
+                    Ui.formError error
+
+                Nothing ->
+                    Element.none
+            , Element.row
+                [ Element.spacing 16, Element.width Element.fill ]
+                [ Ui.submitButton isSubmitting { onPress = PressedSubmit, label = "Submit" }
+                , Ui.button { onPress = PressedCancel, label = "Cancel" }
+                ]
             ]
         ]
