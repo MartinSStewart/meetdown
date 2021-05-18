@@ -34,7 +34,7 @@ app =
 
 init : Url -> NavigationKey -> ( FrontendModel, FrontendEffect )
 init url key =
-    ( Url.Parser.parse Route.decode url |> Maybe.withDefault ( Homepage, Nothing ) |> Loading key
+    ( Url.Parser.parse Route.decode url |> Maybe.withDefault ( HomepageRoute, Nothing ) |> Loading key
     , FrontendEffect.getTime GotTime
     )
 
@@ -71,10 +71,9 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
       , hasLoginError = False
       , groupForm = GroupForm.init
       , groupCreated = False
-      , showCreateGroup = False
       }
     , case route of
-        Homepage ->
+        HomepageRoute ->
             FrontendEffect.sendToBackend login
 
         GroupRoute groupId ->
@@ -84,6 +83,12 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
 
         AdminRoute ->
             FrontendEffect.manyToBackend login [ GetAdminDataRequest ]
+
+        CreateGroupRoute ->
+            FrontendEffect.none
+
+        MyGroupsRoute ->
+            FrontendEffect.none
     )
 
 
@@ -127,6 +132,9 @@ updateLoaded msg model =
         PressedLogout ->
             ( { model | loginStatus = NotLoggedIn }, FrontendEffect.sendToBackend LogoutRequest )
 
+        PressedMyGroups ->
+            ( { model | route = MyGroupsRoute }, FrontendEffect.none )
+
         TypedEmail text ->
             ( { model | loginForm = LoginForm.typedEmail text model.loginForm }, FrontendEffect.none )
 
@@ -135,7 +143,7 @@ updateLoaded msg model =
                 |> Tuple.mapFirst (\a -> { model | loginForm = a })
 
         PressedCreateGroup ->
-            ( { model | showCreateGroup = True }, FrontendEffect.none )
+            ( { model | route = CreateGroupRoute }, FrontendEffect.none )
 
         GroupFormMsg groupFormMsg ->
             let
@@ -152,9 +160,6 @@ updateLoaded msg model =
                         submitted.visibility
                         |> FrontendEffect.sendToBackend
                     )
-
-                GroupForm.Cancelled ->
-                    ( { newModel | showCreateGroup = False }, FrontendEffect.none )
 
                 GroupForm.NoChange ->
                     ( newModel, FrontendEffect.none )
@@ -200,7 +205,6 @@ updateLoadedFromBackend msg model =
                             ( { model
                                 | route = GroupRoute groupId
                                 , group = Just ( groupId, Types.groupToFrontend userData groupData |> Just )
-                                , showCreateGroup = False
                                 , groupForm = GroupForm.init
                               }
                             , FrontendEffect.none
@@ -253,21 +257,13 @@ viewLoaded model =
                 Element.none
             )
         ]
-        [ header (isLoggedIn model)
+        [ header (isLoggedIn model) (model.route == CreateGroupRoute)
         , if model.showLogin then
             LoginForm.view model.loginForm
 
-          else if model.showCreateGroup then
-            GroupForm.view model.groupForm
-                |> Element.el
-                    [ Element.width <| Element.maximum 800 Element.fill
-                    , Element.centerX
-                    ]
-                |> Element.map GroupFormMsg
-
           else
             case model.route of
-                Homepage ->
+                HomepageRoute ->
                     Element.text "Homepage"
 
                 GroupRoute groupId ->
@@ -297,6 +293,17 @@ viewLoaded model =
 
                 AdminRoute ->
                     Element.text "Admin panel"
+
+                CreateGroupRoute ->
+                    GroupForm.view model.groupForm
+                        |> Element.el
+                            [ Element.width <| Element.maximum 800 Element.fill
+                            , Element.centerX
+                            ]
+                        |> Element.map GroupFormMsg
+
+                MyGroupsRoute ->
+                    Element.text "My groups "
         ]
 
 
@@ -310,8 +317,8 @@ isLoggedIn model =
             False
 
 
-header : Bool -> Element FrontendMsg
-header isLoggedIn_ =
+header : Bool -> Bool -> Element FrontendMsg
+header isLoggedIn_ isCreatingGroup =
     Element.row
         [ Element.width Element.fill
         , Element.Background.color <| Element.rgb 0.8 0.8 0.8
@@ -319,20 +326,28 @@ header isLoggedIn_ =
         [ Element.row
             [ Element.alignRight ]
             (if isLoggedIn_ then
-                [ Ui.headerButton
-                    { onPress = PressedCreateGroup
-                    , label = Element.text "Create group"
+                [ if isCreatingGroup then
+                    Element.none
+
+                  else
+                    Ui.headerButton
+                        { onPress = PressedCreateGroup
+                        , label = "Create group"
+                        }
+                , Ui.headerButton
+                    { onPress = PressedMyGroups
+                    , label = "My groups"
                     }
                 , Ui.headerButton
                     { onPress = PressedLogout
-                    , label = Element.text "Log out"
+                    , label = "Log out"
                     }
                 ]
 
              else
                 [ Ui.headerButton
                     { onPress = PressedLogin
-                    , label = Element.text "Sign up/Login"
+                    , label = "Sign up/Login"
                     }
                 ]
             )

@@ -15,7 +15,7 @@ headerButtonAttributes =
     ]
 
 
-headerButton : { onPress : msg, label : Element msg } -> Element msg
+headerButton : { onPress : msg, label : String } -> Element msg
 headerButton { onPress, label } =
     Element.Input.button
         [ Element.mouseOver [ Element.Background.color <| Element.rgba 1 1 1 0.5 ]
@@ -23,7 +23,7 @@ headerButton { onPress, label } =
         , Element.Font.center
         ]
         { onPress = Just onPress
-        , label = label
+        , label = Element.text label
         }
 
 

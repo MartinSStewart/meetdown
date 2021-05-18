@@ -9,17 +9,21 @@ import Url.Parser.Query
 
 
 type Route
-    = Homepage
+    = HomepageRoute
     | GroupRoute (CryptoHash GroupId)
     | AdminRoute
+    | CreateGroupRoute
+    | MyGroupsRoute
 
 
 decode : Url.Parser.Parser (( Route, Maybe (CryptoHash LoginToken) ) -> c) c
 decode =
     Url.Parser.oneOf
-        [ Url.Parser.top |> Url.Parser.map Homepage
+        [ Url.Parser.top |> Url.Parser.map HomepageRoute
         , Url.Parser.s "group" </> Url.Parser.string |> Url.Parser.map (Id.cryptoHashFromString >> GroupRoute)
         , Url.Parser.s "admin" |> Url.Parser.map AdminRoute
+        , Url.Parser.s "create-group" |> Url.Parser.map CreateGroupRoute
+        , Url.Parser.s "my-groups" |> Url.Parser.map MyGroupsRoute
         ]
         <?> decodeLoginToken
         |> Url.Parser.map Tuple.pair
@@ -39,7 +43,7 @@ encode route maybeLoginToken =
     Url.Builder.crossOrigin
         Env.domain
         (case route of
-            Homepage ->
+            HomepageRoute ->
                 []
 
             GroupRoute groupId ->
@@ -47,6 +51,12 @@ encode route maybeLoginToken =
 
             AdminRoute ->
                 [ "admin" ]
+
+            CreateGroupRoute ->
+                [ "create-group" ]
+
+            MyGroupsRoute ->
+                [ "my-groups" ]
         )
         (case maybeLoginToken of
             Just loginToken ->

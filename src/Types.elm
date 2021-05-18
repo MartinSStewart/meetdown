@@ -43,7 +43,6 @@ type alias LoadedFrontend =
     , hasLoginError : Bool
     , groupForm : Model
     , groupCreated : Bool
-    , showCreateGroup : Bool
     }
 
 
@@ -221,6 +220,7 @@ type FrontendMsg
     | TypedEmail String
     | PressedSubmitEmail
     | PressedCreateGroup
+    | PressedMyGroups
     | GroupFormMsg GroupForm.Msg
 
 

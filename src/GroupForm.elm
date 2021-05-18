@@ -1,9 +1,17 @@
-module GroupForm exposing (CreateGroupError(..), GroupFormValidated, GroupVisibility(..), Model, Msg, OutMsg(..), init, submitFailed, update, view)
+module GroupForm exposing
+    ( CreateGroupError(..)
+    , GroupFormValidated
+    , GroupVisibility(..)
+    , Model
+    , Msg
+    , OutMsg(..)
+    , init
+    , submitFailed
+    , update
+    , view
+    )
 
 import Element exposing (Element)
-import Element.Background
-import Element.Border
-import Element.Input
 import GroupDescription exposing (GroupDescription)
 import GroupName exposing (GroupName)
 import List.Nonempty exposing (Nonempty(..))
@@ -40,7 +48,7 @@ validatedToForm validated =
 type Msg
     = FormChanged Form
     | PressedSubmit
-    | PressedCancel
+    | PressedClear
 
 
 type alias Form =
@@ -53,12 +61,16 @@ type alias Form =
 
 init : Model
 init =
-    Editting
-        { pressedSubmit = False
-        , name = ""
-        , description = ""
-        , visibility = Nothing
-        }
+    Editting initForm
+
+
+initForm : Form
+initForm =
+    { pressedSubmit = False
+    , name = ""
+    , description = ""
+    , visibility = Nothing
+    }
 
 
 validate : Form -> Maybe GroupFormValidated
@@ -77,7 +89,6 @@ validate form =
 
 type OutMsg
     = Submitted GroupFormValidated
-    | Cancelled
     | NoChange
 
 
@@ -108,8 +119,8 @@ updateForm wrapper msg form =
                 Nothing ->
                     ( wrapper { form | pressedSubmit = True }, NoChange )
 
-        PressedCancel ->
-            ( wrapper form, Cancelled )
+        PressedClear ->
+            ( wrapper initForm, NoChange )
 
 
 view : Model -> Element Msg
@@ -231,7 +242,7 @@ formView maybeSubmitError isSubmitting form =
             , Element.row
                 [ Element.spacing 16, Element.width Element.fill ]
                 [ Ui.submitButton isSubmitting { onPress = PressedSubmit, label = "Submit" }
-                , Ui.button { onPress = PressedCancel, label = "Cancel" }
+                , Ui.button { onPress = PressedClear, label = "Clear" }
                 ]
             ]
         ]
