@@ -62,7 +62,7 @@ toCmd backendEffect =
             let
                 loginLink : String
                 loginLink =
-                    Route.encode route (Just loginToken)
+                    Env.domain ++ Route.encode route (Just loginToken)
 
                 _ =
                     Debug.log "login" loginLink

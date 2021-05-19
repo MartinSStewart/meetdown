@@ -2,6 +2,7 @@ module Backend exposing (app, init, update, updateFromFrontend)
 
 import Array
 import AssocList as Dict exposing (Dict)
+import AssocSet as Set
 import Avataaars.Clothes
 import Avataaars.Eyebrow
 import Avataaars.Eyes
@@ -11,14 +12,16 @@ import Avataaars.SkinTone
 import Avataaars.Top exposing (TopFacialHair(..))
 import BackendEffect exposing (BackendEffect)
 import BackendSub exposing (BackendSub)
+import BiDict.Assoc as BiDict
+import Description exposing (Description)
 import Duration
-import GroupDescription exposing (GroupDescription)
 import GroupForm exposing (CreateGroupError(..), GroupVisibility)
 import GroupName exposing (GroupName)
 import Id exposing (ClientId, CryptoHash, GroupId, LoginToken, SessionId, UserId)
 import Lamdera
 import List.Extra as List
 import List.Nonempty
+import Name
 import Quantity
 import String.Nonempty exposing (NonemptyString(..))
 import Time
@@ -46,7 +49,7 @@ init : ( BackendModel, Cmd BackendMsg )
 init =
     ( { users = Dict.empty
       , groups = Dict.empty
-      , sessions = Dict.empty
+      , sessions = BiDict.empty
       , connections = Dict.empty
       , logs = Array.empty
       , time = Time.millisToPosix 0
@@ -134,8 +137,8 @@ updateFromRequest sessionId clientId msg model =
             ( model, checkLogin sessionId model |> CheckLoginResponse |> BackendEffect.sendToFrontend clientId )
 
         GetLoginTokenRequest route untrustedEmail ->
-            case Untrusted.validateEmail untrustedEmail of
-                Ok email ->
+            case Untrusted.validateEmailAddress untrustedEmail of
+                Just email ->
                     let
                         ( model2, loginToken ) =
                             Id.getCryptoHash model
@@ -150,7 +153,7 @@ updateFromRequest sessionId clientId msg model =
                     , BackendEffect.sendLoginEmail (SentLoginEmail email) email route loginToken
                     )
 
-                Err _ ->
+                Nothing ->
                     ( addLog (UntrustedCheckFailed model.time msg) model
                     , BackendEffect.none
                     )
@@ -167,7 +170,7 @@ updateFromRequest sessionId clientId msg model =
             getAndRemoveLoginToken (loginWithToken sessionId clientId) loginToken model
 
         LogoutRequest ->
-            ( { model | sessions = Dict.remove sessionId model.sessions }
+            ( { model | sessions = BiDict.remove sessionId model.sessions }
             , case Dict.get sessionId model.connections of
                 Just clientIds ->
                     BackendEffect.sendToFrontends clientIds LogoutResponse
@@ -183,10 +186,10 @@ updateFromRequest sessionId clientId msg model =
                 (\( userId, _ ) ->
                     case
                         ( Untrusted.validateGroupName untrustedName
-                        , Untrusted.validateGroupDescription untrustedDescription
+                        , Untrusted.validateDescription untrustedDescription
                         )
                     of
-                        ( Ok groupName, Ok description ) ->
+                        ( Just groupName, Just description ) ->
                             addGroup clientId userId groupName description visibility model
 
                         _ ->
@@ -194,6 +197,99 @@ updateFromRequest sessionId clientId msg model =
                             , BackendEffect.none
                             )
                 )
+
+        ChangeNameRequest untrustedName ->
+            case Untrusted.validateName untrustedName of
+                Just name ->
+                    userAuthorization
+                        sessionId
+                        model
+                        (\( userId, user ) ->
+                            ( { model | users = Dict.insert userId { user | name = name } model.users }
+                            , case getClientIdsForUser userId model |> List.Nonempty.fromList of
+                                Just nonempty ->
+                                    BackendEffect.sendToFrontends
+                                        nonempty
+                                        (ChangeNameResponse name)
+
+                                Nothing ->
+                                    BackendEffect.none
+                            )
+                        )
+
+                Nothing ->
+                    ( addLog (UntrustedCheckFailed model.time msg) model
+                    , BackendEffect.none
+                    )
+
+        ChangeDescriptionRequest untrustedDescription ->
+            case Untrusted.validateDescription untrustedDescription of
+                Just description ->
+                    userAuthorization
+                        sessionId
+                        model
+                        (\( userId, user ) ->
+                            ( { model | users = Dict.insert userId { user | description = description } model.users }
+                            , case getClientIdsForUser userId model |> List.Nonempty.fromList of
+                                Just nonempty ->
+                                    BackendEffect.sendToFrontends
+                                        nonempty
+                                        (ChangeDescriptionResponse description)
+
+                                Nothing ->
+                                    BackendEffect.none
+                            )
+                        )
+
+                Nothing ->
+                    ( addLog (UntrustedCheckFailed model.time msg) model
+                    , BackendEffect.none
+                    )
+
+        ChangeEmailAddressRequest untrustedEmailAddress ->
+            case Untrusted.validateEmailAddress untrustedEmailAddress of
+                Just emailAddress ->
+                    userAuthorization
+                        sessionId
+                        model
+                        (\( userId, user ) ->
+                            ( { model
+                                | users =
+                                    Dict.insert
+                                        userId
+                                        { user | emailAddress = emailAddress }
+                                        model.users
+                              }
+                            , case getClientIdsForUser userId model |> List.Nonempty.fromList of
+                                Just nonempty ->
+                                    BackendEffect.sendToFrontends
+                                        nonempty
+                                        (ChangeEmailAddressResponse emailAddress)
+
+                                Nothing ->
+                                    BackendEffect.none
+                            )
+                        )
+
+                Nothing ->
+                    ( addLog (UntrustedCheckFailed model.time msg) model
+                    , BackendEffect.none
+                    )
+
+
+getClientIdsForUser : CryptoHash UserId -> BackendModel -> List ClientId
+getClientIdsForUser userId model =
+    BiDict.getReverse userId model.sessions
+        |> Set.toList
+        |> List.concatMap
+            (\sessionId_ ->
+                case Dict.get sessionId_ model.connections of
+                    Just nonempty ->
+                        List.Nonempty.toList nonempty
+
+                    Nothing ->
+                        []
+            )
 
 
 loginWithToken : SessionId -> ClientId -> Maybe LoginTokenData -> BackendModel -> ( BackendModel, BackendEffect )
@@ -210,7 +306,7 @@ loginWithToken sessionId clientId maybeLoginTokenData model =
 
         addSession : CryptoHash UserId -> BackendModel -> BackendModel
         addSession userId model_ =
-            { model_ | sessions = Dict.insert sessionId userId model_.sessions }
+            { model_ | sessions = BiDict.insert sessionId userId model_.sessions }
     in
     case maybeLoginTokenData of
         Just { creationTime, emailAddress } ->
@@ -228,7 +324,8 @@ loginWithToken sessionId clientId maybeLoginTokenData model =
 
                             newUser : BackendUser
                             newUser =
-                                { name = NonemptyString 'A' ""
+                                { name = Name.anonymous
+                                , description = Description.empty
                                 , emailAddress = emailAddress
                                 , profileImage =
                                     { circleBg = False
@@ -266,7 +363,7 @@ getAndRemoveLoginToken updateFunc loginToken model =
         { model | pendingLoginTokens = Dict.remove loginToken model.pendingLoginTokens }
 
 
-addGroup : ClientId -> CryptoHash UserId -> GroupName -> GroupDescription -> GroupVisibility -> BackendModel -> ( BackendModel, BackendEffect )
+addGroup : ClientId -> CryptoHash UserId -> GroupName -> Description -> GroupVisibility -> BackendModel -> ( BackendModel, BackendEffect )
 addGroup clientId userId name description visibility model =
     if Dict.values model.groups |> List.any (.name >> GroupName.namesMatch name) then
         ( model, Err GroupNameAlreadyInUse |> CreateGroupResponse |> BackendEffect.sendToFrontend clientId )
@@ -296,10 +393,10 @@ userAuthorization :
     -> ( BackendModel, BackendEffect )
 userAuthorization sessionId model updateFunc =
     case checkLogin sessionId model of
-        LoggedIn userId user ->
+        Just ( userId, user ) ->
             updateFunc ( userId, user )
 
-        NotLoggedIn ->
+        Nothing ->
             ( model, BackendEffect.none )
 
 
@@ -310,30 +407,30 @@ adminAuthorization :
     -> ( BackendModel, BackendEffect )
 adminAuthorization sessionId model updateFunc =
     case checkLogin sessionId model of
-        LoggedIn userId user ->
+        Just ( userId, user ) ->
             if Id.adminUserId == userId then
                 updateFunc ( userId, user )
 
             else
                 ( model, BackendEffect.none )
 
-        NotLoggedIn ->
+        Nothing ->
             ( model, BackendEffect.none )
 
 
-checkLogin : SessionId -> BackendModel -> LoginStatus
+checkLogin : SessionId -> BackendModel -> Maybe ( CryptoHash UserId, BackendUser )
 checkLogin sessionId model =
-    case Dict.get sessionId model.sessions of
+    case BiDict.get sessionId model.sessions of
         Just userId ->
             case Dict.get userId model.users of
                 Just user ->
-                    LoggedIn userId user
+                    Just ( userId, user )
 
                 Nothing ->
-                    NotLoggedIn
+                    Nothing
 
         Nothing ->
-            NotLoggedIn
+            Nothing
 
 
 getGroup : CryptoHash GroupId -> BackendModel -> Maybe BackendGroup

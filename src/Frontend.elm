@@ -4,13 +4,15 @@ import Browser exposing (UrlRequest(..))
 import Element exposing (Element)
 import Element.Background
 import Element.Font
-import ElementExtra as Element
+import Element.Region
 import FrontendEffect exposing (FrontendEffect)
 import GroupForm
 import GroupName
 import Id exposing (CryptoHash, LoginToken)
 import Lamdera
 import LoginForm
+import Name
+import ProfileForm
 import Route exposing (Route(..))
 import Time
 import Types exposing (..)
@@ -56,12 +58,11 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
                     CheckLoginRequest
     in
     ( { navigationKey = navigationKey
-      , loginStatus = NotLoggedIn
+      , loginStatus = LoginStatusPending
       , route = route
       , group = Nothing
       , time = time
       , lastConnectionCheck = time
-      , showLogin = False
       , loginForm =
             { email = ""
             , pressedSubmitEmail = False
@@ -72,23 +73,29 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
       , groupForm = GroupForm.init
       , groupCreated = False
       }
-    , case route of
-        HomepageRoute ->
-            FrontendEffect.sendToBackend login
+    , FrontendEffect.batch
+        [ FrontendEffect.manyToBackend login
+            (case route of
+                HomepageRoute ->
+                    []
 
-        GroupRoute groupId ->
-            FrontendEffect.manyToBackend
-                login
-                [ GetGroupRequest groupId ]
+                GroupRoute groupId ->
+                    [ GetGroupRequest groupId ]
 
-        AdminRoute ->
-            FrontendEffect.manyToBackend login [ GetAdminDataRequest ]
+                AdminRoute ->
+                    [ GetAdminDataRequest ]
 
-        CreateGroupRoute ->
-            FrontendEffect.none
+                CreateGroupRoute ->
+                    []
 
-        MyGroupsRoute ->
-            FrontendEffect.none
+                MyGroupsRoute ->
+                    []
+
+                MyProfileRoute ->
+                    []
+            )
+        , FrontendEffect.navigationReplaceUrl navigationKey (Route.encode route Nothing)
+        ]
     )
 
 
@@ -113,24 +120,48 @@ updateLoaded msg model =
         UrlClicked urlRequest ->
             case urlRequest of
                 Internal url ->
-                    ( model
-                    , FrontendEffect.navigationPushUrl model.navigationKey (Url.toString url)
+                    let
+                        route =
+                            Url.Parser.parse Route.decode url
+                                |> Maybe.map Tuple.first
+                                |> Maybe.withDefault HomepageRoute
+                    in
+                    ( { model | route = route }
+                    , FrontendEffect.navigationPushUrl model.navigationKey (Route.encode route Nothing)
                     )
 
                 External url ->
                     ( model, FrontendEffect.navigationLoad url )
 
-        UrlChanged _ ->
-            ( model, FrontendEffect.none )
+        UrlChanged url ->
+            let
+                route =
+                    Url.Parser.parse Route.decode url
+                        |> Maybe.map Tuple.first
+                        |> Maybe.withDefault HomepageRoute
+            in
+            ( { model | route = route }
+            , FrontendEffect.none
+            )
 
         GotTime time ->
             ( { model | time = time }, FrontendEffect.none )
 
         PressedLogin ->
-            ( { model | showLogin = True }, FrontendEffect.none )
+            case model.loginStatus of
+                LoginStatusPending ->
+                    ( model, FrontendEffect.none )
+
+                NotLoggedIn notLoggedIn ->
+                    ( { model | loginStatus = NotLoggedIn { notLoggedIn | showLogin = True } }, FrontendEffect.none )
+
+                LoggedIn _ ->
+                    ( model, FrontendEffect.none )
 
         PressedLogout ->
-            ( { model | loginStatus = NotLoggedIn }, FrontendEffect.sendToBackend LogoutRequest )
+            ( { model | loginStatus = NotLoggedIn { showLogin = False } }
+            , FrontendEffect.sendToBackend LogoutRequest
+            )
 
         PressedMyGroups ->
             ( { model | route = MyGroupsRoute }, FrontendEffect.none )
@@ -164,6 +195,35 @@ updateLoaded msg model =
                 GroupForm.NoChange ->
                     ( newModel, FrontendEffect.none )
 
+        PressedMyProfile ->
+            ( { model | route = MyProfileRoute }, FrontendEffect.none )
+
+        ProfileFormMsg profileFormMsg ->
+            case model.loginStatus of
+                LoggedIn loggedIn ->
+                    let
+                        ( newModel, effects ) =
+                            ProfileForm.update
+                                { wait = \duration waitMsg -> FrontendEffect.wait duration (ProfileFormMsg waitMsg)
+                                , none = FrontendEffect.none
+                                , changeName = ChangeNameRequest >> FrontendEffect.sendToBackend
+                                , changeDescription = ChangeDescriptionRequest >> FrontendEffect.sendToBackend
+                                , changeEmailAddress = ChangeEmailAddressRequest >> FrontendEffect.sendToBackend
+                                , batch = FrontendEffect.batch
+                                }
+                                profileFormMsg
+                                loggedIn.profileForm
+                    in
+                    ( { model | loginStatus = LoggedIn { loggedIn | profileForm = newModel } }
+                    , effects
+                    )
+
+                NotLoggedIn _ ->
+                    ( model, FrontendEffect.none )
+
+                LoginStatusPending ->
+                    ( model, FrontendEffect.none )
+
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, FrontendEffect )
 updateFromBackend msg model =
@@ -183,8 +243,15 @@ updateLoadedFromBackend msg model =
 
         LoginWithTokenResponse result ->
             case result of
-                Ok ( userId, userData ) ->
-                    ( { model | loginStatus = LoggedIn userId userData, showLogin = False }
+                Ok ( userId, user ) ->
+                    ( { model
+                        | loginStatus =
+                            LoggedIn
+                                { userId = userId
+                                , user = user
+                                , profileForm = ProfileForm.init
+                                }
+                      }
                     , FrontendEffect.none
                     )
 
@@ -192,19 +259,33 @@ updateLoadedFromBackend msg model =
                     ( { model | hasLoginError = True }, FrontendEffect.none )
 
         CheckLoginResponse loginStatus ->
-            ( { model | loginStatus = loginStatus }, FrontendEffect.none )
+            ( { model
+                | loginStatus =
+                    case loginStatus of
+                        Just ( userId, user ) ->
+                            LoggedIn
+                                { userId = userId
+                                , user = user
+                                , profileForm = ProfileForm.init
+                                }
+
+                        Nothing ->
+                            NotLoggedIn { showLogin = False }
+              }
+            , FrontendEffect.none
+            )
 
         GetAdminDataResponse logs ->
             ( { model | logs = Just logs }, FrontendEffect.none )
 
         CreateGroupResponse result ->
             case model.loginStatus of
-                LoggedIn _ userData ->
+                LoggedIn loggedIn ->
                     case result of
                         Ok ( groupId, groupData ) ->
                             ( { model
                                 | route = GroupRoute groupId
-                                , group = Just ( groupId, Types.groupToFrontend userData groupData |> Just )
+                                , group = Just ( groupId, Types.groupToFrontend loggedIn.user groupData |> Just )
                                 , groupForm = GroupForm.init
                               }
                             , FrontendEffect.none
@@ -215,11 +296,36 @@ updateLoadedFromBackend msg model =
                             , FrontendEffect.none
                             )
 
-                NotLoggedIn ->
+                NotLoggedIn _ ->
+                    ( model, FrontendEffect.none )
+
+                LoginStatusPending ->
                     ( model, FrontendEffect.none )
 
         LogoutResponse ->
-            ( { model | loginStatus = NotLoggedIn }, FrontendEffect.none )
+            ( { model | loginStatus = NotLoggedIn { showLogin = False } }, FrontendEffect.none )
+
+        ChangeNameResponse name ->
+            ( updateUser (\user -> { user | name = name }) model, FrontendEffect.none )
+
+        ChangeDescriptionResponse description ->
+            ( updateUser (\user -> { user | description = description }) model, FrontendEffect.none )
+
+        ChangeEmailAddressResponse emailAddress ->
+            ( updateUser (\user -> { user | emailAddress = emailAddress }) model, FrontendEffect.none )
+
+
+updateUser : (BackendUser -> BackendUser) -> LoadedFrontend -> LoadedFrontend
+updateUser updateFunc model =
+    case model.loginStatus of
+        LoggedIn loggedIn ->
+            { model | loginStatus = LoggedIn { loggedIn | user = updateFunc loggedIn.user } }
+
+        NotLoggedIn _ ->
+            model
+
+        LoginStatusPending ->
+            model
 
 
 view : FrontendModel -> Browser.Document FrontendMsg
@@ -257,87 +363,133 @@ viewLoaded model =
                 Element.none
             )
         ]
-        [ header (isLoggedIn model) (model.route == CreateGroupRoute)
-        , if model.showLogin then
-            LoginForm.view model.loginForm
+        [ header (isLoggedIn model) model.route
+        , case model.loginStatus of
+            NotLoggedIn { showLogin } ->
+                if showLogin then
+                    LoginForm.view model.loginForm
 
-          else
-            case model.route of
-                HomepageRoute ->
-                    Element.text "Homepage"
+                else
+                    viewPage model
 
-                GroupRoute groupId ->
-                    case model.group of
-                        Just ( loadedGroupId, Just group ) ->
-                            if groupId == loadedGroupId then
-                                Element.column
-                                    [ Element.spacing 16 ]
-                                    [ Element.el
-                                        [ Element.Font.size 32 ]
-                                        (Element.text (GroupName.toString group.name))
-                                    , Element.nonemptyText group.owner.name
-                                    ]
+            LoggedIn _ ->
+                viewPage model
 
-                            else
-                                Element.text "Loading group"
+            LoginStatusPending ->
+                Element.none
+        ]
 
-                        Just ( loadedGroupId, Nothing ) ->
-                            if groupId == loadedGroupId then
-                                Element.text "Group not found or it is private"
 
-                            else
-                                Element.text "Loading group"
+viewPage : LoadedFrontend -> Element FrontendMsg
+viewPage model =
+    case model.route of
+        HomepageRoute ->
+            Element.paragraph
+                [ Element.padding 8 ]
+                [ Element.text "A place to find people with shared interests. We don't sell your data, we don't show ads, we don't charge money, and it's all open source." ]
 
-                        Nothing ->
-                            Element.text "Loading group"
+        GroupRoute groupId ->
+            case model.group of
+                Just ( loadedGroupId, Just group ) ->
+                    if groupId == loadedGroupId then
+                        Element.column
+                            [ Element.spacing 16 ]
+                            [ Element.el
+                                [ Element.Font.size 32 ]
+                                (Element.text (GroupName.toString group.name))
+                            , Element.text (Name.toString group.owner.name)
+                            ]
 
-                AdminRoute ->
-                    Element.text "Admin panel"
+                    else
+                        Element.text "Loading group"
 
-                CreateGroupRoute ->
-                    GroupForm.view model.groupForm
+                Just ( loadedGroupId, Nothing ) ->
+                    if groupId == loadedGroupId then
+                        Element.text "Group not found or it is private"
+
+                    else
+                        Element.text "Loading group"
+
+                Nothing ->
+                    Element.text "Loading group"
+
+        AdminRoute ->
+            Element.text "Admin panel"
+
+        CreateGroupRoute ->
+            GroupForm.view model.groupForm
+                |> Element.el
+                    [ Element.width <| Element.maximum 800 Element.fill
+                    , Element.centerX
+                    ]
+                |> Element.map GroupFormMsg
+
+        MyGroupsRoute ->
+            Element.text "My groups "
+
+        MyProfileRoute ->
+            case model.loginStatus of
+                LoggedIn loggedIn ->
+                    ProfileForm.view loggedIn.user loggedIn.profileForm
                         |> Element.el
                             [ Element.width <| Element.maximum 800 Element.fill
                             , Element.centerX
                             ]
-                        |> Element.map GroupFormMsg
+                        |> Element.map ProfileFormMsg
 
-                MyGroupsRoute ->
-                    Element.text "My groups "
-        ]
+                NotLoggedIn _ ->
+                    LoginForm.view model.loginForm
+
+                LoginStatusPending ->
+                    Element.none
 
 
 isLoggedIn : LoadedFrontend -> Bool
 isLoggedIn model =
     case model.loginStatus of
-        LoggedIn _ _ ->
+        LoggedIn _ ->
             True
 
-        NotLoggedIn ->
+        NotLoggedIn _ ->
+            False
+
+        LoginStatusPending ->
             False
 
 
-header : Bool -> Bool -> Element FrontendMsg
-header isLoggedIn_ isCreatingGroup =
+header : Bool -> Route -> Element FrontendMsg
+header isLoggedIn_ route =
     Element.row
         [ Element.width Element.fill
         , Element.Background.color <| Element.rgb 0.8 0.8 0.8
         ]
         [ Element.row
-            [ Element.alignRight ]
+            [ Element.alignRight, Element.Region.navigation ]
             (if isLoggedIn_ then
-                [ if isCreatingGroup then
+                [ if route == CreateGroupRoute then
                     Element.none
 
                   else
-                    Ui.headerButton
-                        { onPress = PressedCreateGroup
+                    Ui.headerLink
+                        { route = CreateGroupRoute
                         , label = "Create group"
                         }
-                , Ui.headerButton
-                    { onPress = PressedMyGroups
-                    , label = "My groups"
-                    }
+                , if route == MyGroupsRoute then
+                    Element.none
+
+                  else
+                    Ui.headerLink
+                        { route = MyGroupsRoute
+                        , label = "My groups"
+                        }
+                , if route == MyProfileRoute then
+                    Element.none
+
+                  else
+                    Ui.headerLink
+                        { route = MyProfileRoute
+                        , label = "Profile"
+                        }
                 , Ui.headerButton
                     { onPress = PressedLogout
                     , label = "Log out"

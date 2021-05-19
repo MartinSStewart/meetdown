@@ -1,4 +1,4 @@
-module Ui exposing (button, error, formBackground, formError, header, headerButton, headerButtonAttributes, multiline, radioGroup, submitButton, textInput)
+module Ui exposing (button, error, formBackground, formError, headerButton, headerButtonAttributes, headerLink, inputBackground, multiline, radioGroup, submitButton, textInput, title)
 
 import Element exposing (Element)
 import Element.Background
@@ -6,6 +6,7 @@ import Element.Border
 import Element.Font
 import Element.Input
 import List.Nonempty exposing (Nonempty)
+import Route exposing (Route)
 
 
 headerButtonAttributes : List (Element.Attribute msg)
@@ -23,6 +24,18 @@ headerButton { onPress, label } =
         , Element.Font.center
         ]
         { onPress = Just onPress
+        , label = Element.text label
+        }
+
+
+headerLink : { route : Route, label : String } -> Element msg
+headerLink { route, label } =
+    Element.link
+        [ Element.mouseOver [ Element.Background.color <| Element.rgba 1 1 1 0.5 ]
+        , Element.paddingXY 16 8
+        , Element.Font.center
+        ]
+        { url = Route.encode route Nothing
         , label = Element.text label
         }
 
@@ -67,8 +80,8 @@ submitButton isSubmitting { onPress, label } =
         }
 
 
-header : String -> Element msg
-header text =
+title : String -> Element msg
+title text =
     Element.paragraph [ Element.Font.size 24 ] [ Element.text text ]
 
 
@@ -125,6 +138,7 @@ radioGroup onSelect options selected optionToLabel maybeError =
             ]
 
 
+inputBackground : Bool -> Element.Attr decorative msg
 inputBackground hasError =
     Element.Background.color <|
         if hasError then

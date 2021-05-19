@@ -1,34 +1,41 @@
 module Untrusted exposing
     ( Untrusted
     , untrust
-    , validateEmail
-    , validateGroupDescription
+    , validateDescription
+    , validateEmailAddress
     , validateGroupName
+    , validateName
     )
 
+import Description exposing (Description)
 import EmailAddress exposing (EmailAddress)
-import GroupDescription exposing (GroupDescription)
 import GroupForm exposing (GroupFormValidated)
 import GroupName exposing (GroupName)
+import Name exposing (Name)
 
 
 type Untrusted a
     = Untrusted a
 
 
-validateEmail : Untrusted EmailAddress -> Result () EmailAddress
-validateEmail (Untrusted email) =
-    EmailAddress.toString email |> EmailAddress.fromString |> Result.fromMaybe ()
+validateName : Untrusted Name -> Maybe Name
+validateName (Untrusted name) =
+    Name.toString name |> Name.fromString |> Result.toMaybe
 
 
-validateGroupName : Untrusted GroupName -> Result () GroupName
+validateEmailAddress : Untrusted EmailAddress -> Maybe EmailAddress
+validateEmailAddress (Untrusted email) =
+    EmailAddress.toString email |> EmailAddress.fromString
+
+
+validateGroupName : Untrusted GroupName -> Maybe GroupName
 validateGroupName (Untrusted groupName) =
-    GroupName.toString groupName |> GroupName.fromString |> Result.mapError (\_ -> ())
+    GroupName.toString groupName |> GroupName.fromString |> Result.toMaybe
 
 
-validateGroupDescription : Untrusted GroupDescription -> Result () GroupDescription
-validateGroupDescription (Untrusted groupName) =
-    GroupDescription.toString groupName |> GroupDescription.fromString |> Result.mapError (\_ -> ())
+validateDescription : Untrusted Description -> Maybe Description
+validateDescription (Untrusted description) =
+    Description.toString description |> Description.fromString |> Result.toMaybe
 
 
 untrust : a -> Untrusted a

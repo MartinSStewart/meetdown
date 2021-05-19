@@ -11,8 +11,8 @@ module GroupForm exposing
     , view
     )
 
+import Description exposing (Description)
 import Element exposing (Element)
-import GroupDescription exposing (GroupDescription)
 import GroupName exposing (GroupName)
 import List.Nonempty exposing (Nonempty(..))
 import Ui
@@ -31,7 +31,7 @@ type Model
 
 type alias GroupFormValidated =
     { name : GroupName
-    , description : GroupDescription
+    , description : Description
     , visibility : GroupVisibility
     }
 
@@ -40,7 +40,7 @@ validatedToForm : GroupFormValidated -> Form
 validatedToForm validated =
     { pressedSubmit = False
     , name = GroupName.toString validated.name
-    , description = GroupDescription.toString validated.description
+    , description = Description.toString validated.description
     , visibility = Just validated.visibility
     }
 
@@ -75,7 +75,7 @@ initForm =
 
 validate : Form -> Maybe GroupFormValidated
 validate form =
-    case ( GroupName.fromString form.name, GroupDescription.fromString form.description, form.visibility ) of
+    case ( GroupName.fromString form.name, Description.fromString form.description, form.visibility ) of
         ( Ok groupName, Ok description, Just visibility ) ->
             { name = groupName
             , description = description
@@ -130,22 +130,16 @@ view model =
             formView Nothing False form
 
         Submitting validated ->
-            Element.column
-                [ Element.width Element.fill ]
-                [ formView Nothing True (validatedToForm validated)
-                ]
+            formView Nothing True (validatedToForm validated)
 
         SubmitFailed error form ->
-            Element.column
-                [ Element.width Element.fill ]
-                [ formView
-                    (case error of
-                        GroupNameAlreadyInUse ->
-                            Just "Sorry, that group name is already being used."
-                    )
-                    False
-                    form
-                ]
+            formView
+                (case error of
+                    GroupNameAlreadyInUse ->
+                        Just "Sorry, that group name is already being used."
+                )
+                False
+                form
 
 
 type CreateGroupError
@@ -172,7 +166,7 @@ formView maybeSubmitError isSubmitting form =
         , Element.spacing 8
         , Element.padding 8
         ]
-        [ Ui.header "Create a new group"
+        [ Ui.title "Create a new group"
         , Ui.textInput (\a -> FormChanged { form | name = a })
             form.name
             "What's the name of your group?"
@@ -198,14 +192,14 @@ formView maybeSubmitError isSubmitting form =
             (\a -> FormChanged { form | description = a })
             form.description
             "Describe what your group is about (you can fill out this later)"
-            (case ( form.pressedSubmit, GroupDescription.fromString form.description ) of
+            (case ( form.pressedSubmit, Description.fromString form.description ) of
                 ( True, Err error ) ->
                     case error of
-                        GroupDescription.GroupDescriptionTooLong ->
+                        Description.DescriptionTooLong ->
                             "Description is "
                                 ++ String.fromInt (String.length form.description)
                                 ++ " characters long. Keep it under "
-                                ++ String.fromInt GroupDescription.maxLength
+                                ++ String.fromInt Description.maxLength
                                 ++ "."
                                 |> Just
 

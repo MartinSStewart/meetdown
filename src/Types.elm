@@ -4,14 +4,17 @@ import Array exposing (Array)
 import AssocList exposing (Dict)
 import AssocSet exposing (Set)
 import Avataaars exposing (Avataaar)
+import BiDict.Assoc exposing (BiDict)
 import Browser exposing (UrlRequest)
 import Browser.Navigation
+import Description exposing (Description)
 import EmailAddress exposing (EmailAddress)
-import GroupDescription exposing (GroupDescription)
 import GroupForm exposing (CreateGroupError, GroupFormValidated, GroupVisibility, Model)
 import GroupName exposing (GroupName)
 import Id exposing (ClientId, CryptoHash, GroupId, LoginToken, SessionId, UserId)
 import List.Nonempty exposing (Nonempty)
+import Name exposing (Name)
+import ProfileForm
 import Route exposing (Route)
 import SendGrid exposing (Email)
 import String.Nonempty exposing (NonemptyString)
@@ -37,7 +40,6 @@ type alias LoadedFrontend =
     , group : Maybe ( CryptoHash GroupId, Maybe FrontendGroup )
     , time : Time.Posix
     , lastConnectionCheck : Time.Posix
-    , showLogin : Bool
     , loginForm : LoginForm
     , logs : Maybe (Array Log)
     , hasLoginError : Bool
@@ -54,14 +56,22 @@ type alias LoginForm =
 
 
 type LoginStatus
-    = LoggedIn (CryptoHash UserId) BackendUser
-    | NotLoggedIn
+    = LoginStatusPending
+    | LoggedIn LoggedIn_
+    | NotLoggedIn { showLogin : Bool }
+
+
+type alias LoggedIn_ =
+    { userId : CryptoHash UserId
+    , user : BackendUser
+    , profileForm : ProfileForm.Model
+    }
 
 
 type alias BackendModel =
     { users : Dict (CryptoHash UserId) BackendUser
     , groups : Dict (CryptoHash GroupId) BackendGroup
-    , sessions : Dict SessionId (CryptoHash UserId)
+    , sessions : BiDict SessionId (CryptoHash UserId)
     , connections : Dict SessionId (Nonempty ClientId)
     , logs : Array Log
     , time : Time.Posix
@@ -155,14 +165,15 @@ logToString log =
 
 
 type alias BackendUser =
-    { name : NonemptyString
+    { name : Name
+    , description : Description
     , emailAddress : EmailAddress
     , profileImage : Avataaar
     }
 
 
 type alias FrontendUser =
-    { name : NonemptyString
+    { name : Name
     , profileImage : Avataaar
     }
 
@@ -170,7 +181,7 @@ type alias FrontendUser =
 type alias BackendGroup =
     { ownerId : CryptoHash UserId
     , name : GroupName
-    , description : GroupDescription
+    , description : Description
     , events : List Event
     , visibility : GroupVisibility
     }
@@ -217,11 +228,13 @@ type FrontendMsg
     | GotTime Time.Posix
     | PressedLogin
     | PressedLogout
+    | PressedMyProfile
     | TypedEmail String
     | PressedSubmitEmail
     | PressedCreateGroup
     | PressedMyGroups
     | GroupFormMsg GroupForm.Msg
+    | ProfileFormMsg ProfileForm.Msg
 
 
 type ToBackend
@@ -235,7 +248,10 @@ type ToBackendRequest
     | GetLoginTokenRequest Route (Untrusted EmailAddress)
     | GetAdminDataRequest
     | LogoutRequest
-    | CreateGroupRequest (Untrusted GroupName) (Untrusted GroupDescription) GroupVisibility
+    | CreateGroupRequest (Untrusted GroupName) (Untrusted Description) GroupVisibility
+    | ChangeNameRequest (Untrusted Name)
+    | ChangeDescriptionRequest (Untrusted Description)
+    | ChangeEmailAddressRequest (Untrusted EmailAddress)
 
 
 type BackendMsg
@@ -247,8 +263,11 @@ type BackendMsg
 
 type ToFrontend
     = GetGroupResponse (CryptoHash GroupId) (Maybe FrontendGroup)
-    | CheckLoginResponse LoginStatus
+    | CheckLoginResponse (Maybe ( CryptoHash UserId, BackendUser ))
     | LoginWithTokenResponse (Result () ( CryptoHash UserId, BackendUser ))
     | GetAdminDataResponse (Array Log)
     | CreateGroupResponse (Result CreateGroupError ( CryptoHash GroupId, BackendGroup ))
     | LogoutResponse
+    | ChangeNameResponse Name
+    | ChangeDescriptionResponse Description
+    | ChangeEmailAddressResponse EmailAddress

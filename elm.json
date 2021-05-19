@@ -6,6 +6,7 @@
     "elm-version": "0.19.1",
     "dependencies": {
         "direct": {
+            "Janiczek/elm-bidict": "2.0.1",
             "MartinSStewart/elm-nonempty-string": "2.0.0",
             "MartinSStewart/send-grid": "4.1.0",
             "billstclair/elm-sha256": "1.0.9",
@@ -34,7 +35,9 @@
             "elm/random": "1.0.0",
             "elm/regex": "1.0.0",
             "elm/svg": "1.0.1",
-            "elm/virtual-dom": "1.0.2"
+            "elm/virtual-dom": "1.0.2",
+            "elm-community/dict-extra": "2.4.0",
+            "skyqrose/assoc-list-extra": "1.0.0"
         }
     },
     "test-dependencies": {

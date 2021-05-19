@@ -14,6 +14,7 @@ type Route
     | AdminRoute
     | CreateGroupRoute
     | MyGroupsRoute
+    | MyProfileRoute
 
 
 decode : Url.Parser.Parser (( Route, Maybe (CryptoHash LoginToken) ) -> c) c
@@ -24,6 +25,7 @@ decode =
         , Url.Parser.s "admin" |> Url.Parser.map AdminRoute
         , Url.Parser.s "create-group" |> Url.Parser.map CreateGroupRoute
         , Url.Parser.s "my-groups" |> Url.Parser.map MyGroupsRoute
+        , Url.Parser.s "profile" |> Url.Parser.map MyProfileRoute
         ]
         <?> decodeLoginToken
         |> Url.Parser.map Tuple.pair
@@ -40,8 +42,7 @@ loginTokenName =
 
 encode : Route -> Maybe (CryptoHash LoginToken) -> String
 encode route maybeLoginToken =
-    Url.Builder.crossOrigin
-        Env.domain
+    Url.Builder.absolute
         (case route of
             HomepageRoute ->
                 []
@@ -57,6 +58,9 @@ encode route maybeLoginToken =
 
             MyGroupsRoute ->
                 [ "my-groups" ]
+
+            MyProfileRoute ->
+                [ "profile" ]
         )
         (case maybeLoginToken of
             Just loginToken ->
