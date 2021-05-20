@@ -209,6 +209,7 @@ updateLoaded msg model =
                                 , changeName = ChangeNameRequest >> FrontendEffect.sendToBackend
                                 , changeDescription = ChangeDescriptionRequest >> FrontendEffect.sendToBackend
                                 , changeEmailAddress = ChangeEmailAddressRequest >> FrontendEffect.sendToBackend
+                                , selectFile = \mimeTypes fileMsg -> FrontendEffect.selectFile mimeTypes (fileMsg >> ProfileFormMsg)
                                 , batch = FrontendEffect.batch
                                 }
                                 profileFormMsg

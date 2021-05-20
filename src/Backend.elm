@@ -3,13 +3,6 @@ module Backend exposing (app, init, update, updateFromFrontend)
 import Array
 import AssocList as Dict exposing (Dict)
 import AssocSet as Set
-import Avataaars.Clothes
-import Avataaars.Eyebrow
-import Avataaars.Eyes
-import Avataaars.FacialHair
-import Avataaars.Mouth
-import Avataaars.SkinTone
-import Avataaars.Top exposing (TopFacialHair(..))
 import BackendEffect exposing (BackendEffect)
 import BackendSub exposing (BackendSub)
 import BiDict.Assoc as BiDict
@@ -22,8 +15,8 @@ import Lamdera
 import List.Extra as List
 import List.Nonempty
 import Name
+import ProfileImage
 import Quantity
-import String.Nonempty exposing (NonemptyString(..))
 import Time
 import Types exposing (..)
 import Untrusted
@@ -327,17 +320,7 @@ loginWithToken sessionId clientId maybeLoginTokenData model =
                                 { name = Name.anonymous
                                 , description = Description.empty
                                 , emailAddress = emailAddress
-                                , profileImage =
-                                    { circleBg = False
-                                    , skinTone = Avataaars.SkinTone.brown
-                                    , clothes = Avataaars.Clothes.BlazerShirt
-                                    , face =
-                                        { mouth = Avataaars.Mouth.Concerned
-                                        , eyes = Avataaars.Eyes.Cry
-                                        , eyebrow = Avataaars.Eyebrow.AngryNatural
-                                        }
-                                    , top = Avataaars.Top.TopFacialHair Eyepatch (Avataaars.FacialHair.BeardLight "#FFFFFF")
-                                    }
+                                , profileImage = ProfileImage.DefaultImage
                                 }
                         in
                         ( { model2 | users = Dict.insert userId newUser model2.users }

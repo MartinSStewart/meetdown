@@ -3,7 +3,6 @@ module Types exposing (..)
 import Array exposing (Array)
 import AssocList exposing (Dict)
 import AssocSet exposing (Set)
-import Avataaars exposing (Avataaar)
 import BiDict.Assoc exposing (BiDict)
 import Browser exposing (UrlRequest)
 import Browser.Navigation
@@ -15,6 +14,7 @@ import Id exposing (ClientId, CryptoHash, GroupId, LoginToken, SessionId, UserId
 import List.Nonempty exposing (Nonempty)
 import Name exposing (Name)
 import ProfileForm
+import ProfileImage exposing (ProfileImage)
 import Route exposing (Route)
 import SendGrid exposing (Email)
 import String.Nonempty exposing (NonemptyString)
@@ -168,13 +168,13 @@ type alias BackendUser =
     { name : Name
     , description : Description
     , emailAddress : EmailAddress
-    , profileImage : Avataaar
+    , profileImage : ProfileImage
     }
 
 
 type alias FrontendUser =
     { name : Name
-    , profileImage : Avataaar
+    , profileImage : ProfileImage
     }
 
 

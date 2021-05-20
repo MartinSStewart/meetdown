@@ -1,9 +1,11 @@
-module FrontendEffect exposing (FrontendEffect, batch, getTime, manyToBackend, navigationLoad, navigationPushUrl, navigationReplaceUrl, none, sendToBackend, toCmd, wait)
+module FrontendEffect exposing (FrontendEffect, batch, getTime, manyToBackend, navigationLoad, navigationPushUrl, navigationReplaceUrl, none, selectFile, sendToBackend, toCmd, wait)
 
 import Browser.Navigation
 import Duration exposing (Duration)
+import File.Select
 import Lamdera
 import List.Nonempty exposing (Nonempty(..))
+import MockFile exposing (File(..))
 import Process
 import Task
 import Time
@@ -18,6 +20,7 @@ type FrontendEffect
     | NavigationLoad String
     | GetTime (Time.Posix -> FrontendMsg)
     | Wait Duration FrontendMsg
+    | SelectFile (List String) (MockFile.File -> FrontendMsg)
 
 
 none : FrontendEffect
@@ -65,6 +68,11 @@ wait =
     Wait
 
 
+selectFile : List String -> (File -> FrontendMsg) -> FrontendEffect
+selectFile =
+    SelectFile
+
+
 toCmd : FrontendEffect -> Cmd FrontendMsg
 toCmd frontendEffect =
     case frontendEffect of
@@ -98,3 +106,6 @@ toCmd frontendEffect =
 
         Wait duration msg ->
             Process.sleep (Duration.inMilliseconds duration) |> Task.perform (always msg)
+
+        SelectFile mimeTypes msg ->
+            File.Select.file mimeTypes (RealFile >> msg)

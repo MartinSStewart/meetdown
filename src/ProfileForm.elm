@@ -7,7 +7,12 @@ import Element.Border
 import Element.Font
 import Element.Input
 import EmailAddress exposing (EmailAddress)
+import Html
+import Html.Attributes
+import Lamdera.Wire3 exposing (Bytes)
+import MockFile exposing (File)
 import Name exposing (Error(..), Name)
+import ProfileImage exposing (ProfileImage)
 import Ui
 import Untrusted exposing (Untrusted)
 
@@ -15,6 +20,8 @@ import Untrusted exposing (Untrusted)
 type Msg
     = FormChanged Form
     | SleepFinished Int
+    | PressedProfileImage
+    | SelectedImage File
 
 
 type Editable a
@@ -25,6 +32,7 @@ type Editable a
 type alias Model =
     { form : Form
     , changeCounter : Int
+    , profileImage : Editable (Maybe File)
     }
 
 
@@ -36,7 +44,12 @@ type alias Form =
 
 
 type alias CurrentValues a =
-    { a | name : Name, description : Description, emailAddress : EmailAddress }
+    { a
+        | name : Name
+        , description : Description
+        , emailAddress : EmailAddress
+        , profileImage : ProfileImage
+    }
 
 
 init : Model
@@ -47,6 +60,7 @@ init =
         , emailAddress = Unchanged
         }
     , changeCounter = 0
+    , profileImage = Unchanged
     }
 
 
@@ -56,6 +70,7 @@ type alias Effects cmd =
     , changeName : Untrusted Name -> cmd
     , changeDescription : Untrusted Description -> cmd
     , changeEmailAddress : Untrusted EmailAddress -> cmd
+    , selectFile : List String -> (File -> Msg) -> cmd
     , batch : List cmd -> cmd
     }
 
@@ -98,12 +113,52 @@ update effects msg model =
                 effects.none
             )
 
+        PressedProfileImage ->
+            ( model
+            , effects.selectFile [ "image/png", "image/jpg", "image/jpeg" ] SelectedImage
+            )
+
+        SelectedImage file ->
+            ( { model | profileImage = Editting (Just file) }, effects.none )
+
+
+profileImageSize =
+    128
+
 
 view : CurrentValues a -> Model -> Element Msg
-view currentValues { form } =
+view currentValues { form, profileImage } =
     Element.column
         [ Element.spacing 8, Element.padding 8, Element.width Element.fill ]
-        [ Ui.title "Profile"
+        [ Element.wrappedRow [ Element.width Element.fill ]
+            [ Element.el [ Element.alignTop ] (Ui.title "Profile")
+            , Element.Input.button
+                [ Element.alignRight
+                , Element.Border.rounded 9999
+                , Element.clip
+                ]
+                { onPress = Just PressedProfileImage
+                , label =
+                    case profileImage of
+                        Unchanged ->
+                            Element.image
+                                [ Element.width (Element.px profileImageSize)
+                                , Element.height (Element.px profileImageSize)
+                                , Element.alignRight
+                                , Ui.inputBackground False
+                                ]
+                                { src = "./default-profile.png", description = "Your profile image" }
+
+                        Editting _ ->
+                            Element.html
+                                (Html.canvas
+                                    [ Html.Attributes.width profileImageSize
+                                    , Html.Attributes.height profileImageSize
+                                    ]
+                                    []
+                                )
+                }
+            ]
         , editableTextInput
             (\a -> FormChanged { form | name = a })
             Name.toString
