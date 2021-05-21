@@ -1,6 +1,6 @@
 module ProfileImage exposing (..)
 
-import Lamdera.Wire3 exposing (Bytes)
+import Bytes exposing (Bytes)
 
 
 type ProfileImage
