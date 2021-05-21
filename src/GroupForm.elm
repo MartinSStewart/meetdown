@@ -166,7 +166,7 @@ formView maybeSubmitError isSubmitting form =
         , Element.spacing 8
         , Element.padding 8
         ]
-        [ Ui.title "Create a new group"
+        [ Ui.title "Create group"
         , Ui.textInput (\a -> FormChanged { form | name = a })
             form.name
             "What's the name of your group?"

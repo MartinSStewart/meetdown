@@ -1,6 +1,7 @@
 module LoginForm exposing (submitForm, typedEmail, view)
 
 import Element exposing (Element)
+import Element.Font
 import Element.Input
 import EmailAddress exposing (EmailAddress)
 import FrontendEffect
@@ -11,25 +12,41 @@ import Untrusted
 
 
 view : LoginForm -> Element FrontendMsg
-view { email, pressedSubmitEmail } =
+view { email, pressedSubmitEmail, emailSent } =
     Element.el
         [ Element.width Element.fill, Element.height Element.fill ]
         (Element.column
-            [ Element.centerX, Element.centerY, Element.spacing 16 ]
-            [ Element.Input.text
-                []
-                { onChange = TypedEmail
-                , text = email
-                , placeholder = Nothing
-                , label = Element.Input.labelAbove [] (Element.text "Enter your email address")
-                }
-            , case ( pressedSubmitEmail, validateEmail email ) of
-                ( True, Err error ) ->
-                    Element.text error
+            [ Element.centerX
+            , Element.centerY
+            , Element.spacing 16
+            , Element.width <| Element.minimum 400 Element.shrink
+            , Element.below
+                (case emailSent of
+                    Just emailAddress ->
+                        Element.paragraph
+                            [ Element.padding 8 ]
+                            [ Element.text "A login email has been sent to "
+                            , Element.el
+                                [ Element.Font.color <| Element.rgb 0.1 0.1 1 ]
+                                (Element.text (EmailAddress.toString emailAddress))
+                            , Element.text ". Check your spam folder if you don't see it."
+                            ]
 
-                _ ->
-                    Element.none
-            , Ui.button { onPress = PressedSubmitEmail, label = "Sign up/Login" }
+                    Nothing ->
+                        Element.none
+                )
+            ]
+            [ Ui.emailInput TypedEmail
+                email
+                "Enter your email address"
+                (case ( pressedSubmitEmail, validateEmail email ) of
+                    ( True, Err error ) ->
+                        Just error
+
+                    _ ->
+                        Nothing
+                )
+            , Ui.submitButton False { onPress = PressedSubmitEmail, label = "Sign up/Login" }
             ]
         )
 
@@ -52,7 +69,7 @@ submitForm : Route -> LoginForm -> ( LoginForm, FrontendEffect.FrontendEffect )
 submitForm route loginForm =
     case validateEmail loginForm.email of
         Ok email ->
-            ( { loginForm | emailSent = True }
+            ( { loginForm | emailSent = Just email }
             , Untrusted.untrust email |> GetLoginTokenRequest route |> FrontendEffect.sendToBackend
             )
 

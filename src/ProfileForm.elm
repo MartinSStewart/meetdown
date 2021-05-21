@@ -9,7 +9,6 @@ import Element.Input
 import EmailAddress exposing (EmailAddress)
 import Html
 import Html.Attributes
-import Lamdera.Wire3 exposing (Bytes)
 import MockFile exposing (File)
 import Name exposing (Error(..), Name)
 import ProfileImage exposing (ProfileImage)
@@ -22,6 +21,7 @@ type Msg
     | SleepFinished Int
     | PressedProfileImage
     | SelectedImage File
+    | PressedDeleteAccount
 
 
 type Editable a
@@ -33,6 +33,7 @@ type alias Model =
     { form : Form
     , changeCounter : Int
     , profileImage : Editable (Maybe File)
+    , pressedDeleteAccount : Bool
     }
 
 
@@ -61,6 +62,7 @@ init =
         }
     , changeCounter = 0
     , profileImage = Unchanged
+    , pressedDeleteAccount = False
     }
 
 
@@ -71,6 +73,7 @@ type alias Effects cmd =
     , changeDescription : Untrusted Description -> cmd
     , changeEmailAddress : Untrusted EmailAddress -> cmd
     , selectFile : List String -> (File -> Msg) -> cmd
+    , sendDeleteAccountEmail : cmd
     , batch : List cmd -> cmd
     }
 
@@ -120,6 +123,9 @@ update effects msg model =
 
         SelectedImage file ->
             ( { model | profileImage = Editting (Just file) }, effects.none )
+
+        PressedDeleteAccount ->
+            ( { model | pressedDeleteAccount = True }, effects.sendDeleteAccountEmail )
 
 
 profileImageSize =
@@ -193,13 +199,16 @@ view currentValues { form, profileImage } =
             currentValues.description
             form.description
             "What do you want people to know about you?"
-        , editableTextInput
-            (\a -> FormChanged { form | emailAddress = a })
+        , editableEmailInput
+            (\_ -> FormChanged form)
+            --(\a -> FormChanged { form | emailAddress = a })
             EmailAddress.toString
             (EmailAddress.fromString >> Result.fromMaybe "Invalid email")
             currentValues.emailAddress
             form.emailAddress
             "Your email address"
+        , Ui.filler (Element.px 8)
+        , Ui.dangerButton { onPress = PressedDeleteAccount, label = "Delete account" }
         ]
 
 
@@ -236,6 +245,71 @@ editableTextInput onChange toString validate currentValue text labelText =
         , Element.Border.rounded 4
         ]
         [ Element.Input.text
+            [ Element.width Element.fill ]
+            { text =
+                case text of
+                    Unchanged ->
+                        toString currentValue
+
+                    Editting value ->
+                        value
+            , onChange = Editting >> onChange
+            , placeholder = Nothing
+            , label =
+                Element.Input.labelAbove
+                    [ Element.paddingXY 4 0 ]
+                    (Element.paragraph [] [ Element.text labelText ])
+            }
+        , case maybeError of
+            Just error ->
+                Ui.error error
+
+            Nothing ->
+                if result == Ok currentValue then
+                    Element.none
+
+                else
+                    Element.el
+                        [ Element.paddingEach { left = 4, right = 4, top = 4, bottom = 0 }
+                        , Element.Font.size 16
+                        ]
+                        (Element.text "Saving...")
+        ]
+
+
+editableEmailInput :
+    (Editable String -> msg)
+    -> (a -> String)
+    -> (String -> Result String a)
+    -> a
+    -> Editable String
+    -> String
+    -> Element msg
+editableEmailInput onChange toString validate currentValue text labelText =
+    let
+        result =
+            case text of
+                Unchanged ->
+                    Ok currentValue
+
+                Editting edit ->
+                    validate edit
+
+        maybeError =
+            case result of
+                Ok _ ->
+                    Nothing
+
+                Err error ->
+                    Just error
+    in
+    Element.column
+        [ Element.width Element.fill
+        , Ui.inputBackground (maybeError /= Nothing)
+        , Element.padding 8
+        , Element.Border.rounded 4
+        ]
+        [ Element.Input.email
             [ Element.width Element.fill ]
             { text =
                 case text of

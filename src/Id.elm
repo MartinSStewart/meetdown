@@ -1,6 +1,7 @@
 module Id exposing
     ( ClientId
     , CryptoHash
+    , DeleteUserToken
     , GroupId
     , LoginToken
     , SessionId
@@ -41,6 +42,10 @@ type CryptoHash a
 
 type LoginToken
     = LoginToken Never
+
+
+type DeleteUserToken
+    = DeleteUserToken Never
 
 
 sessionIdFromString : Lamdera.SessionId -> SessionId

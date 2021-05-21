@@ -36,7 +36,7 @@ app =
 
 init : Url -> NavigationKey -> ( FrontendModel, FrontendEffect )
 init url key =
-    ( Url.Parser.parse Route.decode url |> Maybe.withDefault ( HomepageRoute, Nothing ) |> Loading key
+    ( Url.Parser.parse Route.decode url |> Maybe.withDefault ( HomepageRoute, Route.NoToken ) |> Loading key
     , FrontendEffect.getTime GotTime
     )
 
@@ -44,17 +44,20 @@ init url key =
 initLoadedFrontend :
     NavigationKey
     -> Route
-    -> Maybe (CryptoHash LoginToken)
+    -> Route.Token
     -> Time.Posix
     -> ( LoadedFrontend, FrontendEffect )
 initLoadedFrontend navigationKey route maybeLoginToken time =
     let
         login =
             case maybeLoginToken of
-                Just loginToken ->
+                Route.LoginToken loginToken ->
                     LoginWithTokenRequest loginToken
 
-                Nothing ->
+                Route.DeleteUserToken deleteUserToken ->
+                    DeleteUserRequest deleteUserToken
+
+                Route.NoToken ->
                     CheckLoginRequest
     in
     ( { navigationKey = navigationKey
@@ -66,7 +69,7 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
       , loginForm =
             { email = ""
             , pressedSubmitEmail = False
-            , emailSent = False
+            , emailSent = Nothing
             }
       , logs = Nothing
       , hasLoginError = False
@@ -94,7 +97,7 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
                 MyProfileRoute ->
                     []
             )
-        , FrontendEffect.navigationReplaceUrl navigationKey (Route.encode route Nothing)
+        , FrontendEffect.navigationReplaceUrl navigationKey (Route.encode route Route.NoToken)
         ]
     )
 
@@ -102,10 +105,10 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
 update : FrontendMsg -> FrontendModel -> ( FrontendModel, FrontendEffect )
 update msg model =
     case model of
-        Loading key ( route, maybeLoginToken ) ->
+        Loading key ( route, token ) ->
             case msg of
                 GotTime time ->
-                    initLoadedFrontend key route maybeLoginToken time |> Tuple.mapFirst Loaded
+                    initLoadedFrontend key route token time |> Tuple.mapFirst Loaded
 
                 _ ->
                     ( model, FrontendEffect.none )
@@ -127,7 +130,7 @@ updateLoaded msg model =
                                 |> Maybe.withDefault HomepageRoute
                     in
                     ( { model | route = route }
-                    , FrontendEffect.navigationPushUrl model.navigationKey (Route.encode route Nothing)
+                    , FrontendEffect.navigationPushUrl model.navigationKey (Route.encode route Route.NoToken)
                     )
 
                 External url ->
@@ -210,6 +213,7 @@ updateLoaded msg model =
                                 , changeDescription = ChangeDescriptionRequest >> FrontendEffect.sendToBackend
                                 , changeEmailAddress = ChangeEmailAddressRequest >> FrontendEffect.sendToBackend
                                 , selectFile = \mimeTypes fileMsg -> FrontendEffect.selectFile mimeTypes (fileMsg >> ProfileFormMsg)
+                                , sendDeleteAccountEmail = FrontendEffect.sendToBackend SendDeleteUserEmailRequest
                                 , batch = FrontendEffect.batch
                                 }
                                 profileFormMsg

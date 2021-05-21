@@ -48,6 +48,7 @@ init =
       , time = Time.millisToPosix 0
       , secretCounter = 0
       , pendingLoginTokens = Dict.empty
+      , pendingDeleteUserTokens = Dict.empty
       }
     , Cmd.none
     )
@@ -65,8 +66,8 @@ subscriptions _ =
 update : BackendMsg -> BackendModel -> ( BackendModel, BackendEffect )
 update msg model =
     case msg of
-        SentLoginEmail email result ->
-            ( addLog (SendGridSendEmail model.time result email) model, BackendEffect.none )
+        SentLoginEmail emailAddress result ->
+            ( addLog (SendGridSendEmail model.time result emailAddress) model, BackendEffect.none )
 
         BackendGotTime time ->
             ( { model | time = time }, BackendEffect.none )
@@ -93,6 +94,9 @@ update msg model =
               }
             , BackendEffect.none
             )
+
+        SentDeleteUserEmail emailAddress result ->
+            ( addLog (SendGridSendEmail model.time result emailAddress) model, BackendEffect.none )
 
 
 addLog : Log -> BackendModel -> BackendModel
@@ -268,6 +272,38 @@ updateFromRequest sessionId clientId msg model =
                     ( addLog (UntrustedCheckFailed model.time msg) model
                     , BackendEffect.none
                     )
+
+        SendDeleteUserEmailRequest ->
+            userAuthorization
+                sessionId
+                model
+                (\( userId, user ) ->
+                    let
+                        ( model2, deleteUserToken ) =
+                            Id.getCryptoHash model
+                    in
+                    ( { model2
+                        | pendingDeleteUserTokens =
+                            Dict.insert deleteUserToken userId model2.pendingDeleteUserTokens
+                      }
+                    , BackendEffect.sendDeleteUserEmail
+                        (SentDeleteUserEmail user.emailAddress)
+                        user.emailAddress
+                        deleteUserToken
+                    )
+                )
+
+        DeleteUserRequest deleteUserToken ->
+            case Dict.get deleteUserToken model.pendingDeleteUserTokens of
+                Just { creationTime, userId } ->
+                    if Duration.from creationTime model.time |> Quantity.lessThan Duration.hour then
+                        { model | pendingDeleteUserTokens = Dict.remove }
+
+                    else
+                        ( model, BackendEffect.none )
+
+                Nothing ->
+                    ( model, DeleteUserResponse (Err ()) |> BackendEffect.sendToFrontend clientId )
 
 
 getClientIdsForUser : CryptoHash UserId -> BackendModel -> List ClientId

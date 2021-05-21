@@ -10,7 +10,7 @@ import Description exposing (Description)
 import EmailAddress exposing (EmailAddress)
 import GroupForm exposing (CreateGroupError, GroupFormValidated, GroupVisibility, Model)
 import GroupName exposing (GroupName)
-import Id exposing (ClientId, CryptoHash, GroupId, LoginToken, SessionId, UserId)
+import Id exposing (ClientId, CryptoHash, DeleteUserToken, GroupId, LoginToken, SessionId, UserId)
 import List.Nonempty exposing (Nonempty)
 import Name exposing (Name)
 import ProfileForm
@@ -29,7 +29,7 @@ type NavigationKey
 
 
 type FrontendModel
-    = Loading NavigationKey ( Route, Maybe (CryptoHash LoginToken) )
+    = Loading NavigationKey ( Route, Route.Token )
     | Loaded LoadedFrontend
 
 
@@ -51,7 +51,7 @@ type alias LoadedFrontend =
 type alias LoginForm =
     { email : String
     , pressedSubmitEmail : Bool
-    , emailSent : Bool
+    , emailSent : Maybe EmailAddress
     }
 
 
@@ -77,11 +77,16 @@ type alias BackendModel =
     , time : Time.Posix
     , secretCounter : Int
     , pendingLoginTokens : Dict (CryptoHash LoginToken) LoginTokenData
+    , pendingDeleteUserTokens : Dict (CryptoHash DeleteUserToken) DeleteUserTokenData
     }
 
 
 type alias LoginTokenData =
     { creationTime : Time.Posix, emailAddress : EmailAddress }
+
+
+type alias DeleteUserTokenData =
+    { creationTime : Time.Posix, userId : CryptoHash UserId }
 
 
 type Log
@@ -252,10 +257,13 @@ type ToBackendRequest
     | ChangeNameRequest (Untrusted Name)
     | ChangeDescriptionRequest (Untrusted Description)
     | ChangeEmailAddressRequest (Untrusted EmailAddress)
+    | SendDeleteUserEmailRequest
+    | DeleteUserRequest (CryptoHash DeleteUserToken)
 
 
 type BackendMsg
     = SentLoginEmail EmailAddress (Result SendGrid.Error ())
+    | SentDeleteUserEmail EmailAddress (Result SendGrid.Error ())
     | BackendGotTime Time.Posix
     | Connected SessionId ClientId
     | Disconnected SessionId ClientId
@@ -271,3 +279,4 @@ type ToFrontend
     | ChangeNameResponse Name
     | ChangeDescriptionResponse Description
     | ChangeEmailAddressResponse EmailAddress
+    | DeleteUserResponse (Result () ())

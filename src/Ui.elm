@@ -1,4 +1,4 @@
-module Ui exposing (button, error, formBackground, formError, headerButton, headerButtonAttributes, headerLink, inputBackground, multiline, radioGroup, submitButton, textInput, title)
+module Ui exposing (button, dangerButton, emailInput, error, filler, formError, headerButton, headerLink, inputBackground, multiline, radioGroup, submitButton, textInput, title)
 
 import Element exposing (Element)
 import Element.Background
@@ -7,13 +7,6 @@ import Element.Font
 import Element.Input
 import List.Nonempty exposing (Nonempty)
 import Route exposing (Route)
-
-
-headerButtonAttributes : List (Element.Attribute msg)
-headerButtonAttributes =
-    [ Element.mouseOver [ Element.Background.color <| Element.rgba 1 1 1 0.5 ]
-    , Element.padding 8
-    ]
 
 
 headerButton : { onPress : msg, label : String } -> Element msg
@@ -35,7 +28,7 @@ headerLink { route, label } =
         , Element.paddingXY 16 8
         , Element.Font.center
         ]
-        { url = Route.encode route Nothing
+        { url = Route.encode route Route.NoToken
         , label = Element.text label
         }
 
@@ -80,9 +73,28 @@ submitButton isSubmitting { onPress, label } =
         }
 
 
+dangerButton : { onPress : msg, label : String } -> Element msg
+dangerButton { onPress, label } =
+    Element.Input.button
+        [ Element.Background.color <| Element.rgb 0.9 0 0
+        , Element.padding 10
+        , Element.Border.rounded 4
+        , Element.Font.center
+        , Element.Font.color <| Element.rgb 1 1 1
+        ]
+        { onPress = Just onPress
+        , label = Element.text label
+        }
+
+
+filler : Element.Length -> Element msg
+filler length =
+    Element.el [ Element.height length ] Element.none
+
+
 title : String -> Element msg
 title text =
-    Element.paragraph [ Element.Font.size 24 ] [ Element.text text ]
+    Element.paragraph [ Element.Font.size 32 ] [ Element.text text ]
 
 
 error : String -> Element msg
@@ -148,9 +160,26 @@ inputBackground hasError =
             Element.rgb 0.94 0.94 0.94
 
 
-formBackground : Element.Attr decorative msg
-formBackground =
-    Element.Background.color <| Element.rgb 1 1 1
+emailInput : (String -> msg) -> String -> String -> Maybe String -> Element msg
+emailInput onChange text labelText maybeError =
+    Element.column
+        [ Element.width Element.fill
+        , inputBackground (maybeError /= Nothing)
+        , Element.paddingEach { left = 8, right = 8, top = 8, bottom = 8 }
+        , Element.Border.rounded 4
+        ]
+        [ Element.Input.email
+            [ Element.width Element.fill ]
+            { text = text
+            , onChange = onChange
+            , placeholder = Nothing
+            , label =
+                Element.Input.labelAbove
+                    [ Element.paddingXY 4 0 ]
+                    (Element.paragraph [] [ Element.text labelText ])
+            }
+        , Maybe.map error maybeError |> Maybe.withDefault Element.none
+        ]
 
 
 textInput : (String -> msg) -> String -> String -> Maybe String -> Element msg

@@ -1,7 +1,7 @@
-module Route exposing (Route(..), decode, encode, loginTokenName)
+module Route exposing (Route(..), Token(..), decode, encode, loginTokenName)
 
 import Env
-import Id exposing (CryptoHash, GroupId, LoginToken)
+import Id exposing (CryptoHash, DeleteUserToken, GroupId, LoginToken)
 import Url
 import Url.Builder
 import Url.Parser exposing ((</>), (<?>))
@@ -17,7 +17,7 @@ type Route
     | MyProfileRoute
 
 
-decode : Url.Parser.Parser (( Route, Maybe (CryptoHash LoginToken) ) -> c) c
+decode : Url.Parser.Parser (( Route, Token ) -> c) c
 decode =
     Url.Parser.oneOf
         [ Url.Parser.top |> Url.Parser.map HomepageRoute
@@ -27,21 +27,47 @@ decode =
         , Url.Parser.s "my-groups" |> Url.Parser.map MyGroupsRoute
         , Url.Parser.s "profile" |> Url.Parser.map MyProfileRoute
         ]
-        <?> decodeLoginToken
+        <?> decodeToken
         |> Url.Parser.map Tuple.pair
 
 
-decodeLoginToken : Url.Parser.Query.Parser (Maybe (CryptoHash LoginToken))
-decodeLoginToken =
-    Url.Parser.Query.string loginTokenName |> Url.Parser.Query.map (Maybe.map Id.cryptoHashFromString)
+decodeToken : Url.Parser.Query.Parser Token
+decodeToken =
+    Url.Parser.Query.map2
+        (\maybeLoginToken maybeDeleteUserToken ->
+            case ( maybeLoginToken, maybeDeleteUserToken ) of
+                ( Just _, Just _ ) ->
+                    NoToken
+
+                ( Nothing, Just deleteUserToken ) ->
+                    DeleteUserToken deleteUserToken
+
+                ( Just loginToken, Nothing ) ->
+                    LoginToken loginToken
+
+                ( Nothing, Nothing ) ->
+                    NoToken
+        )
+        (Url.Parser.Query.string loginTokenName |> Url.Parser.Query.map (Maybe.map Id.cryptoHashFromString))
+        (Url.Parser.Query.string loginTokenName |> Url.Parser.Query.map (Maybe.map Id.cryptoHashFromString))
 
 
 loginTokenName =
     "login-token"
 
 
-encode : Route -> Maybe (CryptoHash LoginToken) -> String
-encode route maybeLoginToken =
+deleteUserTokenName =
+    "delete-user-token"
+
+
+type Token
+    = NoToken
+    | LoginToken (CryptoHash LoginToken)
+    | DeleteUserToken (CryptoHash DeleteUserToken)
+
+
+encode : Route -> Token -> String
+encode route token =
     Url.Builder.absolute
         (case route of
             HomepageRoute ->
@@ -62,10 +88,13 @@ encode route maybeLoginToken =
             MyProfileRoute ->
                 [ "profile" ]
         )
-        (case maybeLoginToken of
-            Just loginToken ->
+        (case token of
+            LoginToken loginToken ->
                 [ Id.cryptoHashToString loginToken |> Url.Builder.string loginTokenName ]
 
-            Nothing ->
+            DeleteUserToken deleteUserToken ->
+                [ Id.cryptoHashToString deleteUserToken |> Url.Builder.string deleteUserTokenName ]
+
+            NoToken ->
                 []
         )
