@@ -10,7 +10,7 @@ import Description exposing (Description)
 import Duration
 import GroupForm exposing (CreateGroupError(..), GroupVisibility)
 import GroupName exposing (GroupName)
-import Id exposing (ClientId, CryptoHash, GroupId, LoginToken, SessionId, UserId)
+import Id exposing (ClientId, CryptoHash, DeleteUserToken, GroupId, LoginToken, SessionId, UserId)
 import Lamdera
 import List.Extra as List
 import List.Nonempty
@@ -284,7 +284,10 @@ updateFromRequest sessionId clientId msg model =
                     in
                     ( { model2
                         | pendingDeleteUserTokens =
-                            Dict.insert deleteUserToken userId model2.pendingDeleteUserTokens
+                            Dict.insert
+                                deleteUserToken
+                                { creationTime = model.time, userId = userId }
+                                model2.pendingDeleteUserTokens
                       }
                     , BackendEffect.sendDeleteUserEmail
                         (SentDeleteUserEmail user.emailAddress)
@@ -294,16 +297,37 @@ updateFromRequest sessionId clientId msg model =
                 )
 
         DeleteUserRequest deleteUserToken ->
-            case Dict.get deleteUserToken model.pendingDeleteUserTokens of
-                Just { creationTime, userId } ->
-                    if Duration.from creationTime model.time |> Quantity.lessThan Duration.hour then
-                        { model | pendingDeleteUserTokens = Dict.remove }
+            getAndRemoveDeleteUserToken (handleDeleteUserRequest clientId) deleteUserToken model
 
-                    else
-                        ( model, BackendEffect.none )
 
-                Nothing ->
-                    ( model, DeleteUserResponse (Err ()) |> BackendEffect.sendToFrontend clientId )
+handleDeleteUserRequest : ClientId -> Maybe DeleteUserTokenData -> BackendModel -> ( BackendModel, BackendEffect )
+handleDeleteUserRequest clientId maybeDeleteUserTokenData model =
+    case maybeDeleteUserTokenData of
+        Just { creationTime, userId } ->
+            if Duration.from creationTime model.time |> Quantity.lessThan Duration.hour then
+                ( deleteUser userId model
+                , case List.Nonempty.fromList (getClientIdsForUser userId model) of
+                    Just nonempty ->
+                        BackendEffect.sendToFrontends nonempty (DeleteUserResponse (Ok ()))
+
+                    Nothing ->
+                        BackendEffect.none
+                )
+
+            else
+                ( model, BackendEffect.sendToFrontend clientId (DeleteUserResponse (Err ())) )
+
+        Nothing ->
+            ( model, BackendEffect.sendToFrontend clientId (DeleteUserResponse (Err ())) )
+
+
+deleteUser : CryptoHash UserId -> BackendModel -> BackendModel
+deleteUser userId model =
+    { model
+        | users = Dict.remove userId model.users
+        , groups = Dict.filter (\_ group -> group.ownerId /= userId) model.groups
+        , sessions = BiDict.filter (\_ userId_ -> userId_ /= userId) model.sessions
+    }
 
 
 getClientIdsForUser : CryptoHash UserId -> BackendModel -> List ClientId
@@ -382,7 +406,25 @@ getAndRemoveLoginToken updateFunc loginToken model =
         { model | pendingLoginTokens = Dict.remove loginToken model.pendingLoginTokens }
 
 
-addGroup : ClientId -> CryptoHash UserId -> GroupName -> Description -> GroupVisibility -> BackendModel -> ( BackendModel, BackendEffect )
+getAndRemoveDeleteUserToken :
+    (Maybe DeleteUserTokenData -> BackendModel -> ( BackendModel, BackendEffect ))
+    -> CryptoHash DeleteUserToken
+    -> BackendModel
+    -> ( BackendModel, BackendEffect )
+getAndRemoveDeleteUserToken updateFunc deleteUserToken model =
+    updateFunc
+        (Dict.get deleteUserToken model.pendingDeleteUserTokens)
+        { model | pendingDeleteUserTokens = Dict.remove deleteUserToken model.pendingDeleteUserTokens }
+
+
+addGroup :
+    ClientId
+    -> CryptoHash UserId
+    -> GroupName
+    -> Description
+    -> GroupVisibility
+    -> BackendModel
+    -> ( BackendModel, BackendEffect )
 addGroup clientId userId name description visibility model =
     if Dict.values model.groups |> List.any (.name >> GroupName.namesMatch name) then
         ( model, Err GroupNameAlreadyInUse |> CreateGroupResponse |> BackendEffect.sendToFrontend clientId )

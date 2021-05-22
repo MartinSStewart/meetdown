@@ -8,7 +8,6 @@ import Element.Region
 import FrontendEffect exposing (FrontendEffect)
 import GroupForm
 import GroupName
-import Id exposing (CryptoHash, LoginToken)
 import Lamdera
 import LoginForm
 import Name
@@ -75,6 +74,7 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
       , hasLoginError = False
       , groupForm = GroupForm.init
       , groupCreated = False
+      , accountDeletedResult = Nothing
       }
     , FrontendEffect.batch
         [ FrontendEffect.manyToBackend login
@@ -318,6 +318,21 @@ updateLoadedFromBackend msg model =
 
         ChangeEmailAddressResponse emailAddress ->
             ( updateUser (\user -> { user | emailAddress = emailAddress }) model, FrontendEffect.none )
+
+        DeleteUserResponse result ->
+            case result of
+                Ok () ->
+                    ( { model
+                        | loginStatus = NotLoggedIn { showLogin = False }
+                        , accountDeletedResult = Just result
+                      }
+                    , FrontendEffect.none
+                    )
+
+                Err () ->
+                    ( { model | accountDeletedResult = Just result }
+                    , FrontendEffect.none
+                    )
 
 
 updateUser : (BackendUser -> BackendUser) -> LoadedFrontend -> LoadedFrontend

@@ -45,6 +45,7 @@ type alias LoadedFrontend =
     , hasLoginError : Bool
     , groupForm : Model
     , groupCreated : Bool
+    , accountDeletedResult : Maybe (Result () ())
     }
 
 

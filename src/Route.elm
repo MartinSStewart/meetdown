@@ -49,7 +49,7 @@ decodeToken =
                     NoToken
         )
         (Url.Parser.Query.string loginTokenName |> Url.Parser.Query.map (Maybe.map Id.cryptoHashFromString))
-        (Url.Parser.Query.string loginTokenName |> Url.Parser.Query.map (Maybe.map Id.cryptoHashFromString))
+        (Url.Parser.Query.string deleteUserTokenName |> Url.Parser.Query.map (Maybe.map Id.cryptoHashFromString))
 
 
 loginTokenName =
