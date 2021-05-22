@@ -241,6 +241,7 @@ type FrontendMsg
     | PressedMyGroups
     | GroupFormMsg GroupForm.Msg
     | ProfileFormMsg ProfileForm.Msg
+    | SetCanvasImage { canvasId : String, width : Int, height : Int }
 
 
 type ToBackend

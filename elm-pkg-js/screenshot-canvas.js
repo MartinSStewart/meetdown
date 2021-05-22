@@ -1,4 +1,5 @@
 // port martinsstewart_screenshot_canvas_to_js : String -> Cmd msg
+// port martinsstewart_screenshot_canvas_from_js : ({ canvasId : String, width : Int, height : Int } -> msg) -> Sub msg
 
 exports.init = async function(app) {
   app.ports.martinsstewart_screenshot_canvas_to_js.subscribe(function(data) {

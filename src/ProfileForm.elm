@@ -1,15 +1,18 @@
-module ProfileForm exposing (CurrentValues, Effects, Form, Model, Msg, init, update, view)
+module ProfileForm exposing (CurrentValues, Effects, Form, Model, Msg, init, setImageCanvas, update, view)
 
 import Bytes exposing (Bytes)
 import Description exposing (Description, Error(..))
 import Duration exposing (Duration)
 import Element exposing (Element)
+import Element.Background
 import Element.Border
 import Element.Font
 import Element.Input
 import EmailAddress exposing (EmailAddress)
 import Html
 import Html.Attributes
+import Html.Events
+import Json.Decode
 import MockFile exposing (File)
 import Name exposing (Error(..), Name)
 import ProfileImage exposing (ProfileImage)
@@ -22,8 +25,10 @@ type Msg
     | SleepFinished Int
     | PressedProfileImage
     | SelectedImage File
-    | GotImageContents Bytes
+    | GotImageUrl String
     | PressedDeleteAccount
+    | PressedImageEditor Float Float
+    | MovedImageEditor Float Float
 
 
 type Editable a
@@ -31,10 +36,35 @@ type Editable a
     | Editting a
 
 
+type alias ImageEdit =
+    { x : Float
+    , y : Float
+    , size : Float
+    , imageUrl : String
+    , dragState : Maybe DragState
+    }
+
+
+type alias DragState =
+    { startX : Float
+    , startY : Float
+    , dragPart : DragPart
+    }
+
+
+type DragPart
+    = TopLeft
+    | TopRight
+    | Bottomleft
+    | BottomRight
+    | Center
+
+
 type alias Model =
     { form : Form
     , changeCounter : Int
-    , profileImage : Editable (Maybe File)
+    , profileImage : Editable (Maybe ImageEdit)
+    , profileImageSize : Maybe ( Int, Int )
     , pressedDeleteAccount : Bool
     }
 
@@ -64,6 +94,7 @@ init =
         }
     , changeCounter = 0
     , profileImage = Unchanged
+    , profileImageSize = Nothing
     , pressedDeleteAccount = False
     }
 
@@ -75,7 +106,7 @@ type alias Effects cmd =
     , changeDescription : Untrusted Description -> cmd
     , changeEmailAddress : Untrusted EmailAddress -> cmd
     , selectFile : List String -> (File -> Msg) -> cmd
-    , getFileContents : (Bytes -> Msg) -> File -> cmd
+    , getFileContents : (String -> Msg) -> File -> cmd
     , setCanvasImage : { canvasId : String, image : Bytes } -> cmd
     , sendDeleteAccountEmail : cmd
     , batch : List cmd -> cmd
@@ -124,21 +155,37 @@ update effects msg model =
             ( model, effects.selectFile [ "image/png", "image/jpg", "image/jpeg" ] SelectedImage )
 
         SelectedImage file ->
-            let
-                _ =
-                    Debug.log "" "a"
-            in
-            ( { model | profileImage = Editting (Just file) }, effects.getFileContents GotImageContents file )
+            ( model, effects.getFileContents GotImageUrl file )
 
         PressedDeleteAccount ->
             ( { model | pressedDeleteAccount = True }, effects.sendDeleteAccountEmail )
 
-        GotImageContents imageBytes ->
+        GotImageUrl imageUrl ->
+            ( { model
+                | profileImage =
+                    Editting (Just { x = 0.1, y = 0.1, size = 0.8, imageUrl = imageUrl, dragState = Nothing })
+              }
+            , effects.none
+            )
+
+        PressedImageEditor x y ->
             let
                 _ =
-                    Debug.log "" "b"
+                    Debug.log "xy" ( x, y )
             in
-            ( model, effects.setCanvasImage { canvasId = canvasId, image = imageBytes } )
+            ( model, effects.none )
+
+        MovedImageEditor x y ->
+            let
+                _ =
+                    Debug.log "moved" ( x, y )
+            in
+            ( model, effects.none )
+
+
+setImageCanvas : { canvasId : String, width : Int, height : Int } -> Model -> Model
+setImageCanvas imageData model =
+    { model | profileImageSize = Just ( imageData.width, imageData.height ) }
 
 
 profileImageSize =
@@ -151,97 +198,211 @@ canvasId =
 
 
 view : CurrentValues a -> Model -> Element Msg
-view currentValues { form, profileImage, pressedDeleteAccount } =
-    Element.column
-        [ Element.spacing 8, Element.padding 8, Element.width Element.fill ]
-        [ Element.wrappedRow [ Element.width Element.fill ]
-            [ Element.el [ Element.alignTop ] (Ui.title "Profile")
-            , Element.Input.button
-                [ Element.alignRight
-                , Element.Border.rounded 9999
-                , Element.clip
-                ]
-                { onPress = Just PressedProfileImage
-                , label =
-                    --case profileImage of
-                    --    Unchanged ->
-                    --        Element.image
-                    --            [ Element.width (Element.px profileImageSize)
-                    --            , Element.height (Element.px profileImageSize)
-                    --            , Element.alignRight
-                    --            , Ui.inputBackground False
-                    --            ]
-                    --            { src = "./default-profile.png", description = "Your profile image" }
-                    --
-                    --    Editting _ ->
-                    Element.html
-                        (Html.canvas
-                            [ Html.Attributes.width profileImageSize
-                            , Html.Attributes.height profileImageSize
-                            , Html.Attributes.id canvasId
+view currentValues ({ form } as model) =
+    case model.profileImage of
+        Editting (Just { x, y, size, imageUrl, dragState }) ->
+            let
+                drawNode x_ y_ =
+                    Element.inFront
+                        (Element.el
+                            [ Element.width (Element.px 8)
+                            , Element.height (Element.px 8)
+                            , Element.moveRight (x_ * 400 - 4)
+                            , Element.moveDown (y_ * 400 - 4)
+                            , Element.Background.color <| Element.rgb 1 1 1
+                            , Element.Border.width 2
+                            , Element.Border.color <| Element.rgb 0 0 0
+                            , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
                             ]
-                            []
+                            Element.none
                         )
-                }
-            ]
-        , editableTextInput
-            (\a -> FormChanged { form | name = a })
-            Name.toString
-            (\a ->
-                case Name.fromString a of
-                    Ok name ->
-                        Ok name
 
-                    Err Name.NameTooShort ->
-                        Err "Your name can't be empty"
+                drawHorizontalLine x_ y_ width =
+                    Element.inFront
+                        (Element.el
+                            [ Element.width (Element.px <| round (width * 400))
+                            , Element.height (Element.px 6)
+                            , Element.moveRight (x_ * 400)
+                            , Element.moveDown (y_ * 400 - 3)
+                            , Element.Background.color <| Element.rgb 1 1 1
+                            , Element.Border.width 2
+                            , Element.Border.color <| Element.rgb 0 0 0
+                            , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                            ]
+                            Element.none
+                        )
 
-                    Err Name.NameTooLong ->
-                        "Keep it below " ++ String.fromInt (Name.maxLength + 1) ++ " characters" |> Err
-            )
-            currentValues.name
-            form.name
-            "Your name"
-        , editableMultiline
-            (\a -> FormChanged { form | description = a })
-            Description.toString
-            (\a ->
-                case Description.fromString a of
-                    Ok name ->
-                        Ok name
+                drawVerticalLine x_ y_ height =
+                    Element.inFront
+                        (Element.el
+                            [ Element.height (Element.px <| round (height * 400))
+                            , Element.width (Element.px 6)
+                            , Element.moveRight (x_ * 400 - 3)
+                            , Element.moveDown (y_ * 400)
+                            , Element.Background.color <| Element.rgb 1 1 1
+                            , Element.Border.width 2
+                            , Element.Border.color <| Element.rgb 0 0 0
+                            , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                            ]
+                            Element.none
+                        )
+            in
+            Element.image
+                [ Element.width <| Element.px 400
+                , Element.height <| Element.px 400
+                , Json.Decode.map2 (\x_ y_ -> ( PressedImageEditor x_ y_, True ))
+                    (Json.Decode.field "offsetX" Json.Decode.float)
+                    (Json.Decode.field "offsetY" Json.Decode.float)
+                    |> Html.Events.preventDefaultOn "mousedown"
+                    |> Element.htmlAttribute
+                , if dragState == Nothing then
+                    Html.Events.on "" (Json.Decode.succeed (MovedImageEditor 0 0))
+                        |> Element.htmlAttribute
 
-                    Err DescriptionTooLong ->
-                        "Less than "
-                            ++ String.fromInt Description.maxLength
-                            ++ " characters please"
-                            |> Err
-            )
-            currentValues.description
-            form.description
-            "What do you want people to know about you?"
-        , editableEmailInput
-            (\_ -> FormChanged form)
-            --(\a -> FormChanged { form | emailAddress = a })
-            EmailAddress.toString
-            (EmailAddress.fromString >> Result.fromMaybe "Invalid email")
-            currentValues.emailAddress
-            form.emailAddress
-            "Your email address"
-        , Ui.filler (Element.px 8)
-        , Ui.dangerButton { onPress = PressedDeleteAccount, label = "Delete account" }
-        , if pressedDeleteAccount then
-            Element.column
-                [ Element.spacing 20 ]
-                [ Element.paragraph []
-                    [ Element.text "An account deletion email has been sent to "
-                    , Ui.emailAddressText currentValues.emailAddress
-                    , Element.text ". Press the link in it to confirm deleting your account."
-                    ]
-                , Element.paragraph [] [ Element.text "If you don't see the email, check your spam folder." ]
+                  else
+                    Json.Decode.map2 (\x_ y_ -> ( MovedImageEditor x_ y_, True ))
+                        (Json.Decode.field "offsetX" Json.Decode.float)
+                        (Json.Decode.field "offsetY" Json.Decode.float)
+                        |> Html.Events.preventDefaultOn "mousemove"
+                        |> Element.htmlAttribute
+                , Element.inFront
+                    (Element.el
+                        [ Element.height (Element.px <| round (size * 400))
+                        , Element.width (Element.px <| round (size * 400))
+                        , Element.moveRight (x * 400)
+                        , Element.moveDown (y * 400)
+                        , Element.Border.width 2
+                        , Element.Border.color <| Element.rgb 0 0 0
+                        , Element.Border.rounded 99999
+                        , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                        ]
+                        Element.none
+                    )
+                , Element.inFront
+                    (Element.el
+                        [ Element.height (Element.px <| round (size * 400 - 4))
+                        , Element.width (Element.px <| round (size * 400 - 4))
+                        , Element.moveRight (x * 400 + 2)
+                        , Element.moveDown (y * 400 + 2)
+                        , Element.Border.width 2
+                        , Element.Border.color <| Element.rgb 1 1 1
+                        , Element.Border.rounded 99999
+                        , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                        ]
+                        Element.none
+                    )
+                , drawHorizontalLine x y size
+                , drawHorizontalLine x (y + size) size
+                , drawVerticalLine x y size
+                , drawVerticalLine (x + size) y size
+                , drawNode x y
+                , drawNode (x + size) y
+                , drawNode x (y + size)
+                , drawNode (x + size) (y + size)
                 ]
+                { src = imageUrl
+                , description = "Image editor"
+                }
 
-          else
-            Element.none
-        ]
+        _ ->
+            Element.column
+                [ Element.spacing 8, Element.padding 8, Element.width Element.fill ]
+                [ Element.wrappedRow [ Element.width Element.fill ]
+                    [ Element.el [ Element.alignTop ] (Ui.title "Profile")
+                    , Element.Input.button
+                        [ Element.alignRight
+                        , Element.Border.rounded 9999
+                        , Element.clip
+                        ]
+                        { onPress = Just PressedProfileImage
+                        , label =
+                            Element.image
+                                [ Element.width (Element.px profileImageSize)
+                                , Element.height (Element.px profileImageSize)
+                                , Element.alignRight
+                                , Ui.inputBackground False
+                                ]
+                                { src = "./default-profile.png", description = "Your profile image" }
+
+                        --case profileImage of
+                        --    Unchanged ->
+                        --        Element.image
+                        --            [ Element.width (Element.px profileImageSize)
+                        --            , Element.height (Element.px profileImageSize)
+                        --            , Element.alignRight
+                        --            , Ui.inputBackground False
+                        --            ]
+                        --            { src = "./default-profile.png", description = "Your profile image" }
+                        --
+                        --    Editting _ ->
+                        --            Element.html
+                        --                (Html.canvas
+                        --                    [ Html.Attributes.width profileImageSize
+                        --                    , Html.Attributes.height profileImageSize
+                        --                    , Html.Attributes.id canvasId
+                        --                    ]
+                        --                    []
+                        --                )
+                        }
+                    ]
+                , editableTextInput
+                    (\a -> FormChanged { form | name = a })
+                    Name.toString
+                    (\a ->
+                        case Name.fromString a of
+                            Ok name ->
+                                Ok name
+
+                            Err Name.NameTooShort ->
+                                Err "Your name can't be empty"
+
+                            Err Name.NameTooLong ->
+                                "Keep it below " ++ String.fromInt (Name.maxLength + 1) ++ " characters" |> Err
+                    )
+                    currentValues.name
+                    form.name
+                    "Your name"
+                , editableMultiline
+                    (\a -> FormChanged { form | description = a })
+                    Description.toString
+                    (\a ->
+                        case Description.fromString a of
+                            Ok name ->
+                                Ok name
+
+                            Err DescriptionTooLong ->
+                                "Less than "
+                                    ++ String.fromInt Description.maxLength
+                                    ++ " characters please"
+                                    |> Err
+                    )
+                    currentValues.description
+                    form.description
+                    "What do you want people to know about you?"
+                , editableEmailInput
+                    (\_ -> FormChanged form)
+                    --(\a -> FormChanged { form | emailAddress = a })
+                    EmailAddress.toString
+                    (EmailAddress.fromString >> Result.fromMaybe "Invalid email")
+                    currentValues.emailAddress
+                    form.emailAddress
+                    "Your email address"
+                , Ui.filler (Element.px 8)
+                , Ui.dangerButton { onPress = PressedDeleteAccount, label = "Delete account" }
+                , if model.pressedDeleteAccount then
+                    Element.column
+                        [ Element.spacing 20 ]
+                        [ Element.paragraph []
+                            [ Element.text "An account deletion email has been sent to "
+                            , Ui.emailAddressText currentValues.emailAddress
+                            , Element.text ". Press the link in it to confirm deleting your account."
+                            ]
+                        , Element.paragraph [] [ Element.text "If you don't see the email, check your spam folder." ]
+                        ]
+
+                  else
+                    Element.none
+                ]
 
 
 editableTextInput :

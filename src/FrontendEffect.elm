@@ -1,4 +1,4 @@
-port module FrontendEffect exposing (FrontendEffect, batch, copyToClipboard, fileToBytes, getTime, manyToBackend, navigationLoad, navigationPushUrl, navigationReplaceUrl, none, selectFile, sendToBackend, setCanvasImage, toCmd, wait)
+port module FrontendEffect exposing (FrontendEffect, batch, copyToClipboard, fileToBytes, getTime, manyToBackend, martinsstewart_screenshot_canvas_from_js, navigationLoad, navigationPushUrl, navigationReplaceUrl, none, selectFile, sendToBackend, setCanvasImage, toCmd, wait)
 
 import Browser.Navigation
 import Bytes exposing (Bytes)
@@ -20,6 +20,9 @@ port supermario_copy_to_clipboard_to_js : String -> Cmd msg
 port martinsstewart_screenshot_canvas_to_js : { canvasId : String, image : Bytes } -> Cmd msg
 
 
+port martinsstewart_screenshot_canvas_from_js : ({ canvasId : String, width : Int, height : Int } -> msg) -> Sub msg
+
+
 type FrontendEffect
     = Batch (List FrontendEffect)
     | SendToBackend ToBackend
@@ -31,7 +34,7 @@ type FrontendEffect
     | SelectFile (List String) (MockFile.File -> FrontendMsg)
     | CopyToClipboard String
     | SetCanvasImage { canvasId : String, image : Bytes }
-    | FileToBytes (Bytes -> FrontendMsg) File
+    | FileToUrl (String -> FrontendMsg) File
 
 
 none : FrontendEffect
@@ -94,9 +97,9 @@ setCanvasImage =
     SetCanvasImage
 
 
-fileToBytes : (Bytes -> FrontendMsg) -> File -> FrontendEffect
+fileToBytes : (String -> FrontendMsg) -> File -> FrontendEffect
 fileToBytes =
-    FileToBytes
+    FileToUrl
 
 
 toCmd : FrontendEffect -> Cmd FrontendMsg
@@ -142,10 +145,10 @@ toCmd frontendEffect =
         SetCanvasImage imageBlob ->
             martinsstewart_screenshot_canvas_to_js imageBlob
 
-        FileToBytes msg file ->
+        FileToUrl msg file ->
             case file of
                 RealFile realFile ->
-                    File.toBytes realFile |> Task.perform msg
+                    File.toUrl realFile |> Task.perform msg
 
                 MockFile ->
                     Cmd.none
