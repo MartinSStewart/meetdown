@@ -1,5 +1,6 @@
 module ProfileForm exposing (CurrentValues, Effects, Form, Model, Msg, init, update, view)
 
+import Bytes exposing (Bytes)
 import Description exposing (Description, Error(..))
 import Duration exposing (Duration)
 import Element exposing (Element)
@@ -21,6 +22,7 @@ type Msg
     | SleepFinished Int
     | PressedProfileImage
     | SelectedImage File
+    | GotImageContents Bytes
     | PressedDeleteAccount
 
 
@@ -73,6 +75,8 @@ type alias Effects cmd =
     , changeDescription : Untrusted Description -> cmd
     , changeEmailAddress : Untrusted EmailAddress -> cmd
     , selectFile : List String -> (File -> Msg) -> cmd
+    , getFileContents : (Bytes -> Msg) -> File -> cmd
+    , setCanvasImage : { canvasId : String, image : Bytes } -> cmd
     , sendDeleteAccountEmail : cmd
     , batch : List cmd -> cmd
     }
@@ -117,23 +121,37 @@ update effects msg model =
             )
 
         PressedProfileImage ->
-            ( model
-            , effects.selectFile [ "image/png", "image/jpg", "image/jpeg" ] SelectedImage
-            )
+            ( model, effects.selectFile [ "image/png", "image/jpg", "image/jpeg" ] SelectedImage )
 
         SelectedImage file ->
-            ( { model | profileImage = Editting (Just file) }, effects.none )
+            let
+                _ =
+                    Debug.log "" "a"
+            in
+            ( { model | profileImage = Editting (Just file) }, effects.getFileContents GotImageContents file )
 
         PressedDeleteAccount ->
             ( { model | pressedDeleteAccount = True }, effects.sendDeleteAccountEmail )
+
+        GotImageContents imageBytes ->
+            let
+                _ =
+                    Debug.log "" "b"
+            in
+            ( model, effects.setCanvasImage { canvasId = canvasId, image = imageBytes } )
 
 
 profileImageSize =
     128
 
 
+canvasId : String
+canvasId =
+    "profile-image-canvas-id"
+
+
 view : CurrentValues a -> Model -> Element Msg
-view currentValues { form, profileImage } =
+view currentValues { form, profileImage, pressedDeleteAccount } =
     Element.column
         [ Element.spacing 8, Element.padding 8, Element.width Element.fill ]
         [ Element.wrappedRow [ Element.width Element.fill ]
@@ -145,24 +163,25 @@ view currentValues { form, profileImage } =
                 ]
                 { onPress = Just PressedProfileImage
                 , label =
-                    case profileImage of
-                        Unchanged ->
-                            Element.image
-                                [ Element.width (Element.px profileImageSize)
-                                , Element.height (Element.px profileImageSize)
-                                , Element.alignRight
-                                , Ui.inputBackground False
-                                ]
-                                { src = "./default-profile.png", description = "Your profile image" }
-
-                        Editting _ ->
-                            Element.html
-                                (Html.canvas
-                                    [ Html.Attributes.width profileImageSize
-                                    , Html.Attributes.height profileImageSize
-                                    ]
-                                    []
-                                )
+                    --case profileImage of
+                    --    Unchanged ->
+                    --        Element.image
+                    --            [ Element.width (Element.px profileImageSize)
+                    --            , Element.height (Element.px profileImageSize)
+                    --            , Element.alignRight
+                    --            , Ui.inputBackground False
+                    --            ]
+                    --            { src = "./default-profile.png", description = "Your profile image" }
+                    --
+                    --    Editting _ ->
+                    Element.html
+                        (Html.canvas
+                            [ Html.Attributes.width profileImageSize
+                            , Html.Attributes.height profileImageSize
+                            , Html.Attributes.id canvasId
+                            ]
+                            []
+                        )
                 }
             ]
         , editableTextInput
@@ -209,6 +228,19 @@ view currentValues { form, profileImage } =
             "Your email address"
         , Ui.filler (Element.px 8)
         , Ui.dangerButton { onPress = PressedDeleteAccount, label = "Delete account" }
+        , if pressedDeleteAccount then
+            Element.column
+                [ Element.spacing 20 ]
+                [ Element.paragraph []
+                    [ Element.text "An account deletion email has been sent to "
+                    , Ui.emailAddressText currentValues.emailAddress
+                    , Element.text ". Press the link in it to confirm deleting your account."
+                    ]
+                , Element.paragraph [] [ Element.text "If you don't see the email, check your spam folder." ]
+                ]
+
+          else
+            Element.none
         ]
 
 

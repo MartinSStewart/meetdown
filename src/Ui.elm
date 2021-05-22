@@ -1,10 +1,11 @@
-module Ui exposing (button, dangerButton, emailInput, error, filler, formError, headerButton, headerLink, inputBackground, multiline, radioGroup, submitButton, textInput, title)
+module Ui exposing (button, dangerButton, emailAddressText, emailInput, error, filler, formError, headerButton, headerLink, inputBackground, multiline, radioGroup, submitButton, textInput, title)
 
 import Element exposing (Element)
 import Element.Background
 import Element.Border
 import Element.Font
 import Element.Input
+import EmailAddress exposing (EmailAddress)
 import List.Nonempty exposing (Nonempty)
 import Route exposing (Route)
 
@@ -31,6 +32,13 @@ headerLink { route, label } =
         { url = Route.encode route Route.NoToken
         , label = Element.text label
         }
+
+
+emailAddressText : EmailAddress -> Element msg
+emailAddressText emailAddress =
+    Element.el
+        [ Element.Font.color <| Element.rgb 0.1 0.1 1 ]
+        (Element.text (EmailAddress.toString emailAddress))
 
 
 button : { onPress : msg, label : String } -> Element msg

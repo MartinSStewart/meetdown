@@ -1,8 +1,6 @@
 module LoginForm exposing (submitForm, typedEmail, view)
 
 import Element exposing (Element)
-import Element.Font
-import Element.Input
 import EmailAddress exposing (EmailAddress)
 import FrontendEffect
 import Route exposing (Route)
@@ -23,13 +21,15 @@ view { email, pressedSubmitEmail, emailSent } =
             , Element.below
                 (case emailSent of
                     Just emailAddress ->
-                        Element.paragraph
-                            [ Element.padding 8 ]
-                            [ Element.text "A login email has been sent to "
-                            , Element.el
-                                [ Element.Font.color <| Element.rgb 0.1 0.1 1 ]
-                                (Element.text (EmailAddress.toString emailAddress))
-                            , Element.text ". Check your spam folder if you don't see it."
+                        Element.column
+                            [ Element.spacing 4, Element.padding 8 ]
+                            [ Element.paragraph
+                                []
+                                [ Element.text "A login email has been sent to "
+                                , Ui.emailAddressText emailAddress
+                                , Element.text "."
+                                ]
+                            , Element.paragraph [] [ Element.text "Check your spam folder if you don't see it." ]
                             ]
 
                     Nothing ->

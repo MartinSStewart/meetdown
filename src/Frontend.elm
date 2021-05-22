@@ -212,7 +212,12 @@ updateLoaded msg model =
                                 , changeName = ChangeNameRequest >> FrontendEffect.sendToBackend
                                 , changeDescription = ChangeDescriptionRequest >> FrontendEffect.sendToBackend
                                 , changeEmailAddress = ChangeEmailAddressRequest >> FrontendEffect.sendToBackend
-                                , selectFile = \mimeTypes fileMsg -> FrontendEffect.selectFile mimeTypes (fileMsg >> ProfileFormMsg)
+                                , selectFile =
+                                    \mimeTypes fileMsg ->
+                                        FrontendEffect.selectFile mimeTypes (fileMsg >> ProfileFormMsg)
+                                , getFileContents =
+                                    \fileMsg file -> FrontendEffect.fileToBytes (fileMsg >> ProfileFormMsg) file
+                                , setCanvasImage = FrontendEffect.setCanvasImage
                                 , sendDeleteAccountEmail = FrontendEffect.sendToBackend SendDeleteUserEmailRequest
                                 , batch = FrontendEffect.batch
                                 }
@@ -383,7 +388,12 @@ viewLoaded model =
                 Element.none
             )
         ]
-        [ header (isLoggedIn model) model.route
+        [ case model.loginStatus of
+            LoginStatusPending ->
+                Element.none
+
+            _ ->
+                header (isLoggedIn model) model.route
         , case model.loginStatus of
             NotLoggedIn { showLogin } ->
                 if showLogin then
