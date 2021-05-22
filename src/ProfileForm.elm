@@ -27,7 +27,8 @@ type Msg
     | SelectedImage File
     | GotImageUrl String
     | PressedDeleteAccount
-    | PressedImageEditor Float Float
+    | MouseDownImageEditor Float Float
+    | MouseUpImageEditor Float Float
     | MovedImageEditor Float Float
 
 
@@ -49,6 +50,8 @@ type alias DragState =
     { startX : Float
     , startY : Float
     , dragPart : DragPart
+    , currentX : Float
+    , currentY : Float
     }
 
 
@@ -168,19 +171,78 @@ update effects msg model =
             , effects.none
             )
 
-        PressedImageEditor x y ->
-            let
-                _ =
-                    Debug.log "xy" ( x, y )
-            in
-            ( model, effects.none )
+        MouseDownImageEditor x y ->
+            case model.profileImage of
+                Editting (Just ({ dragState } as imageData)) ->
+                    let
+                        ( tx, ty ) =
+                            ( pixelToT x, pixelToT y )
+
+                        newDragState =
+                            { startX = tx
+                            , startY = ty
+                            , dragPart = Center
+                            , currentX = tx
+                            , currentY = ty
+                            }
+                    in
+                    ( { model
+                        | profileImage = Editting (Just { imageData | dragState = Just newDragState })
+                      }
+                    , effects.none
+                    )
+
+                _ ->
+                    ( model, effects.none )
 
         MovedImageEditor x y ->
-            let
-                _ =
-                    Debug.log "moved" ( x, y )
-            in
-            ( model, effects.none )
+            case model.profileImage of
+                Editting (Just ({ dragState } as imageData)) ->
+                    let
+                        ( tx, ty ) =
+                            ( pixelToT x, pixelToT y )
+
+                        newDragState =
+                            case dragState of
+                                Just dragState_ ->
+                                    { dragState_
+                                        | currentX = tx
+                                        , currentY = ty
+                                    }
+                                        |> Just
+
+                                Nothing ->
+                                    dragState
+                    in
+                    ( { model
+                        | profileImage = Editting (Just { imageData | dragState = newDragState })
+                      }
+                    , effects.none
+                    )
+
+                _ ->
+                    ( model, effects.none )
+
+        MouseUpImageEditor x y ->
+            case model.profileImage of
+                Editting (Just ({ dragState } as imageData)) ->
+                    let
+                        ( tx, ty ) =
+                            ( pixelToT x, pixelToT y )
+                    in
+                    case dragState of
+                        Just dragState_ ->
+                            ( { model
+                                | profileImage = Editting (Just { imageData | dragState = Nothing })
+                              }
+                            , effects.none
+                            )
+
+                        Nothing ->
+                            ( model, effects.none )
+
+                _ ->
+                    ( model, effects.none )
 
 
 setImageCanvas : { canvasId : String, width : Int, height : Int } -> Model -> Model
@@ -197,6 +259,16 @@ canvasId =
     "profile-image-canvas-id"
 
 
+pixelToT : Float -> Float
+pixelToT value =
+    value / 400
+
+
+tToPixel : Float -> Float
+tToPixel value =
+    value * 400
+
+
 view : CurrentValues a -> Model -> Element Msg
 view currentValues ({ form } as model) =
     case model.profileImage of
@@ -207,8 +279,8 @@ view currentValues ({ form } as model) =
                         (Element.el
                             [ Element.width (Element.px 8)
                             , Element.height (Element.px 8)
-                            , Element.moveRight (x_ * 400 - 4)
-                            , Element.moveDown (y_ * 400 - 4)
+                            , Element.moveRight (tToPixel x_ - 4)
+                            , Element.moveDown (tToPixel y_ - 4)
                             , Element.Background.color <| Element.rgb 1 1 1
                             , Element.Border.width 2
                             , Element.Border.color <| Element.rgb 0 0 0
@@ -220,10 +292,10 @@ view currentValues ({ form } as model) =
                 drawHorizontalLine x_ y_ width =
                     Element.inFront
                         (Element.el
-                            [ Element.width (Element.px <| round (width * 400))
+                            [ Element.width (Element.px <| round (tToPixel width))
                             , Element.height (Element.px 6)
-                            , Element.moveRight (x_ * 400)
-                            , Element.moveDown (y_ * 400 - 3)
+                            , Element.moveRight (tToPixel x_)
+                            , Element.moveDown (tToPixel y_ - 3)
                             , Element.Background.color <| Element.rgb 1 1 1
                             , Element.Border.width 2
                             , Element.Border.color <| Element.rgb 0 0 0
@@ -235,10 +307,10 @@ view currentValues ({ form } as model) =
                 drawVerticalLine x_ y_ height =
                     Element.inFront
                         (Element.el
-                            [ Element.height (Element.px <| round (height * 400))
+                            [ Element.height (Element.px <| round (tToPixel height))
                             , Element.width (Element.px 6)
-                            , Element.moveRight (x_ * 400 - 3)
-                            , Element.moveDown (y_ * 400)
+                            , Element.moveRight (tToPixel x_ - 3)
+                            , Element.moveDown (tToPixel y_)
                             , Element.Background.color <| Element.rgb 1 1 1
                             , Element.Border.width 2
                             , Element.Border.color <| Element.rgb 0 0 0
@@ -250,10 +322,15 @@ view currentValues ({ form } as model) =
             Element.image
                 [ Element.width <| Element.px 400
                 , Element.height <| Element.px 400
-                , Json.Decode.map2 (\x_ y_ -> ( PressedImageEditor x_ y_, True ))
+                , Json.Decode.map2 (\x_ y_ -> ( MouseDownImageEditor x_ y_, True ))
                     (Json.Decode.field "offsetX" Json.Decode.float)
                     (Json.Decode.field "offsetY" Json.Decode.float)
                     |> Html.Events.preventDefaultOn "mousedown"
+                    |> Element.htmlAttribute
+                , Json.Decode.map2 (\x_ y_ -> ( MouseUpImageEditor x_ y_, True ))
+                    (Json.Decode.field "offsetX" Json.Decode.float)
+                    (Json.Decode.field "offsetY" Json.Decode.float)
+                    |> Html.Events.preventDefaultOn "mouseup"
                     |> Element.htmlAttribute
                 , if dragState == Nothing then
                     Html.Events.on "" (Json.Decode.succeed (MovedImageEditor 0 0))

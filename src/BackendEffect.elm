@@ -4,7 +4,7 @@ import Email.Html
 import Email.Html.Attributes
 import EmailAddress exposing (EmailAddress)
 import Env
-import Id exposing (ClientId, CryptoHash, DeleteUserToken, LoginToken)
+import Id exposing (ClientId, DeleteUserToken, Id, LoginToken)
 import Lamdera
 import List.Nonempty exposing (Nonempty)
 import Route exposing (Route(..))
@@ -16,8 +16,8 @@ import Types exposing (BackendMsg, ToFrontend)
 type BackendEffect
     = Batch (List BackendEffect)
     | SendToFrontend ClientId ToFrontend
-    | SendLoginEmail (Result SendGrid.Error () -> BackendMsg) EmailAddress Route (CryptoHash LoginToken)
-    | SendDeleteUserEmail (Result SendGrid.Error () -> BackendMsg) EmailAddress (CryptoHash DeleteUserToken)
+    | SendLoginEmail (Result SendGrid.Error () -> BackendMsg) EmailAddress Route (Id LoginToken)
+    | SendDeleteUserEmail (Result SendGrid.Error () -> BackendMsg) EmailAddress (Id DeleteUserToken)
 
 
 none : BackendEffect
@@ -44,7 +44,7 @@ sendLoginEmail :
     (Result SendGrid.Error () -> BackendMsg)
     -> EmailAddress
     -> Route
-    -> CryptoHash LoginToken
+    -> Id LoginToken
     -> BackendEffect
 sendLoginEmail =
     SendLoginEmail
@@ -53,7 +53,7 @@ sendLoginEmail =
 sendDeleteUserEmail :
     (Result SendGrid.Error () -> BackendMsg)
     -> EmailAddress
-    -> CryptoHash DeleteUserToken
+    -> Id DeleteUserToken
     -> BackendEffect
 sendDeleteUserEmail =
     SendDeleteUserEmail

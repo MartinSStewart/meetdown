@@ -1,8 +1,8 @@
 module Id exposing
     ( ClientId
-    , CryptoHash
     , DeleteUserToken
     , GroupId
+    , Id
     , LoginToken
     , SessionId
     , UserId
@@ -11,13 +11,14 @@ module Id exposing
     , clientIdToString
     , cryptoHashFromString
     , cryptoHashToString
-    , getCryptoHash
+    , getUniqueId
     , sessionIdFromString
     )
 
 import Env
 import Lamdera
 import Sha256
+import Time
 
 
 type UserId
@@ -36,8 +37,8 @@ type ClientId
     = ClientId Lamdera.ClientId
 
 
-type CryptoHash a
-    = CryptoHash String
+type Id a
+    = Id String
 
 
 type LoginToken
@@ -63,23 +64,29 @@ clientIdToString (ClientId clientId) =
     clientId
 
 
-adminUserId : CryptoHash UserId
+adminUserId : Id UserId
 adminUserId =
     cryptoHashFromString Env.adminUserId_
 
 
-getCryptoHash : { a | secretCounter : Int } -> ( { a | secretCounter : Int }, CryptoHash b )
-getCryptoHash model =
+getUniqueId : { a | secretCounter : Int, time : Time.Posix } -> ( { a | secretCounter : Int, time : Time.Posix }, Id b )
+getUniqueId model =
     ( { model | secretCounter = model.secretCounter + 1 }
-    , Env.secretKey ++ ":" ++ String.fromInt model.secretCounter |> Sha256.sha256 |> CryptoHash
+    , Env.secretKey
+        ++ ":"
+        ++ String.fromInt model.secretCounter
+        ++ ":"
+        ++ String.fromInt (Time.posixToMillis model.time)
+        |> Sha256.sha256
+        |> Id
     )
 
 
-cryptoHashToString : CryptoHash a -> String
-cryptoHashToString (CryptoHash hash) =
+cryptoHashToString : Id a -> String
+cryptoHashToString (Id hash) =
     hash
 
 
-cryptoHashFromString : String -> CryptoHash a
+cryptoHashFromString : String -> Id a
 cryptoHashFromString =
-    CryptoHash
+    Id

@@ -1,7 +1,7 @@
 module Route exposing (Route(..), Token(..), decode, encode, loginTokenName)
 
 import Env
-import Id exposing (CryptoHash, DeleteUserToken, GroupId, LoginToken)
+import Id exposing (DeleteUserToken, GroupId, Id, LoginToken)
 import Url
 import Url.Builder
 import Url.Parser exposing ((</>), (<?>))
@@ -10,7 +10,7 @@ import Url.Parser.Query
 
 type Route
     = HomepageRoute
-    | GroupRoute (CryptoHash GroupId)
+    | GroupRoute (Id GroupId)
     | AdminRoute
     | CreateGroupRoute
     | MyGroupsRoute
@@ -62,8 +62,8 @@ deleteUserTokenName =
 
 type Token
     = NoToken
-    | LoginToken (CryptoHash LoginToken)
-    | DeleteUserToken (CryptoHash DeleteUserToken)
+    | LoginToken (Id LoginToken)
+    | DeleteUserToken (Id DeleteUserToken)
 
 
 encode : Route -> Token -> String
