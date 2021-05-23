@@ -464,12 +464,13 @@ imageEditorView imageEdit =
         ]
         [ Element.image
             [ Element.width <| Element.px 400
-            , case imageEdit.imageSize of
-                Just ( w, h ) ->
-                    Element.height <| Element.px <| round <| 400 * toFloat h / toFloat w
 
-                Nothing ->
-                    Element.inFront Element.none
+            --, case imageEdit.imageSize of
+            --    Just ( w, h ) ->
+            --        Element.height <| Element.px <| round <| 400 * toFloat h / toFloat w
+            --
+            --    Nothing ->
+            --        Element.inFront Element.none
             , Json.Decode.map2 (\x_ y_ -> ( MouseDownImageEditor x_ y_, True ))
                 (Json.Decode.field "offsetX" Json.Decode.float)
                 (Json.Decode.field "offsetY" Json.Decode.float)
