@@ -170,7 +170,7 @@ updateFromRequest sessionId clientId msg model =
             ( { model | sessions = BiDict.remove sessionId model.sessions }
             , case Dict.get sessionId model.connections of
                 Just clientIds ->
-                    BackendEffect.sendToFrontends clientIds LogoutResponse
+                    BackendEffect.sendToFrontends (List.Nonempty.toList clientIds) LogoutResponse
 
                 Nothing ->
                     BackendEffect.none
@@ -203,14 +203,9 @@ updateFromRequest sessionId clientId msg model =
                         model
                         (\( userId, user ) ->
                             ( { model | users = Dict.insert userId { user | name = name } model.users }
-                            , case getClientIdsForUser userId model |> List.Nonempty.fromList of
-                                Just nonempty ->
-                                    BackendEffect.sendToFrontends
-                                        nonempty
-                                        (ChangeNameResponse name)
-
-                                Nothing ->
-                                    BackendEffect.none
+                            , BackendEffect.sendToFrontends
+                                (getClientIdsForUser userId model)
+                                (ChangeNameResponse name)
                             )
                         )
 
@@ -227,14 +222,9 @@ updateFromRequest sessionId clientId msg model =
                         model
                         (\( userId, user ) ->
                             ( { model | users = Dict.insert userId { user | description = description } model.users }
-                            , case getClientIdsForUser userId model |> List.Nonempty.fromList of
-                                Just nonempty ->
-                                    BackendEffect.sendToFrontends
-                                        nonempty
-                                        (ChangeDescriptionResponse description)
-
-                                Nothing ->
-                                    BackendEffect.none
+                            , BackendEffect.sendToFrontends
+                                (getClientIdsForUser userId model)
+                                (ChangeDescriptionResponse description)
                             )
                         )
 
@@ -257,14 +247,9 @@ updateFromRequest sessionId clientId msg model =
                                         { user | emailAddress = emailAddress }
                                         model.users
                               }
-                            , case getClientIdsForUser userId model |> List.Nonempty.fromList of
-                                Just nonempty ->
-                                    BackendEffect.sendToFrontends
-                                        nonempty
-                                        (ChangeEmailAddressResponse emailAddress)
-
-                                Nothing ->
-                                    BackendEffect.none
+                            , BackendEffect.sendToFrontends
+                                (getClientIdsForUser userId model)
+                                (ChangeEmailAddressResponse emailAddress)
                             )
                         )
 
@@ -299,6 +284,33 @@ updateFromRequest sessionId clientId msg model =
         DeleteUserRequest deleteUserToken ->
             getAndRemoveDeleteUserToken (handleDeleteUserRequest clientId) deleteUserToken model
 
+        ChangeProfileImageRequest untrustedProfileImage ->
+            userAuthorization
+                sessionId
+                model
+                (\( userId, user ) ->
+                    case Untrusted.validateProfileImage untrustedProfileImage of
+                        Just profileImage ->
+                            let
+                                response =
+                                    ChangeProfileImageResponse profileImage
+                            in
+                            ( { model
+                                | users =
+                                    Dict.insert
+                                        userId
+                                        { user | profileImage = profileImage }
+                                        model.users
+                              }
+                            , BackendEffect.sendToFrontends (getClientIdsForUser userId model) response
+                            )
+
+                        Nothing ->
+                            ( addLog (UntrustedCheckFailed model.time msg) model
+                            , BackendEffect.none
+                            )
+                )
+
 
 handleDeleteUserRequest : ClientId -> Maybe DeleteUserTokenData -> BackendModel -> ( BackendModel, BackendEffect )
 handleDeleteUserRequest clientId maybeDeleteUserTokenData model =
@@ -306,12 +318,7 @@ handleDeleteUserRequest clientId maybeDeleteUserTokenData model =
         Just { creationTime, userId } ->
             if Duration.from creationTime model.time |> Quantity.lessThan Duration.hour then
                 ( deleteUser userId model
-                , case List.Nonempty.fromList (getClientIdsForUser userId model) of
-                    Just nonempty ->
-                        BackendEffect.sendToFrontends nonempty (DeleteUserResponse (Ok ()))
-
-                    Nothing ->
-                        BackendEffect.none
+                , BackendEffect.sendToFrontends (getClientIdsForUser userId model) (DeleteUserResponse (Ok ()))
                 )
 
             else
@@ -352,7 +359,9 @@ loginWithToken sessionId clientId maybeLoginTokenData model =
         loginResponse userEntry =
             case Dict.get sessionId model.connections of
                 Just clientIds ->
-                    Ok userEntry |> LoginWithTokenResponse |> BackendEffect.sendToFrontends clientIds
+                    Ok userEntry
+                        |> LoginWithTokenResponse
+                        |> BackendEffect.sendToFrontends (List.Nonempty.toList clientIds)
 
                 Nothing ->
                     BackendEffect.none

@@ -35,9 +35,9 @@ sendToFrontend =
     SendToFrontend
 
 
-sendToFrontends : Nonempty ClientId -> ToFrontend -> BackendEffect
+sendToFrontends : List ClientId -> ToFrontend -> BackendEffect
 sendToFrontends clientIds toFrontend =
-    List.Nonempty.toList clientIds |> List.map (\clientId -> sendToFrontend clientId toFrontend) |> batch
+    clientIds |> List.map (\clientId -> sendToFrontend clientId toFrontend) |> batch
 
 
 sendLoginEmail :

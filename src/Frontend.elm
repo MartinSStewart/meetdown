@@ -12,6 +12,7 @@ import Lamdera
 import LoginForm
 import Name
 import ProfileForm
+import ProfileImage
 import Route exposing (Route(..))
 import Time
 import Types exposing (..)
@@ -240,13 +241,20 @@ updateLoaded msg model =
         CroppedImage imageData ->
             case model.loginStatus of
                 LoggedIn loggedIn ->
-                    let
-                        newModel =
-                            ProfileForm.setImageCanvas imageData loggedIn.profileForm
-                    in
-                    ( { model | loginStatus = LoggedIn { loggedIn | profileForm = newModel } }
-                    , FrontendEffect.none
-                    )
+                    case ProfileImage.customImage imageData.croppedImageUrl of
+                        Ok profileImage ->
+                            let
+                                newModel =
+                                    ProfileForm.cropImageResponse imageData loggedIn.profileForm
+                            in
+                            ( { model | loginStatus = LoggedIn { loggedIn | profileForm = newModel } }
+                            , Untrusted.untrust profileImage
+                                |> ChangeProfileImageRequest
+                                |> FrontendEffect.sendToBackend
+                            )
+
+                        Err _ ->
+                            ( model, FrontendEffect.none )
 
                 NotLoggedIn _ ->
                     ( model, FrontendEffect.none )
@@ -358,6 +366,9 @@ updateLoadedFromBackend msg model =
                     ( { model | accountDeletedResult = Just result }
                     , FrontendEffect.none
                     )
+
+        ChangeProfileImageResponse profileImage ->
+            ( updateUser (\user -> { user | profileImage = profileImage }) model, FrontendEffect.none )
 
 
 updateUser : (BackendUser -> BackendUser) -> LoadedFrontend -> LoadedFrontend

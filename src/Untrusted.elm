@@ -5,6 +5,7 @@ module Untrusted exposing
     , validateEmailAddress
     , validateGroupName
     , validateName
+    , validateProfileImage
     )
 
 import Description exposing (Description)
@@ -12,6 +13,7 @@ import EmailAddress exposing (EmailAddress)
 import GroupForm exposing (GroupFormValidated)
 import GroupName exposing (GroupName)
 import Name exposing (Name)
+import ProfileImage exposing (ProfileImage)
 
 
 type Untrusted a
@@ -36,6 +38,16 @@ validateGroupName (Untrusted groupName) =
 validateDescription : Untrusted Description -> Maybe Description
 validateDescription (Untrusted description) =
     Description.toString description |> Description.fromString |> Result.toMaybe
+
+
+validateProfileImage : Untrusted ProfileImage -> Maybe ProfileImage
+validateProfileImage (Untrusted profileImage) =
+    case ProfileImage.getCustomImageUrl profileImage of
+        Just dataUrl ->
+            ProfileImage.customImage dataUrl |> Result.toMaybe
+
+        Nothing ->
+            Just ProfileImage.defaultImage
 
 
 untrust : a -> Untrusted a

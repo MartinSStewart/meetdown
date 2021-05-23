@@ -262,6 +262,7 @@ type ToBackendRequest
     | ChangeEmailAddressRequest (Untrusted EmailAddress)
     | SendDeleteUserEmailRequest
     | DeleteUserRequest (Id DeleteUserToken)
+    | ChangeProfileImageRequest (Untrusted ProfileImage)
 
 
 type BackendMsg
@@ -283,3 +284,4 @@ type ToFrontend
     | ChangeDescriptionResponse Description
     | ChangeEmailAddressResponse EmailAddress
     | DeleteUserResponse (Result () ())
+    | ChangeProfileImageResponse ProfileImage

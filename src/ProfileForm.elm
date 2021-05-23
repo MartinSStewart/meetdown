@@ -1,4 +1,4 @@
-module ProfileForm exposing (CurrentValues, Effects, Form, Model, Msg, init, setImageCanvas, update, view)
+module ProfileForm exposing (CurrentValues, Effects, Form, Model, Msg, cropImageResponse, init, update, view)
 
 import Browser.Dom
 import Bytes exposing (Bytes)
@@ -377,13 +377,9 @@ getActualImageState imageData =
             imageData
 
 
-setImageCanvas : { requestId : Int, croppedImageUrl : String } -> Model -> Model
-setImageCanvas imageData model =
-    model
-
-
-profileImageSize =
-    128
+cropImageResponse : { requestId : Int, croppedImageUrl : String } -> Model -> Model
+cropImageResponse imageData model =
+    { model | profileImage = Unchanged }
 
 
 pixelToT : Float -> Float

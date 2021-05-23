@@ -1,4 +1,4 @@
-module ProfileImage exposing (ProfileImage, customImage, defaultImage, image)
+module ProfileImage exposing (ProfileImage, customImage, defaultImage, getCustomImageUrl, image)
 
 import Element exposing (Element)
 import Ui
@@ -31,8 +31,19 @@ customImage data =
         CustomImage data |> Ok
 
 
+size : number
 size =
     128
+
+
+getCustomImageUrl : ProfileImage -> Maybe String
+getCustomImageUrl profileImage =
+    case profileImage of
+        DefaultImage ->
+            Nothing
+
+        CustomImage dataUrl ->
+            Just dataUrl
 
 
 image : ProfileImage -> Element msg
