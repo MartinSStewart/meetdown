@@ -10,7 +10,7 @@ import Description exposing (Description)
 import Duration
 import GroupForm exposing (CreateGroupError(..), GroupVisibility)
 import GroupName exposing (GroupName)
-import Id exposing (ClientId, CryptoHash, GroupId, LoginToken, SessionId, UserId)
+import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
 import Lamdera
 import List.Extra as List
 import List.Nonempty
@@ -48,6 +48,7 @@ init =
       , time = Time.millisToPosix 0
       , secretCounter = 0
       , pendingLoginTokens = Dict.empty
+      , pendingDeleteUserTokens = Dict.empty
       }
     , Cmd.none
     )
@@ -65,8 +66,8 @@ subscriptions _ =
 update : BackendMsg -> BackendModel -> ( BackendModel, BackendEffect )
 update msg model =
     case msg of
-        SentLoginEmail email result ->
-            ( addLog (SendGridSendEmail model.time result email) model, BackendEffect.none )
+        SentLoginEmail emailAddress result ->
+            ( addLog (SendGridSendEmail model.time result emailAddress) model, BackendEffect.none )
 
         BackendGotTime time ->
             ( { model | time = time }, BackendEffect.none )
@@ -93,6 +94,9 @@ update msg model =
               }
             , BackendEffect.none
             )
+
+        SentDeleteUserEmail emailAddress result ->
+            ( addLog (SendGridSendEmail model.time result emailAddress) model, BackendEffect.none )
 
 
 addLog : Log -> BackendModel -> BackendModel
@@ -134,7 +138,7 @@ updateFromRequest sessionId clientId msg model =
                 Just email ->
                     let
                         ( model2, loginToken ) =
-                            Id.getCryptoHash model
+                            Id.getUniqueId model
                     in
                     ( { model2
                         | pendingLoginTokens =
@@ -269,8 +273,64 @@ updateFromRequest sessionId clientId msg model =
                     , BackendEffect.none
                     )
 
+        SendDeleteUserEmailRequest ->
+            userAuthorization
+                sessionId
+                model
+                (\( userId, user ) ->
+                    let
+                        ( model2, deleteUserToken ) =
+                            Id.getUniqueId model
+                    in
+                    ( { model2
+                        | pendingDeleteUserTokens =
+                            Dict.insert
+                                deleteUserToken
+                                { creationTime = model.time, userId = userId }
+                                model2.pendingDeleteUserTokens
+                      }
+                    , BackendEffect.sendDeleteUserEmail
+                        (SentDeleteUserEmail user.emailAddress)
+                        user.emailAddress
+                        deleteUserToken
+                    )
+                )
 
-getClientIdsForUser : CryptoHash UserId -> BackendModel -> List ClientId
+        DeleteUserRequest deleteUserToken ->
+            getAndRemoveDeleteUserToken (handleDeleteUserRequest clientId) deleteUserToken model
+
+
+handleDeleteUserRequest : ClientId -> Maybe DeleteUserTokenData -> BackendModel -> ( BackendModel, BackendEffect )
+handleDeleteUserRequest clientId maybeDeleteUserTokenData model =
+    case maybeDeleteUserTokenData of
+        Just { creationTime, userId } ->
+            if Duration.from creationTime model.time |> Quantity.lessThan Duration.hour then
+                ( deleteUser userId model
+                , case List.Nonempty.fromList (getClientIdsForUser userId model) of
+                    Just nonempty ->
+                        BackendEffect.sendToFrontends nonempty (DeleteUserResponse (Ok ()))
+
+                    Nothing ->
+                        BackendEffect.none
+                )
+
+            else
+                ( model, BackendEffect.sendToFrontend clientId (DeleteUserResponse (Err ())) )
+
+        Nothing ->
+            ( model, BackendEffect.sendToFrontend clientId (DeleteUserResponse (Err ())) )
+
+
+deleteUser : Id UserId -> BackendModel -> BackendModel
+deleteUser userId model =
+    { model
+        | users = Dict.remove userId model.users
+        , groups = Dict.filter (\_ group -> group.ownerId /= userId) model.groups
+        , sessions = BiDict.filter (\_ userId_ -> userId_ /= userId) model.sessions
+    }
+
+
+getClientIdsForUser : Id UserId -> BackendModel -> List ClientId
 getClientIdsForUser userId model =
     BiDict.getReverse userId model.sessions
         |> Set.toList
@@ -288,7 +348,7 @@ getClientIdsForUser userId model =
 loginWithToken : SessionId -> ClientId -> Maybe LoginTokenData -> BackendModel -> ( BackendModel, BackendEffect )
 loginWithToken sessionId clientId maybeLoginTokenData model =
     let
-        loginResponse : ( CryptoHash UserId, BackendUser ) -> BackendEffect
+        loginResponse : ( Id UserId, BackendUser ) -> BackendEffect
         loginResponse userEntry =
             case Dict.get sessionId model.connections of
                 Just clientIds ->
@@ -297,7 +357,7 @@ loginWithToken sessionId clientId maybeLoginTokenData model =
                 Nothing ->
                     BackendEffect.none
 
-        addSession : CryptoHash UserId -> BackendModel -> BackendModel
+        addSession : Id UserId -> BackendModel -> BackendModel
         addSession userId model_ =
             { model_ | sessions = BiDict.insert sessionId userId model_.sessions }
     in
@@ -313,7 +373,7 @@ loginWithToken sessionId clientId maybeLoginTokenData model =
                     Nothing ->
                         let
                             ( model2, userId ) =
-                                Id.getCryptoHash model
+                                Id.getUniqueId model
 
                             newUser : BackendUser
                             newUser =
@@ -337,7 +397,7 @@ loginWithToken sessionId clientId maybeLoginTokenData model =
 
 getAndRemoveLoginToken :
     (Maybe LoginTokenData -> BackendModel -> ( BackendModel, BackendEffect ))
-    -> CryptoHash LoginToken
+    -> Id LoginToken
     -> BackendModel
     -> ( BackendModel, BackendEffect )
 getAndRemoveLoginToken updateFunc loginToken model =
@@ -346,7 +406,25 @@ getAndRemoveLoginToken updateFunc loginToken model =
         { model | pendingLoginTokens = Dict.remove loginToken model.pendingLoginTokens }
 
 
-addGroup : ClientId -> CryptoHash UserId -> GroupName -> Description -> GroupVisibility -> BackendModel -> ( BackendModel, BackendEffect )
+getAndRemoveDeleteUserToken :
+    (Maybe DeleteUserTokenData -> BackendModel -> ( BackendModel, BackendEffect ))
+    -> Id DeleteUserToken
+    -> BackendModel
+    -> ( BackendModel, BackendEffect )
+getAndRemoveDeleteUserToken updateFunc deleteUserToken model =
+    updateFunc
+        (Dict.get deleteUserToken model.pendingDeleteUserTokens)
+        { model | pendingDeleteUserTokens = Dict.remove deleteUserToken model.pendingDeleteUserTokens }
+
+
+addGroup :
+    ClientId
+    -> Id UserId
+    -> GroupName
+    -> Description
+    -> GroupVisibility
+    -> BackendModel
+    -> ( BackendModel, BackendEffect )
 addGroup clientId userId name description visibility model =
     if Dict.values model.groups |> List.any (.name >> GroupName.namesMatch name) then
         ( model, Err GroupNameAlreadyInUse |> CreateGroupResponse |> BackendEffect.sendToFrontend clientId )
@@ -354,7 +432,7 @@ addGroup clientId userId name description visibility model =
     else
         let
             ( model2, groupId ) =
-                Id.getCryptoHash model
+                Id.getUniqueId model
 
             newGroup =
                 { ownerId = userId
@@ -372,7 +450,7 @@ addGroup clientId userId name description visibility model =
 userAuthorization :
     SessionId
     -> BackendModel
-    -> (( CryptoHash UserId, BackendUser ) -> ( BackendModel, BackendEffect ))
+    -> (( Id UserId, BackendUser ) -> ( BackendModel, BackendEffect ))
     -> ( BackendModel, BackendEffect )
 userAuthorization sessionId model updateFunc =
     case checkLogin sessionId model of
@@ -386,7 +464,7 @@ userAuthorization sessionId model updateFunc =
 adminAuthorization :
     SessionId
     -> BackendModel
-    -> (( CryptoHash UserId, BackendUser ) -> ( BackendModel, BackendEffect ))
+    -> (( Id UserId, BackendUser ) -> ( BackendModel, BackendEffect ))
     -> ( BackendModel, BackendEffect )
 adminAuthorization sessionId model updateFunc =
     case checkLogin sessionId model of
@@ -401,7 +479,7 @@ adminAuthorization sessionId model updateFunc =
             ( model, BackendEffect.none )
 
 
-checkLogin : SessionId -> BackendModel -> Maybe ( CryptoHash UserId, BackendUser )
+checkLogin : SessionId -> BackendModel -> Maybe ( Id UserId, BackendUser )
 checkLogin sessionId model =
     case BiDict.get sessionId model.sessions of
         Just userId ->
@@ -416,11 +494,11 @@ checkLogin sessionId model =
             Nothing
 
 
-getGroup : CryptoHash GroupId -> BackendModel -> Maybe BackendGroup
+getGroup : Id GroupId -> BackendModel -> Maybe BackendGroup
 getGroup groupId model =
     Dict.get groupId model.groups
 
 
-getUser : CryptoHash UserId -> BackendModel -> Maybe BackendUser
+getUser : Id UserId -> BackendModel -> Maybe BackendUser
 getUser userId model =
     Dict.get userId model.users

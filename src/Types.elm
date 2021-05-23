@@ -10,7 +10,7 @@ import Description exposing (Description)
 import EmailAddress exposing (EmailAddress)
 import GroupForm exposing (CreateGroupError, GroupFormValidated, GroupVisibility, Model)
 import GroupName exposing (GroupName)
-import Id exposing (ClientId, CryptoHash, GroupId, LoginToken, SessionId, UserId)
+import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
 import List.Nonempty exposing (Nonempty)
 import Name exposing (Name)
 import ProfileForm
@@ -29,7 +29,7 @@ type NavigationKey
 
 
 type FrontendModel
-    = Loading NavigationKey ( Route, Maybe (CryptoHash LoginToken) )
+    = Loading NavigationKey ( Route, Route.Token )
     | Loaded LoadedFrontend
 
 
@@ -37,7 +37,7 @@ type alias LoadedFrontend =
     { navigationKey : NavigationKey
     , loginStatus : LoginStatus
     , route : Route
-    , group : Maybe ( CryptoHash GroupId, Maybe FrontendGroup )
+    , group : Maybe ( Id GroupId, Maybe FrontendGroup )
     , time : Time.Posix
     , lastConnectionCheck : Time.Posix
     , loginForm : LoginForm
@@ -45,13 +45,14 @@ type alias LoadedFrontend =
     , hasLoginError : Bool
     , groupForm : Model
     , groupCreated : Bool
+    , accountDeletedResult : Maybe (Result () ())
     }
 
 
 type alias LoginForm =
     { email : String
     , pressedSubmitEmail : Bool
-    , emailSent : Bool
+    , emailSent : Maybe EmailAddress
     }
 
 
@@ -62,26 +63,31 @@ type LoginStatus
 
 
 type alias LoggedIn_ =
-    { userId : CryptoHash UserId
+    { userId : Id UserId
     , user : BackendUser
     , profileForm : ProfileForm.Model
     }
 
 
 type alias BackendModel =
-    { users : Dict (CryptoHash UserId) BackendUser
-    , groups : Dict (CryptoHash GroupId) BackendGroup
-    , sessions : BiDict SessionId (CryptoHash UserId)
+    { users : Dict (Id UserId) BackendUser
+    , groups : Dict (Id GroupId) BackendGroup
+    , sessions : BiDict SessionId (Id UserId)
     , connections : Dict SessionId (Nonempty ClientId)
     , logs : Array Log
     , time : Time.Posix
     , secretCounter : Int
-    , pendingLoginTokens : Dict (CryptoHash LoginToken) LoginTokenData
+    , pendingLoginTokens : Dict (Id LoginToken) LoginTokenData
+    , pendingDeleteUserTokens : Dict (Id DeleteUserToken) DeleteUserTokenData
     }
 
 
 type alias LoginTokenData =
     { creationTime : Time.Posix, emailAddress : EmailAddress }
+
+
+type alias DeleteUserTokenData =
+    { creationTime : Time.Posix, userId : Id UserId }
 
 
 type Log
@@ -179,7 +185,7 @@ type alias FrontendUser =
 
 
 type alias BackendGroup =
-    { ownerId : CryptoHash UserId
+    { ownerId : Id UserId
     , name : GroupName
     , description : Description
     , events : List Event
@@ -188,7 +194,7 @@ type alias BackendGroup =
 
 
 type alias FrontendGroup =
-    { ownerId : CryptoHash UserId
+    { ownerId : Id UserId
     , owner : FrontendUser
     , name : GroupName
     , events : List Event
@@ -214,7 +220,7 @@ userToFrontend backendUser =
 
 
 type alias Event =
-    { attendees : Set (CryptoHash UserId)
+    { attendees : Set (Id UserId)
     , startTime : Time.Posix
     , endTime : Time.Posix
     , isCancelled : Bool
@@ -235,6 +241,7 @@ type FrontendMsg
     | PressedMyGroups
     | GroupFormMsg GroupForm.Msg
     | ProfileFormMsg ProfileForm.Msg
+    | SetCanvasImage { canvasId : String, width : Int, height : Int }
 
 
 type ToBackend
@@ -242,9 +249,9 @@ type ToBackend
 
 
 type ToBackendRequest
-    = GetGroupRequest (CryptoHash GroupId)
+    = GetGroupRequest (Id GroupId)
     | CheckLoginRequest
-    | LoginWithTokenRequest (CryptoHash LoginToken)
+    | LoginWithTokenRequest (Id LoginToken)
     | GetLoginTokenRequest Route (Untrusted EmailAddress)
     | GetAdminDataRequest
     | LogoutRequest
@@ -252,22 +259,26 @@ type ToBackendRequest
     | ChangeNameRequest (Untrusted Name)
     | ChangeDescriptionRequest (Untrusted Description)
     | ChangeEmailAddressRequest (Untrusted EmailAddress)
+    | SendDeleteUserEmailRequest
+    | DeleteUserRequest (Id DeleteUserToken)
 
 
 type BackendMsg
     = SentLoginEmail EmailAddress (Result SendGrid.Error ())
+    | SentDeleteUserEmail EmailAddress (Result SendGrid.Error ())
     | BackendGotTime Time.Posix
     | Connected SessionId ClientId
     | Disconnected SessionId ClientId
 
 
 type ToFrontend
-    = GetGroupResponse (CryptoHash GroupId) (Maybe FrontendGroup)
-    | CheckLoginResponse (Maybe ( CryptoHash UserId, BackendUser ))
-    | LoginWithTokenResponse (Result () ( CryptoHash UserId, BackendUser ))
+    = GetGroupResponse (Id GroupId) (Maybe FrontendGroup)
+    | CheckLoginResponse (Maybe ( Id UserId, BackendUser ))
+    | LoginWithTokenResponse (Result () ( Id UserId, BackendUser ))
     | GetAdminDataResponse (Array Log)
-    | CreateGroupResponse (Result CreateGroupError ( CryptoHash GroupId, BackendGroup ))
+    | CreateGroupResponse (Result CreateGroupError ( Id GroupId, BackendGroup ))
     | LogoutResponse
     | ChangeNameResponse Name
     | ChangeDescriptionResponse Description
     | ChangeEmailAddressResponse EmailAddress
+    | DeleteUserResponse (Result () ())

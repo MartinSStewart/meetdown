@@ -8,7 +8,6 @@ import Element.Region
 import FrontendEffect exposing (FrontendEffect)
 import GroupForm
 import GroupName
-import Id exposing (CryptoHash, LoginToken)
 import Lamdera
 import LoginForm
 import Name
@@ -29,14 +28,14 @@ app =
         , onUrlChange = UrlChanged
         , update = \msg model -> update msg model |> Tuple.mapSecond FrontendEffect.toCmd
         , updateFromBackend = \msg model -> updateFromBackend msg model |> Tuple.mapSecond FrontendEffect.toCmd
-        , subscriptions = \m -> Sub.none
+        , subscriptions = \_ -> FrontendEffect.martinsstewart_screenshot_canvas_from_js SetCanvasImage
         , view = view
         }
 
 
 init : Url -> NavigationKey -> ( FrontendModel, FrontendEffect )
 init url key =
-    ( Url.Parser.parse Route.decode url |> Maybe.withDefault ( HomepageRoute, Nothing ) |> Loading key
+    ( Url.Parser.parse Route.decode url |> Maybe.withDefault ( HomepageRoute, Route.NoToken ) |> Loading key
     , FrontendEffect.getTime GotTime
     )
 
@@ -44,17 +43,20 @@ init url key =
 initLoadedFrontend :
     NavigationKey
     -> Route
-    -> Maybe (CryptoHash LoginToken)
+    -> Route.Token
     -> Time.Posix
     -> ( LoadedFrontend, FrontendEffect )
 initLoadedFrontend navigationKey route maybeLoginToken time =
     let
         login =
             case maybeLoginToken of
-                Just loginToken ->
+                Route.LoginToken loginToken ->
                     LoginWithTokenRequest loginToken
 
-                Nothing ->
+                Route.DeleteUserToken deleteUserToken ->
+                    DeleteUserRequest deleteUserToken
+
+                Route.NoToken ->
                     CheckLoginRequest
     in
     ( { navigationKey = navigationKey
@@ -66,12 +68,13 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
       , loginForm =
             { email = ""
             , pressedSubmitEmail = False
-            , emailSent = False
+            , emailSent = Nothing
             }
       , logs = Nothing
       , hasLoginError = False
       , groupForm = GroupForm.init
       , groupCreated = False
+      , accountDeletedResult = Nothing
       }
     , FrontendEffect.batch
         [ FrontendEffect.manyToBackend login
@@ -94,7 +97,7 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
                 MyProfileRoute ->
                     []
             )
-        , FrontendEffect.navigationReplaceUrl navigationKey (Route.encode route Nothing)
+        , FrontendEffect.navigationReplaceUrl navigationKey (Route.encode route Route.NoToken)
         ]
     )
 
@@ -102,10 +105,10 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
 update : FrontendMsg -> FrontendModel -> ( FrontendModel, FrontendEffect )
 update msg model =
     case model of
-        Loading key ( route, maybeLoginToken ) ->
+        Loading key ( route, token ) ->
             case msg of
                 GotTime time ->
-                    initLoadedFrontend key route maybeLoginToken time |> Tuple.mapFirst Loaded
+                    initLoadedFrontend key route token time |> Tuple.mapFirst Loaded
 
                 _ ->
                     ( model, FrontendEffect.none )
@@ -127,7 +130,7 @@ updateLoaded msg model =
                                 |> Maybe.withDefault HomepageRoute
                     in
                     ( { model | route = route }
-                    , FrontendEffect.navigationPushUrl model.navigationKey (Route.encode route Nothing)
+                    , FrontendEffect.navigationPushUrl model.navigationKey (Route.encode route Route.NoToken)
                     )
 
                 External url ->
@@ -209,7 +212,13 @@ updateLoaded msg model =
                                 , changeName = ChangeNameRequest >> FrontendEffect.sendToBackend
                                 , changeDescription = ChangeDescriptionRequest >> FrontendEffect.sendToBackend
                                 , changeEmailAddress = ChangeEmailAddressRequest >> FrontendEffect.sendToBackend
-                                , selectFile = \mimeTypes fileMsg -> FrontendEffect.selectFile mimeTypes (fileMsg >> ProfileFormMsg)
+                                , selectFile =
+                                    \mimeTypes fileMsg ->
+                                        FrontendEffect.selectFile mimeTypes (fileMsg >> ProfileFormMsg)
+                                , getFileContents =
+                                    \fileMsg file -> FrontendEffect.fileToBytes (fileMsg >> ProfileFormMsg) file
+                                , setCanvasImage = FrontendEffect.setCanvasImage
+                                , sendDeleteAccountEmail = FrontendEffect.sendToBackend SendDeleteUserEmailRequest
                                 , batch = FrontendEffect.batch
                                 }
                                 profileFormMsg
@@ -217,6 +226,23 @@ updateLoaded msg model =
                     in
                     ( { model | loginStatus = LoggedIn { loggedIn | profileForm = newModel } }
                     , effects
+                    )
+
+                NotLoggedIn _ ->
+                    ( model, FrontendEffect.none )
+
+                LoginStatusPending ->
+                    ( model, FrontendEffect.none )
+
+        SetCanvasImage imageData ->
+            case model.loginStatus of
+                LoggedIn loggedIn ->
+                    let
+                        newModel =
+                            ProfileForm.setImageCanvas imageData loggedIn.profileForm
+                    in
+                    ( { model | loginStatus = LoggedIn { loggedIn | profileForm = newModel } }
+                    , FrontendEffect.none
                     )
 
                 NotLoggedIn _ ->
@@ -315,6 +341,21 @@ updateLoadedFromBackend msg model =
         ChangeEmailAddressResponse emailAddress ->
             ( updateUser (\user -> { user | emailAddress = emailAddress }) model, FrontendEffect.none )
 
+        DeleteUserResponse result ->
+            case result of
+                Ok () ->
+                    ( { model
+                        | loginStatus = NotLoggedIn { showLogin = False }
+                        , accountDeletedResult = Just result
+                      }
+                    , FrontendEffect.none
+                    )
+
+                Err () ->
+                    ( { model | accountDeletedResult = Just result }
+                    , FrontendEffect.none
+                    )
+
 
 updateUser : (BackendUser -> BackendUser) -> LoadedFrontend -> LoadedFrontend
 updateUser updateFunc model =
@@ -364,7 +405,12 @@ viewLoaded model =
                 Element.none
             )
         ]
-        [ header (isLoggedIn model) model.route
+        [ case model.loginStatus of
+            LoginStatusPending ->
+                Element.none
+
+            _ ->
+                header (isLoggedIn model) model.route
         , case model.loginStatus of
             NotLoggedIn { showLogin } ->
                 if showLogin then
