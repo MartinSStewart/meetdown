@@ -1,4 +1,4 @@
-module Ui exposing (button, dangerButton, emailAddressText, emailInput, error, filler, formError, headerButton, headerLink, inputBackground, linkColor, multiline, radioGroup, routeLink, section, submitButton, textInput, title)
+module Ui exposing (button, css, dangerButton, emailAddressText, emailInput, error, filler, formError, headerButton, headerLink, inputBackground, inputFocusClass, linkColor, multiline, radioGroup, routeLink, section, submitButton, textInput, title)
 
 import Element exposing (Element)
 import Element.Background
@@ -7,8 +7,30 @@ import Element.Font
 import Element.Input
 import Element.Region
 import EmailAddress exposing (EmailAddress)
+import Html exposing (Html)
+import Html.Attributes
 import List.Nonempty exposing (Nonempty)
 import Route exposing (Route, Token(..))
+
+
+css : Html msg
+css =
+    Html.node "style"
+        []
+        [ Html.text """
+
+
+.linkFocus:focus {
+    outline: solid #9bcbff !important;
+}
+        
+        """
+        ]
+
+
+inputFocusClass : Element.Attribute msg
+inputFocusClass =
+    Element.htmlAttribute <| Html.Attributes.class "linkFocus"
 
 
 headerButton : { onPress : msg, label : String } -> Element msg
@@ -17,6 +39,7 @@ headerButton { onPress, label } =
         [ Element.mouseOver [ Element.Background.color <| Element.rgba 1 1 1 0.5 ]
         , Element.paddingXY 16 8
         , Element.Font.center
+        , inputFocusClass
         ]
         { onPress = Just onPress
         , label = Element.text label
@@ -29,6 +52,7 @@ headerLink { route, label } =
         [ Element.mouseOver [ Element.Background.color <| Element.rgba 1 1 1 0.5 ]
         , Element.paddingXY 16 8
         , Element.Font.center
+        , inputFocusClass
         ]
         { url = Route.encode route Route.NoToken
         , label = Element.text label
@@ -45,7 +69,7 @@ emailAddressText emailAddress =
 routeLink : Route -> String -> Element msg
 routeLink route label =
     Element.link
-        [ Element.Font.color linkColor ]
+        [ Element.Font.color linkColor, inputFocusClass ]
         { url = Route.encode route NoToken, label = Element.text label }
 
 
@@ -72,6 +96,7 @@ button { onPress, label } =
         , Element.Border.rounded 4
         , Element.Font.center
         , Element.width (Element.minimum 150 Element.shrink)
+        , inputFocusClass
         ]
         { onPress = Just onPress
         , label = Element.text label
@@ -115,6 +140,7 @@ dangerButton { onPress, label } =
         , Element.Border.rounded 4
         , Element.Font.center
         , Element.Font.color <| Element.rgb 1 1 1
+        , inputFocusClass
         ]
         { onPress = Just onPress
         , label = Element.text label
@@ -156,7 +182,10 @@ radioGroup onSelect options selected optionToLabel maybeError =
             List.Nonempty.map
                 (\value ->
                     Element.Input.button
-                        [ Element.width Element.fill, Element.paddingEach { left = 32, right = 8, top = 8, bottom = 8 } ]
+                        [ Element.width Element.fill
+                        , Element.paddingEach { left = 32, right = 8, top = 8, bottom = 8 }
+                        , inputFocusClass
+                        ]
                         { onPress = Just (onSelect value)
                         , label =
                             optionToLabel value

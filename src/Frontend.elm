@@ -15,6 +15,7 @@ import FrontendUser exposing (FrontendUser)
 import Group exposing (Group)
 import GroupForm
 import GroupName
+import Html
 import Html.Events
 import Id exposing (GroupId, Id, UserId)
 import Json.Decode
@@ -462,7 +463,8 @@ view : FrontendModel -> Browser.Document FrontendMsg
 view model =
     { title = "Meetdown"
     , body =
-        [ Element.layout
+        [ Ui.css
+        , Element.layout
             []
             (case model of
                 Loading _ _ ->
@@ -679,6 +681,7 @@ searchGroupsView searchText model =
                             , Element.Border.color Ui.linkColor
                             , Element.padding 8
                             , Element.width Element.fill
+                            , Ui.inputFocusClass
                             ]
                             { url = Route.encode (GroupRoute groupId (Group.name group)) Route.NoToken
                             , label =

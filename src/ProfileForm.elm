@@ -548,6 +548,7 @@ view currentValues ({ form } as model) =
                         [ Element.alignRight
                         , Element.Border.rounded 9999
                         , Element.clip
+                        , Ui.inputFocusClass
                         ]
                         { onPress = Just PressedProfileImage
                         , label = ProfileImage.image currentValues.profileImage
@@ -666,7 +667,7 @@ editableTextInput onChange toString validate currentValue text labelText =
         , Element.Border.rounded 4
         ]
         [ Element.Input.text
-            [ Element.width Element.fill ]
+            [ Element.width Element.fill, Ui.inputFocusClass ]
             { text =
                 case text of
                     Unchanged ->
@@ -731,7 +732,7 @@ editableEmailInput onChange toString validate currentValue text labelText =
         , Element.Border.rounded 4
         ]
         [ Element.Input.email
-            [ Element.width Element.fill ]
+            [ Element.width Element.fill, Ui.inputFocusClass ]
             { text =
                 case text of
                     Unchanged ->
@@ -789,7 +790,7 @@ editableMultiline onChange toString validate currentValue text labelText =
         , Element.Border.rounded 4
         ]
         [ Element.Input.multiline
-            [ Element.width Element.fill, Element.height (Element.px 200) ]
+            [ Element.width Element.fill, Element.height (Element.px 200), Ui.inputFocusClass ]
             { text =
                 case text of
                     Unchanged ->
