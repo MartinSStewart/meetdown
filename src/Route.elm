@@ -49,6 +49,7 @@ decode =
         , Url.Parser.s "search"
             </> Url.Parser.string
             |> Url.Parser.map (Url.percentDecode >> Maybe.withDefault "" >> SearchGroupsRoute)
+        , Url.Parser.s "search" |> Url.Parser.map (SearchGroupsRoute "")
         , Url.Parser.s "my-groups" |> Url.Parser.map MyGroupsRoute
         , Url.Parser.s "profile" |> Url.Parser.map MyProfileRoute
         ]
@@ -116,7 +117,13 @@ encode route token =
                 [ "profile" ]
 
             SearchGroupsRoute searchText ->
-                [ "search", Url.percentEncode searchText ]
+                "search"
+                    :: (if searchText == "" then
+                            []
+
+                        else
+                            [ Url.percentEncode searchText ]
+                       )
         )
         (case token of
             LoginToken loginToken ->

@@ -1,4 +1,4 @@
-module Ui exposing (button, dangerButton, emailAddressText, emailInput, error, filler, formError, headerButton, headerLink, inputBackground, multiline, radioGroup, routeLink, submitButton, textInput, title)
+module Ui exposing (button, dangerButton, emailAddressText, emailInput, error, filler, formError, headerButton, headerLink, inputBackground, multiline, radioGroup, routeLink, section, submitButton, textInput, title)
 
 import Element exposing (Element)
 import Element.Background
@@ -44,7 +44,22 @@ emailAddressText emailAddress =
 
 routeLink : Route -> String -> Element msg
 routeLink route label =
-    Element.link [] { url = Route.encode route NoToken, label = Element.text label }
+    Element.link
+        [ Element.Font.color <| Element.rgb 0.1 0.1 1 ]
+        { url = Route.encode route NoToken, label = Element.text label }
+
+
+section : String -> Element msg -> Element msg
+section sectionTitle content =
+    Element.column
+        [ Element.spacing 8
+        , Element.padding 8
+        , Element.Border.rounded 4
+        , inputBackground False
+        ]
+        [ Element.paragraph [ Element.Font.bold ] [ Element.text sectionTitle ]
+        , content
+        ]
 
 
 button : { onPress : msg, label : String } -> Element msg

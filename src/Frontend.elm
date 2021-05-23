@@ -6,7 +6,6 @@ import Browser exposing (UrlRequest(..))
 import Description
 import Element exposing (Element)
 import Element.Background
-import Element.Border
 import Element.Font
 import Element.Region
 import FrontendEffect exposing (FrontendEffect)
@@ -66,49 +65,30 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
 
                 Route.NoToken ->
                     CheckLoginRequest
-    in
-    ( { navigationKey = navigationKey
-      , loginStatus = LoginStatusPending
-      , route = route
-      , cachedGroups = Dict.empty
-      , cachedUsers = Dict.empty
-      , time = time
-      , lastConnectionCheck = time
-      , loginForm =
-            { email = ""
-            , pressedSubmitEmail = False
-            , emailSent = Nothing
+
+        model =
+            { navigationKey = navigationKey
+            , loginStatus = LoginStatusPending
+            , route = route
+            , cachedGroups = Dict.empty
+            , cachedUsers = Dict.empty
+            , time = time
+            , lastConnectionCheck = time
+            , loginForm =
+                { email = ""
+                , pressedSubmitEmail = False
+                , emailSent = Nothing
+                }
+            , logs = Nothing
+            , hasLoginError = False
+            , groupForm = GroupForm.init
+            , groupCreated = False
+            , accountDeletedResult = Nothing
             }
-      , logs = Nothing
-      , hasLoginError = False
-      , groupForm = GroupForm.init
-      , groupCreated = False
-      , accountDeletedResult = Nothing
-      }
+    in
+    ( model
     , FrontendEffect.batch
-        [ FrontendEffect.manyToBackend login
-            (case route of
-                HomepageRoute ->
-                    []
-
-                GroupRoute groupId _ ->
-                    [ GetGroupRequest groupId ]
-
-                AdminRoute ->
-                    [ GetAdminDataRequest ]
-
-                CreateGroupRoute ->
-                    []
-
-                MyGroupsRoute ->
-                    []
-
-                MyProfileRoute ->
-                    []
-
-                SearchGroupsRoute searchText ->
-                    []
-            )
+        [ FrontendEffect.batch [ FrontendEffect.sendToBackend login, routeRequest route model ]
         , FrontendEffect.navigationReplaceUrl navigationKey (Route.encode route Route.NoToken)
         ]
     )
@@ -127,6 +107,35 @@ update msg model =
 
         Loaded loaded ->
             updateLoaded msg loaded |> Tuple.mapFirst Loaded
+
+
+routeRequest : Route -> LoadedFrontend -> FrontendEffect
+routeRequest route model =
+    case route of
+        MyGroupsRoute ->
+            FrontendEffect.sendToBackend GetMyGroupsRequest
+
+        GroupRoute groupId _ ->
+            if Dict.member groupId model.cachedGroups then
+                FrontendEffect.none
+
+            else
+                FrontendEffect.sendToBackend (GetGroupRequest groupId)
+
+        HomepageRoute ->
+            FrontendEffect.none
+
+        AdminRoute ->
+            FrontendEffect.none
+
+        CreateGroupRoute ->
+            FrontendEffect.none
+
+        MyProfileRoute ->
+            FrontendEffect.none
+
+        SearchGroupsRoute searchText ->
+            FrontendEffect.none
 
 
 updateLoaded : FrontendMsg -> LoadedFrontend -> ( LoadedFrontend, FrontendEffect )
@@ -156,27 +165,7 @@ updateLoaded msg model =
                         |> Maybe.withDefault HomepageRoute
             in
             ( { model | route = route }
-            , case route of
-                MyGroupsRoute ->
-                    FrontendEffect.sendToBackend GetMyGroupsRequest
-
-                GroupRoute groupId _ ->
-                    FrontendEffect.sendToBackend (GetGroupRequest groupId)
-
-                HomepageRoute ->
-                    FrontendEffect.none
-
-                AdminRoute ->
-                    FrontendEffect.none
-
-                CreateGroupRoute ->
-                    FrontendEffect.none
-
-                MyProfileRoute ->
-                    FrontendEffect.none
-
-                SearchGroupsRoute searchText ->
-                    FrontendEffect.none
+            , routeRequest route model
             )
 
         GotTime time ->
@@ -354,14 +343,16 @@ updateLoadedFromBackend msg model =
 
         CreateGroupResponse result ->
             case model.loginStatus of
-                LoggedIn loggedIn ->
+                LoggedIn _ ->
                     case result of
                         Ok ( groupId, groupData ) ->
                             ( { model
                                 | cachedGroups = Dict.insert groupId (GroupFound groupData) model.cachedGroups
                                 , groupForm = GroupForm.init
                               }
-                            , FrontendEffect.navigationPushRoute model.navigationKey (GroupRoute groupId (Group.name groupData))
+                            , FrontendEffect.navigationReplaceRoute
+                                model.navigationKey
+                                (GroupRoute groupId (Group.name groupData))
                             )
 
                         Err error ->
@@ -542,17 +533,6 @@ viewPage model =
             case Dict.get groupId model.cachedGroups of
                 Just (GroupFound group) ->
                     let
-                        section title content =
-                            Element.column
-                                [ Element.spacing 8
-                                , Element.padding 8
-                                , Element.Border.rounded 4
-                                , Ui.inputBackground False
-                                ]
-                                [ Element.paragraph [ Element.Font.bold ] [ Element.text title ]
-                                , content
-                                ]
-
                         { pastEvents, futureEvents } =
                             Group.events model.time group
                     in
@@ -565,7 +545,7 @@ viewPage model =
                                 |> GroupName.toString
                                 |> Ui.title
                                 |> Element.el [ Element.alignTop, Element.width Element.fill ]
-                            , section "Organizer"
+                            , Ui.section "Organizer"
                                 (Element.row
                                     [ Element.spacing 16 ]
                                     (case getCachedUser (Group.ownerId group) model of
@@ -579,7 +559,7 @@ viewPage model =
                                     )
                                 )
                             ]
-                        , section "Description"
+                        , Ui.section "Description"
                             (if Description.toString (Group.description group) == "" then
                                 Element.paragraph
                                     [ Element.Font.color <| Element.rgb 0.45 0.45 0.45
@@ -598,14 +578,14 @@ viewPage model =
                             )
                         , case futureEvents of
                             nextEvent :: _ ->
-                                section "Next event"
+                                Ui.section "Next event"
                                     (Element.paragraph
                                         []
                                         [ Element.text "No more events have been planned yet." ]
                                     )
 
                             [] ->
-                                section "Next event"
+                                Ui.section "Next event"
                                     (Element.paragraph
                                         []
                                         [ Element.text "No more events have been planned yet." ]
@@ -659,7 +639,7 @@ myGroupsView model loggedIn =
     case loggedIn.myGroups of
         Just myGroups ->
             let
-                groups =
+                myGroupsList =
                     List.filterMap
                         (\groupId ->
                             Dict.get groupId model.cachedGroups
@@ -669,9 +649,9 @@ myGroupsView model loggedIn =
                                             GroupFound groupFound ->
                                                 Element.row
                                                     []
-                                                    [ Group.name groupFound
-                                                        |> GroupName.toString
-                                                        |> Element.text
+                                                    [ Ui.routeLink
+                                                        (GroupRoute groupId (Group.name groupFound))
+                                                        (Group.name groupFound |> GroupName.toString)
                                                     ]
                                                     |> Just
 
@@ -680,22 +660,46 @@ myGroupsView model loggedIn =
                                     )
                         )
                         (Set.toList myGroups)
+
+                mySubscriptionsList =
+                    []
             in
             Element.column
                 [ Element.padding 8, Element.width Element.fill, Element.spacing 8 ]
                 [ Ui.title "My groups"
-                , case groups of
-                    _ :: _ ->
-                        Element.column [] groups
+                , if List.isEmpty myGroupsList && List.isEmpty mySubscriptionsList then
+                    Element.paragraph
+                        []
+                        [ Element.text "You don't have any groups. Get started by "
+                        , Ui.routeLink CreateGroupRoute "creating one"
+                        , Element.text " or "
+                        , Ui.routeLink (SearchGroupsRoute "") "joining one."
+                        ]
 
-                    [] ->
-                        Element.paragraph
-                            []
-                            [ Element.text "You don't have any groups. Get started by "
-                            , Ui.routeLink CreateGroupRoute "creating one"
-                            , Element.text " or "
-                            , Ui.routeLink (SearchGroupsRoute "") "joining one."
-                            ]
+                  else
+                    Element.column
+                        [ Element.width Element.fill, Element.spacing 8 ]
+                        [ Ui.section "Groups I created"
+                            (if List.isEmpty myGroupsList then
+                                Element.paragraph []
+                                    [ Element.text "You haven't created any groups. "
+                                    , Ui.routeLink CreateGroupRoute "You can do that here."
+                                    ]
+
+                             else
+                                Element.column [ Element.spacing 8 ] myGroupsList
+                            )
+                        , Ui.section "Groups I've joined"
+                            (if List.isEmpty mySubscriptionsList then
+                                Element.paragraph []
+                                    [ Element.text "You haven't joined any groups. "
+                                    , Ui.routeLink (SearchGroupsRoute "") "You can do that here."
+                                    ]
+
+                             else
+                                Element.column [ Element.spacing 8 ] []
+                            )
+                        ]
                 ]
 
         Nothing ->
