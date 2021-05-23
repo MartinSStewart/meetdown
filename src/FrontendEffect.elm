@@ -1,5 +1,24 @@
-port module FrontendEffect exposing (FrontendEffect, batch, copyToClipboard, fileToBytes, getTime, manyToBackend, martinsstewart_screenshot_canvas_from_js, navigationLoad, navigationPushUrl, navigationReplaceUrl, none, selectFile, sendToBackend, setCanvasImage, toCmd, wait)
+port module FrontendEffect exposing
+    ( FrontendEffect
+    , batch
+    , copyToClipboard
+    , cropImage
+    , fileToBytes
+    , getElement
+    , getTime
+    , manyToBackend
+    , martinsstewart_crop_image_from_js
+    , navigationLoad
+    , navigationPushUrl
+    , navigationReplaceUrl
+    , none
+    , selectFile
+    , sendToBackend
+    , toCmd
+    , wait
+    )
 
+import Browser.Dom
 import Browser.Navigation
 import Bytes exposing (Bytes)
 import Duration exposing (Duration)
@@ -17,12 +36,14 @@ import Types exposing (FrontendMsg, NavigationKey(..), ToBackend(..), ToBackendR
 port supermario_copy_to_clipboard_to_js : String -> Cmd msg
 
 
-port martinsstewart_screenshot_canvas_to_js :
-    { requestId : String, imageUrl : String, x : Float, y : Float, size : Float }
-    -> Cmd msg
+port martinsstewart_crop_image_to_js : CropImageData -> Cmd msg
 
 
-port martinsstewart_screenshot_canvas_from_js : ({ requestId : Int, croppedImageUrl : String } -> msg) -> Sub msg
+port martinsstewart_crop_image_from_js : ({ requestId : Int, croppedImageUrl : String } -> msg) -> Sub msg
+
+
+type alias CropImageData =
+    { requestId : Int, imageUrl : String, x : Int, y : Int, size : Int }
 
 
 type FrontendEffect
@@ -35,8 +56,9 @@ type FrontendEffect
     | Wait Duration FrontendMsg
     | SelectFile (List String) (MockFile.File -> FrontendMsg)
     | CopyToClipboard String
-    | SetCanvasImage { canvasId : String, imageUrl : String, x : Float, y : Float, size : Float }
+    | CropImage { requestId : Int, imageUrl : String, x : Int, y : Int, size : Int }
     | FileToUrl (String -> FrontendMsg) File
+    | GetElement (Result Browser.Dom.Error Browser.Dom.Element -> FrontendMsg) String
 
 
 none : FrontendEffect
@@ -94,14 +116,19 @@ copyToClipboard =
     CopyToClipboard
 
 
-setCanvasImage : { canvasId : String, imageUrl : String, x : Float, y : Float, size : Float } -> FrontendEffect
-setCanvasImage =
-    SetCanvasImage
+cropImage : CropImageData -> FrontendEffect
+cropImage =
+    CropImage
 
 
 fileToBytes : (String -> FrontendMsg) -> File -> FrontendEffect
 fileToBytes =
     FileToUrl
+
+
+getElement : (Result Browser.Dom.Error Browser.Dom.Element -> FrontendMsg) -> String -> FrontendEffect
+getElement =
+    GetElement
 
 
 toCmd : FrontendEffect -> Cmd FrontendMsg
@@ -144,8 +171,8 @@ toCmd frontendEffect =
         CopyToClipboard text ->
             supermario_copy_to_clipboard_to_js text
 
-        SetCanvasImage imageBlob ->
-            martinsstewart_screenshot_canvas_to_js imageBlob
+        CropImage data ->
+            martinsstewart_crop_image_to_js data
 
         FileToUrl msg file ->
             case file of
@@ -154,3 +181,6 @@ toCmd frontendEffect =
 
                 MockFile ->
                     Cmd.none
+
+        GetElement msg elementId ->
+            Browser.Dom.getElement elementId |> Task.attempt msg

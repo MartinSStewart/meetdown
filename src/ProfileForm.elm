@@ -1,5 +1,6 @@
 module ProfileForm exposing (CurrentValues, Effects, Form, Model, Msg, init, setImageCanvas, update, view)
 
+import Browser.Dom
 import Bytes exposing (Bytes)
 import Description exposing (Description, Error(..))
 import Duration exposing (Duration)
@@ -33,6 +34,7 @@ type Msg
     | MovedImageEditor Float Float
     | PressedConfirmImage
     | PressedCancelImage
+    | GotImageSize (Result Browser.Dom.Error Browser.Dom.Element)
 
 
 type Editable a
@@ -46,6 +48,7 @@ type alias ImageEdit =
     , size : Float
     , imageUrl : String
     , dragState : Maybe DragState
+    , imageSize : Maybe ( Int, Int )
     }
 
 
@@ -113,8 +116,9 @@ type alias Effects cmd =
     , changeEmailAddress : Untrusted EmailAddress -> cmd
     , selectFile : List String -> (File -> Msg) -> cmd
     , getFileContents : (String -> Msg) -> File -> cmd
-    , setCanvasImage : { canvasId : String, imageUrl : String, x : Float, y : Float, size : Float } -> cmd
+    , setCanvasImage : { requestId : Int, imageUrl : String, x : Int, y : Int, size : Int } -> cmd
     , sendDeleteAccountEmail : cmd
+    , getElement : (Result Browser.Dom.Error Browser.Dom.Element -> Msg) -> String -> cmd
     , batch : List cmd -> cmd
     }
 
@@ -169,9 +173,9 @@ update effects msg model =
         GotImageUrl imageUrl ->
             ( { model
                 | profileImage =
-                    Editting (Just { x = 0.1, y = 0.1, size = 0.8, imageUrl = imageUrl, dragState = Nothing })
+                    Editting (Just { x = 0.1, y = 0.1, size = 0.8, imageUrl = imageUrl, dragState = Nothing, imageSize = Nothing })
               }
-            , effects.none
+            , effects.getElement GotImageSize profileImagePlaceholderId
             )
 
         MouseDownImageEditor x y ->
@@ -254,11 +258,11 @@ update effects msg model =
                 Editting (Just imageData) ->
                     ( model
                     , effects.setCanvasImage
-                        { canvasId = canvasId
+                        { requestId = 0
                         , imageUrl = imageData.imageUrl
-                        , x = imageData.x
-                        , y = imageData.y
-                        , size = imageData.size
+                        , x = 0 --imageData.x
+                        , y = 0 --imageData.y
+                        , size = 1 --imageData.size
                         }
                     )
 
@@ -267,6 +271,20 @@ update effects msg model =
 
         PressedCancelImage ->
             ( { model | profileImage = Unchanged }, effects.none )
+
+        GotImageSize result ->
+            case ( result, model.profileImage ) of
+                ( Ok { element }, Editting (Just imageData) ) ->
+                    ( { model
+                        | profileImage =
+                            Editting
+                                (Just { imageData | imageSize = Just ( round element.width, round element.height ) })
+                      }
+                    , effects.none
+                    )
+
+                _ ->
+                    ( model, effects.none )
 
 
 updateDragState : Float -> Float -> ImageEdit -> ImageEdit
@@ -368,11 +386,6 @@ profileImageSize =
     128
 
 
-canvasId : String
-canvasId =
-    "profile-image-canvas-id"
-
-
 pixelToT : Float -> Float
 pixelToT value =
     value / 400
@@ -381,6 +394,11 @@ pixelToT value =
 tToPixel : Float -> Float
 tToPixel value =
     value * 400
+
+
+profileImagePlaceholderId : String
+profileImagePlaceholderId =
+    "profile-image-placeholder-id"
 
 
 imageEditorView : ImageEdit -> Element Msg
@@ -435,10 +453,23 @@ imageEditorView imageEdit =
                 )
     in
     Element.column
-        [ Element.spacing 8 ]
+        [ Element.spacing 8
+        , Element.inFront <|
+            Element.image
+                [ Element.transparent True
+                , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                , Element.htmlAttribute <| Html.Attributes.id profileImagePlaceholderId
+                ]
+                { src = imageUrl, description = "" }
+        ]
         [ Element.image
             [ Element.width <| Element.px 400
-            , Element.height <| Element.px 400
+            , case imageEdit.imageSize of
+                Just ( w, h ) ->
+                    Element.height <| Element.px <| round <| 400 * toFloat h / toFloat w
+
+                Nothing ->
+                    Element.inFront Element.none
             , Json.Decode.map2 (\x_ y_ -> ( MouseDownImageEditor x_ y_, True ))
                 (Json.Decode.field "offsetX" Json.Decode.float)
                 (Json.Decode.field "offsetY" Json.Decode.float)
@@ -522,14 +553,7 @@ view currentValues ({ form } as model) =
                         , Element.clip
                         ]
                         { onPress = Just PressedProfileImage
-                        , label =
-                            Element.image
-                                [ Element.width (Element.px profileImageSize)
-                                , Element.height (Element.px profileImageSize)
-                                , Element.alignRight
-                                , Ui.inputBackground False
-                                ]
-                                { src = "./default-profile.png", description = "Your profile image" }
+                        , label = ProfileImage.image currentValues.profileImage
 
                         --case profileImage of
                         --    Unchanged ->

@@ -10,6 +10,8 @@ exports.init = async function(app) {
 function setImage(data) {
     console.log(data);
     var canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
     document.body.appendChild(canvas);
     var ctx = canvas.getContext('2d');
 

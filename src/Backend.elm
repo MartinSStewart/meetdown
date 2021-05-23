@@ -380,7 +380,7 @@ loginWithToken sessionId clientId maybeLoginTokenData model =
                                 { name = Name.anonymous
                                 , description = Description.empty
                                 , emailAddress = emailAddress
-                                , profileImage = ProfileImage.DefaultImage
+                                , profileImage = ProfileImage.defaultImage
                                 }
                         in
                         ( { model2 | users = Dict.insert userId newUser model2.users }

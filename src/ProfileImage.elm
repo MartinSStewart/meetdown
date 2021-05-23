@@ -1,8 +1,53 @@
-module ProfileImage exposing (..)
+module ProfileImage exposing (ProfileImage, customImage, defaultImage, image)
 
-import Bytes exposing (Bytes)
+import Element exposing (Element)
+import Ui
 
 
 type ProfileImage
     = DefaultImage
-    | CustomImage Bytes
+    | CustomImage String
+
+
+type Error
+    = InvalidDataUrlPrefix
+    | StringIsTooLong
+
+
+defaultImage : ProfileImage
+defaultImage =
+    DefaultImage
+
+
+customImage : String -> Result Error ProfileImage
+customImage data =
+    if String.length data > 100000 then
+        Err StringIsTooLong
+
+    else if String.startsWith "data:image/png;base64," data |> not then
+        Err InvalidDataUrlPrefix
+
+    else
+        CustomImage data |> Ok
+
+
+size =
+    128
+
+
+image : ProfileImage -> Element msg
+image profileImage =
+    Element.image
+        [ Element.width (Element.px size)
+        , Element.height (Element.px size)
+        , Ui.inputBackground False
+        ]
+        { src =
+            case profileImage of
+                DefaultImage ->
+                    "./default-profile.png"
+
+                CustomImage dataUrl ->
+                    dataUrl
+        , description = "Your profile image"
+        }

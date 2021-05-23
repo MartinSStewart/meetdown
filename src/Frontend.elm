@@ -28,7 +28,7 @@ app =
         , onUrlChange = UrlChanged
         , update = \msg model -> update msg model |> Tuple.mapSecond FrontendEffect.toCmd
         , updateFromBackend = \msg model -> updateFromBackend msg model |> Tuple.mapSecond FrontendEffect.toCmd
-        , subscriptions = \_ -> FrontendEffect.martinsstewart_screenshot_canvas_from_js CroppedImage
+        , subscriptions = \_ -> FrontendEffect.martinsstewart_crop_image_from_js CroppedImage
         , view = view
         }
 
@@ -217,8 +217,11 @@ updateLoaded msg model =
                                         FrontendEffect.selectFile mimeTypes (fileMsg >> ProfileFormMsg)
                                 , getFileContents =
                                     \fileMsg file -> FrontendEffect.fileToBytes (fileMsg >> ProfileFormMsg) file
-                                , setCanvasImage = FrontendEffect.setCanvasImage
+                                , setCanvasImage = FrontendEffect.cropImage
                                 , sendDeleteAccountEmail = FrontendEffect.sendToBackend SendDeleteUserEmailRequest
+                                , getElement =
+                                    \getElementMsg id ->
+                                        FrontendEffect.getElement (getElementMsg >> ProfileFormMsg) id
                                 , batch = FrontendEffect.batch
                                 }
                                 profileFormMsg
