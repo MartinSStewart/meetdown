@@ -28,7 +28,7 @@ app =
         , onUrlChange = UrlChanged
         , update = \msg model -> update msg model |> Tuple.mapSecond FrontendEffect.toCmd
         , updateFromBackend = \msg model -> updateFromBackend msg model |> Tuple.mapSecond FrontendEffect.toCmd
-        , subscriptions = \_ -> FrontendEffect.martinsstewart_screenshot_canvas_from_js SetCanvasImage
+        , subscriptions = \_ -> FrontendEffect.martinsstewart_screenshot_canvas_from_js CroppedImage
         , view = view
         }
 
@@ -234,7 +234,7 @@ updateLoaded msg model =
                 LoginStatusPending ->
                     ( model, FrontendEffect.none )
 
-        SetCanvasImage imageData ->
+        CroppedImage imageData ->
             case model.loginStatus of
                 LoggedIn loggedIn ->
                     let

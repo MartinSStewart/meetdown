@@ -13,6 +13,7 @@ import Html
 import Html.Attributes
 import Html.Events
 import Json.Decode
+import List.Extra as List
 import MockFile exposing (File)
 import Name exposing (Error(..), Name)
 import ProfileImage exposing (ProfileImage)
@@ -30,6 +31,8 @@ type Msg
     | MouseDownImageEditor Float Float
     | MouseUpImageEditor Float Float
     | MovedImageEditor Float Float
+    | PressedConfirmImage
+    | PressedCancelImage
 
 
 type Editable a
@@ -58,7 +61,7 @@ type alias DragState =
 type DragPart
     = TopLeft
     | TopRight
-    | Bottomleft
+    | BottomLeft
     | BottomRight
     | Center
 
@@ -110,7 +113,7 @@ type alias Effects cmd =
     , changeEmailAddress : Untrusted EmailAddress -> cmd
     , selectFile : List String -> (File -> Msg) -> cmd
     , getFileContents : (String -> Msg) -> File -> cmd
-    , setCanvasImage : { canvasId : String, image : Bytes } -> cmd
+    , setCanvasImage : { canvasId : String, imageUrl : String, x : Float, y : Float, size : Float } -> cmd
     , sendDeleteAccountEmail : cmd
     , batch : List cmd -> cmd
     }
@@ -178,10 +181,33 @@ update effects msg model =
                         ( tx, ty ) =
                             ( pixelToT x, pixelToT y )
 
+                        dragPart : Maybe ( DragPart, Float )
+                        dragPart =
+                            [ ( TopLeft, imageData.x, imageData.y )
+                            , ( TopRight, imageData.x + imageData.size, imageData.y )
+                            , ( BottomLeft, imageData.x, imageData.y + imageData.size )
+                            , ( BottomRight, imageData.x + imageData.size, imageData.y + imageData.size )
+                            ]
+                                |> List.map
+                                    (\( part, partX, partY ) ->
+                                        ( part, (partX - tx) ^ 2 + (partY - ty) ^ 2 |> sqrt )
+                                    )
+                                |> List.minimumBy Tuple.second
+
                         newDragState =
                             { startX = tx
                             , startY = ty
-                            , dragPart = Center
+                            , dragPart =
+                                case dragPart of
+                                    Just ( part, distance ) ->
+                                        if distance > 0.07 then
+                                            Center
+
+                                        else
+                                            part
+
+                                    Nothing ->
+                                        Center
                             , currentX = tx
                             , currentY = ty
                             }
@@ -197,25 +223,9 @@ update effects msg model =
 
         MovedImageEditor x y ->
             case model.profileImage of
-                Editting (Just ({ dragState } as imageData)) ->
-                    let
-                        ( tx, ty ) =
-                            ( pixelToT x, pixelToT y )
-
-                        newDragState =
-                            case dragState of
-                                Just dragState_ ->
-                                    { dragState_
-                                        | currentX = tx
-                                        , currentY = ty
-                                    }
-                                        |> Just
-
-                                Nothing ->
-                                    dragState
-                    in
+                Editting (Just imageData) ->
                     ( { model
-                        | profileImage = Editting (Just { imageData | dragState = newDragState })
+                        | profileImage = Editting (Just (updateDragState (pixelToT x) (pixelToT y) imageData))
                       }
                     , effects.none
                     )
@@ -225,29 +235,133 @@ update effects msg model =
 
         MouseUpImageEditor x y ->
             case model.profileImage of
-                Editting (Just ({ dragState } as imageData)) ->
+                Editting (Just imageData) ->
                     let
-                        ( tx, ty ) =
-                            ( pixelToT x, pixelToT y )
+                        newImageData =
+                            updateDragState (pixelToT x) (pixelToT y) imageData
+                                |> getActualImageState
+                                |> (\a -> { a | dragState = Nothing })
                     in
-                    case dragState of
-                        Just dragState_ ->
-                            ( { model
-                                | profileImage = Editting (Just { imageData | dragState = Nothing })
-                              }
-                            , effects.none
-                            )
-
-                        Nothing ->
-                            ( model, effects.none )
+                    ( { model | profileImage = Editting (Just newImageData) }
+                    , effects.none
+                    )
 
                 _ ->
                     ( model, effects.none )
 
+        PressedConfirmImage ->
+            case model.profileImage of
+                Editting (Just imageData) ->
+                    ( model
+                    , effects.setCanvasImage
+                        { canvasId = canvasId
+                        , imageUrl = imageData.imageUrl
+                        , x = imageData.x
+                        , y = imageData.y
+                        , size = imageData.size
+                        }
+                    )
 
-setImageCanvas : { canvasId : String, width : Int, height : Int } -> Model -> Model
+                _ ->
+                    ( model, effects.none )
+
+        PressedCancelImage ->
+            ( { model | profileImage = Unchanged }, effects.none )
+
+
+updateDragState : Float -> Float -> ImageEdit -> ImageEdit
+updateDragState tx ty imageData =
+    { imageData
+        | dragState =
+            case imageData.dragState of
+                Just dragState_ ->
+                    { dragState_ | currentX = tx, currentY = ty } |> Just
+
+                Nothing ->
+                    imageData.dragState
+    }
+
+
+getActualImageState : ImageEdit -> ImageEdit
+getActualImageState imageData =
+    case imageData.dragState of
+        Just dragState ->
+            case dragState.dragPart of
+                Center ->
+                    { imageData
+                        | x = clamp 0 (1 - imageData.size) (imageData.x + dragState.currentX - dragState.startX)
+                        , y = max 0 (imageData.y + dragState.currentY - dragState.startY)
+                    }
+
+                TopLeft ->
+                    let
+                        xDelta =
+                            dragState.currentX - dragState.startX
+
+                        yDelta =
+                            dragState.currentY - dragState.startY
+
+                        maxDelta =
+                            min xDelta yDelta |> min (imageData.size - 0.05)
+                    in
+                    { imageData
+                        | x = imageData.x + maxDelta
+                        , y = imageData.y + maxDelta
+                        , size = imageData.size - maxDelta
+                    }
+
+                TopRight ->
+                    let
+                        xDelta =
+                            dragState.currentX - dragState.startX
+
+                        yDelta =
+                            dragState.currentY - dragState.startY
+
+                        maxDelta =
+                            min -xDelta yDelta |> min (imageData.size - 0.05)
+                    in
+                    { imageData
+                        | y = imageData.y + maxDelta
+                        , size = imageData.size - maxDelta
+                    }
+
+                BottomLeft ->
+                    let
+                        xDelta =
+                            dragState.currentX - dragState.startX
+
+                        yDelta =
+                            dragState.currentY - dragState.startY
+
+                        maxDelta =
+                            min xDelta -yDelta |> min (imageData.size - 0.05)
+                    in
+                    { imageData
+                        | x = imageData.x + maxDelta
+                        , size = imageData.size - maxDelta
+                    }
+
+                BottomRight ->
+                    let
+                        xDelta =
+                            dragState.currentX - dragState.startX
+
+                        yDelta =
+                            dragState.currentY - dragState.startY
+
+                        maxDelta =
+                            min -xDelta -yDelta |> min (imageData.size - 0.05)
+                    in
+                    { imageData | size = imageData.size - maxDelta }
+
+        Nothing ->
+            imageData
+
+
+setImageCanvas : { requestId : Int, croppedImageUrl : String } -> Model -> Model
 setImageCanvas imageData model =
-    { model | profileImageSize = Just ( imageData.width, imageData.height ) }
+    model
 
 
 profileImageSize =
@@ -269,117 +383,133 @@ tToPixel value =
     value * 400
 
 
+imageEditorView : ImageEdit -> Element Msg
+imageEditorView imageEdit =
+    let
+        { x, y, size, imageUrl, dragState } =
+            getActualImageState imageEdit
+
+        drawNode x_ y_ =
+            Element.inFront
+                (Element.el
+                    [ Element.width (Element.px 8)
+                    , Element.height (Element.px 8)
+                    , Element.moveRight (tToPixel x_ - 4)
+                    , Element.moveDown (tToPixel y_ - 4)
+                    , Element.Background.color <| Element.rgb 1 1 1
+                    , Element.Border.width 2
+                    , Element.Border.color <| Element.rgb 0 0 0
+                    , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                    ]
+                    Element.none
+                )
+
+        drawHorizontalLine x_ y_ width =
+            Element.inFront
+                (Element.el
+                    [ Element.width (Element.px <| round (tToPixel width))
+                    , Element.height (Element.px 6)
+                    , Element.moveRight (tToPixel x_)
+                    , Element.moveDown (tToPixel y_ - 3)
+                    , Element.Background.color <| Element.rgb 1 1 1
+                    , Element.Border.width 2
+                    , Element.Border.color <| Element.rgb 0 0 0
+                    , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                    ]
+                    Element.none
+                )
+
+        drawVerticalLine x_ y_ height =
+            Element.inFront
+                (Element.el
+                    [ Element.height (Element.px <| round (tToPixel height))
+                    , Element.width (Element.px 6)
+                    , Element.moveRight (tToPixel x_ - 3)
+                    , Element.moveDown (tToPixel y_)
+                    , Element.Background.color <| Element.rgb 1 1 1
+                    , Element.Border.width 2
+                    , Element.Border.color <| Element.rgb 0 0 0
+                    , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                    ]
+                    Element.none
+                )
+    in
+    Element.column
+        [ Element.spacing 8 ]
+        [ Element.image
+            [ Element.width <| Element.px 400
+            , Element.height <| Element.px 400
+            , Json.Decode.map2 (\x_ y_ -> ( MouseDownImageEditor x_ y_, True ))
+                (Json.Decode.field "offsetX" Json.Decode.float)
+                (Json.Decode.field "offsetY" Json.Decode.float)
+                |> Html.Events.preventDefaultOn "mousedown"
+                |> Element.htmlAttribute
+            , Json.Decode.map2 (\x_ y_ -> ( MouseUpImageEditor x_ y_, True ))
+                (Json.Decode.field "offsetX" Json.Decode.float)
+                (Json.Decode.field "offsetY" Json.Decode.float)
+                |> Html.Events.preventDefaultOn "mouseup"
+                |> Element.htmlAttribute
+            , if dragState == Nothing then
+                Html.Events.on "" (Json.Decode.succeed (MovedImageEditor 0 0))
+                    |> Element.htmlAttribute
+
+              else
+                Json.Decode.map2 (\x_ y_ -> ( MovedImageEditor x_ y_, True ))
+                    (Json.Decode.field "offsetX" Json.Decode.float)
+                    (Json.Decode.field "offsetY" Json.Decode.float)
+                    |> Html.Events.preventDefaultOn "mousemove"
+                    |> Element.htmlAttribute
+            , Element.inFront
+                (Element.el
+                    [ Element.height (Element.px <| round (size * 400))
+                    , Element.width (Element.px <| round (size * 400))
+                    , Element.moveRight (x * 400)
+                    , Element.moveDown (y * 400)
+                    , Element.Border.width 2
+                    , Element.Border.color <| Element.rgb 0 0 0
+                    , Element.Border.rounded 99999
+                    , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                    ]
+                    Element.none
+                )
+            , Element.inFront
+                (Element.el
+                    [ Element.height (Element.px <| round (size * 400 - 4))
+                    , Element.width (Element.px <| round (size * 400 - 4))
+                    , Element.moveRight (x * 400 + 2)
+                    , Element.moveDown (y * 400 + 2)
+                    , Element.Border.width 2
+                    , Element.Border.color <| Element.rgb 1 1 1
+                    , Element.Border.rounded 99999
+                    , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                    ]
+                    Element.none
+                )
+            , drawHorizontalLine x y size
+            , drawHorizontalLine x (y + size) size
+            , drawVerticalLine x y size
+            , drawVerticalLine (x + size) y size
+            , drawNode x y
+            , drawNode (x + size) y
+            , drawNode x (y + size)
+            , drawNode (x + size) (y + size)
+            ]
+            { src = imageUrl
+            , description = "Image editor"
+            }
+        , Element.row
+            [ Element.width Element.fill ]
+            [ Ui.submitButton False { onPress = PressedConfirmImage, label = "Upload image" }
+            , Element.el [ Element.alignRight ] (Ui.button { onPress = PressedCancelImage, label = "Cancel" })
+            ]
+        ]
+
+
 view : CurrentValues a -> Model -> Element Msg
 view currentValues ({ form } as model) =
     case model.profileImage of
-        Editting (Just { x, y, size, imageUrl, dragState }) ->
-            let
-                drawNode x_ y_ =
-                    Element.inFront
-                        (Element.el
-                            [ Element.width (Element.px 8)
-                            , Element.height (Element.px 8)
-                            , Element.moveRight (tToPixel x_ - 4)
-                            , Element.moveDown (tToPixel y_ - 4)
-                            , Element.Background.color <| Element.rgb 1 1 1
-                            , Element.Border.width 2
-                            , Element.Border.color <| Element.rgb 0 0 0
-                            , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
-                            ]
-                            Element.none
-                        )
-
-                drawHorizontalLine x_ y_ width =
-                    Element.inFront
-                        (Element.el
-                            [ Element.width (Element.px <| round (tToPixel width))
-                            , Element.height (Element.px 6)
-                            , Element.moveRight (tToPixel x_)
-                            , Element.moveDown (tToPixel y_ - 3)
-                            , Element.Background.color <| Element.rgb 1 1 1
-                            , Element.Border.width 2
-                            , Element.Border.color <| Element.rgb 0 0 0
-                            , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
-                            ]
-                            Element.none
-                        )
-
-                drawVerticalLine x_ y_ height =
-                    Element.inFront
-                        (Element.el
-                            [ Element.height (Element.px <| round (tToPixel height))
-                            , Element.width (Element.px 6)
-                            , Element.moveRight (tToPixel x_ - 3)
-                            , Element.moveDown (tToPixel y_)
-                            , Element.Background.color <| Element.rgb 1 1 1
-                            , Element.Border.width 2
-                            , Element.Border.color <| Element.rgb 0 0 0
-                            , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
-                            ]
-                            Element.none
-                        )
-            in
-            Element.image
-                [ Element.width <| Element.px 400
-                , Element.height <| Element.px 400
-                , Json.Decode.map2 (\x_ y_ -> ( MouseDownImageEditor x_ y_, True ))
-                    (Json.Decode.field "offsetX" Json.Decode.float)
-                    (Json.Decode.field "offsetY" Json.Decode.float)
-                    |> Html.Events.preventDefaultOn "mousedown"
-                    |> Element.htmlAttribute
-                , Json.Decode.map2 (\x_ y_ -> ( MouseUpImageEditor x_ y_, True ))
-                    (Json.Decode.field "offsetX" Json.Decode.float)
-                    (Json.Decode.field "offsetY" Json.Decode.float)
-                    |> Html.Events.preventDefaultOn "mouseup"
-                    |> Element.htmlAttribute
-                , if dragState == Nothing then
-                    Html.Events.on "" (Json.Decode.succeed (MovedImageEditor 0 0))
-                        |> Element.htmlAttribute
-
-                  else
-                    Json.Decode.map2 (\x_ y_ -> ( MovedImageEditor x_ y_, True ))
-                        (Json.Decode.field "offsetX" Json.Decode.float)
-                        (Json.Decode.field "offsetY" Json.Decode.float)
-                        |> Html.Events.preventDefaultOn "mousemove"
-                        |> Element.htmlAttribute
-                , Element.inFront
-                    (Element.el
-                        [ Element.height (Element.px <| round (size * 400))
-                        , Element.width (Element.px <| round (size * 400))
-                        , Element.moveRight (x * 400)
-                        , Element.moveDown (y * 400)
-                        , Element.Border.width 2
-                        , Element.Border.color <| Element.rgb 0 0 0
-                        , Element.Border.rounded 99999
-                        , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
-                        ]
-                        Element.none
-                    )
-                , Element.inFront
-                    (Element.el
-                        [ Element.height (Element.px <| round (size * 400 - 4))
-                        , Element.width (Element.px <| round (size * 400 - 4))
-                        , Element.moveRight (x * 400 + 2)
-                        , Element.moveDown (y * 400 + 2)
-                        , Element.Border.width 2
-                        , Element.Border.color <| Element.rgb 1 1 1
-                        , Element.Border.rounded 99999
-                        , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
-                        ]
-                        Element.none
-                    )
-                , drawHorizontalLine x y size
-                , drawHorizontalLine x (y + size) size
-                , drawVerticalLine x y size
-                , drawVerticalLine (x + size) y size
-                , drawNode x y
-                , drawNode (x + size) y
-                , drawNode x (y + size)
-                , drawNode (x + size) (y + size)
-                ]
-                { src = imageUrl
-                , description = "Image editor"
-                }
+        Editting (Just imageEdit) ->
+            imageEditorView imageEdit
 
         _ ->
             Element.column

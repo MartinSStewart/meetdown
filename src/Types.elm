@@ -6,6 +6,7 @@ import AssocSet exposing (Set)
 import BiDict.Assoc exposing (BiDict)
 import Browser exposing (UrlRequest)
 import Browser.Navigation
+import Bytes exposing (Bytes)
 import Description exposing (Description)
 import EmailAddress exposing (EmailAddress)
 import GroupForm exposing (CreateGroupError, GroupFormValidated, GroupVisibility, Model)
@@ -241,7 +242,7 @@ type FrontendMsg
     | PressedMyGroups
     | GroupFormMsg GroupForm.Msg
     | ProfileFormMsg ProfileForm.Msg
-    | SetCanvasImage { canvasId : String, width : Int, height : Int }
+    | CroppedImage { requestId : Int, croppedImageUrl : String }
 
 
 type ToBackend

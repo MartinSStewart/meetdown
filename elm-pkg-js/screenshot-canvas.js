@@ -1,24 +1,25 @@
-// port martinsstewart_screenshot_canvas_to_js : String -> Cmd msg
-// port martinsstewart_screenshot_canvas_from_js : ({ canvasId : String, width : Int, height : Int } -> msg) -> Sub msg
+// port martinsstewart_crop_image_to_js : { requestId : Int, imageUrl : String, x : Int, y : Int, size : Int } -> Cmd msg
+// port martinsstewart_crop_image_from_js : ({ requestId : Int, croppedImageUrl : String } -> msg) -> Sub msg
 
 exports.init = async function(app) {
-  app.ports.martinsstewart_screenshot_canvas_to_js.subscribe(function(data) {
+  app.ports.martinsstewart_crop_image_to_js.subscribe(function(data) {
     setImage(data);
   })
 }
 
 function setImage(data) {
     console.log(data);
-    var canvas = document.getElementById(data.canvasId);
+    var canvas = document.createElement('canvas');
+    document.body.appendChild(canvas);
     var ctx = canvas.getContext('2d');
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
     var img = new Image();
 
     img.onload = function(){
-      ctx.drawImage(img, 0, 0);
+      ctx.drawImage(img, -data.x, -data.y);
+      var croppedImageUrl = canvas.toDataURL();
+      app.ports.martinsstewart_crop_image_from_js.send({ requestId: data.requestId, croppedImageUrl: croppedImageUrl })
     }
-    //img.setAttribute("src", data.image);
-    var blob = new Blob([data.image.buffer]);
-    img.src = window.URL.createObjectURL(blob);
+
+    img.src = data.imageUrl;
 }

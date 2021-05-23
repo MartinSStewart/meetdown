@@ -17,10 +17,12 @@ import Types exposing (FrontendMsg, NavigationKey(..), ToBackend(..), ToBackendR
 port supermario_copy_to_clipboard_to_js : String -> Cmd msg
 
 
-port martinsstewart_screenshot_canvas_to_js : { canvasId : String, image : Bytes } -> Cmd msg
+port martinsstewart_screenshot_canvas_to_js :
+    { requestId : String, imageUrl : String, x : Float, y : Float, size : Float }
+    -> Cmd msg
 
 
-port martinsstewart_screenshot_canvas_from_js : ({ canvasId : String, width : Int, height : Int } -> msg) -> Sub msg
+port martinsstewart_screenshot_canvas_from_js : ({ requestId : Int, croppedImageUrl : String } -> msg) -> Sub msg
 
 
 type FrontendEffect
@@ -33,7 +35,7 @@ type FrontendEffect
     | Wait Duration FrontendMsg
     | SelectFile (List String) (MockFile.File -> FrontendMsg)
     | CopyToClipboard String
-    | SetCanvasImage { canvasId : String, image : Bytes }
+    | SetCanvasImage { canvasId : String, imageUrl : String, x : Float, y : Float, size : Float }
     | FileToUrl (String -> FrontendMsg) File
 
 
@@ -92,7 +94,7 @@ copyToClipboard =
     CopyToClipboard
 
 
-setCanvasImage : { canvasId : String, image : Bytes } -> FrontendEffect
+setCanvasImage : { canvasId : String, imageUrl : String, x : Float, y : Float, size : Float } -> FrontendEffect
 setCanvasImage =
     SetCanvasImage
 
