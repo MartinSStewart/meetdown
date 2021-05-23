@@ -1,6 +1,7 @@
 module Route exposing (Route(..), Token(..), decode, encode, loginTokenName)
 
 import Env
+import GroupName exposing (GroupName)
 import Id exposing (DeleteUserToken, GroupId, Id, LoginToken)
 import Url
 import Url.Builder
@@ -10,7 +11,7 @@ import Url.Parser.Query
 
 type Route
     = HomepageRoute
-    | GroupRoute (Id GroupId)
+    | GroupRoute GroupId GroupName
     | AdminRoute
     | CreateGroupRoute
     | MyGroupsRoute
@@ -21,7 +22,27 @@ decode : Url.Parser.Parser (( Route, Token ) -> c) c
 decode =
     Url.Parser.oneOf
         [ Url.Parser.top |> Url.Parser.map HomepageRoute
-        , Url.Parser.s "group" </> Url.Parser.string |> Url.Parser.map (Id.cryptoHashFromString >> GroupRoute)
+        , Url.Parser.s "group"
+            </> Url.Parser.string
+            |> Url.Parser.map
+                (\text ->
+                    case String.split "-" text of
+                        head :: rest ->
+                            case ( String.toInt head, String.join "-" rest |> Url.percentDecode ) of
+                                ( Just groupId, Just groupNameText ) ->
+                                    case GroupName.fromString groupNameText of
+                                        Ok groupName ->
+                                            GroupRoute (Id.groupIdFromInt groupId) groupName
+
+                                        Err _ ->
+                                            HomepageRoute
+
+                                _ ->
+                                    HomepageRoute
+
+                        [] ->
+                            HomepageRoute
+                )
         , Url.Parser.s "admin" |> Url.Parser.map AdminRoute
         , Url.Parser.s "create-group" |> Url.Parser.map CreateGroupRoute
         , Url.Parser.s "my-groups" |> Url.Parser.map MyGroupsRoute
@@ -73,8 +94,10 @@ encode route token =
             HomepageRoute ->
                 []
 
-            GroupRoute groupId ->
-                [ "group", Url.percentEncode (Id.cryptoHashToString groupId) ]
+            GroupRoute groupId groupName ->
+                [ "group"
+                , String.fromInt (Id.groupIdToInt groupId) ++ "-" ++ Url.percentEncode (GroupName.toString groupName)
+                ]
 
             AdminRoute ->
                 [ "admin" ]

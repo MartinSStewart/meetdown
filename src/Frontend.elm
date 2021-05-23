@@ -1,11 +1,15 @@
 module Frontend exposing (app, init, update, updateFromBackend, view)
 
+import AssocList as Dict
 import Browser exposing (UrlRequest(..))
+import Description
 import Element exposing (Element)
 import Element.Background
+import Element.Border
 import Element.Font
 import Element.Region
 import FrontendEffect exposing (FrontendEffect)
+import FrontendGroup
 import GroupForm
 import GroupName
 import Lamdera
@@ -63,7 +67,7 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
     ( { navigationKey = navigationKey
       , loginStatus = LoginStatusPending
       , route = route
-      , group = Nothing
+      , cachedGroups = Dict.empty
       , time = time
       , lastConnectionCheck = time
       , loginForm =
@@ -83,7 +87,7 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
                 HomepageRoute ->
                     []
 
-                GroupRoute groupId ->
+                GroupRoute groupId _ ->
                     [ GetGroupRequest groupId ]
 
                 AdminRoute ->
@@ -168,7 +172,12 @@ updateLoaded msg model =
             )
 
         PressedMyGroups ->
-            ( { model | route = MyGroupsRoute }, FrontendEffect.none )
+            ( model
+            , FrontendEffect.batch
+                [ FrontendEffect.sendToBackend GetMyGroupsRequest
+                , FrontendEffect.navigationPushRoute model.navigationKey MyGroupsRoute
+                ]
+            )
 
         TypedEmail text ->
             ( { model | loginForm = LoginForm.typedEmail text model.loginForm }, FrontendEffect.none )
@@ -178,7 +187,7 @@ updateLoaded msg model =
                 |> Tuple.mapFirst (\a -> { model | loginForm = a })
 
         PressedCreateGroup ->
-            ( { model | route = CreateGroupRoute }, FrontendEffect.none )
+            ( model, FrontendEffect.navigationPushRoute model.navigationKey CreateGroupRoute )
 
         GroupFormMsg groupFormMsg ->
             let
@@ -200,7 +209,7 @@ updateLoaded msg model =
                     ( newModel, FrontendEffect.none )
 
         PressedMyProfile ->
-            ( { model | route = MyProfileRoute }, FrontendEffect.none )
+            ( model, FrontendEffect.navigationPushRoute model.navigationKey MyProfileRoute )
 
         ProfileFormMsg profileFormMsg ->
             case model.loginStatus of
@@ -277,7 +286,16 @@ updateLoadedFromBackend : ToFrontend -> LoadedFrontend -> ( LoadedFrontend, Fron
 updateLoadedFromBackend msg model =
     case msg of
         GetGroupResponse groupId result ->
-            ( { model | group = Just ( groupId, result ) }, FrontendEffect.none )
+            ( { model | cachedGroups = Dict.insert groupId result model.cachedGroups }
+            , case result of
+                GroupFound groupData ->
+                    FrontendEffect.navigationReplaceRoute
+                        model.navigationKey
+                        (GroupRoute groupId (FrontendGroup.name groupData))
+
+                GroupNotFoundOrIsPrivate ->
+                    FrontendEffect.none
+            )
 
         LoginWithTokenResponse result ->
             case result of
@@ -288,6 +306,7 @@ updateLoadedFromBackend msg model =
                                 { userId = userId
                                 , user = user
                                 , profileForm = ProfileForm.init
+                                , myGroups = Nothing
                                 }
                       }
                     , FrontendEffect.none
@@ -305,6 +324,7 @@ updateLoadedFromBackend msg model =
                                 { userId = userId
                                 , user = user
                                 , profileForm = ProfileForm.init
+                                , myGroups = Nothing
                                 }
 
                         Nothing ->
@@ -322,11 +342,14 @@ updateLoadedFromBackend msg model =
                     case result of
                         Ok ( groupId, groupData ) ->
                             ( { model
-                                | route = GroupRoute groupId
-                                , group = Just ( groupId, Types.groupToFrontend loggedIn.user groupData |> Just )
+                                | cachedGroups =
+                                    Dict.insert
+                                        groupId
+                                        (Types.groupToFrontend loggedIn.user groupData |> GroupFound)
+                                        model.cachedGroups
                                 , groupForm = GroupForm.init
                               }
-                            , FrontendEffect.none
+                            , FrontendEffect.navigationPushRoute model.navigationKey (GroupRoute groupId groupData.name)
                             )
 
                         Err error ->
@@ -370,6 +393,19 @@ updateLoadedFromBackend msg model =
         ChangeProfileImageResponse profileImage ->
             ( updateUser (\user -> { user | profileImage = profileImage }) model, FrontendEffect.none )
 
+        GetMyGroupsResponse myGroups ->
+            ( case model.loginStatus of
+                LoggedIn loggedIn ->
+                    { model | loginStatus = LoggedIn { loggedIn | myGroups = Just (Dict.fromList myGroups) } }
+
+                NotLoggedIn _ ->
+                    model
+
+                LoginStatusPending ->
+                    model
+            , FrontendEffect.none
+            )
+
 
 updateUser : (BackendUser -> BackendUser) -> LoadedFrontend -> LoadedFrontend
 updateUser updateFunc model =
@@ -386,7 +422,7 @@ updateUser updateFunc model =
 
 view : FrontendModel -> Browser.Document FrontendMsg
 view model =
-    { title = ""
+    { title = "Meetdown"
     , body =
         [ Element.layout
             []
@@ -441,6 +477,19 @@ viewLoaded model =
         ]
 
 
+loginRequiredPage : LoadedFrontend -> (LoggedIn_ -> Element FrontendMsg) -> Element FrontendMsg
+loginRequiredPage model pageView =
+    case model.loginStatus of
+        LoggedIn loggedIn ->
+            pageView loggedIn
+
+        NotLoggedIn _ ->
+            LoginForm.view model.loginForm
+
+        LoginStatusPending ->
+            Element.none
+
+
 viewPage : LoadedFrontend -> Element FrontendMsg
 viewPage model =
     case model.route of
@@ -449,60 +498,115 @@ viewPage model =
                 [ Element.padding 8 ]
                 [ Element.text "A place to find people with shared interests. We don't sell your data, we don't show ads, we don't charge money, and it's all open source." ]
 
-        GroupRoute groupId ->
-            case model.group of
-                Just ( loadedGroupId, Just group ) ->
-                    if groupId == loadedGroupId then
-                        Element.column
-                            [ Element.spacing 16 ]
-                            [ Element.el
-                                [ Element.Font.size 32 ]
-                                (Element.text (GroupName.toString group.name))
-                            , Element.text (Name.toString group.owner.name)
+        GroupRoute groupId _ ->
+            case Dict.get groupId model.cachedGroups of
+                Just (GroupFound group) ->
+                    let
+                        section title content =
+                            Element.column
+                                [ Element.spacing 8
+                                , Element.padding 8
+                                , Element.Border.rounded 4
+                                , Ui.inputBackground False
+                                ]
+                                [ Element.paragraph [ Element.Font.bold ] [ Element.text title ]
+                                , content
+                                ]
+
+                        { pastEvents, futureEvents } =
+                            FrontendGroup.events model.time group
+                    in
+                    Element.column
+                        [ Element.spacing 8, Element.padding 8, Element.width Element.fill ]
+                        [ Element.row
+                            [ Element.width Element.fill ]
+                            [ group
+                                |> FrontendGroup.name
+                                |> GroupName.toString
+                                |> Ui.title
+                                |> Element.el [ Element.alignTop, Element.width Element.fill ]
+                            , section "Organizer"
+                                (Element.row
+                                    [ Element.spacing 16 ]
+                                    [ ProfileImage.smallImage (FrontendGroup.owner group).profileImage
+                                    , Element.text (Name.toString (FrontendGroup.owner group).name)
+                                    ]
+                                )
                             ]
+                        , section "Description"
+                            (if Description.toString (FrontendGroup.description group) == "" then
+                                Element.paragraph
+                                    [ Element.Font.color <| Element.rgb 0.45 0.45 0.45
+                                    , Element.Font.italic
+                                    ]
+                                    [ Element.text "No description provided" ]
 
-                    else
-                        Element.text "Loading group"
+                             else
+                                Element.paragraph
+                                    []
+                                    [ group
+                                        |> FrontendGroup.description
+                                        |> Description.toString
+                                        |> Element.text
+                                    ]
+                            )
+                        , case futureEvents of
+                            nextEvent :: _ ->
+                                section "Next event"
+                                    (Element.paragraph
+                                        []
+                                        [ Element.text "No more events have been planned yet." ]
+                                    )
 
-                Just ( loadedGroupId, Nothing ) ->
-                    if groupId == loadedGroupId then
-                        Element.text "Group not found or it is private"
+                            [] ->
+                                section "Next event"
+                                    (Element.paragraph
+                                        []
+                                        [ Element.text "No more events have been planned yet." ]
+                                    )
+                        ]
 
-                    else
-                        Element.text "Loading group"
+                Just GroupNotFoundOrIsPrivate ->
+                    Element.text "Group not found or it is private"
 
                 Nothing ->
                     Element.text "Loading group"
 
         AdminRoute ->
-            Element.text "Admin panel"
+            loginRequiredPage
+                model
+                (\_ -> Element.text "Admin panel")
 
         CreateGroupRoute ->
-            GroupForm.view model.groupForm
-                |> Element.el
-                    [ Element.width <| Element.maximum 800 Element.fill
-                    , Element.centerX
-                    ]
-                |> Element.map GroupFormMsg
+            loginRequiredPage
+                model
+                (\_ ->
+                    GroupForm.view model.groupForm
+                        |> Element.el
+                            [ Element.width <| Element.maximum 800 Element.fill
+                            , Element.centerX
+                            ]
+                        |> Element.map GroupFormMsg
+                )
 
         MyGroupsRoute ->
-            Element.text "My groups "
+            loginRequiredPage
+                model
+                (\_ ->
+                    Element.text ""
+                )
 
         MyProfileRoute ->
-            case model.loginStatus of
-                LoggedIn loggedIn ->
+            loginRequiredPage
+                model
+                (\loggedIn ->
                     ProfileForm.view loggedIn.user loggedIn.profileForm
                         |> Element.el
                             [ Element.width <| Element.maximum 800 Element.fill
                             , Element.centerX
                             ]
                         |> Element.map ProfileFormMsg
-
-                NotLoggedIn _ ->
-                    LoginForm.view model.loginForm
-
-                LoginStatusPending ->
-                    Element.none
+                )
 
 
 isLoggedIn : LoadedFrontend -> Bool

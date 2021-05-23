@@ -9,7 +9,9 @@ port module FrontendEffect exposing
     , manyToBackend
     , martinsstewart_crop_image_from_js
     , navigationLoad
+    , navigationPushRoute
     , navigationPushUrl
+    , navigationReplaceRoute
     , navigationReplaceUrl
     , none
     , selectFile
@@ -28,6 +30,7 @@ import Lamdera
 import List.Nonempty exposing (Nonempty(..))
 import MockFile exposing (File(..))
 import Process
+import Route exposing (Route, Token(..))
 import Task
 import Time
 import Types exposing (FrontendMsg, NavigationKey(..), ToBackend(..), ToBackendRequest)
@@ -86,9 +89,19 @@ navigationPushUrl =
     NavigationPushUrl
 
 
+navigationPushRoute : NavigationKey -> Route -> FrontendEffect
+navigationPushRoute navigationKey route =
+    NavigationPushUrl navigationKey (Route.encode route NoToken)
+
+
 navigationReplaceUrl : NavigationKey -> String -> FrontendEffect
 navigationReplaceUrl =
     NavigationReplaceUrl
+
+
+navigationReplaceRoute : NavigationKey -> Route -> FrontendEffect
+navigationReplaceRoute navigationKey route =
+    NavigationReplaceUrl navigationKey (Route.encode route NoToken)
 
 
 navigationLoad : String -> FrontendEffect

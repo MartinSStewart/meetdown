@@ -42,6 +42,7 @@ init : ( BackendModel, Cmd BackendMsg )
 init =
     ( { users = Dict.empty
       , groups = Dict.empty
+      , groupIdCounter = 0
       , sessions = BiDict.empty
       , connections = Dict.empty
       , logs = Array.empty
@@ -120,12 +121,15 @@ updateFromRequest sessionId clientId msg model =
     case msg of
         GetGroupRequest groupId ->
             ( model
-            , getGroup groupId model
-                |> Maybe.andThen
-                    (\group ->
-                        getUser group.ownerId model
-                            |> Maybe.map (\user -> groupToFrontend user group)
-                    )
+            , (case getGroup groupId model of
+                Just group ->
+                    getUser group.ownerId model
+                        |> Maybe.map (\user -> groupToFrontend user group |> GroupFound)
+                        |> Maybe.withDefault GroupNotFoundOrIsPrivate
+
+                Nothing ->
+                    GroupNotFoundOrIsPrivate
+              )
                 |> GetGroupResponse groupId
                 |> BackendEffect.sendToFrontend clientId
             )
@@ -311,6 +315,20 @@ updateFromRequest sessionId clientId msg model =
                             )
                 )
 
+        GetMyGroupsRequest ->
+            userAuthorization
+                sessionId
+                model
+                (\( userId, _ ) ->
+                    ( model
+                    , Dict.toList model.groups
+                        |> List.filter
+                            (\( _, group ) -> group.ownerId == userId)
+                        |> GetMyGroupsResponse
+                        |> BackendEffect.sendToFrontend clientId
+                    )
+                )
+
 
 handleDeleteUserRequest : ClientId -> Maybe DeleteUserTokenData -> BackendModel -> ( BackendModel, BackendEffect )
 handleDeleteUserRequest clientId maybeDeleteUserTokenData model =
@@ -440,8 +458,8 @@ addGroup clientId userId name description visibility model =
 
     else
         let
-            ( model2, groupId ) =
-                Id.getUniqueId model
+            groupId =
+                Id.groupIdFromInt model.groupIdCounter
 
             newGroup =
                 { ownerId = userId
@@ -451,7 +469,7 @@ addGroup clientId userId name description visibility model =
                 , visibility = visibility
                 }
         in
-        ( { model2 | groups = Dict.insert groupId newGroup model.groups }
+        ( { model | groupIdCounter = model.groupIdCounter + 1, groups = Dict.insert groupId newGroup model.groups }
         , Ok ( groupId, newGroup ) |> CreateGroupResponse |> BackendEffect.sendToFrontend clientId
         )
 
@@ -503,7 +521,7 @@ checkLogin sessionId model =
             Nothing
 
 
-getGroup : Id GroupId -> BackendModel -> Maybe BackendGroup
+getGroup : GroupId -> BackendModel -> Maybe BackendGroup
 getGroup groupId model =
     Dict.get groupId model.groups
 

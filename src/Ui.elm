@@ -5,6 +5,7 @@ import Element.Background
 import Element.Border
 import Element.Font
 import Element.Input
+import Element.Region
 import EmailAddress exposing (EmailAddress)
 import List.Nonempty exposing (Nonempty)
 import Route exposing (Route)
@@ -102,7 +103,7 @@ filler length =
 
 title : String -> Element msg
 title text =
-    Element.paragraph [ Element.Font.size 32 ] [ Element.text text ]
+    Element.paragraph [ Element.Font.size 32, Element.Region.heading 1 ] [ Element.text text ]
 
 
 error : String -> Element msg

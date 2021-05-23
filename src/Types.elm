@@ -2,14 +2,15 @@ module Types exposing (..)
 
 import Array exposing (Array)
 import AssocList exposing (Dict)
-import AssocSet exposing (Set)
 import BiDict.Assoc exposing (BiDict)
 import Browser exposing (UrlRequest)
 import Browser.Navigation
-import Bytes exposing (Bytes)
 import Description exposing (Description)
 import EmailAddress exposing (EmailAddress)
-import GroupForm exposing (CreateGroupError, GroupFormValidated, GroupVisibility, Model)
+import Event exposing (Event)
+import FrontendGroup exposing (FrontendGroup)
+import FrontendUser exposing (FrontendUser)
+import GroupForm exposing (CreateGroupError, GroupFormValidated, GroupVisibility)
 import GroupName exposing (GroupName)
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
 import List.Nonempty exposing (Nonempty)
@@ -18,7 +19,6 @@ import ProfileForm
 import ProfileImage exposing (ProfileImage)
 import Route exposing (Route)
 import SendGrid exposing (Email)
-import String.Nonempty exposing (NonemptyString)
 import Time
 import Untrusted exposing (Untrusted)
 import Url exposing (Url)
@@ -38,16 +38,21 @@ type alias LoadedFrontend =
     { navigationKey : NavigationKey
     , loginStatus : LoginStatus
     , route : Route
-    , group : Maybe ( Id GroupId, Maybe FrontendGroup )
+    , cachedGroups : Dict GroupId GroupRequest
     , time : Time.Posix
     , lastConnectionCheck : Time.Posix
     , loginForm : LoginForm
     , logs : Maybe (Array Log)
     , hasLoginError : Bool
-    , groupForm : Model
+    , groupForm : GroupForm.Model
     , groupCreated : Bool
     , accountDeletedResult : Maybe (Result () ())
     }
+
+
+type GroupRequest
+    = GroupNotFoundOrIsPrivate
+    | GroupFound FrontendGroup
 
 
 type alias LoginForm =
@@ -67,12 +72,14 @@ type alias LoggedIn_ =
     { userId : Id UserId
     , user : BackendUser
     , profileForm : ProfileForm.Model
+    , myGroups : Maybe (Dict GroupId BackendGroup)
     }
 
 
 type alias BackendModel =
     { users : Dict (Id UserId) BackendUser
-    , groups : Dict (Id GroupId) BackendGroup
+    , groups : Dict GroupId BackendGroup
+    , groupIdCounter : Int
     , sessions : BiDict SessionId (Id UserId)
     , connections : Dict SessionId (Nonempty ClientId)
     , logs : Array Log
@@ -179,12 +186,6 @@ type alias BackendUser =
     }
 
 
-type alias FrontendUser =
-    { name : Name
-    , profileImage : ProfileImage
-    }
-
-
 type alias BackendGroup =
     { ownerId : Id UserId
     , name : GroupName
@@ -194,38 +195,21 @@ type alias BackendGroup =
     }
 
 
-type alias FrontendGroup =
-    { ownerId : Id UserId
-    , owner : FrontendUser
-    , name : GroupName
-    , events : List Event
-    , visibility : GroupVisibility
-    }
-
-
 groupToFrontend : BackendUser -> BackendGroup -> FrontendGroup
 groupToFrontend owner backendGroup =
-    { ownerId = backendGroup.ownerId
-    , owner = userToFrontend owner
-    , name = backendGroup.name
-    , events = backendGroup.events
-    , visibility = backendGroup.visibility
-    }
+    FrontendGroup.init
+        backendGroup.ownerId
+        (userToFrontend owner)
+        backendGroup.name
+        backendGroup.description
+        backendGroup.events
+        backendGroup.visibility
 
 
 userToFrontend : BackendUser -> FrontendUser
 userToFrontend backendUser =
     { name = backendUser.name
     , profileImage = backendUser.profileImage
-    }
-
-
-type alias Event =
-    { attendees : Set (Id UserId)
-    , startTime : Time.Posix
-    , endTime : Time.Posix
-    , isCancelled : Bool
-    , description : NonemptyString
     }
 
 
@@ -250,7 +234,7 @@ type ToBackend
 
 
 type ToBackendRequest
-    = GetGroupRequest (Id GroupId)
+    = GetGroupRequest GroupId
     | CheckLoginRequest
     | LoginWithTokenRequest (Id LoginToken)
     | GetLoginTokenRequest Route (Untrusted EmailAddress)
@@ -263,6 +247,7 @@ type ToBackendRequest
     | SendDeleteUserEmailRequest
     | DeleteUserRequest (Id DeleteUserToken)
     | ChangeProfileImageRequest (Untrusted ProfileImage)
+    | GetMyGroupsRequest
 
 
 type BackendMsg
@@ -274,14 +259,15 @@ type BackendMsg
 
 
 type ToFrontend
-    = GetGroupResponse (Id GroupId) (Maybe FrontendGroup)
+    = GetGroupResponse GroupId GroupRequest
     | CheckLoginResponse (Maybe ( Id UserId, BackendUser ))
     | LoginWithTokenResponse (Result () ( Id UserId, BackendUser ))
     | GetAdminDataResponse (Array Log)
-    | CreateGroupResponse (Result CreateGroupError ( Id GroupId, BackendGroup ))
+    | CreateGroupResponse (Result CreateGroupError ( GroupId, BackendGroup ))
     | LogoutResponse
     | ChangeNameResponse Name
     | ChangeDescriptionResponse Description
     | ChangeEmailAddressResponse EmailAddress
     | DeleteUserResponse (Result () ())
     | ChangeProfileImageResponse ProfileImage
+    | GetMyGroupsResponse (List ( GroupId, BackendGroup ))

@@ -12,6 +12,8 @@ module Id exposing
     , cryptoHashFromString
     , cryptoHashToString
     , getUniqueId
+    , groupIdFromInt
+    , groupIdToInt
     , sessionIdFromString
     )
 
@@ -26,7 +28,7 @@ type UserId
 
 
 type GroupId
-    = GroupId Never
+    = GroupId Int
 
 
 type SessionId
@@ -90,3 +92,13 @@ cryptoHashToString (Id hash) =
 cryptoHashFromString : String -> Id a
 cryptoHashFromString =
     Id
+
+
+groupIdFromInt : Int -> GroupId
+groupIdFromInt =
+    GroupId
+
+
+groupIdToInt : GroupId -> Int
+groupIdToInt (GroupId groupId) =
+    groupId

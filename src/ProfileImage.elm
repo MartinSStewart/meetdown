@@ -1,6 +1,7 @@
-module ProfileImage exposing (ProfileImage, customImage, defaultImage, getCustomImageUrl, image)
+module ProfileImage exposing (ProfileImage, customImage, defaultImage, getCustomImageUrl, image, smallImage)
 
 import Element exposing (Element)
+import Element.Border
 import Ui
 
 
@@ -51,14 +52,36 @@ image profileImage =
     Element.image
         [ Element.width (Element.px size)
         , Element.height (Element.px size)
+        , Element.Border.rounded 9999
+        , Element.clip
         , Ui.inputBackground False
         ]
         { src =
             case profileImage of
                 DefaultImage ->
-                    "./default-profile.png"
+                    "/default-profile.png"
 
                 CustomImage dataUrl ->
                     dataUrl
-        , description = "Your profile image"
+        , description = "Profile image"
+        }
+
+
+smallImage : ProfileImage -> Element msg
+smallImage profileImage =
+    Element.image
+        [ Element.width (Element.px <| size // 2)
+        , Element.height (Element.px <| size // 2)
+        , Element.Border.rounded 9999
+        , Element.clip
+        , Ui.inputBackground False
+        ]
+        { src =
+            case profileImage of
+                DefaultImage ->
+                    "/default-profile.png"
+
+                CustomImage dataUrl ->
+                    dataUrl
+        , description = "Profile image"
         }
