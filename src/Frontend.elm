@@ -668,7 +668,11 @@ searchGroupsView searchText model =
         , Element.centerX
         , Element.spacing 8
         ]
-        [ Element.paragraph [] [ Element.text <| "Search results for \"" ++ searchText ++ "\"" ]
+        [ if searchText == "" then
+            Element.none
+
+          else
+            Element.paragraph [] [ Element.text <| "Search results for \"" ++ searchText ++ "\"" ]
         , Element.column
             [ Element.width Element.fill, Element.spacing 8 ]
             (getGroupsFromIds model.searchList model
