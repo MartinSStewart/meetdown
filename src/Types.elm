@@ -48,6 +48,8 @@ type alias LoadedFrontend =
     , groupForm : GroupForm.Model
     , groupCreated : Bool
     , accountDeletedResult : Maybe (Result () ())
+    , searchBox : String
+    , searchList : List GroupId
     }
 
 
@@ -206,6 +208,8 @@ type FrontendMsg
     | GroupFormMsg GroupForm.Msg
     | ProfileFormMsg ProfileForm.Msg
     | CroppedImage { requestId : Int, croppedImageUrl : String }
+    | TypedSearchText String
+    | SubmittedSearchBox
 
 
 type ToBackend
@@ -227,6 +231,7 @@ type ToBackendRequest
     | DeleteUserRequest (Id DeleteUserToken)
     | ChangeProfileImageRequest (Untrusted ProfileImage)
     | GetMyGroupsRequest
+    | SearchGroupsRequest String
 
 
 type BackendMsg
@@ -250,3 +255,4 @@ type ToFrontend
     | DeleteUserResponse (Result () ())
     | ChangeProfileImageResponse ProfileImage
     | GetMyGroupsResponse (List ( GroupId, Group ))
+    | SearchGroupsResponse String (List ( GroupId, Group ))

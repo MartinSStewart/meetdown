@@ -6,14 +6,18 @@ import Browser exposing (UrlRequest(..))
 import Description
 import Element exposing (Element)
 import Element.Background
+import Element.Border
 import Element.Font
+import Element.Input
 import Element.Region
 import FrontendEffect exposing (FrontendEffect)
 import FrontendUser exposing (FrontendUser)
-import Group
+import Group exposing (Group)
 import GroupForm
 import GroupName
-import Id exposing (Id, UserId)
+import Html.Events
+import Id exposing (GroupId, Id, UserId)
+import Json.Decode
 import Lamdera
 import LoginForm
 import Name
@@ -66,6 +70,7 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
                 Route.NoToken ->
                     CheckLoginRequest
 
+        model : LoadedFrontend
         model =
             { navigationKey = navigationKey
             , loginStatus = LoginStatusPending
@@ -84,6 +89,8 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
             , groupForm = GroupForm.init
             , groupCreated = False
             , accountDeletedResult = Nothing
+            , searchBox = ""
+            , searchList = []
             }
     in
     ( model
@@ -135,7 +142,7 @@ routeRequest route model =
             FrontendEffect.none
 
         SearchGroupsRoute searchText ->
-            FrontendEffect.none
+            FrontendEffect.sendToBackend (SearchGroupsRequest searchText)
 
 
 updateLoaded : FrontendMsg -> LoadedFrontend -> ( LoadedFrontend, FrontendEffect )
@@ -276,6 +283,12 @@ updateLoaded msg model =
                 LoginStatusPending ->
                     ( model, FrontendEffect.none )
 
+        TypedSearchText searchText ->
+            ( { model | searchBox = searchText }, FrontendEffect.none )
+
+        SubmittedSearchBox ->
+            ( model, FrontendEffect.navigationPushRoute model.navigationKey (SearchGroupsRoute model.searchBox) )
+
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, FrontendEffect )
 updateFromBackend msg model =
@@ -397,19 +410,16 @@ updateLoadedFromBackend msg model =
         GetMyGroupsResponse myGroups ->
             ( case model.loginStatus of
                 LoggedIn loggedIn ->
-                    let
-                        cachedGroups =
+                    { model
+                        | loginStatus =
+                            LoggedIn { loggedIn | myGroups = List.map Tuple.first myGroups |> Set.fromList |> Just }
+                        , cachedGroups =
                             List.foldl
                                 (\( groupId, group ) cached ->
                                     Dict.insert groupId (GroupFound group) cached
                                 )
                                 model.cachedGroups
                                 myGroups
-                    in
-                    { model
-                        | loginStatus =
-                            LoggedIn { loggedIn | myGroups = List.map Tuple.first myGroups |> Set.fromList |> Just }
-                        , cachedGroups = cachedGroups
                     }
 
                 NotLoggedIn _ ->
@@ -417,6 +427,20 @@ updateLoadedFromBackend msg model =
 
                 LoginStatusPending ->
                     model
+            , FrontendEffect.none
+            )
+
+        SearchGroupsResponse _ groups ->
+            ( { model
+                | cachedGroups =
+                    List.foldl
+                        (\( groupId, group ) cached ->
+                            Dict.insert groupId (GroupFound group) cached
+                        )
+                        model.cachedGroups
+                        groups
+                , searchList = List.map Tuple.first groups
+              }
             , FrontendEffect.none
             )
 
@@ -474,7 +498,7 @@ viewLoaded model =
                 Element.none
 
             _ ->
-                header (isLoggedIn model) model.route
+                header (isLoggedIn model) model.route model.searchBox
         , case model.loginStatus of
             NotLoggedIn { showLogin } ->
                 if showLogin then
@@ -631,7 +655,68 @@ viewPage model =
                 )
 
         SearchGroupsRoute searchText ->
-            Element.text searchText
+            searchGroupsView searchText model
+
+
+searchGroupsView : String -> LoadedFrontend -> Element FrontendMsg
+searchGroupsView searchText model =
+    Element.column
+        [ Element.padding 8
+        , Element.width <| Element.maximum 800 Element.fill
+        , Element.centerX
+        , Element.spacing 8
+        ]
+        [ Element.paragraph [] [ Element.text <| "Search results for \"" ++ searchText ++ "\"" ]
+        , Element.column
+            [ Element.width Element.fill, Element.spacing 8 ]
+            (getGroupsFromIds model.searchList model
+                |> List.map
+                    (\( groupId, group ) ->
+                        Element.link
+                            [ Ui.inputBackground False
+                            , Element.Border.rounded 4
+                            , Element.Border.width 2
+                            , Element.Border.color Ui.linkColor
+                            , Element.padding 8
+                            , Element.width Element.fill
+                            ]
+                            { url = Route.encode (GroupRoute groupId (Group.name group)) Route.NoToken
+                            , label =
+                                Element.column
+                                    [ Element.width Element.fill, Element.spacing 8 ]
+                                    [ Group.name group
+                                        |> GroupName.toString
+                                        |> Element.text
+                                        |> List.singleton
+                                        |> Element.paragraph [ Element.Font.bold ]
+                                    , Group.description group
+                                        |> Description.toString
+                                        |> Element.text
+                                        |> List.singleton
+                                        |> Element.paragraph []
+                                    ]
+                            }
+                    )
+            )
+        ]
+
+
+getGroupsFromIds : List GroupId -> LoadedFrontend -> List ( GroupId, Group )
+getGroupsFromIds groups model =
+    List.filterMap
+        (\groupId ->
+            Dict.get groupId model.cachedGroups
+                |> Maybe.andThen
+                    (\group ->
+                        case group of
+                            GroupFound groupFound ->
+                                Just ( groupId, groupFound )
+
+                            GroupNotFoundOrIsPrivate ->
+                                Nothing
+                    )
+        )
+        groups
 
 
 myGroupsView : LoadedFrontend -> LoggedIn_ -> Element FrontendMsg
@@ -640,26 +725,16 @@ myGroupsView model loggedIn =
         Just myGroups ->
             let
                 myGroupsList =
-                    List.filterMap
-                        (\groupId ->
-                            Dict.get groupId model.cachedGroups
-                                |> Maybe.andThen
-                                    (\group ->
-                                        case group of
-                                            GroupFound groupFound ->
-                                                Element.row
-                                                    []
-                                                    [ Ui.routeLink
-                                                        (GroupRoute groupId (Group.name groupFound))
-                                                        (Group.name groupFound |> GroupName.toString)
-                                                    ]
-                                                    |> Just
-
-                                            GroupNotFoundOrIsPrivate ->
-                                                Nothing
-                                    )
-                        )
-                        (Set.toList myGroups)
+                    getGroupsFromIds (Set.toList myGroups) model
+                        |> List.map
+                            (\( groupId, group ) ->
+                                Element.row
+                                    []
+                                    [ Ui.routeLink
+                                        (GroupRoute groupId (Group.name group))
+                                        (Group.name group |> GroupName.toString)
+                                    ]
+                            )
 
                 mySubscriptionsList =
                     []
@@ -719,13 +794,49 @@ isLoggedIn model =
             False
 
 
-header : Bool -> Route -> Element FrontendMsg
-header isLoggedIn_ route =
+onEnter : msg -> Element.Attribute msg
+onEnter msg =
+    Html.Events.preventDefaultOn "keydown"
+        (Json.Decode.field "keyCode" Json.Decode.int
+            |> Json.Decode.andThen
+                (\code ->
+                    if code == 13 then
+                        Json.Decode.succeed ( msg, True )
+
+                    else
+                        Json.Decode.fail "Not the enter key"
+                )
+        )
+        |> Element.htmlAttribute
+
+
+header : Bool -> Route -> String -> Element FrontendMsg
+header isLoggedIn_ route searchText =
     Element.row
         [ Element.width Element.fill
         , Element.Background.color <| Element.rgb 0.8 0.8 0.8
+        , Element.paddingEach { left = 4, right = 0, top = 0, bottom = 0 }
         ]
-        [ Element.row
+        [ Element.Input.text
+            [ Element.width <| Element.maximum 400 Element.fill
+            , Element.paddingEach { left = 32, right = 8, top = 4, bottom = 4 }
+            , onEnter SubmittedSearchBox
+            , Element.inFront
+                (Element.el
+                    [ Element.Font.size 16
+                    , Element.moveDown 6
+                    , Element.moveRight 4
+                    , Element.alpha 0.8
+                    ]
+                    (Element.text "🔍")
+                )
+            ]
+            { text = searchText
+            , onChange = TypedSearchText
+            , placeholder = Nothing
+            , label = Element.Input.labelHidden "Search groups"
+            }
+        , Element.row
             [ Element.alignRight, Element.Region.navigation ]
             (if isLoggedIn_ then
                 [ if route == CreateGroupRoute then

@@ -328,6 +328,17 @@ updateFromRequest sessionId clientId msg model =
                     )
                 )
 
+        SearchGroupsRequest searchText ->
+            if String.length searchText < 1000 then
+                ( model
+                , Dict.toList model.groups
+                    |> SearchGroupsResponse searchText
+                    |> BackendEffect.sendToFrontend clientId
+                )
+
+            else
+                ( model, BackendEffect.none )
+
 
 handleDeleteUserRequest : ClientId -> Maybe DeleteUserTokenData -> BackendModel -> ( BackendModel, BackendEffect )
 handleDeleteUserRequest clientId maybeDeleteUserTokenData model =
