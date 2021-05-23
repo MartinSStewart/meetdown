@@ -1,20 +1,17 @@
-module FrontendGroup exposing (FrontendGroup, description, events, init, name, owner, ownerId, visibility)
+module Group exposing (Group, GroupVisibility(..), description, events, init, name, ownerId, visibility)
 
 import Description exposing (Description)
 import Duration
 import Event exposing (Event)
-import FrontendUser exposing (FrontendUser)
-import GroupForm exposing (GroupVisibility)
 import GroupName exposing (GroupName)
 import Id exposing (Id, UserId)
 import Quantity
 import Time
 
 
-type FrontendGroup
-    = FrontendGroup
+type Group
+    = Group
         { ownerId : Id UserId
-        , owner : FrontendUser
         , name : GroupName
         , description : Description
         , events : List Event
@@ -22,11 +19,15 @@ type FrontendGroup
         }
 
 
-init : Id UserId -> FrontendUser -> GroupName -> Description -> List Event -> GroupVisibility -> FrontendGroup
-init ownerId_ owner_ groupName description_ events_ groupVisibility_ =
-    FrontendGroup
+type GroupVisibility
+    = PrivateGroup
+    | PublicGroup
+
+
+init : Id UserId -> GroupName -> Description -> List Event -> GroupVisibility -> Group
+init ownerId_ groupName description_ events_ groupVisibility_ =
+    Group
         { ownerId = ownerId_
-        , owner = owner_
         , name = groupName
         , description = description_
         , events = List.sortBy (.endTime >> Time.posixToMillis) events_
@@ -34,35 +35,30 @@ init ownerId_ owner_ groupName description_ events_ groupVisibility_ =
         }
 
 
-ownerId : FrontendGroup -> Id UserId
-ownerId (FrontendGroup a) =
+ownerId : Group -> Id UserId
+ownerId (Group a) =
     a.ownerId
 
 
-owner : FrontendGroup -> FrontendUser
-owner (FrontendGroup a) =
-    a.owner
-
-
-name : FrontendGroup -> GroupName
-name (FrontendGroup a) =
+name : Group -> GroupName
+name (Group a) =
     a.name
 
 
-description : FrontendGroup -> Description
-description (FrontendGroup a) =
+description : Group -> Description
+description (Group a) =
     a.description
 
 
-visibility : FrontendGroup -> GroupVisibility
-visibility (FrontendGroup a) =
+visibility : Group -> GroupVisibility
+visibility (Group a) =
     a.visibility
 
 
 {-| pastEvents and futureEvents are sorted so the head element is the event closest to the currentTime
 -}
-events : Time.Posix -> FrontendGroup -> { pastEvents : List Event, futureEvents : List Event }
-events currentTime (FrontendGroup a) =
+events : Time.Posix -> Group -> { pastEvents : List Event, futureEvents : List Event }
+events currentTime (Group a) =
     a.events
         |> List.partition
             (\event ->

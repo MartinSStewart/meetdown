@@ -14,6 +14,7 @@ type Route
     | GroupRoute GroupId GroupName
     | AdminRoute
     | CreateGroupRoute
+    | SearchGroupsRoute String
     | MyGroupsRoute
     | MyProfileRoute
 
@@ -45,6 +46,9 @@ decode =
                 )
         , Url.Parser.s "admin" |> Url.Parser.map AdminRoute
         , Url.Parser.s "create-group" |> Url.Parser.map CreateGroupRoute
+        , Url.Parser.s "search"
+            </> Url.Parser.string
+            |> Url.Parser.map (Url.percentDecode >> Maybe.withDefault "" >> SearchGroupsRoute)
         , Url.Parser.s "my-groups" |> Url.Parser.map MyGroupsRoute
         , Url.Parser.s "profile" |> Url.Parser.map MyProfileRoute
         ]
@@ -110,6 +114,9 @@ encode route token =
 
             MyProfileRoute ->
                 [ "profile" ]
+
+            SearchGroupsRoute searchText ->
+                [ "search", Url.percentEncode searchText ]
         )
         (case token of
             LoginToken loginToken ->

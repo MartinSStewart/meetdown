@@ -8,7 +8,8 @@ import BackendSub exposing (BackendSub)
 import BiDict.Assoc as BiDict
 import Description exposing (Description)
 import Duration
-import GroupForm exposing (CreateGroupError(..), GroupVisibility)
+import Group exposing (Group, GroupVisibility)
+import GroupForm exposing (CreateGroupError(..))
 import GroupName exposing (GroupName)
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
 import Lamdera
@@ -123,9 +124,7 @@ updateFromRequest sessionId clientId msg model =
             ( model
             , (case getGroup groupId model of
                 Just group ->
-                    getUser group.ownerId model
-                        |> Maybe.map (\user -> groupToFrontend user group |> GroupFound)
-                        |> Maybe.withDefault GroupNotFoundOrIsPrivate
+                    GroupFound group
 
                 Nothing ->
                     GroupNotFoundOrIsPrivate
@@ -323,7 +322,7 @@ updateFromRequest sessionId clientId msg model =
                     ( model
                     , Dict.toList model.groups
                         |> List.filter
-                            (\( _, group ) -> group.ownerId == userId)
+                            (\( _, group ) -> Group.ownerId group == userId)
                         |> GetMyGroupsResponse
                         |> BackendEffect.sendToFrontend clientId
                     )
@@ -350,7 +349,7 @@ deleteUser : Id UserId -> BackendModel -> BackendModel
 deleteUser userId model =
     { model
         | users = Dict.remove userId model.users
-        , groups = Dict.filter (\_ group -> group.ownerId /= userId) model.groups
+        , groups = Dict.filter (\_ group -> Group.ownerId group /= userId) model.groups
         , sessions = BiDict.filter (\_ userId_ -> userId_ /= userId) model.sessions
     }
 
@@ -453,7 +452,7 @@ addGroup :
     -> BackendModel
     -> ( BackendModel, BackendEffect )
 addGroup clientId userId name description visibility model =
-    if Dict.values model.groups |> List.any (.name >> GroupName.namesMatch name) then
+    if Dict.values model.groups |> List.any (Group.name >> GroupName.namesMatch name) then
         ( model, Err GroupNameAlreadyInUse |> CreateGroupResponse |> BackendEffect.sendToFrontend clientId )
 
     else
@@ -462,12 +461,7 @@ addGroup clientId userId name description visibility model =
                 Id.groupIdFromInt model.groupIdCounter
 
             newGroup =
-                { ownerId = userId
-                , name = name
-                , description = description
-                , events = []
-                , visibility = visibility
-                }
+                Group.init userId name description [] visibility
         in
         ( { model | groupIdCounter = model.groupIdCounter + 1, groups = Dict.insert groupId newGroup model.groups }
         , Ok ( groupId, newGroup ) |> CreateGroupResponse |> BackendEffect.sendToFrontend clientId
@@ -521,7 +515,7 @@ checkLogin sessionId model =
             Nothing
 
 
-getGroup : GroupId -> BackendModel -> Maybe BackendGroup
+getGroup : GroupId -> BackendModel -> Maybe Group
 getGroup groupId model =
     Dict.get groupId model.groups
 

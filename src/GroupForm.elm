@@ -1,7 +1,6 @@
 module GroupForm exposing
     ( CreateGroupError(..)
     , GroupFormValidated
-    , GroupVisibility(..)
     , Model
     , Msg
     , OutMsg(..)
@@ -13,14 +12,10 @@ module GroupForm exposing
 
 import Description exposing (Description)
 import Element exposing (Element)
+import Group exposing (GroupVisibility(..))
 import GroupName exposing (GroupName)
 import List.Nonempty exposing (Nonempty(..))
 import Ui
-
-
-type GroupVisibility
-    = PrivateGroup
-    | PublicGroup
 
 
 type Model

@@ -2,15 +2,15 @@ module Types exposing (..)
 
 import Array exposing (Array)
 import AssocList exposing (Dict)
+import AssocSet exposing (Set)
 import BiDict.Assoc exposing (BiDict)
 import Browser exposing (UrlRequest)
 import Browser.Navigation
 import Description exposing (Description)
 import EmailAddress exposing (EmailAddress)
-import Event exposing (Event)
-import FrontendGroup exposing (FrontendGroup)
 import FrontendUser exposing (FrontendUser)
-import GroupForm exposing (CreateGroupError, GroupFormValidated, GroupVisibility)
+import Group exposing (Group, GroupVisibility)
+import GroupForm exposing (CreateGroupError, GroupFormValidated)
 import GroupName exposing (GroupName)
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
 import List.Nonempty exposing (Nonempty)
@@ -39,6 +39,7 @@ type alias LoadedFrontend =
     , loginStatus : LoginStatus
     , route : Route
     , cachedGroups : Dict GroupId GroupRequest
+    , cachedUsers : Dict (Id UserId) FrontendUser
     , time : Time.Posix
     , lastConnectionCheck : Time.Posix
     , loginForm : LoginForm
@@ -52,7 +53,7 @@ type alias LoadedFrontend =
 
 type GroupRequest
     = GroupNotFoundOrIsPrivate
-    | GroupFound FrontendGroup
+    | GroupFound Group
 
 
 type alias LoginForm =
@@ -72,13 +73,13 @@ type alias LoggedIn_ =
     { userId : Id UserId
     , user : BackendUser
     , profileForm : ProfileForm.Model
-    , myGroups : Maybe (Dict GroupId BackendGroup)
+    , myGroups : Maybe (Set GroupId)
     }
 
 
 type alias BackendModel =
     { users : Dict (Id UserId) BackendUser
-    , groups : Dict GroupId BackendGroup
+    , groups : Dict GroupId Group
     , groupIdCounter : Int
     , sessions : BiDict SessionId (Id UserId)
     , connections : Dict SessionId (Nonempty ClientId)
@@ -186,26 +187,6 @@ type alias BackendUser =
     }
 
 
-type alias BackendGroup =
-    { ownerId : Id UserId
-    , name : GroupName
-    , description : Description
-    , events : List Event
-    , visibility : GroupVisibility
-    }
-
-
-groupToFrontend : BackendUser -> BackendGroup -> FrontendGroup
-groupToFrontend owner backendGroup =
-    FrontendGroup.init
-        backendGroup.ownerId
-        (userToFrontend owner)
-        backendGroup.name
-        backendGroup.description
-        backendGroup.events
-        backendGroup.visibility
-
-
 userToFrontend : BackendUser -> FrontendUser
 userToFrontend backendUser =
     { name = backendUser.name
@@ -219,11 +200,9 @@ type FrontendMsg
     | GotTime Time.Posix
     | PressedLogin
     | PressedLogout
-    | PressedMyProfile
     | TypedEmail String
     | PressedSubmitEmail
     | PressedCreateGroup
-    | PressedMyGroups
     | GroupFormMsg GroupForm.Msg
     | ProfileFormMsg ProfileForm.Msg
     | CroppedImage { requestId : Int, croppedImageUrl : String }
@@ -263,11 +242,11 @@ type ToFrontend
     | CheckLoginResponse (Maybe ( Id UserId, BackendUser ))
     | LoginWithTokenResponse (Result () ( Id UserId, BackendUser ))
     | GetAdminDataResponse (Array Log)
-    | CreateGroupResponse (Result CreateGroupError ( GroupId, BackendGroup ))
+    | CreateGroupResponse (Result CreateGroupError ( GroupId, Group ))
     | LogoutResponse
     | ChangeNameResponse Name
     | ChangeDescriptionResponse Description
     | ChangeEmailAddressResponse EmailAddress
     | DeleteUserResponse (Result () ())
     | ChangeProfileImageResponse ProfileImage
-    | GetMyGroupsResponse (List ( GroupId, BackendGroup ))
+    | GetMyGroupsResponse (List ( GroupId, Group ))
