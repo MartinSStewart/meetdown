@@ -6,6 +6,7 @@ port module FrontendEffect exposing
     , fileToBytes
     , getElement
     , getTime
+    , getWindowSize
     , manyToBackend
     , martinsstewart_crop_image_from_js
     , navigationLoad
@@ -82,6 +83,7 @@ type FrontendEffect
     | CropImage CropImageData
     | FileToUrl (String -> FrontendMsg) File
     | GetElement (Result Browser.Dom.Error Browser.Dom.Element -> FrontendMsg) String
+    | GetWindowSize (Quantity Int Pixels -> Quantity Int Pixels -> FrontendMsg)
 
 
 none : FrontendEffect
@@ -164,6 +166,11 @@ getElement =
     GetElement
 
 
+getWindowSize : (Quantity Int Pixels -> Quantity Int Pixels -> FrontendMsg) -> FrontendEffect
+getWindowSize =
+    GetWindowSize
+
+
 toCmd : FrontendEffect -> Cmd FrontendMsg
 toCmd frontendEffect =
     case frontendEffect of
@@ -226,3 +233,10 @@ toCmd frontendEffect =
 
         GetElement msg elementId ->
             Browser.Dom.getElement elementId |> Task.attempt msg
+
+        GetWindowSize msg ->
+            Browser.Dom.getViewport
+                |> Task.perform
+                    (\{ scene } ->
+                        msg (Pixels.pixels (round scene.width)) (Pixels.pixels (round scene.height))
+                    )

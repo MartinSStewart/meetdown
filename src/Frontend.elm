@@ -3,6 +3,7 @@ module Frontend exposing (app, init, update, updateFromBackend, view)
 import AssocList as Dict
 import AssocSet as Set
 import Browser exposing (UrlRequest(..))
+import Browser.Events
 import CreateGroupForm
 import Description
 import Element exposing (Element)
@@ -22,9 +23,11 @@ import Json.Decode
 import Lamdera
 import LoginForm
 import Name
+import Pixels exposing (Pixels)
 import Process
 import ProfileForm
 import ProfileImage
+import Quantity exposing (Quantity)
 import Route exposing (Route(..))
 import Task
 import Time
@@ -42,25 +45,40 @@ app =
         , onUrlChange = UrlChanged
         , update = \msg model -> update msg model |> Tuple.mapSecond FrontendEffect.toCmd
         , updateFromBackend = \msg model -> updateFromBackend msg model |> Tuple.mapSecond FrontendEffect.toCmd
-        , subscriptions = \_ -> FrontendEffect.martinsstewart_crop_image_from_js CroppedImage
+        , subscriptions =
+            \_ ->
+                Sub.batch
+                    [ FrontendEffect.martinsstewart_crop_image_from_js CroppedImage
+                    , Browser.Events.onResize
+                        (\width height -> GotWindowSize (Pixels.pixels width) (Pixels.pixels height))
+                    ]
         , view = view
         }
 
 
 init : Url -> NavigationKey -> ( FrontendModel, FrontendEffect )
 init url key =
-    ( Url.Parser.parse Route.decode url |> Maybe.withDefault ( HomepageRoute, Route.NoToken ) |> Loading key
-    , FrontendEffect.getTime GotTime
+    let
+        routeAndToken =
+            Url.Parser.parse Route.decode url |> Maybe.withDefault ( HomepageRoute, Route.NoToken )
+    in
+    ( Loading key routeAndToken Nothing Nothing
+    , FrontendEffect.batch
+        [ FrontendEffect.getTime GotTime
+        , FrontendEffect.getWindowSize GotWindowSize
+        ]
     )
 
 
 initLoadedFrontend :
     NavigationKey
+    -> Quantity Int Pixels
+    -> Quantity Int Pixels
     -> Route
     -> Route.Token
     -> Time.Posix
     -> ( LoadedFrontend, FrontendEffect )
-initLoadedFrontend navigationKey route maybeLoginToken time =
+initLoadedFrontend navigationKey windowWidth windowHeight route maybeLoginToken time =
     let
         login =
             case maybeLoginToken of
@@ -94,6 +112,8 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
             , accountDeletedResult = Nothing
             , searchBox = ""
             , searchList = []
+            , windowWidth = windowWidth
+            , windowHeight = windowHeight
             }
     in
     ( model
@@ -107,10 +127,23 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
 update : FrontendMsg -> FrontendModel -> ( FrontendModel, FrontendEffect )
 update msg model =
     case model of
-        Loading key ( route, token ) ->
+        Loading key ( route, token ) maybeWindowSize maybeTime ->
             case msg of
                 GotTime time ->
-                    initLoadedFrontend key route token time |> Tuple.mapFirst Loaded
+                    case maybeWindowSize of
+                        Just ( windowWidth, windowHeight ) ->
+                            initLoadedFrontend key windowWidth windowHeight route token time |> Tuple.mapFirst Loaded
+
+                        Nothing ->
+                            ( Loading key ( route, token ) maybeWindowSize (Just time), FrontendEffect.none )
+
+                GotWindowSize width height ->
+                    case maybeTime of
+                        Just time ->
+                            initLoadedFrontend key width height route token time |> Tuple.mapFirst Loaded
+
+                        Nothing ->
+                            ( Loading key ( route, token ) (Just ( width, height )) maybeTime, FrontendEffect.none )
 
                 _ ->
                     ( model, FrontendEffect.none )
@@ -232,6 +265,7 @@ updateLoaded msg model =
                     let
                         ( newModel, effects ) =
                             ProfileForm.update
+                                model
                                 { wait = \duration waitMsg -> FrontendEffect.wait duration (ProfileFormMsg waitMsg)
                                 , none = FrontendEffect.none
                                 , changeName = ChangeNameRequest >> FrontendEffect.sendToBackend
@@ -311,11 +345,14 @@ updateLoaded msg model =
                 LoginStatusPending ->
                     ( model, FrontendEffect.none )
 
+        GotWindowSize width height ->
+            ( { model | windowWidth = width, windowHeight = height }, FrontendEffect.none )
+
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, FrontendEffect )
 updateFromBackend msg model =
     case model of
-        Loading _ _ ->
+        Loading _ _ _ _ ->
             ( model, FrontendEffect.none )
 
         Loaded loaded ->
@@ -490,7 +527,7 @@ view model =
         , Element.layout
             []
             (case model of
-                Loading _ _ ->
+                Loading _ _ _ _ ->
                     Element.none
 
                 Loaded loaded ->
@@ -631,7 +668,7 @@ viewPage model =
             loginRequiredPage
                 model
                 (\loggedIn ->
-                    ProfileForm.view loggedIn.user loggedIn.profileForm
+                    ProfileForm.view model loggedIn.user loggedIn.profileForm
                         |> Element.el
                             [ Element.width <| Element.maximum 800 Element.fill
                             , Element.centerX

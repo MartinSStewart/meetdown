@@ -25,6 +25,10 @@ function setImage(app, data) {
     canvas.style.display = "none";
     document.body.appendChild(canvas);
     var ctx = canvas.getContext('2d');
+    ctx.mozImageSmoothingEnabled = true;
+    ctx.webkitImageSmoothingEnabled = true;
+    ctx.msImageSmoothingEnabled = true;
+    ctx.imageSmoothingEnabled = true;
 
     var img = new Image();
 

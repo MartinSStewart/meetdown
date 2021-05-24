@@ -131,8 +131,13 @@ type alias Effects cmd =
     }
 
 
-update : Effects cmd -> Msg -> Model -> ( Model, cmd )
-update effects msg model =
+update :
+    { c | windowWidth : Quantity Int Pixels, windowHeight : Quantity Int Pixels }
+    -> Effects cmd
+    -> Msg
+    -> Model
+    -> ( Model, cmd )
+update windowSize effects msg model =
     case msg of
         FormChanged newForm ->
             ( { model | form = newForm, changeCounter = model.changeCounter + 1 }
@@ -191,7 +196,7 @@ update effects msg model =
                 Editting (Just ({ dragState } as imageData)) ->
                     let
                         ( tx, ty ) =
-                            ( pixelToT x, pixelToT y )
+                            ( pixelToT windowSize x, pixelToT windowSize y )
 
                         dragPart : Maybe ( DragPart, Float )
                         dragPart =
@@ -237,7 +242,8 @@ update effects msg model =
             case model.profileImage of
                 Editting (Just imageData) ->
                     ( { model
-                        | profileImage = Editting (Just (updateDragState (pixelToT x) (pixelToT y) imageData))
+                        | profileImage =
+                            Editting (Just (updateDragState (pixelToT windowSize x) (pixelToT windowSize y) imageData))
                       }
                     , effects.none
                     )
@@ -250,7 +256,7 @@ update effects msg model =
                 Editting (Just imageData) ->
                     let
                         newImageData =
-                            updateDragState (pixelToT x) (pixelToT y) imageData
+                            updateDragState (pixelToT windowSize x) (pixelToT windowSize y) imageData
                                 |> getActualImageState
                                 |> (\a -> { a | dragState = Nothing })
                     in
@@ -442,19 +448,19 @@ cropImageResponse imageData model =
     { model | profileImage = Unchanged }
 
 
-pixelToT : Float -> Float
-pixelToT value =
-    value / imageEditorWidth
+pixelToT : { a | windowWidth : Quantity Int Pixels, windowHeight : Quantity Int Pixels } -> Float -> Float
+pixelToT windowSize value =
+    value / toFloat (imageEditorWidth windowSize)
 
 
-tToPixel : Float -> Float
-tToPixel value =
-    value * imageEditorWidth
+tToPixel : { a | windowWidth : Quantity Int Pixels, windowHeight : Quantity Int Pixels } -> Float -> Float
+tToPixel windowSize value =
+    value * toFloat (imageEditorWidth windowSize)
 
 
-imageEditorWidth : number
-imageEditorWidth =
-    400
+imageEditorWidth : { a | windowWidth : Quantity Int Pixels, windowHeight : Quantity Int Pixels } -> Int
+imageEditorWidth windowSize =
+    min 400 (Pixels.inPixels windowSize.windowWidth)
 
 
 profileImagePlaceholderId : String
@@ -462,8 +468,11 @@ profileImagePlaceholderId =
     "profile-image-placeholder-id"
 
 
-imageEditorView : ImageEdit -> Element Msg
-imageEditorView imageEdit =
+imageEditorView :
+    { a | windowWidth : Quantity Int Pixels, windowHeight : Quantity Int Pixels }
+    -> ImageEdit
+    -> Element Msg
+imageEditorView windowSize imageEdit =
     let
         { x, y, size, imageUrl, dragState } =
             getActualImageState imageEdit
@@ -473,8 +482,8 @@ imageEditorView imageEdit =
                 (Element.el
                     [ Element.width (Element.px 8)
                     , Element.height (Element.px 8)
-                    , Element.moveRight (tToPixel x_ - 4)
-                    , Element.moveDown (tToPixel y_ - 4)
+                    , Element.moveRight (tToPixel windowSize x_ - 4)
+                    , Element.moveDown (tToPixel windowSize y_ - 4)
                     , Element.Background.color <| Element.rgb 1 1 1
                     , Element.Border.width 2
                     , Element.Border.color <| Element.rgb 0 0 0
@@ -486,10 +495,10 @@ imageEditorView imageEdit =
         drawHorizontalLine x_ y_ width =
             Element.inFront
                 (Element.el
-                    [ Element.width (Element.px <| round (tToPixel width))
+                    [ Element.width (Element.px <| round (tToPixel windowSize width))
                     , Element.height (Element.px 6)
-                    , Element.moveRight (tToPixel x_)
-                    , Element.moveDown (tToPixel y_ - 3)
+                    , Element.moveRight (tToPixel windowSize x_)
+                    , Element.moveDown (tToPixel windowSize y_ - 3)
                     , Element.Background.color <| Element.rgb 1 1 1
                     , Element.Border.width 2
                     , Element.Border.color <| Element.rgb 0 0 0
@@ -501,10 +510,10 @@ imageEditorView imageEdit =
         drawVerticalLine x_ y_ height =
             Element.inFront
                 (Element.el
-                    [ Element.height (Element.px <| round (tToPixel height))
+                    [ Element.height (Element.px <| round (tToPixel windowSize height))
                     , Element.width (Element.px 6)
-                    , Element.moveRight (tToPixel x_ - 3)
-                    , Element.moveDown (tToPixel y_)
+                    , Element.moveRight (tToPixel windowSize x_ - 3)
+                    , Element.moveDown (tToPixel windowSize y_)
                     , Element.Background.color <| Element.rgb 1 1 1
                     , Element.Border.width 2
                     , Element.Border.color <| Element.rgb 0 0 0
@@ -512,6 +521,9 @@ imageEditorView imageEdit =
                     ]
                     Element.none
                 )
+
+        imageEditorWidth_ =
+            imageEditorWidth windowSize
     in
     Element.column
         [ Element.spacing 8
@@ -535,10 +547,10 @@ imageEditorView imageEdit =
         , Element.centerX
         ]
         [ Element.image
-            [ Element.width <| Element.px imageEditorWidth
+            [ Element.width <| Element.px imageEditorWidth_
             , case imageEdit.imageSize of
                 Just ( w, h ) ->
-                    Element.height <| Element.px <| round <| imageEditorWidth * toFloat h / toFloat w
+                    Element.height <| Element.px <| round <| toFloat (imageEditorWidth_ * h) / toFloat w
 
                 Nothing ->
                     Element.inFront Element.none
@@ -564,10 +576,10 @@ imageEditorView imageEdit =
                     |> Element.htmlAttribute
             , Element.inFront
                 (Element.el
-                    [ Element.height (Element.px <| round (size * imageEditorWidth))
-                    , Element.width (Element.px <| round (size * imageEditorWidth))
-                    , Element.moveRight (x * imageEditorWidth)
-                    , Element.moveDown (y * imageEditorWidth)
+                    [ Element.height (Element.px <| round (size * toFloat imageEditorWidth_))
+                    , Element.width (Element.px <| round (size * toFloat imageEditorWidth_))
+                    , Element.moveRight (x * toFloat imageEditorWidth_)
+                    , Element.moveDown (y * toFloat imageEditorWidth_)
                     , Element.Border.width 2
                     , Element.Border.color <| Element.rgb 0 0 0
                     , Element.Border.rounded 99999
@@ -577,10 +589,10 @@ imageEditorView imageEdit =
                 )
             , Element.inFront
                 (Element.el
-                    [ Element.height (Element.px <| round (size * imageEditorWidth - 4))
-                    , Element.width (Element.px <| round (size * imageEditorWidth - 4))
-                    , Element.moveRight (x * imageEditorWidth + 2)
-                    , Element.moveDown (y * imageEditorWidth + 2)
+                    [ Element.height (Element.px <| round (size * toFloat imageEditorWidth_ - 4))
+                    , Element.width (Element.px <| round (size * toFloat imageEditorWidth_ - 4))
+                    , Element.moveRight (x * toFloat imageEditorWidth_ + 2)
+                    , Element.moveDown (y * toFloat imageEditorWidth_ + 2)
                     , Element.Border.width 2
                     , Element.Border.color <| Element.rgb 1 1 1
                     , Element.Border.rounded 99999
@@ -608,11 +620,15 @@ imageEditorView imageEdit =
         ]
 
 
-view : CurrentValues a -> Model -> Element Msg
-view currentValues ({ form } as model) =
+view :
+    { b | windowWidth : Quantity Int Pixels, windowHeight : Quantity Int Pixels }
+    -> CurrentValues a
+    -> Model
+    -> Element Msg
+view windowSize currentValues ({ form } as model) =
     case model.profileImage of
         Editting (Just imageEdit) ->
-            imageEditorView imageEdit
+            imageEditorView windowSize imageEdit
 
         _ ->
             Element.column
@@ -627,26 +643,6 @@ view currentValues ({ form } as model) =
                         ]
                         { onPress = Just PressedProfileImage
                         , label = ProfileImage.image currentValues.profileImage
-
-                        --case profileImage of
-                        --    Unchanged ->
-                        --        Element.image
-                        --            [ Element.width (Element.px profileImageSize)
-                        --            , Element.height (Element.px profileImageSize)
-                        --            , Element.alignRight
-                        --            , Ui.inputBackground False
-                        --            ]
-                        --            { src = "./default-profile.png", description = "Your profile image" }
-                        --
-                        --    Editting _ ->
-                        --            Element.html
-                        --                (Html.canvas
-                        --                    [ Html.Attributes.width profileImageSize
-                        --                    , Html.Attributes.height profileImageSize
-                        --                    , Html.Attributes.id canvasId
-                        --                    ]
-                        --                    []
-                        --                )
                         }
                     ]
                 , editableTextInput

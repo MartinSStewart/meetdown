@@ -16,8 +16,10 @@ import GroupPage
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
 import List.Nonempty exposing (Nonempty)
 import Name exposing (Name)
+import Pixels exposing (Pixels)
 import ProfileForm
 import ProfileImage exposing (ProfileImage)
+import Quantity exposing (Quantity)
 import Route exposing (Route)
 import SendGrid exposing (Email)
 import Time
@@ -31,7 +33,7 @@ type NavigationKey
 
 
 type FrontendModel
-    = Loading NavigationKey ( Route, Route.Token )
+    = Loading NavigationKey ( Route, Route.Token ) (Maybe ( Quantity Int Pixels, Quantity Int Pixels )) (Maybe Time.Posix)
     | Loaded LoadedFrontend
 
 
@@ -51,6 +53,8 @@ type alias LoadedFrontend =
     , accountDeletedResult : Maybe (Result () ())
     , searchBox : String
     , searchList : List GroupId
+    , windowWidth : Quantity Int Pixels
+    , windowHeight : Quantity Int Pixels
     }
 
 
@@ -213,6 +217,7 @@ type FrontendMsg
     | TypedSearchText String
     | SubmittedSearchBox
     | GroupPageMsg GroupPage.Msg
+    | GotWindowSize (Quantity Int Pixels) (Quantity Int Pixels)
 
 
 type ToBackend
