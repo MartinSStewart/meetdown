@@ -25,18 +25,18 @@ function setImage(app, data) {
     canvas.style.display = "none";
     document.body.appendChild(canvas);
     var ctx = canvas.getContext('2d');
-    ctx.mozImageSmoothingEnabled = true;
-    ctx.webkitImageSmoothingEnabled = true;
-    ctx.msImageSmoothingEnabled = true;
-    ctx.imageSmoothingEnabled = true;
+
 
     var img = new Image();
 
     img.onload = function(){
-      ctx.drawImage(img, data.cropX, data.cropY, data.width, data.height, 0, 0, data.cropWidth, data.cropHeight);
-      var croppedImageUrl = canvas.toDataURL();
-      document.body.removeChild(canvas);
-      app.ports.martinsstewart_crop_image_from_js.send({ requestId: data.requestId, croppedImageUrl: croppedImageUrl });
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+
+        ctx.drawImage(img, data.cropX, data.cropY, data.width, data.height, 0, 0, data.cropWidth, data.cropHeight);
+        var croppedImageUrl = canvas.toDataURL();
+        document.body.removeChild(canvas);
+        app.ports.martinsstewart_crop_image_from_js.send({ requestId: data.requestId, croppedImageUrl: croppedImageUrl });
     }
 
     img.src = data.imageUrl;

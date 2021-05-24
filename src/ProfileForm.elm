@@ -1,7 +1,6 @@
 module ProfileForm exposing (CurrentValues, Effects, Form, Model, Msg, cropImageResponse, init, update, view)
 
 import Browser.Dom
-import Bytes exposing (Bytes)
 import Description exposing (Description, Error(..))
 import Duration exposing (Duration)
 import Editable exposing (Editable(..))
