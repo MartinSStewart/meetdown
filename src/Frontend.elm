@@ -15,7 +15,6 @@ import FrontendUser exposing (FrontendUser)
 import Group exposing (Group)
 import GroupForm
 import GroupName
-import Html
 import Html.Events
 import Id exposing (GroupId, Id, UserId)
 import Json.Decode
@@ -97,7 +96,7 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
     ( model
     , FrontendEffect.batch
         [ FrontendEffect.batch [ FrontendEffect.sendToBackend login, routeRequest route model ]
-        , FrontendEffect.navigationReplaceUrl navigationKey (Route.encode route Route.NoToken)
+        , FrontendEffect.navigationReplaceUrl navigationKey (Route.encode route)
         ]
     )
 
@@ -159,7 +158,7 @@ updateLoaded msg model =
                                 |> Maybe.withDefault HomepageRoute
                     in
                     ( { model | route = route }
-                    , FrontendEffect.navigationPushUrl model.navigationKey (Route.encode route Route.NoToken)
+                    , FrontendEffect.navigationPushUrl model.navigationKey (Route.encode route)
                     )
 
                 External url ->
@@ -687,7 +686,7 @@ searchGroupsView searchText model =
                             , Element.width Element.fill
                             , Ui.inputFocusClass
                             ]
-                            { url = Route.encode (GroupRoute groupId (Group.name group)) Route.NoToken
+                            { url = Route.encode (GroupRoute groupId (Group.name group))
                             , label =
                                 Element.column
                                     [ Element.width Element.fill, Element.spacing 8 ]
@@ -801,22 +800,6 @@ isLoggedIn model =
             False
 
 
-onEnter : msg -> Element.Attribute msg
-onEnter msg =
-    Html.Events.preventDefaultOn "keydown"
-        (Json.Decode.field "keyCode" Json.Decode.int
-            |> Json.Decode.andThen
-                (\code ->
-                    if code == 13 then
-                        Json.Decode.succeed ( msg, True )
-
-                    else
-                        Json.Decode.fail "Not the enter key"
-                )
-        )
-        |> Element.htmlAttribute
-
-
 header : Bool -> Route -> String -> Element FrontendMsg
 header isLoggedIn_ route searchText =
     Element.row
@@ -827,7 +810,7 @@ header isLoggedIn_ route searchText =
         [ Element.Input.text
             [ Element.width <| Element.maximum 400 Element.fill
             , Element.paddingEach { left = 32, right = 8, top = 4, bottom = 4 }
-            , onEnter SubmittedSearchBox
+            , Ui.onEnter SubmittedSearchBox
             , Element.inFront
                 (Element.el
                     [ Element.Font.size 16

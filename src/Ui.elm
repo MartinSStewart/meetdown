@@ -1,4 +1,4 @@
-module Ui exposing (button, css, dangerButton, emailAddressText, emailInput, error, filler, formError, headerButton, headerLink, inputBackground, inputFocusClass, linkColor, multiline, radioGroup, routeLink, section, submitButton, textInput, title)
+module Ui exposing (button, css, dangerButton, emailAddressText, error, filler, formError, headerButton, headerLink, inputBackground, inputFocusClass, linkColor, multiline, onEnter, radioGroup, routeLink, section, submitButton, textInput, title)
 
 import Element exposing (Element)
 import Element.Background
@@ -9,8 +9,10 @@ import Element.Region
 import EmailAddress exposing (EmailAddress)
 import Html exposing (Html)
 import Html.Attributes
+import Html.Events
+import Json.Decode
 import List.Nonempty exposing (Nonempty)
-import Route exposing (Route, Token(..))
+import Route exposing (Route)
 
 
 css : Html msg
@@ -26,6 +28,22 @@ css =
         
         """
         ]
+
+
+onEnter : msg -> Element.Attribute msg
+onEnter msg =
+    Html.Events.preventDefaultOn "keydown"
+        (Json.Decode.field "keyCode" Json.Decode.int
+            |> Json.Decode.andThen
+                (\code ->
+                    if code == 13 then
+                        Json.Decode.succeed ( msg, True )
+
+                    else
+                        Json.Decode.fail "Not the enter key"
+                )
+        )
+        |> Element.htmlAttribute
 
 
 inputFocusClass : Element.Attribute msg
@@ -54,7 +72,7 @@ headerLink { route, label } =
         , Element.Font.center
         , inputFocusClass
         ]
-        { url = Route.encode route Route.NoToken
+        { url = Route.encode route
         , label = Element.text label
         }
 
@@ -70,7 +88,7 @@ routeLink : Route -> String -> Element msg
 routeLink route label =
     Element.link
         [ Element.Font.color linkColor, inputFocusClass ]
-        { url = Route.encode route NoToken, label = Element.text label }
+        { url = Route.encode route, label = Element.text label }
 
 
 section : String -> Element msg -> Element msg
@@ -221,28 +239,6 @@ inputBackground hasError =
 
         else
             Element.rgb 0.94 0.94 0.94
-
-
-emailInput : (String -> msg) -> String -> String -> Maybe String -> Element msg
-emailInput onChange text labelText maybeError =
-    Element.column
-        [ Element.width Element.fill
-        , inputBackground (maybeError /= Nothing)
-        , Element.paddingEach { left = 8, right = 8, top = 8, bottom = 8 }
-        , Element.Border.rounded 4
-        ]
-        [ Element.Input.email
-            [ Element.width Element.fill ]
-            { text = text
-            , onChange = onChange
-            , placeholder = Nothing
-            , label =
-                Element.Input.labelAbove
-                    [ Element.paddingXY 4 0 ]
-                    (Element.paragraph [] [ Element.text labelText ])
-            }
-        , Maybe.map error maybeError |> Maybe.withDefault Element.none
-        ]
 
 
 textInput : (String -> msg) -> String -> String -> Maybe String -> Element msg

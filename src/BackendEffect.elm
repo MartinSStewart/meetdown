@@ -72,7 +72,7 @@ toCmd backendEffect =
             let
                 loginLink : String
                 loginLink =
-                    Env.domain ++ Route.encode route (Route.LoginToken loginToken)
+                    Env.domain ++ Route.encodeWithToken route (Route.LoginToken loginToken)
 
                 _ =
                     Debug.log "login" loginLink
@@ -102,7 +102,7 @@ toCmd backendEffect =
             let
                 deleteUserLink : String
                 deleteUserLink =
-                    Env.domain ++ Route.encode HomepageRoute (Route.DeleteUserToken deleteUserToken)
+                    Env.domain ++ Route.encodeWithToken HomepageRoute (Route.DeleteUserToken deleteUserToken)
 
                 _ =
                     Debug.log "delete user" deleteUserLink

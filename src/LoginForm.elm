@@ -1,12 +1,36 @@
 module LoginForm exposing (submitForm, typedEmail, view)
 
 import Element exposing (Element)
+import Element.Border
+import Element.Input
 import EmailAddress exposing (EmailAddress)
 import FrontendEffect
 import Route exposing (Route)
 import Types exposing (FrontendMsg(..), LoginForm, ToBackendRequest(..))
 import Ui
 import Untrusted
+
+
+emailInput : msg -> (String -> msg) -> String -> String -> Maybe String -> Element msg
+emailInput onSubmit onChange text labelText maybeError =
+    Element.column
+        [ Element.width Element.fill
+        , Ui.inputBackground (maybeError /= Nothing)
+        , Element.paddingEach { left = 8, right = 8, top = 8, bottom = 8 }
+        , Element.Border.rounded 4
+        ]
+        [ Element.Input.email
+            [ Element.width Element.fill, Ui.onEnter onSubmit ]
+            { text = text
+            , onChange = onChange
+            , placeholder = Nothing
+            , label =
+                Element.Input.labelAbove
+                    [ Element.paddingXY 4 0 ]
+                    (Element.paragraph [] [ Element.text labelText ])
+            }
+        , Maybe.map Ui.error maybeError |> Maybe.withDefault Element.none
+        ]
 
 
 view : LoginForm -> Element FrontendMsg
@@ -36,7 +60,9 @@ view { email, pressedSubmitEmail, emailSent } =
                         Element.none
                 )
             ]
-            [ Ui.emailInput TypedEmail
+            [ emailInput
+                PressedSubmitEmail
+                TypedEmail
                 email
                 "Enter your email address"
                 (case ( pressedSubmitEmail, validateEmail email ) of

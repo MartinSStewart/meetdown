@@ -1,6 +1,5 @@
-module Route exposing (Route(..), Token(..), decode, encode, loginTokenName)
+module Route exposing (Route(..), Token(..), decode, encode, encodeWithToken, loginTokenName)
 
-import Env
 import GroupName exposing (GroupName)
 import Id exposing (DeleteUserToken, GroupId, Id, LoginToken)
 import Url
@@ -92,8 +91,13 @@ type Token
     | DeleteUserToken (Id DeleteUserToken)
 
 
-encode : Route -> Token -> String
-encode route token =
+encode : Route -> String
+encode route =
+    encodeWithToken route NoToken
+
+
+encodeWithToken : Route -> Token -> String
+encodeWithToken route token =
     Url.Builder.absolute
         (case route of
             HomepageRoute ->

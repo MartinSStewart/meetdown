@@ -91,7 +91,7 @@ navigationPushUrl =
 
 navigationPushRoute : NavigationKey -> Route -> FrontendEffect
 navigationPushRoute navigationKey route =
-    NavigationPushUrl navigationKey (Route.encode route NoToken)
+    NavigationPushUrl navigationKey (Route.encode route)
 
 
 navigationReplaceUrl : NavigationKey -> String -> FrontendEffect
@@ -101,7 +101,7 @@ navigationReplaceUrl =
 
 navigationReplaceRoute : NavigationKey -> Route -> FrontendEffect
 navigationReplaceRoute navigationKey route =
-    NavigationReplaceUrl navigationKey (Route.encode route NoToken)
+    NavigationReplaceUrl navigationKey (Route.encode route)
 
 
 navigationLoad : String -> FrontendEffect
