@@ -6,10 +6,10 @@ import AssocSet as Set
 import BackendEffect exposing (BackendEffect)
 import BackendSub exposing (BackendSub)
 import BiDict.Assoc as BiDict
+import CreateGroupForm exposing (CreateGroupError(..))
 import Description exposing (Description)
 import Duration
 import Group exposing (Group, GroupVisibility)
-import GroupForm exposing (CreateGroupError(..))
 import GroupName exposing (GroupName)
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
 import Lamdera

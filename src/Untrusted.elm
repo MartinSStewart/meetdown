@@ -8,9 +8,9 @@ module Untrusted exposing
     , validateProfileImage
     )
 
+import CreateGroupForm exposing (GroupFormValidated)
 import Description exposing (Description)
 import EmailAddress exposing (EmailAddress)
-import GroupForm exposing (GroupFormValidated)
 import GroupName exposing (GroupName)
 import Name exposing (Name)
 import ProfileImage exposing (ProfileImage)

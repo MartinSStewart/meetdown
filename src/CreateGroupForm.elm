@@ -1,4 +1,4 @@
-module GroupForm exposing
+module CreateGroupForm exposing
     ( CreateGroupError(..)
     , GroupFormValidated
     , Model

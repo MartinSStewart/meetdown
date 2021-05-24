@@ -4,6 +4,7 @@ import Browser.Dom
 import Bytes exposing (Bytes)
 import Description exposing (Description, Error(..))
 import Duration exposing (Duration)
+import Editable exposing (Editable(..))
 import Element exposing (Element)
 import Element.Background
 import Element.Border
@@ -35,11 +36,6 @@ type Msg
     | PressedConfirmImage
     | PressedCancelImage
     | GotImageSize (Result Browser.Dom.Error Browser.Dom.Element)
-
-
-type Editable a
-    = Unchanged
-    | Editting a
 
 
 type alias ImageEdit =

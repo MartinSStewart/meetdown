@@ -6,12 +6,13 @@ import AssocSet exposing (Set)
 import BiDict.Assoc exposing (BiDict)
 import Browser exposing (UrlRequest)
 import Browser.Navigation
+import CreateGroupForm exposing (CreateGroupError, GroupFormValidated)
 import Description exposing (Description)
 import EmailAddress exposing (EmailAddress)
 import FrontendUser exposing (FrontendUser)
 import Group exposing (Group, GroupVisibility)
-import GroupForm exposing (CreateGroupError, GroupFormValidated)
 import GroupName exposing (GroupName)
+import GroupPage
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
 import List.Nonempty exposing (Nonempty)
 import Name exposing (Name)
@@ -45,7 +46,7 @@ type alias LoadedFrontend =
     , loginForm : LoginForm
     , logs : Maybe (Array Log)
     , hasLoginError : Bool
-    , groupForm : GroupForm.Model
+    , groupForm : CreateGroupForm.Model
     , groupCreated : Bool
     , accountDeletedResult : Maybe (Result () ())
     , searchBox : String
@@ -76,6 +77,7 @@ type alias LoggedIn_ =
     , user : BackendUser
     , profileForm : ProfileForm.Model
     , myGroups : Maybe (Set GroupId)
+    , groupPage : GroupPage.Model
     }
 
 
@@ -205,11 +207,12 @@ type FrontendMsg
     | TypedEmail String
     | PressedSubmitEmail
     | PressedCreateGroup
-    | GroupFormMsg GroupForm.Msg
+    | GroupFormMsg CreateGroupForm.Msg
     | ProfileFormMsg ProfileForm.Msg
     | CroppedImage { requestId : Int, croppedImageUrl : String }
     | TypedSearchText String
     | SubmittedSearchBox
+    | GroupPageMsg GroupPage.Msg
 
 
 type ToBackend

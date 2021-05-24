@@ -3,6 +3,7 @@ module Frontend exposing (app, init, update, updateFromBackend, view)
 import AssocList as Dict
 import AssocSet as Set
 import Browser exposing (UrlRequest(..))
+import CreateGroupForm
 import Description
 import Element exposing (Element)
 import Element.Background
@@ -13,8 +14,8 @@ import Element.Region
 import FrontendEffect exposing (FrontendEffect)
 import FrontendUser exposing (FrontendUser)
 import Group exposing (Group)
-import GroupForm
 import GroupName
+import GroupPage
 import Html.Events
 import Id exposing (GroupId, Id, UserId)
 import Json.Decode
@@ -86,7 +87,7 @@ initLoadedFrontend navigationKey route maybeLoginToken time =
                 }
             , logs = Nothing
             , hasLoginError = False
-            , groupForm = GroupForm.init
+            , groupForm = CreateGroupForm.init
             , groupCreated = False
             , accountDeletedResult = Nothing
             , searchBox = ""
@@ -207,11 +208,11 @@ updateLoaded msg model =
         GroupFormMsg groupFormMsg ->
             let
                 ( newModel, outMsg ) =
-                    GroupForm.update groupFormMsg model.groupForm
+                    CreateGroupForm.update groupFormMsg model.groupForm
                         |> Tuple.mapFirst (\a -> { model | groupForm = a })
             in
             case outMsg of
-                GroupForm.Submitted submitted ->
+                CreateGroupForm.Submitted submitted ->
                     ( newModel
                     , CreateGroupRequest
                         (Untrusted.untrust submitted.name)
@@ -220,7 +221,7 @@ updateLoaded msg model =
                         |> FrontendEffect.sendToBackend
                     )
 
-                GroupForm.NoChange ->
+                CreateGroupForm.NoChange ->
                     ( newModel, FrontendEffect.none )
 
         ProfileFormMsg profileFormMsg ->
@@ -289,6 +290,26 @@ updateLoaded msg model =
         SubmittedSearchBox ->
             ( model, FrontendEffect.navigationPushRoute model.navigationKey (SearchGroupsRoute model.searchBox) )
 
+        GroupPageMsg groupPageMsg ->
+            case model.loginStatus of
+                LoggedIn loggedIn ->
+                    let
+                        ( newModel, effects ) =
+                            GroupPage.update
+                                { none = FrontendEffect.none }
+                                groupPageMsg
+                                loggedIn.groupPage
+                    in
+                    ( { model | loginStatus = LoggedIn { loggedIn | groupPage = newModel } }
+                    , effects
+                    )
+
+                NotLoggedIn _ ->
+                    ( model, FrontendEffect.none )
+
+                LoginStatusPending ->
+                    ( model, FrontendEffect.none )
+
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, FrontendEffect )
 updateFromBackend msg model =
@@ -325,6 +346,7 @@ updateLoadedFromBackend msg model =
                                 , user = user
                                 , profileForm = ProfileForm.init
                                 , myGroups = Nothing
+                                , groupPage = GroupPage.init
                                 }
                       }
                     , FrontendEffect.none
@@ -343,6 +365,7 @@ updateLoadedFromBackend msg model =
                                 , user = user
                                 , profileForm = ProfileForm.init
                                 , myGroups = Nothing
+                                , groupPage = GroupPage.init
                                 }
 
                         Nothing ->
@@ -361,7 +384,7 @@ updateLoadedFromBackend msg model =
                         Ok ( groupId, groupData ) ->
                             ( { model
                                 | cachedGroups = Dict.insert groupId (GroupFound groupData) model.cachedGroups
-                                , groupForm = GroupForm.init
+                                , groupForm = CreateGroupForm.init
                               }
                             , FrontendEffect.navigationReplaceRoute
                                 model.navigationKey
@@ -369,7 +392,7 @@ updateLoadedFromBackend msg model =
                             )
 
                         Err error ->
-                            ( { model | groupForm = GroupForm.submitFailed error model.groupForm }
+                            ( { model | groupForm = CreateGroupForm.submitFailed error model.groupForm }
                             , FrontendEffect.none
                             )
 
@@ -557,65 +580,25 @@ viewPage model =
         GroupRoute groupId _ ->
             case Dict.get groupId model.cachedGroups of
                 Just (GroupFound group) ->
-                    let
-                        { pastEvents, futureEvents } =
-                            Group.events model.time group
-                    in
-                    Element.column
-                        [ Element.spacing 8, Element.padding 8, Element.width Element.fill ]
-                        [ Element.row
-                            [ Element.width Element.fill ]
-                            [ group
-                                |> Group.name
-                                |> GroupName.toString
-                                |> Ui.title
-                                |> Element.el [ Element.alignTop, Element.width Element.fill ]
-                            , Ui.section "Organizer"
-                                (Element.row
-                                    [ Element.spacing 16 ]
-                                    (case getCachedUser (Group.ownerId group) model of
-                                        Just owner ->
-                                            [ ProfileImage.smallImage owner.profileImage
-                                            , Element.text (Name.toString owner.name)
-                                            ]
+                    case getCachedUser (Group.ownerId group) model of
+                        Just owner ->
+                            GroupPage.view model.time
+                                owner
+                                group
+                                (case model.loginStatus of
+                                    LoggedIn loggedIn ->
+                                        Just loggedIn.groupPage
 
-                                        Nothing ->
-                                            []
-                                    )
+                                    NotLoggedIn _ ->
+                                        Nothing
+
+                                    LoginStatusPending ->
+                                        Nothing
                                 )
-                            ]
-                        , Ui.section "Description"
-                            (if Description.toString (Group.description group) == "" then
-                                Element.paragraph
-                                    [ Element.Font.color <| Element.rgb 0.45 0.45 0.45
-                                    , Element.Font.italic
-                                    ]
-                                    [ Element.text "No description provided" ]
+                                |> Element.map GroupPageMsg
 
-                             else
-                                Element.paragraph
-                                    []
-                                    [ group
-                                        |> Group.description
-                                        |> Description.toString
-                                        |> Element.text
-                                    ]
-                            )
-                        , case futureEvents of
-                            nextEvent :: _ ->
-                                Ui.section "Next event"
-                                    (Element.paragraph
-                                        []
-                                        [ Element.text "No more events have been planned yet." ]
-                                    )
-
-                            [] ->
-                                Ui.section "Next event"
-                                    (Element.paragraph
-                                        []
-                                        [ Element.text "No more events have been planned yet." ]
-                                    )
-                        ]
+                        Nothing ->
+                            Element.text "Loading group"
 
                 Just GroupNotFoundOrIsPrivate ->
                     Element.text "Group not found or it is private"
@@ -632,7 +615,7 @@ viewPage model =
             loginRequiredPage
                 model
                 (\_ ->
-                    GroupForm.view model.groupForm
+                    CreateGroupForm.view model.groupForm
                         |> Element.el
                             [ Element.width <| Element.maximum 800 Element.fill
                             , Element.centerX

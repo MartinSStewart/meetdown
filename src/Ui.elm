@@ -80,7 +80,7 @@ headerLink { route, label } =
 emailAddressText : EmailAddress -> Element msg
 emailAddressText emailAddress =
     Element.el
-        [ Element.Font.color <| Element.rgb 0.1 0.1 1 ]
+        [ Element.Font.bold ]
         (Element.text (EmailAddress.toString emailAddress))
 
 
