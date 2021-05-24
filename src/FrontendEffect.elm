@@ -29,7 +29,9 @@ import File.Select
 import Lamdera
 import List.Nonempty exposing (Nonempty(..))
 import MockFile exposing (File(..))
+import Pixels exposing (Pixels)
 import Process
+import Quantity exposing (Quantity)
 import Route exposing (Route, Token(..))
 import Task
 import Time
@@ -39,14 +41,32 @@ import Types exposing (FrontendMsg, NavigationKey(..), ToBackend(..), ToBackendR
 port supermario_copy_to_clipboard_to_js : String -> Cmd msg
 
 
-port martinsstewart_crop_image_to_js : CropImageData -> Cmd msg
+port martinsstewart_crop_image_to_js :
+    { requestId : Int
+    , imageUrl : String
+    , cropX : Int
+    , cropY : Int
+    , cropWidth : Int
+    , cropHeight : Int
+    , width : Int
+    , height : Int
+    }
+    -> Cmd msg
 
 
 port martinsstewart_crop_image_from_js : ({ requestId : Int, croppedImageUrl : String } -> msg) -> Sub msg
 
 
 type alias CropImageData =
-    { requestId : Int, imageUrl : String, x : Int, y : Int, size : Int }
+    { requestId : Int
+    , imageUrl : String
+    , cropX : Quantity Int Pixels
+    , cropY : Quantity Int Pixels
+    , cropWidth : Quantity Int Pixels
+    , cropHeight : Quantity Int Pixels
+    , width : Quantity Int Pixels
+    , height : Quantity Int Pixels
+    }
 
 
 type FrontendEffect
@@ -59,7 +79,7 @@ type FrontendEffect
     | Wait Duration FrontendMsg
     | SelectFile (List String) (MockFile.File -> FrontendMsg)
     | CopyToClipboard String
-    | CropImage { requestId : Int, imageUrl : String, x : Int, y : Int, size : Int }
+    | CropImage CropImageData
     | FileToUrl (String -> FrontendMsg) File
     | GetElement (Result Browser.Dom.Error Browser.Dom.Element -> FrontendMsg) String
 
@@ -185,7 +205,16 @@ toCmd frontendEffect =
             supermario_copy_to_clipboard_to_js text
 
         CropImage data ->
-            martinsstewart_crop_image_to_js data
+            martinsstewart_crop_image_to_js
+                { requestId = data.requestId
+                , imageUrl = data.imageUrl
+                , cropX = Pixels.inPixels data.cropX
+                , cropY = Pixels.inPixels data.cropY
+                , cropWidth = Pixels.inPixels data.cropWidth
+                , cropHeight = Pixels.inPixels data.cropHeight
+                , width = Pixels.inPixels data.width
+                , height = Pixels.inPixels data.height
+                }
 
         FileToUrl msg file ->
             case file of

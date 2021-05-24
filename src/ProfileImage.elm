@@ -1,7 +1,9 @@
-module ProfileImage exposing (ProfileImage, customImage, defaultImage, getCustomImageUrl, image, smallImage)
+module ProfileImage exposing (ProfileImage, customImage, defaultImage, getCustomImageUrl, image, size, smallImage)
 
 import Element exposing (Element)
 import Element.Border
+import Pixels exposing (Pixels)
+import Quantity exposing (Quantity)
 import Ui
 
 
@@ -32,9 +34,9 @@ customImage data =
         CustomImage data |> Ok
 
 
-size : number
+size : Quantity Int Pixels
 size =
-    128
+    Pixels.pixels 128
 
 
 getCustomImageUrl : ProfileImage -> Maybe String
@@ -50,8 +52,8 @@ getCustomImageUrl profileImage =
 image : ProfileImage -> Element msg
 image profileImage =
     Element.image
-        [ Element.width (Element.px size)
-        , Element.height (Element.px size)
+        [ Element.width (Element.px (Pixels.inPixels size))
+        , Element.height (Element.px (Pixels.inPixels size))
         , Element.Border.rounded 9999
         , Element.clip
         , Ui.inputBackground False
@@ -70,8 +72,8 @@ image profileImage =
 smallImage : ProfileImage -> Element msg
 smallImage profileImage =
     Element.image
-        [ Element.width (Element.px <| size // 2)
-        , Element.height (Element.px <| size // 2)
+        [ Element.width (Element.px <| Pixels.inPixels size // 2)
+        , Element.height (Element.px <| Pixels.inPixels size // 2)
         , Element.Border.rounded 9999
         , Element.clip
         , Ui.inputBackground False

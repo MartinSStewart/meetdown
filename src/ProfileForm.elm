@@ -18,7 +18,9 @@ import Json.Decode
 import List.Extra as List
 import MockFile exposing (File)
 import Name exposing (Error(..), Name)
+import Pixels exposing (Pixels)
 import ProfileImage exposing (ProfileImage)
+import Quantity exposing (Quantity)
 import Ui
 import Untrusted exposing (Untrusted)
 
@@ -112,7 +114,17 @@ type alias Effects cmd =
     , changeEmailAddress : Untrusted EmailAddress -> cmd
     , selectFile : List String -> (File -> Msg) -> cmd
     , getFileContents : (String -> Msg) -> File -> cmd
-    , setCanvasImage : { requestId : Int, imageUrl : String, x : Int, y : Int, size : Int } -> cmd
+    , setCanvasImage :
+        { requestId : Int
+        , imageUrl : String
+        , cropX : Quantity Int Pixels
+        , cropY : Quantity Int Pixels
+        , cropWidth : Quantity Int Pixels
+        , cropHeight : Quantity Int Pixels
+        , width : Quantity Int Pixels
+        , height : Quantity Int Pixels
+        }
+        -> cmd
     , sendDeleteAccountEmail : cmd
     , getElement : (Result Browser.Dom.Error Browser.Dom.Element -> Msg) -> String -> cmd
     , batch : List cmd -> cmd
@@ -252,15 +264,23 @@ update effects msg model =
         PressedConfirmImage ->
             case model.profileImage of
                 Editting (Just imageData) ->
-                    ( model
-                    , effects.setCanvasImage
-                        { requestId = 0
-                        , imageUrl = imageData.imageUrl
-                        , x = 0 --imageData.x
-                        , y = 0 --imageData.y
-                        , size = 1 --imageData.size
-                        }
-                    )
+                    case imageData.imageSize of
+                        Just ( w, _ ) ->
+                            ( model
+                            , effects.setCanvasImage
+                                { requestId = 0
+                                , imageUrl = imageData.imageUrl
+                                , cropX = imageData.x * toFloat w |> round |> Pixels.pixels
+                                , cropY = imageData.y * toFloat w |> round |> Pixels.pixels
+                                , cropWidth = ProfileImage.size
+                                , cropHeight = ProfileImage.size
+                                , width = toFloat w * imageData.size |> round |> Pixels.pixels
+                                , height = toFloat w * imageData.size |> round |> Pixels.pixels
+                                }
+                            )
+
+                        Nothing ->
+                            ( model, effects.none )
 
                 _ ->
                     ( model, effects.none )
@@ -269,10 +289,6 @@ update effects msg model =
             ( { model | profileImage = Unchanged }, effects.none )
 
         GotImageSize result ->
-            let
-                _ =
-                    Debug.log "result" result
-            in
             case ( result, model.profileImage ) of
                 ( Ok { element }, Editting (Just imageData) ) ->
                     if element.height <= 0 then
@@ -281,8 +297,14 @@ update effects msg model =
                     else
                         ( { model
                             | profileImage =
-                                Editting
-                                    (Just { imageData | imageSize = Just ( round element.width, round element.height ) })
+                                { imageData
+                                    | imageSize = Just ( round element.width, round element.height )
+                                    , x = 0.05
+                                    , y = 0.05
+                                    , size = min 0.9 (element.height / element.width - 0.1)
+                                }
+                                    |> Just
+                                    |> Editting
                           }
                         , effects.none
                         )
@@ -494,17 +516,22 @@ imageEditorView imageEdit =
     Element.column
         [ Element.spacing 8
         , Element.inFront <|
-            Element.el
-                [ Element.transparent True
-                , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
-                ]
-                (Element.html <|
-                    Html.img
-                        [ Html.Attributes.id profileImagePlaceholderId
-                        , Html.Attributes.src imageUrl
+            case imageEdit.imageSize of
+                Just _ ->
+                    Element.none
+
+                Nothing ->
+                    Element.el
+                        [ Element.transparent True
+                        , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
                         ]
-                        []
-                )
+                        (Element.html <|
+                            Html.img
+                                [ Html.Attributes.id profileImagePlaceholderId
+                                , Html.Attributes.src imageUrl
+                                ]
+                                []
+                        )
         , Element.centerX
         ]
         [ Element.image
