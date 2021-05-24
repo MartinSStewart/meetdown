@@ -269,15 +269,23 @@ update effects msg model =
             ( { model | profileImage = Unchanged }, effects.none )
 
         GotImageSize result ->
+            let
+                _ =
+                    Debug.log "result" result
+            in
             case ( result, model.profileImage ) of
                 ( Ok { element }, Editting (Just imageData) ) ->
-                    ( { model
-                        | profileImage =
-                            Editting
-                                (Just { imageData | imageSize = Just ( round element.width, round element.height ) })
-                      }
-                    , effects.none
-                    )
+                    if element.height <= 0 then
+                        ( model, effects.getElement GotImageSize profileImagePlaceholderId )
+
+                    else
+                        ( { model
+                            | profileImage =
+                                Editting
+                                    (Just { imageData | imageSize = Just ( round element.width, round element.height ) })
+                          }
+                        , effects.none
+                        )
 
                 _ ->
                     ( model, effects.none )
@@ -298,13 +306,35 @@ updateDragState tx ty imageData =
 
 getActualImageState : ImageEdit -> ImageEdit
 getActualImageState imageData =
+    let
+        aspectRatio : Float
+        aspectRatio =
+            case imageData.imageSize of
+                Just ( w, h ) ->
+                    toFloat h / toFloat w
+
+                Nothing ->
+                    1
+
+        minX =
+            0
+
+        maxX =
+            1
+
+        minY =
+            0
+
+        maxY =
+            aspectRatio
+    in
     case imageData.dragState of
         Just dragState ->
             case dragState.dragPart of
                 Center ->
                     { imageData
-                        | x = clamp 0 (1 - imageData.size) (imageData.x + dragState.currentX - dragState.startX)
-                        , y = max 0 (imageData.y + dragState.currentY - dragState.startY)
+                        | x = clamp minX (maxX - imageData.size) (imageData.x + dragState.currentX - dragState.startX)
+                        , y = clamp minY (maxY - imageData.size) (imageData.y + dragState.currentY - dragState.startY)
                     }
 
                 TopLeft ->
@@ -316,7 +346,9 @@ getActualImageState imageData =
                             dragState.currentY - dragState.startY
 
                         maxDelta =
-                            min xDelta yDelta |> min (imageData.size - 0.05)
+                            min xDelta yDelta
+                                |> min (imageData.size - 0.05)
+                                |> max -(min imageData.x imageData.y)
                     in
                     { imageData
                         | x = imageData.x + maxDelta
@@ -333,7 +365,9 @@ getActualImageState imageData =
                             dragState.currentY - dragState.startY
 
                         maxDelta =
-                            min -xDelta yDelta |> min (imageData.size - 0.05)
+                            min -xDelta yDelta
+                                |> min (imageData.size - 0.05)
+                                |> max -(min (maxX - imageData.x - imageData.size) imageData.y)
                     in
                     { imageData
                         | y = imageData.y + maxDelta
@@ -349,7 +383,9 @@ getActualImageState imageData =
                             dragState.currentY - dragState.startY
 
                         maxDelta =
-                            min xDelta -yDelta |> min (imageData.size - 0.05)
+                            min xDelta -yDelta
+                                |> min (imageData.size - 0.05)
+                                |> max -(min imageData.x (maxY - imageData.y - imageData.size))
                     in
                     { imageData
                         | x = imageData.x + maxDelta
@@ -365,7 +401,13 @@ getActualImageState imageData =
                             dragState.currentY - dragState.startY
 
                         maxDelta =
-                            min -xDelta -yDelta |> min (imageData.size - 0.05)
+                            min -xDelta -yDelta
+                                |> min (imageData.size - 0.05)
+                                |> max
+                                    -(min
+                                        (maxX - imageData.x - imageData.size)
+                                        (maxY - imageData.y - imageData.size)
+                                     )
                     in
                     { imageData | size = imageData.size - maxDelta }
 
@@ -380,12 +422,17 @@ cropImageResponse imageData model =
 
 pixelToT : Float -> Float
 pixelToT value =
-    value / 400
+    value / imageEditorWidth
 
 
 tToPixel : Float -> Float
 tToPixel value =
-    value * 400
+    value * imageEditorWidth
+
+
+imageEditorWidth : number
+imageEditorWidth =
+    400
 
 
 profileImagePlaceholderId : String
@@ -447,22 +494,27 @@ imageEditorView imageEdit =
     Element.column
         [ Element.spacing 8
         , Element.inFront <|
-            Element.image
+            Element.el
                 [ Element.transparent True
-                , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
-                , Element.htmlAttribute <| Html.Attributes.id profileImagePlaceholderId
+                , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
                 ]
-                { src = imageUrl, description = "" }
+                (Element.html <|
+                    Html.img
+                        [ Html.Attributes.id profileImagePlaceholderId
+                        , Html.Attributes.src imageUrl
+                        ]
+                        []
+                )
+        , Element.centerX
         ]
         [ Element.image
-            [ Element.width <| Element.px 400
+            [ Element.width <| Element.px imageEditorWidth
+            , case imageEdit.imageSize of
+                Just ( w, h ) ->
+                    Element.height <| Element.px <| round <| imageEditorWidth * toFloat h / toFloat w
 
-            --, case imageEdit.imageSize of
-            --    Just ( w, h ) ->
-            --        Element.height <| Element.px <| round <| 400 * toFloat h / toFloat w
-            --
-            --    Nothing ->
-            --        Element.inFront Element.none
+                Nothing ->
+                    Element.inFront Element.none
             , Json.Decode.map2 (\x_ y_ -> ( MouseDownImageEditor x_ y_, True ))
                 (Json.Decode.field "offsetX" Json.Decode.float)
                 (Json.Decode.field "offsetY" Json.Decode.float)
@@ -485,10 +537,10 @@ imageEditorView imageEdit =
                     |> Element.htmlAttribute
             , Element.inFront
                 (Element.el
-                    [ Element.height (Element.px <| round (size * 400))
-                    , Element.width (Element.px <| round (size * 400))
-                    , Element.moveRight (x * 400)
-                    , Element.moveDown (y * 400)
+                    [ Element.height (Element.px <| round (size * imageEditorWidth))
+                    , Element.width (Element.px <| round (size * imageEditorWidth))
+                    , Element.moveRight (x * imageEditorWidth)
+                    , Element.moveDown (y * imageEditorWidth)
                     , Element.Border.width 2
                     , Element.Border.color <| Element.rgb 0 0 0
                     , Element.Border.rounded 99999
@@ -498,10 +550,10 @@ imageEditorView imageEdit =
                 )
             , Element.inFront
                 (Element.el
-                    [ Element.height (Element.px <| round (size * 400 - 4))
-                    , Element.width (Element.px <| round (size * 400 - 4))
-                    , Element.moveRight (x * 400 + 2)
-                    , Element.moveDown (y * 400 + 2)
+                    [ Element.height (Element.px <| round (size * imageEditorWidth - 4))
+                    , Element.width (Element.px <| round (size * imageEditorWidth - 4))
+                    , Element.moveRight (x * imageEditorWidth + 2)
+                    , Element.moveDown (y * imageEditorWidth + 2)
                     , Element.Border.width 2
                     , Element.Border.color <| Element.rgb 1 1 1
                     , Element.Border.rounded 99999

@@ -22,9 +22,11 @@ import Json.Decode
 import Lamdera
 import LoginForm
 import Name
+import Process
 import ProfileForm
 import ProfileImage
 import Route exposing (Route(..))
+import Task
 import Time
 import Types exposing (..)
 import Ui
@@ -243,8 +245,7 @@ updateLoaded msg model =
                                 , setCanvasImage = FrontendEffect.cropImage
                                 , sendDeleteAccountEmail = FrontendEffect.sendToBackend SendDeleteUserEmailRequest
                                 , getElement =
-                                    \getElementMsg id ->
-                                        FrontendEffect.getElement (getElementMsg >> ProfileFormMsg) id
+                                    \getElementMsg id -> FrontendEffect.getElement (getElementMsg >> ProfileFormMsg) id
                                 , batch = FrontendEffect.batch
                                 }
                                 profileFormMsg
