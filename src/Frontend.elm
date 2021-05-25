@@ -17,19 +17,14 @@ import FrontendUser exposing (FrontendUser)
 import Group exposing (Group)
 import GroupName
 import GroupPage
-import Html.Events
 import Id exposing (GroupId, Id, UserId)
-import Json.Decode
 import Lamdera
 import LoginForm
-import Name
 import Pixels exposing (Pixels)
-import Process
 import ProfileForm
 import ProfileImage
 import Quantity exposing (Quantity)
 import Route exposing (Route(..))
-import Task
 import Time
 import Types exposing (..)
 import Ui
@@ -328,16 +323,31 @@ updateLoaded msg model =
         GroupPageMsg groupPageMsg ->
             case model.loginStatus of
                 LoggedIn loggedIn ->
-                    let
-                        ( newModel, effects ) =
-                            GroupPage.update
-                                { none = FrontendEffect.none }
-                                groupPageMsg
-                                loggedIn.groupPage
-                    in
-                    ( { model | loginStatus = LoggedIn { loggedIn | groupPage = newModel } }
-                    , effects
-                    )
+                    case model.route of
+                        GroupRoute groupId _ ->
+                            case Dict.get groupId model.cachedGroups of
+                                Just (GroupFound group) ->
+                                    let
+                                        ( newModel, effects ) =
+                                            GroupPage.update
+                                                { none = FrontendEffect.none
+                                                , changeDescription =
+                                                    ChangeGroupDescriptionRequest groupId >> FrontendEffect.sendToBackend
+                                                }
+                                                group
+                                                loggedIn.userId
+                                                groupPageMsg
+                                                loggedIn.groupPage
+                                    in
+                                    ( { model | loginStatus = LoggedIn { loggedIn | groupPage = newModel } }
+                                    , effects
+                                    )
+
+                                _ ->
+                                    ( model, FrontendEffect.none )
+
+                        _ ->
+                            ( model, FrontendEffect.none )
 
                 NotLoggedIn _ ->
                     ( model, FrontendEffect.none )
@@ -505,6 +515,35 @@ updateLoadedFromBackend msg model =
             , FrontendEffect.none
             )
 
+        ChangeGroupDescriptionResponse groupId description ->
+            ( { model
+                | cachedGroups =
+                    Dict.update groupId
+                        (Maybe.map
+                            (\a ->
+                                case a of
+                                    GroupFound group ->
+                                        Group.withDescription description group |> GroupFound
+
+                                    GroupNotFoundOrIsPrivate ->
+                                        GroupNotFoundOrIsPrivate
+                            )
+                        )
+                        model.cachedGroups
+                , loginStatus =
+                    case model.loginStatus of
+                        LoggedIn loggedIn ->
+                            LoggedIn { loggedIn | groupPage = GroupPage.savedDescription loggedIn.groupPage }
+
+                        LoginStatusPending ->
+                            model.loginStatus
+
+                        NotLoggedIn _ ->
+                            model.loginStatus
+              }
+            , FrontendEffect.none
+            )
+
 
 updateUser : (BackendUser -> BackendUser) -> LoadedFrontend -> LoadedFrontend
 updateUser updateFunc model =
@@ -620,12 +659,13 @@ viewPage model =
                 Just (GroupFound group) ->
                     case getCachedUser (Group.ownerId group) model of
                         Just owner ->
-                            GroupPage.view model.time
+                            GroupPage.view
+                                model.time
                                 owner
                                 group
                                 (case model.loginStatus of
                                     LoggedIn loggedIn ->
-                                        Just loggedIn.groupPage
+                                        Just ( loggedIn.userId, loggedIn.groupPage )
 
                                     NotLoggedIn _ ->
                                         Nothing

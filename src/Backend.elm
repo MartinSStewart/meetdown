@@ -339,6 +339,29 @@ updateFromRequest sessionId clientId msg model =
             else
                 ( model, BackendEffect.none )
 
+        ChangeGroupDescriptionRequest groupId untrustedDescription ->
+            case Untrusted.validateDescription untrustedDescription of
+                Just description ->
+                    userWithGroupAuthorization
+                        sessionId
+                        groupId
+                        model
+                        (\( userId, _, group ) ->
+                            ( { model
+                                | groups =
+                                    Dict.insert groupId (Group.withDescription description group) model.groups
+                              }
+                            , BackendEffect.sendToFrontends
+                                (getClientIdsForUser userId model)
+                                (ChangeGroupDescriptionResponse groupId description)
+                            )
+                        )
+
+                Nothing ->
+                    ( addLog (UntrustedCheckFailed model.time msg) model
+                    , BackendEffect.none
+                    )
+
 
 handleDeleteUserRequest : ClientId -> Maybe DeleteUserTokenData -> BackendModel -> ( BackendModel, BackendEffect )
 handleDeleteUserRequest clientId maybeDeleteUserTokenData model =
@@ -488,6 +511,30 @@ userAuthorization sessionId model updateFunc =
     case checkLogin sessionId model of
         Just ( userId, user ) ->
             updateFunc ( userId, user )
+
+        Nothing ->
+            ( model, BackendEffect.none )
+
+
+userWithGroupAuthorization :
+    SessionId
+    -> GroupId
+    -> BackendModel
+    -> (( Id UserId, BackendUser, Group ) -> ( BackendModel, BackendEffect ))
+    -> ( BackendModel, BackendEffect )
+userWithGroupAuthorization sessionId groupId model updateFunc =
+    case checkLogin sessionId model of
+        Just ( userId, user ) ->
+            case getGroup groupId model of
+                Just group ->
+                    if Group.ownerId group == userId then
+                        updateFunc ( userId, user, group )
+
+                    else
+                        ( model, BackendEffect.none )
+
+                Nothing ->
+                    ( model, BackendEffect.none )
 
         Nothing ->
             ( model, BackendEffect.none )

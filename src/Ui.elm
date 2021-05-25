@@ -114,7 +114,6 @@ button { onPress, label } =
         , Element.Border.rounded 4
         , Element.Font.center
         , Element.width (Element.minimum 150 Element.shrink)
-        , inputFocusClass
         ]
         { onPress = Just onPress
         , label = Element.text label
@@ -158,7 +157,6 @@ dangerButton { onPress, label } =
         , Element.Border.rounded 4
         , Element.Font.center
         , Element.Font.color <| Element.rgb 1 1 1
-        , inputFocusClass
         ]
         { onPress = Just onPress
         , label = Element.text label
@@ -202,7 +200,6 @@ radioGroup onSelect options selected optionToLabel maybeError =
                     Element.Input.button
                         [ Element.width Element.fill
                         , Element.paddingEach { left = 32, right = 8, top = 8, bottom = 8 }
-                        , inputFocusClass
                         ]
                         { onPress = Just (onSelect value)
                         , label =

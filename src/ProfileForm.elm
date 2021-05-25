@@ -3,7 +3,6 @@ module ProfileForm exposing (CurrentValues, Effects, Form, Model, Msg, cropImage
 import Browser.Dom
 import Description exposing (Description, Error(..))
 import Duration exposing (Duration)
-import Editable exposing (Editable(..))
 import Element exposing (Element)
 import Element.Background
 import Element.Border
@@ -64,6 +63,11 @@ type DragPart
     | BottomLeft
     | BottomRight
     | Center
+
+
+type Editable a
+    = Unchanged
+    | Editting a
 
 
 type alias Model =
@@ -638,7 +642,6 @@ view windowSize currentValues ({ form } as model) =
                         [ Element.alignRight
                         , Element.Border.rounded 9999
                         , Element.clip
-                        , Ui.inputFocusClass
                         ]
                         { onPress = Just PressedProfileImage
                         , label = ProfileImage.image currentValues.profileImage
@@ -737,7 +740,7 @@ editableTextInput onChange toString validate currentValue text labelText =
         , Element.Border.rounded 4
         ]
         [ Element.Input.text
-            [ Element.width Element.fill, Ui.inputFocusClass ]
+            [ Element.width Element.fill ]
             { text =
                 case text of
                     Unchanged ->
@@ -802,7 +805,7 @@ editableEmailInput onChange toString validate currentValue text labelText =
         , Element.Border.rounded 4
         ]
         [ Element.Input.email
-            [ Element.width Element.fill, Ui.inputFocusClass ]
+            [ Element.width Element.fill ]
             { text =
                 case text of
                     Unchanged ->
@@ -860,7 +863,7 @@ editableMultiline onChange toString validate currentValue text labelText =
         , Element.Border.rounded 4
         ]
         [ Element.Input.multiline
-            [ Element.width Element.fill, Element.height (Element.px 200), Ui.inputFocusClass ]
+            [ Element.width Element.fill, Element.height (Element.px 200) ]
             { text =
                 case text of
                     Unchanged ->

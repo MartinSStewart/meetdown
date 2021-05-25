@@ -240,6 +240,7 @@ type ToBackendRequest
     | ChangeProfileImageRequest (Untrusted ProfileImage)
     | GetMyGroupsRequest
     | SearchGroupsRequest String
+    | ChangeGroupDescriptionRequest GroupId (Untrusted Description)
 
 
 type BackendMsg
@@ -264,3 +265,4 @@ type ToFrontend
     | ChangeProfileImageResponse ProfileImage
     | GetMyGroupsResponse (List ( GroupId, Group ))
     | SearchGroupsResponse String (List ( GroupId, Group ))
+    | ChangeGroupDescriptionResponse GroupId Description

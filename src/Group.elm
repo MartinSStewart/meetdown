@@ -1,4 +1,4 @@
-module Group exposing (Group, GroupVisibility(..), description, events, init, name, ownerId, visibility)
+module Group exposing (Group, GroupVisibility(..), description, events, init, name, ownerId, visibility, withDescription, withName)
 
 import Description exposing (Description)
 import Duration
@@ -48,6 +48,16 @@ name (Group a) =
 description : Group -> Description
 description (Group a) =
     a.description
+
+
+withName : GroupName -> Group -> Group
+withName name_ (Group a) =
+    Group { a | name = name_ }
+
+
+withDescription : Description -> Group -> Group
+withDescription description_ (Group a) =
+    Group { a | description = description_ }
 
 
 visibility : Group -> GroupVisibility
