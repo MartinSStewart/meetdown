@@ -30,7 +30,7 @@ init ownerId_ groupName description_ events_ groupVisibility_ =
         { ownerId = ownerId_
         , name = groupName
         , description = description_
-        , events = List.sortBy (.endTime >> Time.posixToMillis) events_
+        , events = List.sortBy (Event.endTime >> Time.posixToMillis) events_
         , visibility = groupVisibility_
         }
 
@@ -72,6 +72,6 @@ events currentTime (Group a) =
     a.events
         |> List.partition
             (\event ->
-                Duration.from currentTime event.endTime |> Quantity.lessThanZero
+                Duration.from currentTime (Event.endTime event) |> Quantity.lessThanZero
             )
         |> (\( past, future ) -> { pastEvents = List.reverse past, futureEvents = future })

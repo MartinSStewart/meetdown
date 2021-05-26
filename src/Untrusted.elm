@@ -3,14 +3,15 @@ module Untrusted exposing
     , untrust
     , validateDescription
     , validateEmailAddress
+    , validateEventName
     , validateGroupName
     , validateName
     , validateProfileImage
     )
 
-import CreateGroupForm exposing (GroupFormValidated)
 import Description exposing (Description)
 import EmailAddress exposing (EmailAddress)
+import EventName exposing (EventName)
 import GroupName exposing (GroupName)
 import Name exposing (Name)
 import ProfileImage exposing (ProfileImage)
@@ -33,6 +34,11 @@ validateEmailAddress (Untrusted email) =
 validateGroupName : Untrusted GroupName -> Maybe GroupName
 validateGroupName (Untrusted groupName) =
     GroupName.toString groupName |> GroupName.fromString |> Result.toMaybe
+
+
+validateEventName : Untrusted EventName -> Maybe EventName
+validateEventName (Untrusted groupName) =
+    EventName.toString groupName |> EventName.fromString |> Result.toMaybe
 
 
 validateDescription : Untrusted Description -> Maybe Description

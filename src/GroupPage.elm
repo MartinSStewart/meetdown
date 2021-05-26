@@ -1,4 +1,4 @@
-module GroupPage exposing (Model, Msg, init, savedDescription, savedName, update, view)
+module GroupPage exposing (EventType(..), Model, Msg, init, savedDescription, savedName, update, view)
 
 import Description exposing (Description)
 import Element exposing (Element)
@@ -11,7 +11,9 @@ import Group exposing (Group)
 import GroupName exposing (GroupName)
 import Html
 import Html.Attributes
+import Html.Events
 import Id exposing (Id, UserId)
+import List.Nonempty exposing (Nonempty(..))
 import Name
 import ProfileImage
 import Time
@@ -23,6 +25,7 @@ type alias Model =
     { name : Editable GroupName
     , description : Editable Description
     , addingNewEvent : Bool
+    , newEvent : NewEvent
     }
 
 
@@ -42,6 +45,7 @@ type Msg
     | PressedResetName
     | TypedName String
     | PressedAddEvent
+    | ChangedNewEvent NewEvent
 
 
 type alias Effects cmd =
@@ -56,6 +60,17 @@ init =
     { name = Unchanged
     , description = Unchanged
     , addingNewEvent = False
+    , newEvent =
+        { pressedSubmit = False
+        , eventName = ""
+        , description = ""
+        , meetingType = Nothing
+        , meetOnlineLink = ""
+        , meetInPersonLocation = ""
+        , startDate = ""
+        , startTime = ""
+        , duration = ""
+        }
     }
 
 
@@ -154,6 +169,9 @@ update effects group userId msg model =
             PressedAddEvent ->
                 ( { model | addingNewEvent = True }, effects.none )
 
+            ChangedNewEvent newEvent ->
+                ( { model | newEvent = newEvent }, effects.none )
+
     else
         ( model, effects.none )
 
@@ -250,13 +268,8 @@ view currentTime timeZone owner group maybeLoggedIn =
                             Ok _ ->
                                 Nothing
 
-                            Err Description.DescriptionTooLong ->
-                                "Description is "
-                                    ++ String.fromInt (String.length description)
-                                    ++ " characters long. Keep it under "
-                                    ++ String.fromInt Description.maxLength
-                                    ++ "."
-                                    |> Just
+                            Err error_ ->
+                                Description.errorToString description error_ |> Just
                 in
                 section
                     (error /= Nothing)
@@ -313,9 +326,15 @@ view currentTime timeZone owner group maybeLoggedIn =
              else
                 Element.none
             )
-            (case Maybe.map (Tuple.second >> .addingNewEvent) maybeLoggedIn of
-                Just True ->
-                    newEventView currentTime timeZone
+            (case Maybe.map Tuple.second maybeLoggedIn of
+                Just model ->
+                    if model.addingNewEvent then
+                        newEventView currentTime timeZone model.newEvent
+
+                    else
+                        Element.paragraph
+                            []
+                            [ Element.text "No more events have been planned yet." ]
 
                 _ ->
                     Element.paragraph
@@ -373,24 +392,93 @@ timestamp time timeZone =
         ++ String.padLeft 2 '0' (String.fromInt (Time.toDay timeZone time))
 
 
-newEventView : Time.Posix -> Time.Zone -> Element msg
-newEventView currentTime timeZone =
+type alias NewEvent =
+    { pressedSubmit : Bool
+    , eventName : String
+    , description : String
+    , meetingType : Maybe EventType
+    , meetOnlineLink : String
+    , meetInPersonLocation : String
+    , startDate : String
+    , startTime : String
+    , duration : String
+    }
+
+
+type EventType
+    = MeetOnline
+    | MeetInPerson
+
+
+newEventView : Time.Posix -> Time.Zone -> NewEvent -> Element Msg
+newEventView currentTime timeZone event =
     Element.column
-        []
-        [ Element.column
+        [ Element.width Element.fill ]
+        [ Ui.textInput
+            (\text -> ChangedNewEvent { event | eventName = text })
+            event.eventName
+            "Event name"
+            Nothing
+        , Ui.multiline
+            (\text -> ChangedNewEvent { event | description = text })
+            event.eventName
+            "Event description"
+            (case ( event.pressedSubmit, Description.fromString event.description ) of
+                ( True, Err error ) ->
+                    Description.errorToString event.description error |> Just
+
+                _ ->
+                    Nothing
+            )
+        , Ui.radioGroup
+            (\meetingType -> ChangedNewEvent { event | meetingType = Just meetingType })
+            (Nonempty MeetOnline [ MeetInPerson ])
+            event.meetingType
+            (\a ->
+                case a of
+                    MeetOnline ->
+                        "This event will be done online"
+
+                    MeetInPerson ->
+                        "This event will be done in person"
+            )
+            (case ( event.pressedSubmit, event.meetingType ) of
+                ( True, Nothing ) ->
+                    Just "Choose what type of event this is"
+
+                _ ->
+                    Nothing
+            )
+        , Element.column
             [ Element.spacing 4 ]
             [ Element.text "Start date"
-            , Element.html <| Html.input [ Html.Attributes.type_ "date", Html.Attributes.min (timestamp currentTime timeZone) ] []
+            , Element.html <|
+                Html.input
+                    [ Html.Attributes.type_ "date"
+                    , Html.Attributes.min (timestamp currentTime timeZone)
+                    , Html.Events.onInput (\text -> ChangedNewEvent { event | startDate = text })
+                    ]
+                    []
             ]
         , Element.column
             [ Element.spacing 4 ]
             [ Element.text "Start time"
-            , Element.html <| Html.input [ Html.Attributes.type_ "time" ] []
+            , Element.html <|
+                Html.input
+                    [ Html.Attributes.type_ "time"
+                    , Html.Events.onInput (\text -> ChangedNewEvent { event | startTime = text })
+                    ]
+                    []
             ]
         , Element.column
             [ Element.spacing 4 ]
-            [ Element.text "How long will it go?"
-            , Element.html <| Html.input [ Html.Attributes.type_ "number" ] []
+            [ Element.text "How many hours will it go?"
+            , Element.html <|
+                Html.input
+                    [ Html.Attributes.type_ "number"
+                    , Html.Events.onInput (\text -> ChangedNewEvent { event | duration = text })
+                    ]
+                    []
             ]
         ]
 

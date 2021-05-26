@@ -189,14 +189,7 @@ formView maybeSubmitError isSubmitting form =
             "Describe what your group is about (you can fill out this later)"
             (case ( form.pressedSubmit, Description.fromString form.description ) of
                 ( True, Err error ) ->
-                    case error of
-                        Description.DescriptionTooLong ->
-                            "Description is "
-                                ++ String.fromInt (String.length form.description)
-                                ++ " characters long. Keep it under "
-                                ++ String.fromInt Description.maxLength
-                                ++ "."
-                                |> Just
+                    Description.errorToString form.description error |> Just
 
                 _ ->
                     Nothing

@@ -1,4 +1,4 @@
-module Description exposing (Description, Error(..), empty, fromString, maxLength, toString)
+module Description exposing (Description, Error(..), empty, errorToString, fromString, maxLength, toString)
 
 
 type Description
@@ -7,6 +7,17 @@ type Description
 
 type Error
     = DescriptionTooLong
+
+
+errorToString : String -> Error -> String
+errorToString originalDescription error =
+    case error of
+        DescriptionTooLong ->
+            "Description is "
+                ++ String.fromInt (String.length originalDescription)
+                ++ " characters long. Keep it under "
+                ++ String.fromInt maxLength
+                ++ "."
 
 
 maxLength : number
