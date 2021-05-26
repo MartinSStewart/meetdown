@@ -9,6 +9,7 @@
             "Janiczek/elm-bidict": "2.0.1",
             "MartinSStewart/elm-nonempty-string": "2.0.0",
             "MartinSStewart/send-grid": "4.1.0",
+            "bburdette/toop": "1.0.1",
             "billstclair/elm-sha256": "1.0.9",
             "elm/browser": "1.0.2",
             "elm/bytes": "1.0.8",

@@ -9,6 +9,9 @@ import Browser.Navigation
 import CreateGroupForm exposing (CreateGroupError, GroupFormValidated)
 import Description exposing (Description)
 import EmailAddress exposing (EmailAddress)
+import Event exposing (EventType)
+import EventDuration exposing (EventDuration)
+import EventName exposing (EventName)
 import FrontendUser exposing (FrontendUser)
 import Group exposing (Group, GroupVisibility)
 import GroupName exposing (GroupName)
@@ -254,6 +257,7 @@ type ToBackendRequest
     | SearchGroupsRequest String
     | ChangeGroupNameRequest GroupId (Untrusted GroupName)
     | ChangeGroupDescriptionRequest GroupId (Untrusted Description)
+    | CreateEventRequest GroupId (Untrusted EventName) (Untrusted Description) (Untrusted EventType) Time.Posix (Untrusted EventDuration)
 
 
 type BackendMsg

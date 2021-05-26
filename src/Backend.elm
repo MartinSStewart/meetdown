@@ -9,6 +9,7 @@ import BiDict.Assoc as BiDict
 import CreateGroupForm exposing (CreateGroupError(..))
 import Description exposing (Description)
 import Duration
+import Event
 import Group exposing (Group, GroupVisibility)
 import GroupName exposing (GroupName)
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
@@ -19,6 +20,7 @@ import Name
 import ProfileImage
 import Quantity
 import Time
+import Toop exposing (T3(..), T4(..), T5(..))
 import Types exposing (..)
 import Untrusted
 
@@ -186,7 +188,7 @@ updateFromRequest sessionId clientId msg model =
                 (\( userId, _ ) ->
                     case
                         ( Untrusted.validateGroupName untrustedName
-                        , Untrusted.validateDescription untrustedDescription
+                        , Untrusted.description untrustedDescription
                         )
                     of
                         ( Just groupName, Just description ) ->
@@ -218,7 +220,7 @@ updateFromRequest sessionId clientId msg model =
                     )
 
         ChangeDescriptionRequest untrustedDescription ->
-            case Untrusted.validateDescription untrustedDescription of
+            case Untrusted.description untrustedDescription of
                 Just description ->
                     userAuthorization
                         sessionId
@@ -363,7 +365,7 @@ updateFromRequest sessionId clientId msg model =
                     )
 
         ChangeGroupDescriptionRequest groupId untrustedDescription ->
-            case Untrusted.validateDescription untrustedDescription of
+            case Untrusted.description untrustedDescription of
                 Just description ->
                     userWithGroupAuthorization
                         sessionId
@@ -381,6 +383,39 @@ updateFromRequest sessionId clientId msg model =
                         )
 
                 Nothing ->
+                    ( addLog (UntrustedCheckFailed model.time msg) model
+                    , BackendEffect.none
+                    )
+
+        CreateEventRequest groupId eventName_ description_ eventType_ startTime_ eventDuration_ ->
+            case
+                T4
+                    (Untrusted.eventName eventName_)
+                    (Untrusted.description description_)
+                    (Untrusted.eventType eventType_)
+                    (Untrusted.eventDuration eventDuration_)
+            of
+                T4 (Just eventName) (Just description) (Just eventType) (Just eventDuration) ->
+                    userWithGroupAuthorization
+                        sessionId
+                        groupId
+                        model
+                        (\( _, _, group ) ->
+                            ( { model
+                                | groups =
+                                    Dict.insert
+                                        groupId
+                                        (Group.addEvent
+                                            (Event.newEvent eventName description eventType startTime_ eventDuration)
+                                            group
+                                        )
+                                        model.groups
+                              }
+                            , BackendEffect.none
+                            )
+                        )
+
+                _ ->
                     ( addLog (UntrustedCheckFailed model.time msg) model
                     , BackendEffect.none
                     )
