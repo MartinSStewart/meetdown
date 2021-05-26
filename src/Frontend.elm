@@ -46,6 +46,8 @@ app =
                     [ FrontendEffect.martinsstewart_crop_image_from_js CroppedImage
                     , Browser.Events.onResize
                         (\width height -> GotWindowSize (Pixels.pixels width) (Pixels.pixels height))
+                    , FrontendEffect.martinsstewart_get_time_zone_from_js
+                        (\offset -> Time.customZone -offset [] |> GotTimeZone)
                     ]
         , view = view
         }
@@ -54,13 +56,21 @@ app =
 init : Url -> NavigationKey -> ( FrontendModel, FrontendEffect )
 init url key =
     let
-        routeAndToken =
+        ( route, token ) =
             Url.Parser.parse Route.decode url |> Maybe.withDefault ( HomepageRoute, Route.NoToken )
     in
-    ( Loading key routeAndToken Nothing Nothing
+    ( Loading
+        { navigationKey = key
+        , route = route
+        , routeToken = token
+        , windowSize = Nothing
+        , time = Nothing
+        , timeZone = Nothing
+        }
     , FrontendEffect.batch
         [ FrontendEffect.getTime GotTime
         , FrontendEffect.getWindowSize GotWindowSize
+        , FrontendEffect.getTimeZone
         ]
     )
 
@@ -72,8 +82,9 @@ initLoadedFrontend :
     -> Route
     -> Route.Token
     -> Time.Posix
+    -> Time.Zone
     -> ( LoadedFrontend, FrontendEffect )
-initLoadedFrontend navigationKey windowWidth windowHeight route maybeLoginToken time =
+initLoadedFrontend navigationKey windowWidth windowHeight route maybeLoginToken time timeZone =
     let
         login =
             case maybeLoginToken of
@@ -94,6 +105,7 @@ initLoadedFrontend navigationKey windowWidth windowHeight route maybeLoginToken 
             , cachedGroups = Dict.empty
             , cachedUsers = Dict.empty
             , time = time
+            , timeZone = timeZone
             , lastConnectionCheck = time
             , loginForm =
                 { email = ""
@@ -119,26 +131,39 @@ initLoadedFrontend navigationKey windowWidth windowHeight route maybeLoginToken 
     )
 
 
+tryInitLoadedFrontend : LoadingFrontend -> ( FrontendModel, FrontendEffect )
+tryInitLoadedFrontend loading =
+    Maybe.map3
+        (\( windowWidth, windowHeight ) time zone ->
+            initLoadedFrontend
+                loading.navigationKey
+                windowWidth
+                windowHeight
+                loading.route
+                loading.routeToken
+                time
+                zone
+                |> Tuple.mapFirst Loaded
+        )
+        loading.windowSize
+        loading.time
+        loading.timeZone
+        |> Maybe.withDefault ( Loading loading, FrontendEffect.none )
+
+
 update : FrontendMsg -> FrontendModel -> ( FrontendModel, FrontendEffect )
 update msg model =
     case model of
-        Loading key ( route, token ) maybeWindowSize maybeTime ->
+        Loading loading ->
             case msg of
                 GotTime time ->
-                    case maybeWindowSize of
-                        Just ( windowWidth, windowHeight ) ->
-                            initLoadedFrontend key windowWidth windowHeight route token time |> Tuple.mapFirst Loaded
-
-                        Nothing ->
-                            ( Loading key ( route, token ) maybeWindowSize (Just time), FrontendEffect.none )
+                    tryInitLoadedFrontend { loading | time = Just time }
 
                 GotWindowSize width height ->
-                    case maybeTime of
-                        Just time ->
-                            initLoadedFrontend key width height route token time |> Tuple.mapFirst Loaded
+                    tryInitLoadedFrontend { loading | windowSize = Just ( width, height ) }
 
-                        Nothing ->
-                            ( Loading key ( route, token ) (Just ( width, height )) maybeTime, FrontendEffect.none )
+                GotTimeZone timeZone ->
+                    tryInitLoadedFrontend { loading | timeZone = Just timeZone }
 
                 _ ->
                     ( model, FrontendEffect.none )
@@ -360,11 +385,14 @@ updateLoaded msg model =
         GotWindowSize width height ->
             ( { model | windowWidth = width, windowHeight = height }, FrontendEffect.none )
 
+        GotTimeZone zone ->
+            ( { model | timeZone = zone }, FrontendEffect.none )
+
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, FrontendEffect )
 updateFromBackend msg model =
     case model of
-        Loading _ _ _ _ ->
+        Loading _ ->
             ( model, FrontendEffect.none )
 
         Loaded loaded ->
@@ -597,7 +625,7 @@ view model =
         , Element.layout
             []
             (case model of
-                Loading _ _ _ _ ->
+                Loading _ ->
                     Element.none
 
                 Loaded loaded ->
@@ -692,6 +720,7 @@ viewPage model =
                         Just owner ->
                             GroupPage.view
                                 model.time
+                                model.timeZone
                                 owner
                                 group
                                 (case model.loginStatus of

@@ -33,8 +33,18 @@ type NavigationKey
 
 
 type FrontendModel
-    = Loading NavigationKey ( Route, Route.Token ) (Maybe ( Quantity Int Pixels, Quantity Int Pixels )) (Maybe Time.Posix)
+    = Loading LoadingFrontend
     | Loaded LoadedFrontend
+
+
+type alias LoadingFrontend =
+    { navigationKey : NavigationKey
+    , route : Route
+    , routeToken : Route.Token
+    , windowSize : Maybe ( Quantity Int Pixels, Quantity Int Pixels )
+    , time : Maybe Time.Posix
+    , timeZone : Maybe Time.Zone
+    }
 
 
 type alias LoadedFrontend =
@@ -44,6 +54,7 @@ type alias LoadedFrontend =
     , cachedGroups : Dict GroupId GroupRequest
     , cachedUsers : Dict (Id UserId) FrontendUser
     , time : Time.Posix
+    , timeZone : Time.Zone
     , lastConnectionCheck : Time.Posix
     , loginForm : LoginForm
     , logs : Maybe (Array Log)
@@ -218,6 +229,7 @@ type FrontendMsg
     | SubmittedSearchBox
     | GroupPageMsg GroupPage.Msg
     | GotWindowSize (Quantity Int Pixels) (Quantity Int Pixels)
+    | GotTimeZone Time.Zone
 
 
 type ToBackend

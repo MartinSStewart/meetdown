@@ -9,6 +9,8 @@ import Element.Input
 import FrontendUser exposing (FrontendUser)
 import Group exposing (Group)
 import GroupName exposing (GroupName)
+import Html
+import Html.Attributes
 import Id exposing (Id, UserId)
 import Name
 import ProfileImage
@@ -20,6 +22,7 @@ import Untrusted exposing (Untrusted)
 type alias Model =
     { name : Editable GroupName
     , description : Editable Description
+    , addingNewEvent : Bool
     }
 
 
@@ -38,6 +41,7 @@ type Msg
     | PressedSaveName
     | PressedResetName
     | TypedName String
+    | PressedAddEvent
 
 
 type alias Effects cmd =
@@ -51,6 +55,7 @@ init : Model
 init =
     { name = Unchanged
     , description = Unchanged
+    , addingNewEvent = False
     }
 
 
@@ -146,12 +151,15 @@ update effects group userId msg model =
                     _ ->
                         ( model, effects.none )
 
+            PressedAddEvent ->
+                ( { model | addingNewEvent = True }, effects.none )
+
     else
         ( model, effects.none )
 
 
-view : Time.Posix -> FrontendUser -> Group -> Maybe ( Id UserId, Model ) -> Element Msg
-view currentTime owner group maybeLoggedIn =
+view : Time.Posix -> Time.Zone -> FrontendUser -> Group -> Maybe ( Id UserId, Model ) -> Element Msg
+view currentTime timeZone owner group maybeLoggedIn =
     let
         { pastEvents, futureEvents } =
             Group.events currentTime group
@@ -250,100 +258,162 @@ view currentTime owner group maybeLoggedIn =
                                     ++ "."
                                     |> Just
                 in
-                Element.column
-                    [ Element.spacing 8
-                    , Element.padding 8
-                    , Element.Border.rounded 4
-                    , Ui.inputBackground (error /= Nothing)
-                    , Element.width Element.fill
-                    ]
-                    [ Element.row
-                        [ Element.spacing 16 ]
-                        [ Element.paragraph [ Element.Font.bold ] [ Element.text "Description" ]
-                        , smallButton PressedResetDescription "Reset"
+                section
+                    (error /= Nothing)
+                    "Description"
+                    (Element.row
+                        [ Element.spacing 8 ]
+                        [ smallButton PressedResetDescription "Reset"
                         , smallSubmitButton False { onPress = PressedSaveDescription, label = "Save" }
                         ]
-                    , multiline TypedDescription description "Group description"
-                    , Maybe.map Ui.error error |> Maybe.withDefault Element.none
-                    ]
+                    )
+                    (Element.column
+                        [ Element.spacing 8, Element.width Element.fill ]
+                        [ multiline TypedDescription description "Group description"
+                        , Maybe.map Ui.error error |> Maybe.withDefault Element.none
+                        ]
+                    )
 
             Just (Submitting description) ->
-                Element.column
-                    [ Element.spacing 8
-                    , Element.padding 8
-                    , Element.Border.rounded 4
-                    , Ui.inputBackground False
-                    , Element.width Element.fill
-                    ]
-                    [ Element.row
-                        [ Element.spacing 16 ]
-                        [ Element.paragraph [ Element.Font.bold ] [ Element.text "Description" ]
-                        , smallButton PressedResetDescription "Reset"
+                section
+                    False
+                    "Description"
+                    (Element.row [ Element.spacing 8 ]
+                        [ smallButton PressedResetDescription "Reset"
                         , smallSubmitButton True { onPress = PressedSaveDescription, label = "Save" }
                         ]
-                    , multiline TypedDescription (Description.toString description) ""
-                    ]
+                    )
+                    (multiline TypedDescription (Description.toString description) "")
 
             _ ->
-                Element.column
-                    [ Element.spacing 8
-                    , Element.padding 8
-                    , Element.Border.rounded 4
-                    , Ui.inputBackground False
-                    , Element.width Element.fill
-                    ]
-                    [ Element.row
-                        [ Element.spacing 16 ]
-                        [ Element.paragraph [ Element.Font.bold ] [ Element.text "Description" ]
-                        , if isOwner then
-                            smallButton PressedEditDescription "Edit"
+                section
+                    False
+                    "Description"
+                    (if isOwner then
+                        -- Extra el prevents focus on both reset and save buttons
+                        Element.el [] (smallButton PressedEditDescription "Edit")
 
-                          else
-                            Element.none
-                        ]
-                    , Element.paragraph
+                     else
+                        Element.none
+                    )
+                    (Element.paragraph
                         []
                         [ group
                             |> Group.description
                             |> Description.toString
                             |> Element.text
                         ]
-                    ]
+                    )
+        , section
+            False
+            "Next event"
+            (if isOwner then
+                smallButton PressedAddEvent "Add event"
 
-        --, Ui.section "Description"
-        --    (if Description.toString (Group.description group) == "" then
-        --        Element.paragraph
-        --            [ Element.Font.color <| Element.rgb 0.45 0.45 0.45
-        --            , Element.Font.italic
-        --            ]
-        --            [ Element.text "No description provided" ]
-        --
-        --     else
-        --        Element.paragraph
-        --            []
-        --            [ group
-        --                |> Group.description
-        --                |> Description.toString
-        --                |> Element.text
-        --            ]
-        --    )
-        , case futureEvents of
-            nextEvent :: _ ->
-                Ui.section "Next event"
-                    (Element.paragraph
+             else
+                Element.none
+            )
+            (case Maybe.map (Tuple.second >> .addingNewEvent) maybeLoggedIn of
+                Just True ->
+                    newEventView currentTime timeZone
+
+                _ ->
+                    Element.paragraph
                         []
                         [ Element.text "No more events have been planned yet." ]
-                    )
-
-            [] ->
-                Ui.section "Next event"
-                    (Element.paragraph
-                        []
-                        [ Element.text "No more events have been planned yet." ]
-                    )
+            )
         ]
 
 
+timestamp : Time.Posix -> Time.Zone -> String
+timestamp time timeZone =
+    let
+        monthValue =
+            case Time.toMonth timeZone time of
+                Time.Jan ->
+                    "01"
+
+                Time.Feb ->
+                    "02"
+
+                Time.Mar ->
+                    "03"
+
+                Time.Apr ->
+                    "04"
+
+                Time.May ->
+                    "05"
+
+                Time.Jun ->
+                    "06"
+
+                Time.Jul ->
+                    "07"
+
+                Time.Aug ->
+                    "08"
+
+                Time.Sep ->
+                    "09"
+
+                Time.Oct ->
+                    "10"
+
+                Time.Nov ->
+                    "11"
+
+                Time.Dec ->
+                    "12"
+    in
+    String.fromInt (Time.toYear timeZone time)
+        ++ "-"
+        ++ monthValue
+        ++ "-"
+        ++ String.padLeft 2 '0' (String.fromInt (Time.toDay timeZone time))
+
+
+newEventView : Time.Posix -> Time.Zone -> Element msg
+newEventView currentTime timeZone =
+    Element.column
+        []
+        [ Element.column
+            [ Element.spacing 4 ]
+            [ Element.text "Start date"
+            , Element.html <| Html.input [ Html.Attributes.type_ "date", Html.Attributes.min (timestamp currentTime timeZone) ] []
+            ]
+        , Element.column
+            [ Element.spacing 4 ]
+            [ Element.text "Start time"
+            , Element.html <| Html.input [ Html.Attributes.type_ "time" ] []
+            ]
+        , Element.column
+            [ Element.spacing 4 ]
+            [ Element.text "How long will it go?"
+            , Element.html <| Html.input [ Html.Attributes.type_ "number" ] []
+            ]
+        ]
+
+
+section : Bool -> String -> Element msg -> Element msg -> Element msg
+section hasError title headerExtra content =
+    Element.column
+        [ Element.spacing 8
+        , Element.padding 8
+        , Element.Border.rounded 4
+        , Ui.inputBackground hasError
+        , Element.width Element.fill
+        ]
+        [ Element.row
+            [ Element.spacing 16 ]
+            [ Element.paragraph [ Element.Font.bold ] [ Element.text title ]
+            , headerExtra
+            ]
+        , content
+        ]
+
+
+smallButton : msg -> String -> Element msg
 smallButton onPress label =
     Element.Input.button
         [ Element.Background.color <| Element.rgb 0.9 0.9 0.9

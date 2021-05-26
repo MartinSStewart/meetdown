@@ -6,9 +6,11 @@ port module FrontendEffect exposing
     , fileToBytes
     , getElement
     , getTime
+    , getTimeZone
     , getWindowSize
     , manyToBackend
     , martinsstewart_crop_image_from_js
+    , martinsstewart_get_time_zone_from_js
     , navigationLoad
     , navigationPushRoute
     , navigationPushUrl
@@ -23,7 +25,6 @@ port module FrontendEffect exposing
 
 import Browser.Dom
 import Browser.Navigation
-import Bytes exposing (Bytes)
 import Duration exposing (Duration)
 import File
 import File.Select
@@ -58,6 +59,12 @@ port martinsstewart_crop_image_to_js :
 port martinsstewart_crop_image_from_js : ({ requestId : Int, croppedImageUrl : String } -> msg) -> Sub msg
 
 
+port martinsstewart_get_time_zone_from_js : (Int -> msg) -> Sub msg
+
+
+port martinsstewart_get_time_zone_to_js : () -> Cmd msg
+
+
 type alias CropImageData =
     { requestId : Int
     , imageUrl : String
@@ -84,6 +91,7 @@ type FrontendEffect
     | FileToUrl (String -> FrontendMsg) File
     | GetElement (Result Browser.Dom.Error Browser.Dom.Element -> FrontendMsg) String
     | GetWindowSize (Quantity Int Pixels -> Quantity Int Pixels -> FrontendMsg)
+    | GetTimeZone
 
 
 none : FrontendEffect
@@ -171,6 +179,11 @@ getWindowSize =
     GetWindowSize
 
 
+getTimeZone : FrontendEffect
+getTimeZone =
+    GetTimeZone
+
+
 toCmd : FrontendEffect -> Cmd FrontendMsg
 toCmd frontendEffect =
     case frontendEffect of
@@ -240,3 +253,6 @@ toCmd frontendEffect =
                     (\{ scene } ->
                         msg (Pixels.pixels (round scene.width)) (Pixels.pixels (round scene.height))
                     )
+
+        GetTimeZone ->
+            martinsstewart_get_time_zone_to_js ()
