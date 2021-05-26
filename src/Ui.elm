@@ -1,4 +1,4 @@
-module Ui exposing (button, css, dangerButton, emailAddressText, error, filler, formError, headerButton, headerLink, inputBackground, inputFocusClass, linkColor, multiline, onEnter, radioGroup, routeLink, section, submitButton, textInput, title)
+module Ui exposing (button, css, dangerButton, emailAddressText, error, filler, formError, headerButton, headerLink, inputBackground, inputFocusClass, linkColor, multiline, onEnter, radioGroup, routeLink, section, submitButton, textInput, title, titleFontSize)
 
 import Element exposing (Element)
 import Element.Background
@@ -168,9 +168,14 @@ filler length =
     Element.el [ Element.height length ] Element.none
 
 
+titleFontSize : Element.Attr decorative msg
+titleFontSize =
+    Element.Font.size 32
+
+
 title : String -> Element msg
 title text =
-    Element.paragraph [ Element.Font.size 32, Element.Region.heading 1 ] [ Element.text text ]
+    Element.paragraph [ titleFontSize, Element.Region.heading 1 ] [ Element.text text ]
 
 
 error : String -> Element msg

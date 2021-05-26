@@ -339,6 +339,29 @@ updateFromRequest sessionId clientId msg model =
             else
                 ( model, BackendEffect.none )
 
+        ChangeGroupNameRequest groupId untrustedName ->
+            case Untrusted.validateGroupName untrustedName of
+                Just name ->
+                    userWithGroupAuthorization
+                        sessionId
+                        groupId
+                        model
+                        (\( userId, _, group ) ->
+                            ( { model
+                                | groups =
+                                    Dict.insert groupId (Group.withName name group) model.groups
+                              }
+                            , BackendEffect.sendToFrontends
+                                (getClientIdsForUser userId model)
+                                (ChangeGroupNameResponse groupId name)
+                            )
+                        )
+
+                Nothing ->
+                    ( addLog (UntrustedCheckFailed model.time msg) model
+                    , BackendEffect.none
+                    )
+
         ChangeGroupDescriptionRequest groupId untrustedDescription ->
             case Untrusted.validateDescription untrustedDescription of
                 Just description ->

@@ -331,6 +331,8 @@ updateLoaded msg model =
                                         ( newModel, effects ) =
                                             GroupPage.update
                                                 { none = FrontendEffect.none
+                                                , changeName =
+                                                    ChangeGroupNameRequest groupId >> FrontendEffect.sendToBackend
                                                 , changeDescription =
                                                     ChangeGroupDescriptionRequest groupId >> FrontendEffect.sendToBackend
                                                 }
@@ -511,6 +513,35 @@ updateLoadedFromBackend msg model =
                         model.cachedGroups
                         groups
                 , searchList = List.map Tuple.first groups
+              }
+            , FrontendEffect.none
+            )
+
+        ChangeGroupNameResponse groupId groupName ->
+            ( { model
+                | cachedGroups =
+                    Dict.update groupId
+                        (Maybe.map
+                            (\a ->
+                                case a of
+                                    GroupFound group ->
+                                        Group.withName groupName group |> GroupFound
+
+                                    GroupNotFoundOrIsPrivate ->
+                                        GroupNotFoundOrIsPrivate
+                            )
+                        )
+                        model.cachedGroups
+                , loginStatus =
+                    case model.loginStatus of
+                        LoggedIn loggedIn ->
+                            LoggedIn { loggedIn | groupPage = GroupPage.savedName loggedIn.groupPage }
+
+                        LoginStatusPending ->
+                            model.loginStatus
+
+                        NotLoggedIn _ ->
+                            model.loginStatus
               }
             , FrontendEffect.none
             )

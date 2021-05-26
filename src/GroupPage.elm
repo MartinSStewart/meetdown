@@ -1,4 +1,4 @@
-module GroupPage exposing (Model, Msg, init, savedDescription, update, view)
+module GroupPage exposing (Model, Msg, init, savedDescription, savedName, update, view)
 
 import Description exposing (Description)
 import Element exposing (Element)
@@ -34,10 +34,15 @@ type Msg
     | PressedSaveDescription
     | PressedResetDescription
     | TypedDescription String
+    | PressedEditName
+    | PressedSaveName
+    | PressedResetName
+    | TypedName String
 
 
 type alias Effects cmd =
     { none : cmd
+    , changeName : Untrusted GroupName -> cmd
     , changeDescription : Untrusted Description -> cmd
     }
 
@@ -47,6 +52,16 @@ init =
     { name = Unchanged
     , description = Unchanged
     }
+
+
+savedName : Model -> Model
+savedName model =
+    case model.name of
+        Submitting _ ->
+            { model | name = Unchanged }
+
+        _ ->
+            model
 
 
 savedDescription : Model -> Model
@@ -63,8 +78,44 @@ update : Effects cmd -> Group -> Id UserId -> Msg -> Model -> ( Model, cmd )
 update effects group userId msg model =
     if Group.ownerId group == userId then
         case msg of
+            PressedEditName ->
+                ( { model | name = Group.name group |> GroupName.toString |> Editting }
+                , effects.none
+                )
+
+            PressedSaveName ->
+                case model.name of
+                    Unchanged ->
+                        ( model, effects.none )
+
+                    Editting nameText ->
+                        case GroupName.fromString nameText of
+                            Ok name ->
+                                ( { model | name = Submitting name }
+                                , Untrusted.untrust name |> effects.changeName
+                                )
+
+                            Err _ ->
+                                ( model, effects.none )
+
+                    Submitting _ ->
+                        ( model, effects.none )
+
+            PressedResetName ->
+                ( { model | name = Unchanged }, effects.none )
+
+            TypedName name ->
+                case model.name of
+                    Editting _ ->
+                        ( { model | name = Editting name }, effects.none )
+
+                    _ ->
+                        ( model, effects.none )
+
             PressedEditDescription ->
-                ( { model | description = Group.description group |> Description.toString |> Editting }, effects.none )
+                ( { model | description = Group.description group |> Description.toString |> Editting }
+                , effects.none
+                )
 
             PressedSaveDescription ->
                 case model.description of
@@ -116,12 +167,64 @@ view currentTime owner group maybeLoggedIn =
     Element.column
         [ Element.spacing 8, Element.padding 8, Element.width Element.fill ]
         [ Element.row
-            [ Element.width Element.fill ]
-            [ group
-                |> Group.name
-                |> GroupName.toString
-                |> Ui.title
-                |> Element.el [ Element.alignTop, Element.width Element.fill ]
+            [ Element.width Element.fill, Element.spacing 8 ]
+            [ Element.column [ Element.alignTop, Element.width Element.fill, Element.spacing 4 ]
+                (case Maybe.map (Tuple.second >> .name) maybeLoggedIn of
+                    Just (Editting name) ->
+                        let
+                            error : Maybe String
+                            error =
+                                case GroupName.fromString name of
+                                    Ok _ ->
+                                        Nothing
+
+                                    Err GroupName.GroupNameTooShort ->
+                                        "Name must be at least "
+                                            ++ String.fromInt GroupName.minLength
+                                            ++ " characters long."
+                                            |> Just
+
+                                    Err GroupName.GroupNameTooLong ->
+                                        "Name is too long. Keep it under "
+                                            ++ String.fromInt (GroupName.maxLength + 1)
+                                            ++ " characters."
+                                            |> Just
+                        in
+                        [ Element.el
+                            [ Ui.titleFontSize, Element.width <| Element.maximum 800 Element.fill ]
+                            (textInput TypedName name "Group name")
+                        , Maybe.map Ui.error error |> Maybe.withDefault Element.none
+                        , Element.row
+                            [ Element.spacing 16, Element.paddingXY 8 0 ]
+                            [ smallButton PressedResetName "Reset"
+                            , smallSubmitButton False { onPress = PressedSaveName, label = "Save" }
+                            ]
+                        ]
+
+                    Just (Submitting name) ->
+                        [ Element.el
+                            [ Ui.titleFontSize, Element.width <| Element.maximum 800 Element.fill ]
+                            (textInput TypedName (GroupName.toString name) "Group name")
+                        , Element.row
+                            [ Element.spacing 16, Element.paddingXY 8 0 ]
+                            [ smallButton PressedResetName "Reset"
+                            , smallSubmitButton True { onPress = PressedSaveName, label = "Save" }
+                            ]
+                        ]
+
+                    _ ->
+                        [ group
+                            |> Group.name
+                            |> GroupName.toString
+                            |> Ui.title
+                            |> Element.el [ Element.paddingXY 8 4 ]
+                        , if isOwner then
+                            Element.el [ Element.paddingXY 8 0 ] (smallButton PressedEditName "Edit")
+
+                          else
+                            Element.none
+                        ]
+                )
             , Ui.section "Organizer"
                 (Element.row
                     [ Element.spacing 16 ]
@@ -160,7 +263,7 @@ view currentTime owner group maybeLoggedIn =
                         , smallButton PressedResetDescription "Reset"
                         , smallSubmitButton False { onPress = PressedSaveDescription, label = "Save" }
                         ]
-                    , multiline TypedDescription description ""
+                    , multiline TypedDescription description "Group description"
                     , Maybe.map Ui.error error |> Maybe.withDefault Element.none
                     ]
 
@@ -286,9 +389,17 @@ multiline onChange text labelText =
         { text = text
         , onChange = onChange
         , placeholder = Nothing
-        , label =
-            Element.Input.labelAbove
-                [ Element.paddingXY 4 0 ]
-                (Element.paragraph [] [ Element.text labelText ])
+        , label = Element.Input.labelHidden labelText
         , spellcheck = True
+        }
+
+
+textInput : (String -> msg) -> String -> String -> Element msg
+textInput onChange text labelText =
+    Element.Input.text
+        [ Element.width Element.fill, Element.paddingXY 8 4 ]
+        { text = text
+        , onChange = onChange
+        , placeholder = Nothing
+        , label = Element.Input.labelHidden labelText
         }
