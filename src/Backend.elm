@@ -12,6 +12,7 @@ import Duration
 import Event
 import Group exposing (Group, GroupVisibility)
 import GroupName exposing (GroupName)
+import GroupPage exposing (CreateEventError(..))
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
 import Lamdera
 import List.Extra as List
@@ -387,7 +388,7 @@ updateFromRequest sessionId clientId msg model =
                     , BackendEffect.none
                     )
 
-        CreateEventRequest groupId eventName_ description_ eventType_ startTime_ eventDuration_ ->
+        CreateEventRequest groupId eventName_ description_ eventType_ startTime eventDuration_ ->
             case
                 T4
                     (Untrusted.eventName eventName_)
@@ -400,19 +401,38 @@ updateFromRequest sessionId clientId msg model =
                         sessionId
                         groupId
                         model
-                        (\( _, _, group ) ->
-                            ( { model
-                                | groups =
-                                    Dict.insert
-                                        groupId
-                                        (Group.addEvent
-                                            (Event.newEvent eventName description eventType startTime_ eventDuration)
-                                            group
+                        (\( userId, _, group ) ->
+                            if Group.totalEvents group > 1000 then
+                                ( model
+                                , BackendEffect.sendToFrontend clientId (CreateEventResponse groupId (Err TooManyEvents))
+                                )
+
+                            else if Duration.from model.time startTime |> Quantity.lessThanZero then
+                                ( model
+                                , BackendEffect.sendToFrontend
+                                    clientId
+                                    (CreateEventResponse groupId (Err EventStartsInThePast))
+                                )
+
+                            else
+                                let
+                                    newEvent =
+                                        Event.newEvent eventName description eventType startTime eventDuration
+                                in
+                                case Group.addEvent newEvent group of
+                                    Ok newGroup ->
+                                        ( { model | groups = Dict.insert groupId newGroup model.groups }
+                                        , BackendEffect.sendToFrontends
+                                            (getClientIdsForUser userId model)
+                                            (CreateEventResponse groupId (Ok newEvent))
                                         )
-                                        model.groups
-                              }
-                            , BackendEffect.none
-                            )
+
+                                    Err () ->
+                                        ( model
+                                        , BackendEffect.sendToFrontend
+                                            clientId
+                                            (CreateEventResponse groupId (Err EventOverlapsAnotherEvent))
+                                        )
                         )
 
                 _ ->

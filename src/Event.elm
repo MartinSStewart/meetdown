@@ -1,4 +1,4 @@
-module Event exposing (Event, EventType(..), attendees, description, duration, endTime, eventType, isCancelled, name, newEvent, startTime)
+module Event exposing (Event, EventType(..), attendees, description, duration, endTime, eventType, isCancelled, name, newEvent, overlaps, startTime)
 
 import Address exposing (Address)
 import AssocSet as Set exposing (Set)
@@ -80,3 +80,21 @@ isCancelled (Event event) =
 endTime : Event -> Time.Posix
 endTime (Event event) =
     Duration.addTo event.startTime (EventDuration.toDuration event.duration)
+
+
+overlaps : Event -> Event -> Bool
+overlaps eventA eventB =
+    let
+        startA =
+            startTime eventA |> Time.posixToMillis
+
+        endA =
+            startTime eventA |> Time.posixToMillis
+
+        startB =
+            startTime eventB |> Time.posixToMillis
+
+        endB =
+            startTime eventB |> Time.posixToMillis
+    in
+    endA < startB || endB < startA |> not

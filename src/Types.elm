@@ -9,13 +9,13 @@ import Browser.Navigation
 import CreateGroupForm exposing (CreateGroupError, GroupFormValidated)
 import Description exposing (Description)
 import EmailAddress exposing (EmailAddress)
-import Event exposing (EventType)
+import Event exposing (Event, EventType)
 import EventDuration exposing (EventDuration)
 import EventName exposing (EventName)
 import FrontendUser exposing (FrontendUser)
 import Group exposing (Group, GroupVisibility)
 import GroupName exposing (GroupName)
-import GroupPage
+import GroupPage exposing (CreateEventError)
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
 import List.Nonempty exposing (Nonempty)
 import Name exposing (Name)
@@ -284,3 +284,4 @@ type ToFrontend
     | SearchGroupsResponse String (List ( GroupId, Group ))
     | ChangeGroupNameResponse GroupId GroupName
     | ChangeGroupDescriptionResponse GroupId Description
+    | CreateEventResponse GroupId (Result CreateEventError Event)

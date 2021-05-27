@@ -1,4 +1,4 @@
-module GroupPage exposing (EventType(..), Model, Msg, init, savedDescription, savedName, update, view)
+module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, addedNewEvent, init, savedDescription, savedName, update, view)
 
 import Description exposing (Description)
 import Element exposing (Element)
@@ -6,6 +6,7 @@ import Element.Background
 import Element.Border
 import Element.Font
 import Element.Input
+import Event exposing (Event)
 import FrontendUser exposing (FrontendUser)
 import Group exposing (Group)
 import GroupName exposing (GroupName)
@@ -55,22 +56,39 @@ type alias Effects cmd =
     }
 
 
+type alias NewEvent =
+    { pressedSubmit : Bool
+    , eventName : String
+    , description : String
+    , meetingType : Maybe EventType
+    , meetOnlineLink : String
+    , meetInPersonLocation : String
+    , startDate : String
+    , startTime : String
+    , duration : String
+    }
+
+
 init : Model
 init =
     { name = Unchanged
     , description = Unchanged
     , addingNewEvent = False
-    , newEvent =
-        { pressedSubmit = False
-        , eventName = ""
-        , description = ""
-        , meetingType = Nothing
-        , meetOnlineLink = ""
-        , meetInPersonLocation = ""
-        , startDate = ""
-        , startTime = ""
-        , duration = ""
-        }
+    , newEvent = initNewEvent
+    }
+
+
+initNewEvent : NewEvent
+initNewEvent =
+    { pressedSubmit = False
+    , eventName = ""
+    , description = ""
+    , meetingType = Nothing
+    , meetOnlineLink = ""
+    , meetInPersonLocation = ""
+    , startDate = ""
+    , startTime = ""
+    , duration = ""
     }
 
 
@@ -92,6 +110,22 @@ savedDescription model =
 
         _ ->
             model
+
+
+type CreateEventError
+    = EventStartsInThePast
+    | EventOverlapsAnotherEvent
+    | TooManyEvents
+
+
+addedNewEvent : Result CreateEventError Event -> Model -> Model
+addedNewEvent result model =
+    case result of
+        Ok _ ->
+            { model | addingNewEvent = False, newEvent = initNewEvent }
+
+        Err _ ->
+            Debug.todo ""
 
 
 update : Effects cmd -> Group -> Id UserId -> Msg -> Model -> ( Model, cmd )
@@ -390,19 +424,6 @@ timestamp time timeZone =
         ++ monthValue
         ++ "-"
         ++ String.padLeft 2 '0' (String.fromInt (Time.toDay timeZone time))
-
-
-type alias NewEvent =
-    { pressedSubmit : Bool
-    , eventName : String
-    , description : String
-    , meetingType : Maybe EventType
-    , meetOnlineLink : String
-    , meetInPersonLocation : String
-    , startDate : String
-    , startTime : String
-    , duration : String
-    }
 
 
 type EventType

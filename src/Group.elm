@@ -1,4 +1,4 @@
-module Group exposing (Group, GroupVisibility(..), addEvent, description, events, init, name, ownerId, visibility, withDescription, withName)
+module Group exposing (Group, GroupVisibility(..), addEvent, description, events, init, name, ownerId, totalEvents, visibility, withDescription, withName)
 
 import Description exposing (Description)
 import Duration
@@ -65,9 +65,20 @@ visibility (Group a) =
     a.visibility
 
 
-addEvent : Event -> Group -> Group
+addEvent : Event -> Group -> Result () Group
 addEvent event (Group a) =
-    { a | events = event :: a.events |> List.sortBy (Event.endTime >> Time.posixToMillis) } |> Group
+    if List.any (Event.overlaps event) a.events then
+        Err ()
+
+    else
+        { a | events = event :: a.events |> List.sortBy (Event.endTime >> Time.posixToMillis) }
+            |> Group
+            |> Ok
+
+
+totalEvents : Group -> Int
+totalEvents (Group a) =
+    List.length a.events
 
 
 {-| pastEvents and futureEvents are sorted so the head element is the event closest to the currentTime

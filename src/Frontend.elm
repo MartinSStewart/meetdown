@@ -603,6 +603,40 @@ updateLoadedFromBackend msg model =
             , FrontendEffect.none
             )
 
+        CreateEventResponse groupId result ->
+            ( { model
+                | cachedGroups =
+                    case result of
+                        Ok event ->
+                            Dict.update groupId
+                                (Maybe.map
+                                    (\a ->
+                                        case a of
+                                            GroupFound group ->
+                                                Group.addEvent event group |> Result.withDefault group |> GroupFound
+
+                                            GroupNotFoundOrIsPrivate ->
+                                                GroupNotFoundOrIsPrivate
+                                    )
+                                )
+                                model.cachedGroups
+
+                        Err _ ->
+                            model.cachedGroups
+                , loginStatus =
+                    case model.loginStatus of
+                        LoggedIn loggedIn ->
+                            LoggedIn { loggedIn | groupPage = GroupPage.addedNewEvent result loggedIn.groupPage }
+
+                        LoginStatusPending ->
+                            model.loginStatus
+
+                        NotLoggedIn _ ->
+                            model.loginStatus
+              }
+            , FrontendEffect.none
+            )
+
 
 updateUser : (BackendUser -> BackendUser) -> LoadedFrontend -> LoadedFrontend
 updateUser updateFunc model =
