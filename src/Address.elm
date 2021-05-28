@@ -1,4 +1,4 @@
-module Address exposing (Address, Error(..), fromString, maxLength, minLength, toString)
+module Address exposing (Address, Error(..), errorToString, fromString, maxLength, minLength, toString)
 
 
 type Address
@@ -8,6 +8,28 @@ type Address
 type Error
     = AddressTooShort
     | AddressTooLong
+
+
+errorToString : String -> Error -> String
+errorToString originalAddress error =
+    let
+        trimmed =
+            String.trim originalAddress
+    in
+    case error of
+        AddressTooShort ->
+            "Address is "
+                ++ String.fromInt (String.length trimmed)
+                ++ " characters long. It needs to be at least "
+                ++ String.fromInt minLength
+                ++ "."
+
+        AddressTooLong ->
+            "Address is "
+                ++ String.fromInt (String.length trimmed)
+                ++ " characters long. Keep it under "
+                ++ String.fromInt maxLength
+                ++ "."
 
 
 minLength : number

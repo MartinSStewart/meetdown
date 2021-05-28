@@ -1,4 +1,4 @@
-module EventName exposing (Error(..), EventName, fromString, maxLength, minLength, toString)
+module EventName exposing (Error(..), EventName, errorToString, fromString, maxLength, minLength, toString)
 
 
 type EventName
@@ -8,6 +8,28 @@ type EventName
 type Error
     = EventNameTooShort
     | EventNameTooLong
+
+
+errorToString : String -> Error -> String
+errorToString originalAddress error =
+    let
+        trimmed =
+            String.trim originalAddress
+    in
+    case error of
+        EventNameTooShort ->
+            "Name is "
+                ++ String.fromInt (String.length trimmed)
+                ++ " characters long. It needs to be at least "
+                ++ String.fromInt minLength
+                ++ "."
+
+        EventNameTooLong ->
+            "Name is "
+                ++ String.fromInt (String.length trimmed)
+                ++ " characters long. Keep it under "
+                ++ String.fromInt maxLength
+                ++ "."
 
 
 minLength : number

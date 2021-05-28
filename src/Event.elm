@@ -7,9 +7,8 @@ import Duration exposing (Duration)
 import EventDuration exposing (EventDuration)
 import EventName exposing (EventName)
 import Id exposing (Id, UserId)
-import Quantity
+import Link exposing (Link)
 import Time
-import Url exposing (Url)
 
 
 type Event
@@ -38,8 +37,8 @@ newEvent eventName description_ eventType_ startTime_ duration_ =
 
 
 type EventType
-    = MeetOnline Url
-    | MeetInPerson Address
+    = MeetOnline (Maybe Link)
+    | MeetInPerson (Maybe Address)
 
 
 name : Event -> EventName

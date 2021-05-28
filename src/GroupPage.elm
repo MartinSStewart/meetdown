@@ -1,12 +1,15 @@
 module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, addedNewEvent, init, savedDescription, savedName, update, view)
 
+import Address exposing (Address, Error(..))
 import Description exposing (Description)
 import Element exposing (Element)
 import Element.Background
 import Element.Border
 import Element.Font
 import Element.Input
-import Event exposing (Event)
+import Event exposing (Event, EventType)
+import EventDuration exposing (EventDuration)
+import EventName exposing (EventName)
 import FrontendUser exposing (FrontendUser)
 import Group exposing (Group)
 import GroupName exposing (GroupName)
@@ -14,6 +17,7 @@ import Html
 import Html.Attributes
 import Html.Events
 import Id exposing (Id, UserId)
+import Link exposing (Link)
 import List.Nonempty exposing (Nonempty(..))
 import Name
 import ProfileImage
@@ -47,22 +51,32 @@ type Msg
     | TypedName String
     | PressedAddEvent
     | ChangedNewEvent NewEvent
+    | PressedCancelNewEvent
+    | PressedCreateNewEvent
 
 
 type alias Effects cmd =
     { none : cmd
     , changeName : Untrusted GroupName -> cmd
     , changeDescription : Untrusted Description -> cmd
+    , createEvent :
+        Untrusted EventName
+        -> Untrusted Description
+        -> Untrusted Event.EventType
+        -> Time.Posix
+        -> Untrusted EventDuration
+        -> cmd
     }
 
 
 type alias NewEvent =
     { pressedSubmit : Bool
+    , isSubmitting : Bool
     , eventName : String
     , description : String
     , meetingType : Maybe EventType
     , meetOnlineLink : String
-    , meetInPersonLocation : String
+    , meetInPersonAddress : String
     , startDate : String
     , startTime : String
     , duration : String
@@ -81,11 +95,12 @@ init =
 initNewEvent : NewEvent
 initNewEvent =
     { pressedSubmit = False
+    , isSubmitting = False
     , eventName = ""
     , description = ""
     , meetingType = Nothing
     , meetOnlineLink = ""
-    , meetInPersonLocation = ""
+    , meetInPersonAddress = ""
     , startDate = ""
     , startTime = ""
     , duration = ""
@@ -125,7 +140,7 @@ addedNewEvent result model =
             { model | addingNewEvent = False, newEvent = initNewEvent }
 
         Err _ ->
-            Debug.todo ""
+            model
 
 
 update : Effects cmd -> Group -> Id UserId -> Msg -> Model -> ( Model, cmd )
@@ -205,6 +220,55 @@ update effects group userId msg model =
 
             ChangedNewEvent newEvent ->
                 ( { model | newEvent = newEvent }, effects.none )
+
+            PressedCancelNewEvent ->
+                ( { model | addingNewEvent = False }, effects.none )
+
+            PressedCreateNewEvent ->
+                let
+                    newEvent =
+                        model.newEvent
+
+                    maybeEventType : Maybe Event.EventType
+                    maybeEventType =
+                        case newEvent.meetingType of
+                            Just MeetOnline ->
+                                validateLink newEvent.meetOnlineLink
+                                    |> Result.toMaybe
+                                    |> Maybe.map Event.MeetOnline
+
+                            Just MeetInPerson ->
+                                validateAddress newEvent.meetInPersonAddress
+                                    |> Result.toMaybe
+                                    |> Maybe.map Event.MeetInPerson
+
+                            Nothing ->
+                                Nothing
+
+                    maybeStartTime =
+                        Nothing
+
+                    maybeDuration =
+                        String.toFloat newEvent.duration
+                            |> Maybe.andThen (round >> EventDuration.fromMinutes >> Result.toMaybe)
+                in
+                Maybe.map5
+                    (\name description eventType startTime duration ->
+                        ( { model | newEvent = { newEvent | isSubmitting = True } }
+                        , effects.createEvent
+                            (Untrusted.untrust name)
+                            (Untrusted.untrust description)
+                            (Untrusted.untrust eventType)
+                            startTime
+                            (Untrusted.untrust duration)
+                        )
+                    )
+                    (EventName.fromString newEvent.eventName |> Result.toMaybe)
+                    (Description.fromString newEvent.description |> Result.toMaybe)
+                    maybeEventType
+                    maybeStartTime
+                    maybeDuration
+                    |> Maybe.withDefault ( { model | newEvent = { newEvent | pressedSubmit = True } }, effects.none )
 
     else
         ( model, effects.none )
@@ -355,7 +419,20 @@ view currentTime timeZone owner group maybeLoggedIn =
             False
             "Next event"
             (if isOwner then
-                smallButton PressedAddEvent "Add event"
+                case maybeLoggedIn of
+                    Just ( _, model ) ->
+                        if model.addingNewEvent then
+                            Element.row
+                                [ Element.spacing 8 ]
+                                [ smallButton PressedCancelNewEvent "Cancel"
+                                , smallSubmitButton False { onPress = PressedCreateNewEvent, label = "Create new event" }
+                                ]
+
+                        else
+                            Element.el [] (smallButton PressedAddEvent "Add event")
+
+                    Nothing ->
+                        Element.none
 
              else
                 Element.none
@@ -439,10 +516,16 @@ newEventView currentTime timeZone event =
             (\text -> ChangedNewEvent { event | eventName = text })
             event.eventName
             "Event name"
-            Nothing
+            (case ( event.pressedSubmit, EventName.fromString event.eventName ) of
+                ( True, Err error ) ->
+                    EventName.errorToString event.eventName error |> Just
+
+                _ ->
+                    Nothing
+            )
         , Ui.multiline
             (\text -> ChangedNewEvent { event | description = text })
-            event.eventName
+            event.description
             "Event description"
             (case ( event.pressedSubmit, Description.fromString event.description ) of
                 ( True, Err error ) ->
@@ -458,10 +541,10 @@ newEventView currentTime timeZone event =
             (\a ->
                 case a of
                     MeetOnline ->
-                        "This event will be done online"
+                        "This event will be online"
 
                     MeetInPerson ->
-                        "This event will be done in person"
+                        "This event will be in person"
             )
             (case ( event.pressedSubmit, event.meetingType ) of
                 ( True, Nothing ) ->
@@ -470,6 +553,35 @@ newEventView currentTime timeZone event =
                 _ ->
                     Nothing
             )
+        , case event.meetingType of
+            Just MeetOnline ->
+                Ui.textInput
+                    (\text -> ChangedNewEvent { event | meetOnlineLink = text })
+                    event.meetOnlineLink
+                    "Meeting url (you can add this later)"
+                    (case ( event.pressedSubmit, validateLink event.meetOnlineLink |> Debug.log "a" ) of
+                        ( True, Err error ) ->
+                            Just error
+
+                        _ ->
+                            Nothing
+                    )
+
+            Just MeetInPerson ->
+                Ui.textInput
+                    (\text -> ChangedNewEvent { event | meetInPersonAddress = text })
+                    event.meetInPersonAddress
+                    "Meeting address (you can add this later)"
+                    (case ( event.pressedSubmit, validateAddress event.meetInPersonAddress ) of
+                        ( True, Err error ) ->
+                            Just error
+
+                        _ ->
+                            Nothing
+                    )
+
+            Nothing ->
+                Element.none
         , Element.column
             [ Element.spacing 4 ]
             [ Element.text "Start date"
@@ -502,6 +614,38 @@ newEventView currentTime timeZone event =
                     []
             ]
         ]
+
+
+validateLink : String -> Result String (Maybe Link)
+validateLink text =
+    let
+        trimmed =
+            String.trim text
+    in
+    if trimmed == "" then
+        Ok Nothing
+
+    else
+        case Link.fromString trimmed of
+            Just url ->
+                Ok (Just url)
+
+            Nothing ->
+                Err "Invalid url. Enter something like https://my-hangouts.com or leave it blank"
+
+
+validateAddress : String -> Result String (Maybe Address)
+validateAddress text =
+    if String.trim text == "" then
+        Ok Nothing
+
+    else
+        case Address.fromString text of
+            Ok value ->
+                Ok (Just value)
+
+            Err error ->
+                Address.errorToString text error |> Err
 
 
 section : Bool -> String -> Element msg -> Element msg -> Element msg

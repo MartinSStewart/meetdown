@@ -11,10 +11,14 @@ type Error
 
 errorToString : String -> Error -> String
 errorToString originalDescription error =
+    let
+        trimmed =
+            String.trim originalDescription
+    in
     case error of
         DescriptionTooLong ->
             "Description is "
-                ++ String.fromInt (String.length originalDescription)
+                ++ String.fromInt (String.length trimmed)
                 ++ " characters long. Keep it under "
                 ++ String.fromInt maxLength
                 ++ "."

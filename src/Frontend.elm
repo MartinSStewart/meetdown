@@ -360,6 +360,8 @@ updateLoaded msg model =
                                                     ChangeGroupNameRequest groupId >> FrontendEffect.sendToBackend
                                                 , changeDescription =
                                                     ChangeGroupDescriptionRequest groupId >> FrontendEffect.sendToBackend
+                                                , createEvent =
+                                                    \a b c d e -> CreateEventRequest groupId a b c d e |> FrontendEffect.sendToBackend
                                                 }
                                                 group
                                                 loggedIn.userId

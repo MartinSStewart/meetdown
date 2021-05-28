@@ -18,6 +18,7 @@ import Event exposing (EventType(..))
 import EventDuration exposing (EventDuration)
 import EventName exposing (EventName)
 import GroupName exposing (GroupName)
+import Link
 import Name exposing (Name)
 import ProfileImage exposing (ProfileImage)
 import Url
@@ -55,11 +56,17 @@ eventDuration (Untrusted a) =
 eventType : Untrusted EventType -> Maybe EventType
 eventType (Untrusted a) =
     case a of
-        MeetOnline url ->
-            Url.toString url |> Url.fromString |> Maybe.map MeetOnline
+        MeetOnline (Just link) ->
+            Link.toString link |> Link.fromString |> Maybe.map (Just >> MeetOnline)
 
-        MeetInPerson address ->
-            Address.toString address |> Address.fromString |> Result.toMaybe |> Maybe.map MeetInPerson
+        MeetOnline Nothing ->
+            MeetOnline Nothing |> Just
+
+        MeetInPerson (Just address) ->
+            Address.toString address |> Address.fromString |> Result.toMaybe |> Maybe.map (Just >> MeetInPerson)
+
+        MeetInPerson Nothing ->
+            MeetInPerson Nothing |> Just
 
 
 description : Untrusted Description -> Maybe Description
