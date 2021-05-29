@@ -261,7 +261,6 @@ update effects config group userId msg model =
                             (Untrusted.untrust eventType)
                             startTime
                             (Untrusted.untrust duration)
-                            |> Debug.log "sent"
                         )
                     )
                     (EventName.fromString newEvent.eventName |> Result.toMaybe)
@@ -499,8 +498,8 @@ intToMonth value =
             Nothing
 
 
-timestamp : Time.Posix -> Time.Zone -> String
-timestamp time timezone =
+datestamp : Time.Posix -> Time.Zone -> String
+datestamp time timezone =
     let
         monthValue =
             case Time.toMonth timezone time of
@@ -659,8 +658,9 @@ dateTimeInput currentTime timezone event =
                 , Element.html <|
                     Html.input
                         [ Html.Attributes.type_ "date"
-                        , Html.Attributes.min (timestamp currentTime timezone)
+                        , Html.Attributes.min (datestamp currentTime timezone)
                         , Html.Events.onInput (\text -> ChangedNewEvent { event | startDate = text })
+                        , Html.Attributes.value event.startDate
                         ]
                         []
                 ]
@@ -671,20 +671,87 @@ dateTimeInput currentTime timezone event =
                     Html.input
                         [ Html.Attributes.type_ "time"
                         , Html.Events.onInput (\text -> ChangedNewEvent { event | startTime = text })
+                        , Html.Attributes.value event.startTime
                         ]
                         []
                 ]
             ]
-        , (case ( event.pressedSubmit, validateDateTime currentTime timezone event.startDate event.startTime ) of
+        , case ( event.pressedSubmit, validateDateTime currentTime timezone event.startDate event.startTime ) of
             ( True, Err error ) ->
-                Just error
+                Ui.error error
 
-            _ ->
-                Nothing
-          )
-            |> Maybe.map Ui.error
-            |> Maybe.withDefault Element.none
+            ( _, Ok datetime ) ->
+                monthToText datetime Time.utc
+                    ++ " "
+                    ++ dayToText datetime Time.utc
+                    ++ ", "
+                    ++ String.fromInt (Time.toHour Time.utc datetime)
+                    ++ ":"
+                    ++ String.padLeft 2 '0' (String.fromInt (Time.toMinute Time.utc datetime))
+                    ++ " (UTC)"
+                    |> Element.text
+                    |> List.singleton
+                    |> Element.paragraph [ Element.Font.size 16 ]
+
+            ( False, Err _ ) ->
+                Element.none
         ]
+
+
+dayToText : Time.Posix -> Time.Zone -> String
+dayToText time timezone =
+    case Time.toDay timezone time of
+        1 ->
+            "1st"
+
+        2 ->
+            "2nd"
+
+        3 ->
+            "3rd"
+
+        n ->
+            String.fromInt n ++ "th"
+
+
+monthToText : Time.Posix -> Time.Zone -> String
+monthToText time timezone =
+    case Time.toMonth timezone time of
+        Time.Jan ->
+            "January"
+
+        Time.Feb ->
+            "February"
+
+        Time.Mar ->
+            "March"
+
+        Time.Apr ->
+            "April"
+
+        Time.May ->
+            "May"
+
+        Time.Jun ->
+            "June"
+
+        Time.Jul ->
+            "July"
+
+        Time.Aug ->
+            "August"
+
+        Time.Sep ->
+            "September"
+
+        Time.Oct ->
+            "October"
+
+        Time.Nov ->
+            "November"
+
+        Time.Dec ->
+            "December"
 
 
 validateDuration : String -> Result String EventDuration
@@ -704,39 +771,47 @@ validateDuration text =
 
 validateDateTime : Time.Posix -> Time.Zone -> String -> String -> Result String Time.Posix
 validateDateTime currentTime timezone date time =
-    case String.split "-" date |> List.map String.toInt of
-        [ Just year, Just monthInt, Just day ] ->
-            case intToMonth monthInt of
-                Just month ->
-                    case String.split ":" time |> List.map String.toInt of
-                        [ Just hour, Just minute ] ->
-                            let
-                                timePosix =
-                                    Time.partsToPosix
-                                        timezone
-                                        { year = year
-                                        , month = month
-                                        , day = day
-                                        , hour = hour
-                                        , minute = minute
-                                        , second = 0
-                                        , millisecond = 0
-                                        }
-                            in
-                            if Duration.from currentTime timePosix |> Quantity.lessThanZero then
-                                Err "The event can't start in the past"
+    if String.trim date == "" then
+        Err "Date value missing"
 
-                            else
-                                Ok timePosix
+    else
+        case String.split "-" date |> List.map String.toInt of
+            [ Just year, Just monthInt, Just day ] ->
+                case intToMonth monthInt of
+                    Just month ->
+                        if String.trim time == "" then
+                            Err "Time value missing"
 
-                        _ ->
-                            Err "Invalid time format. Expected something like 22:59"
+                        else
+                            case String.split ":" time |> List.map String.toInt of
+                                [ Just hour, Just minute ] ->
+                                    let
+                                        timePosix =
+                                            Time.partsToPosix
+                                                timezone
+                                                { year = year
+                                                , month = month
+                                                , day = day
+                                                , hour = hour
+                                                , minute = minute
+                                                , second = 0
+                                                , millisecond = 0
+                                                }
+                                    in
+                                    if Duration.from currentTime timePosix |> Quantity.lessThanZero then
+                                        Err "The event can't start in the past"
 
-                Nothing ->
-                    Err "Invalid date format. Expected something like 2020-01-31"
+                                    else
+                                        Ok timePosix
 
-        _ ->
-            Err "Invalid date format. Expected something like 2020-01-31"
+                                _ ->
+                                    Err "Invalid time format. Expected something like 22:59"
+
+                    Nothing ->
+                        Err "Invalid date format. Expected something like 2020-01-31"
+
+            _ ->
+                Err "Invalid date format. Expected something like 2020-01-31"
 
 
 validateLink : String -> Result String (Maybe Link)

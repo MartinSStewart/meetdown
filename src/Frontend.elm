@@ -46,8 +46,6 @@ app =
                     [ FrontendEffect.martinsstewart_crop_image_from_js CroppedImage
                     , Browser.Events.onResize
                         (\width height -> GotWindowSize (Pixels.pixels width) (Pixels.pixels height))
-                    , FrontendEffect.martinsstewart_get_time_zone_from_js
-                        (\offset -> Time.customZone -offset [] |> GotTimeZone)
                     ]
         , view = view
         }
@@ -70,7 +68,7 @@ init url key =
     , FrontendEffect.batch
         [ FrontendEffect.getTime GotTime
         , FrontendEffect.getWindowSize GotWindowSize
-        , FrontendEffect.getTimeZone
+        , FrontendEffect.getTimeZone GotTimeZone
         ]
     )
 
@@ -151,6 +149,20 @@ tryInitLoadedFrontend loading =
         |> Maybe.withDefault ( Loading loading, FrontendEffect.none )
 
 
+gotTimeZone : Result error ( a, Time.Zone ) -> { b | timezone : Maybe Time.Zone } -> { b | timezone : Maybe Time.Zone }
+gotTimeZone result model =
+    case result of
+        Ok ( _, timezone ) ->
+            { model | timezone = Just timezone }
+
+        Err error ->
+            let
+                _ =
+                    Debug.log "timezone error" error
+            in
+            { model | timezone = Just Time.utc }
+
+
 update : FrontendMsg -> FrontendModel -> ( FrontendModel, FrontendEffect )
 update msg model =
     case model of
@@ -162,8 +174,8 @@ update msg model =
                 GotWindowSize width height ->
                     tryInitLoadedFrontend { loading | windowSize = Just ( width, height ) }
 
-                GotTimeZone timezone ->
-                    tryInitLoadedFrontend { loading | timezone = Just timezone }
+                GotTimeZone result ->
+                    gotTimeZone result loading |> tryInitLoadedFrontend
 
                 _ ->
                     ( model, FrontendEffect.none )
@@ -388,8 +400,8 @@ updateLoaded msg model =
         GotWindowSize width height ->
             ( { model | windowWidth = width, windowHeight = height }, FrontendEffect.none )
 
-        GotTimeZone zone ->
-            ( { model | timezone = zone }, FrontendEffect.none )
+        GotTimeZone _ ->
+            ( model, FrontendEffect.none )
 
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, FrontendEffect )

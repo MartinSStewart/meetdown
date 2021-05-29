@@ -26,6 +26,7 @@ import Quantity exposing (Quantity)
 import Route exposing (Route)
 import SendGrid exposing (Email)
 import Time
+import TimeZone
 import Untrusted exposing (Untrusted)
 import Url exposing (Url)
 
@@ -232,7 +233,7 @@ type FrontendMsg
     | SubmittedSearchBox
     | GroupPageMsg GroupPage.Msg
     | GotWindowSize (Quantity Int Pixels) (Quantity Int Pixels)
-    | GotTimeZone Time.Zone
+    | GotTimeZone (Result TimeZone.Error ( String, Time.Zone ))
 
 
 type ToBackend
