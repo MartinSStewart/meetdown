@@ -65,7 +65,7 @@ init url key =
         , routeToken = token
         , windowSize = Nothing
         , time = Nothing
-        , timeZone = Nothing
+        , timezone = Nothing
         }
     , FrontendEffect.batch
         [ FrontendEffect.getTime GotTime
@@ -84,7 +84,7 @@ initLoadedFrontend :
     -> Time.Posix
     -> Time.Zone
     -> ( LoadedFrontend, FrontendEffect )
-initLoadedFrontend navigationKey windowWidth windowHeight route maybeLoginToken time timeZone =
+initLoadedFrontend navigationKey windowWidth windowHeight route maybeLoginToken time timezone =
     let
         login =
             case maybeLoginToken of
@@ -105,7 +105,7 @@ initLoadedFrontend navigationKey windowWidth windowHeight route maybeLoginToken 
             , cachedGroups = Dict.empty
             , cachedUsers = Dict.empty
             , time = time
-            , timeZone = timeZone
+            , timezone = timezone
             , lastConnectionCheck = time
             , loginForm =
                 { email = ""
@@ -147,7 +147,7 @@ tryInitLoadedFrontend loading =
         )
         loading.windowSize
         loading.time
-        loading.timeZone
+        loading.timezone
         |> Maybe.withDefault ( Loading loading, FrontendEffect.none )
 
 
@@ -162,8 +162,8 @@ update msg model =
                 GotWindowSize width height ->
                     tryInitLoadedFrontend { loading | windowSize = Just ( width, height ) }
 
-                GotTimeZone timeZone ->
-                    tryInitLoadedFrontend { loading | timeZone = Just timeZone }
+                GotTimeZone timezone ->
+                    tryInitLoadedFrontend { loading | timezone = Just timezone }
 
                 _ ->
                     ( model, FrontendEffect.none )
@@ -388,7 +388,7 @@ updateLoaded msg model =
             ( { model | windowWidth = width, windowHeight = height }, FrontendEffect.none )
 
         GotTimeZone zone ->
-            ( { model | timeZone = zone }, FrontendEffect.none )
+            ( { model | timezone = zone }, FrontendEffect.none )
 
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, FrontendEffect )
@@ -756,7 +756,7 @@ viewPage model =
                         Just owner ->
                             GroupPage.view
                                 model.time
-                                model.timeZone
+                                model.timezone
                                 owner
                                 group
                                 (case model.loginStatus of

@@ -247,10 +247,6 @@ update effects group userId msg model =
 
                     maybeStartTime =
                         Nothing
-
-                    maybeDuration =
-                        String.toFloat newEvent.duration
-                            |> Maybe.andThen (round >> EventDuration.fromMinutes >> Result.toMaybe)
                 in
                 Maybe.map5
                     (\name description eventType startTime duration ->
@@ -267,7 +263,7 @@ update effects group userId msg model =
                     (Description.fromString newEvent.description |> Result.toMaybe)
                     maybeEventType
                     maybeStartTime
-                    maybeDuration
+                    (validateDuration newEvent.duration |> Result.toMaybe)
                     |> Maybe.withDefault ( { model | newEvent = { newEvent | pressedSubmit = True } }, effects.none )
 
     else
@@ -275,7 +271,7 @@ update effects group userId msg model =
 
 
 view : Time.Posix -> Time.Zone -> FrontendUser -> Group -> Maybe ( Id UserId, Model ) -> Element Msg
-view currentTime timeZone owner group maybeLoggedIn =
+view currentTime timezone owner group maybeLoggedIn =
     let
         { pastEvents, futureEvents } =
             Group.events currentTime group
@@ -440,7 +436,7 @@ view currentTime timeZone owner group maybeLoggedIn =
             (case Maybe.map Tuple.second maybeLoggedIn of
                 Just model ->
                     if model.addingNewEvent then
-                        newEventView currentTime timeZone model.newEvent
+                        newEventView currentTime timezone model.newEvent
 
                     else
                         Element.paragraph
@@ -456,10 +452,10 @@ view currentTime timeZone owner group maybeLoggedIn =
 
 
 timestamp : Time.Posix -> Time.Zone -> String
-timestamp time timeZone =
+timestamp time timezone =
     let
         monthValue =
-            case Time.toMonth timeZone time of
+            case Time.toMonth timezone time of
                 Time.Jan ->
                     "01"
 
@@ -496,11 +492,11 @@ timestamp time timeZone =
                 Time.Dec ->
                     "12"
     in
-    String.fromInt (Time.toYear timeZone time)
+    String.fromInt (Time.toYear timezone time)
         ++ "-"
         ++ monthValue
         ++ "-"
-        ++ String.padLeft 2 '0' (String.fromInt (Time.toDay timeZone time))
+        ++ String.padLeft 2 '0' (String.fromInt (Time.toDay timezone time))
 
 
 type EventType
@@ -509,7 +505,7 @@ type EventType
 
 
 newEventView : Time.Posix -> Time.Zone -> NewEvent -> Element Msg
-newEventView currentTime timeZone event =
+newEventView currentTime timezone event =
     Element.column
         [ Element.width Element.fill ]
         [ Ui.textInput
@@ -588,8 +584,8 @@ newEventView currentTime timeZone event =
             , Element.html <|
                 Html.input
                     [ Html.Attributes.type_ "date"
-                    , Html.Attributes.min (timestamp currentTime timeZone)
-                    , Html.Events.onInput (\text -> ChangedNewEvent { event | startDate = text })
+                    , Html.Attributes.min (timestamp currentTime timezone)
+                    , Html.Events.onInput (\text -> ChangedNewEvent { event | startDate = Debug.log "date" text })
                     ]
                     []
             ]
@@ -599,21 +595,65 @@ newEventView currentTime timeZone event =
             , Element.html <|
                 Html.input
                     [ Html.Attributes.type_ "time"
-                    , Html.Events.onInput (\text -> ChangedNewEvent { event | startTime = text })
+                    , Html.Events.onInput (\text -> ChangedNewEvent { event | startTime = Debug.log "time" text })
                     ]
                     []
             ]
         , Element.column
             [ Element.spacing 4 ]
-            [ Element.text "How many hours will it go?"
+            [ Element.text "How many hours long is it?"
             , Element.html <|
                 Html.input
                     [ Html.Attributes.type_ "number"
                     , Html.Events.onInput (\text -> ChangedNewEvent { event | duration = text })
                     ]
                     []
+            , (case ( event.pressedSubmit, validateDuration event.duration ) of
+                ( True, Err error ) ->
+                    Just error
+
+                _ ->
+                    Nothing
+              )
+                |> Maybe.map Ui.error
+                |> Maybe.withDefault Element.none
             ]
         ]
+
+
+validateDuration : String -> Result String EventDuration
+validateDuration text =
+    case String.toFloat text of
+        Just hours ->
+            case hours * 60 |> round |> EventDuration.fromMinutes of
+                Ok value ->
+                    Ok value
+
+                Err error ->
+                    EventDuration.errorToString error |> Err
+
+        Nothing ->
+            Err "Invalid input. Write something like 1 or 2.5"
+
+
+
+--time: "22:00" 0-1234:259:10
+--date: "2021-05-31"
+
+
+validateDateTime : Time.Zone -> String -> String -> Result String Time.Posix
+validateDateTime timezone date time =
+    case String.split "-" date |> List.map String.toInt of
+        [ Just year, Just month, Just day ] ->
+            case String.split ":" time |> List.map String.toInt of
+                [ Just hour, Just minute ] ->
+                    Err ""
+
+                _ ->
+                    Err "Invalid time format. Expected something like 22:59"
+
+        _ ->
+            Err "Invalid date format. Expected something like 2020-01-31"
 
 
 validateLink : String -> Result String (Maybe Link)

@@ -44,4 +44,5 @@ parser =
                             Parser.succeed ()
                     )
            )
+        |. Parser.token "."
         |. Parser.chompIf (always True)

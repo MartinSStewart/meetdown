@@ -1,4 +1,4 @@
-module EventDuration exposing (Error(..), EventDuration, fromMinutes, maxLength, minLength, toDuration, toMinutes)
+module EventDuration exposing (Error(..), EventDuration, errorToString, fromMinutes, maxLength, minLength, toDuration, toMinutes)
 
 import Duration exposing (Duration)
 
@@ -13,6 +13,19 @@ type Error
     | EventDurationTooLong
 
 
+errorToString : Error -> String
+errorToString error =
+    case error of
+        EventDurationIsNegative ->
+            "Value can't be negative"
+
+        EventDurationTooShort ->
+            "The event must be at least " ++ String.fromInt minLength ++ " minutes long"
+
+        EventDurationTooLong ->
+            "The event can't be more than " ++ String.fromInt (maxLength // (24 * 60)) ++ " days long"
+
+
 minLength : number
 minLength =
     15
@@ -20,7 +33,7 @@ minLength =
 
 maxLength : number
 maxLength =
-    60 * 24
+    60 * 24 * 7
 
 
 fromMinutes : Int -> Result Error EventDuration

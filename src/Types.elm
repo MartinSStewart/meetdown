@@ -46,7 +46,7 @@ type alias LoadingFrontend =
     , routeToken : Route.Token
     , windowSize : Maybe ( Quantity Int Pixels, Quantity Int Pixels )
     , time : Maybe Time.Posix
-    , timeZone : Maybe Time.Zone
+    , timezone : Maybe Time.Zone
     }
 
 
@@ -57,7 +57,7 @@ type alias LoadedFrontend =
     , cachedGroups : Dict GroupId GroupRequest
     , cachedUsers : Dict (Id UserId) FrontendUser
     , time : Time.Posix
-    , timeZone : Time.Zone
+    , timezone : Time.Zone
     , lastConnectionCheck : Time.Posix
     , loginForm : LoginForm
     , logs : Maybe (Array Log)
