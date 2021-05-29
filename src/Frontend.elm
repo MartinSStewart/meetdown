@@ -363,6 +363,7 @@ updateLoaded msg model =
                                                 , createEvent =
                                                     \a b c d e -> CreateEventRequest groupId a b c d e |> FrontendEffect.sendToBackend
                                                 }
+                                                model
                                                 group
                                                 loggedIn.userId
                                                 groupPageMsg

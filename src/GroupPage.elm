@@ -2,6 +2,7 @@ module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, adde
 
 import Address exposing (Address, Error(..))
 import Description exposing (Description)
+import Duration
 import Element exposing (Element)
 import Element.Background
 import Element.Border
@@ -21,7 +22,9 @@ import Link exposing (Link)
 import List.Nonempty exposing (Nonempty(..))
 import Name
 import ProfileImage
+import Quantity
 import Time
+import Time.Extra as Time
 import Ui
 import Untrusted exposing (Untrusted)
 
@@ -143,8 +146,8 @@ addedNewEvent result model =
             model
 
 
-update : Effects cmd -> Group -> Id UserId -> Msg -> Model -> ( Model, cmd )
-update effects group userId msg model =
+update : Effects cmd -> { a | time : Time.Posix, timezone : Time.Zone } -> Group -> Id UserId -> Msg -> Model -> ( Model, cmd )
+update effects config group userId msg model =
     if Group.ownerId group == userId then
         case msg of
             PressedEditName ->
@@ -246,7 +249,8 @@ update effects group userId msg model =
                                 Nothing
 
                     maybeStartTime =
-                        Nothing
+                        validateDateTime config.time config.timezone newEvent.startDate newEvent.startTime
+                            |> Result.toMaybe
                 in
                 Maybe.map5
                     (\name description eventType startTime duration ->
@@ -257,6 +261,7 @@ update effects group userId msg model =
                             (Untrusted.untrust eventType)
                             startTime
                             (Untrusted.untrust duration)
+                            |> Debug.log "sent"
                         )
                     )
                     (EventName.fromString newEvent.eventName |> Result.toMaybe)
@@ -451,6 +456,49 @@ view currentTime timezone owner group maybeLoggedIn =
         ]
 
 
+intToMonth : Int -> Maybe Time.Month
+intToMonth value =
+    case value of
+        1 ->
+            Just Time.Jan
+
+        2 ->
+            Just Time.Feb
+
+        3 ->
+            Just Time.Mar
+
+        4 ->
+            Just Time.Apr
+
+        5 ->
+            Just Time.May
+
+        6 ->
+            Just Time.Jun
+
+        7 ->
+            Just Time.Jul
+
+        8 ->
+            Just Time.Aug
+
+        9 ->
+            Just Time.Sep
+
+        10 ->
+            Just Time.Oct
+
+        11 ->
+            Just Time.Nov
+
+        12 ->
+            Just Time.Dec
+
+        _ ->
+            Nothing
+
+
 timestamp : Time.Posix -> Time.Zone -> String
 timestamp time timezone =
     let
@@ -507,7 +555,7 @@ type EventType
 newEventView : Time.Posix -> Time.Zone -> NewEvent -> Element Msg
 newEventView currentTime timezone event =
     Element.column
-        [ Element.width Element.fill ]
+        [ Element.width Element.fill, Element.spacing 8 ]
         [ Ui.textInput
             (\text -> ChangedNewEvent { event | eventName = text })
             event.eventName
@@ -555,7 +603,7 @@ newEventView currentTime timezone event =
                     (\text -> ChangedNewEvent { event | meetOnlineLink = text })
                     event.meetOnlineLink
                     "Meeting url (you can add this later)"
-                    (case ( event.pressedSubmit, validateLink event.meetOnlineLink |> Debug.log "a" ) of
+                    (case ( event.pressedSubmit, validateLink event.meetOnlineLink ) of
                         ( True, Err error ) ->
                             Just error
 
@@ -578,27 +626,7 @@ newEventView currentTime timezone event =
 
             Nothing ->
                 Element.none
-        , Element.column
-            [ Element.spacing 4 ]
-            [ Element.text "Start date"
-            , Element.html <|
-                Html.input
-                    [ Html.Attributes.type_ "date"
-                    , Html.Attributes.min (timestamp currentTime timezone)
-                    , Html.Events.onInput (\text -> ChangedNewEvent { event | startDate = Debug.log "date" text })
-                    ]
-                    []
-            ]
-        , Element.column
-            [ Element.spacing 4 ]
-            [ Element.text "Start time"
-            , Element.html <|
-                Html.input
-                    [ Html.Attributes.type_ "time"
-                    , Html.Events.onInput (\text -> ChangedNewEvent { event | startTime = Debug.log "time" text })
-                    ]
-                    []
-            ]
+        , dateTimeInput currentTime timezone event
         , Element.column
             [ Element.spacing 4 ]
             [ Element.text "How many hours long is it?"
@@ -621,6 +649,44 @@ newEventView currentTime timezone event =
         ]
 
 
+dateTimeInput : Time.Posix -> Time.Zone -> NewEvent -> Element Msg
+dateTimeInput currentTime timezone event =
+    Element.column [ Element.spacing 4 ]
+        [ Element.row [ Element.spacing 8 ]
+            [ Element.column
+                [ Element.spacing 4 ]
+                [ Element.text "Start date"
+                , Element.html <|
+                    Html.input
+                        [ Html.Attributes.type_ "date"
+                        , Html.Attributes.min (timestamp currentTime timezone)
+                        , Html.Events.onInput (\text -> ChangedNewEvent { event | startDate = text })
+                        ]
+                        []
+                ]
+            , Element.column
+                [ Element.spacing 4 ]
+                [ Element.text "Start time"
+                , Element.html <|
+                    Html.input
+                        [ Html.Attributes.type_ "time"
+                        , Html.Events.onInput (\text -> ChangedNewEvent { event | startTime = text })
+                        ]
+                        []
+                ]
+            ]
+        , (case ( event.pressedSubmit, validateDateTime currentTime timezone event.startDate event.startTime ) of
+            ( True, Err error ) ->
+                Just error
+
+            _ ->
+                Nothing
+          )
+            |> Maybe.map Ui.error
+            |> Maybe.withDefault Element.none
+        ]
+
+
 validateDuration : String -> Result String EventDuration
 validateDuration text =
     case String.toFloat text of
@@ -636,21 +702,38 @@ validateDuration text =
             Err "Invalid input. Write something like 1 or 2.5"
 
 
-
---time: "22:00" 0-1234:259:10
---date: "2021-05-31"
-
-
-validateDateTime : Time.Zone -> String -> String -> Result String Time.Posix
-validateDateTime timezone date time =
+validateDateTime : Time.Posix -> Time.Zone -> String -> String -> Result String Time.Posix
+validateDateTime currentTime timezone date time =
     case String.split "-" date |> List.map String.toInt of
-        [ Just year, Just month, Just day ] ->
-            case String.split ":" time |> List.map String.toInt of
-                [ Just hour, Just minute ] ->
-                    Err ""
+        [ Just year, Just monthInt, Just day ] ->
+            case intToMonth monthInt of
+                Just month ->
+                    case String.split ":" time |> List.map String.toInt of
+                        [ Just hour, Just minute ] ->
+                            let
+                                timePosix =
+                                    Time.partsToPosix
+                                        timezone
+                                        { year = year
+                                        , month = month
+                                        , day = day
+                                        , hour = hour
+                                        , minute = minute
+                                        , second = 0
+                                        , millisecond = 0
+                                        }
+                            in
+                            if Duration.from currentTime timePosix |> Quantity.lessThanZero then
+                                Err "The event can't start in the past"
 
-                _ ->
-                    Err "Invalid time format. Expected something like 22:59"
+                            else
+                                Ok timePosix
+
+                        _ ->
+                            Err "Invalid time format. Expected something like 22:59"
+
+                Nothing ->
+                    Err "Invalid date format. Expected something like 2020-01-31"
 
         _ ->
             Err "Invalid date format. Expected something like 2020-01-31"
