@@ -196,12 +196,12 @@ formView maybeSubmitError isSubmitting form =
             )
         , Ui.radioGroup
             (\a -> FormChanged { form | visibility = Just a })
-            (Nonempty PublicGroup [ PrivateGroup ])
+            (Nonempty PublicGroup [ UnlistedGroup ])
             form.visibility
             (\visibility ->
                 case visibility of
-                    PrivateGroup ->
-                        "I want this group to be private"
+                    UnlistedGroup ->
+                        "I want this group to be unlisted (people can only find it if you link it to them)"
 
                     PublicGroup ->
                         "I want this group to be publicly visible"

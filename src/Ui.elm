@@ -1,4 +1,4 @@
-module Ui exposing (button, css, dangerButton, emailAddressText, error, filler, formError, headerButton, headerLink, inputBackground, inputFocusClass, linkColor, multiline, onEnter, radioGroup, routeLink, section, submitButton, textInput, title, titleFontSize)
+module Ui exposing (button, css, dangerButton, emailAddressText, error, filler, formError, headerButton, headerLink, hr, inputBackground, inputFocusClass, linkColor, multiline, onEnter, radioGroup, routeLink, section, submitButton, textInput, title, titleFontSize)
 
 import Element exposing (Element)
 import Element.Background
@@ -176,6 +176,19 @@ titleFontSize =
 title : String -> Element msg
 title text =
     Element.paragraph [ titleFontSize, Element.Region.heading 1 ] [ Element.text text ]
+
+
+hr : Element msg
+hr =
+    Element.el
+        [ Element.padding 8, Element.width Element.fill ]
+        (Element.el
+            [ Element.width Element.fill
+            , Element.height (Element.px 2)
+            , Element.Background.color <| Element.rgb 0.4 0.4 0.4
+            ]
+            Element.none
+        )
 
 
 error : String -> Element msg

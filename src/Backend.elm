@@ -9,7 +9,7 @@ import BiDict.Assoc as BiDict
 import CreateGroupForm exposing (CreateGroupError(..))
 import Description exposing (Description)
 import Duration
-import Event
+import Event exposing (Event)
 import Group exposing (Group, GroupVisibility)
 import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError(..))
@@ -127,10 +127,29 @@ updateFromRequest sessionId clientId msg model =
             ( model
             , (case getGroup groupId model of
                 Just group ->
-                    GroupFound group
+                    case getUserFromSessionId sessionId model of
+                        Just ( userId, user ) ->
+                            GroupFound_
+                                group
+                                (if userId == Group.ownerId group then
+                                    Dict.empty
+
+                                 else
+                                    Dict.singleton (Group.ownerId group) (userToFrontend user)
+                                )
+
+                        Nothing ->
+                            GroupFound_ group
+                                (case getUser (Group.ownerId group) model of
+                                    Just user ->
+                                        Dict.singleton (Group.ownerId group) (userToFrontend user)
+
+                                    Nothing ->
+                                        Dict.empty
+                                )
 
                 Nothing ->
-                    GroupNotFoundOrIsPrivate
+                    GroupNotFound_
               )
                 |> GetGroupResponse groupId
                 |> BackendEffect.sendToFrontend clientId
@@ -335,6 +354,7 @@ updateFromRequest sessionId clientId msg model =
             if String.length searchText < 1000 then
                 ( model
                 , Dict.toList model.groups
+                    |> List.filter (Tuple.second >> Group.visibility >> (==) Group.PublicGroup)
                     |> SearchGroupsResponse searchText
                     |> BackendEffect.sendToFrontend clientId
                 )
@@ -416,6 +436,7 @@ updateFromRequest sessionId clientId msg model =
 
                             else
                                 let
+                                    newEvent : Event
                                     newEvent =
                                         Event.newEvent eventName description eventType startTime eventDuration
                                 in
@@ -659,3 +680,9 @@ getGroup groupId model =
 getUser : Id UserId -> BackendModel -> Maybe BackendUser
 getUser userId model =
     Dict.get userId model.users
+
+
+getUserFromSessionId : SessionId -> BackendModel -> Maybe ( Id UserId, BackendUser )
+getUserFromSessionId sessionId model =
+    BiDict.get sessionId model.sessions
+        |> Maybe.andThen (\userId -> getUser userId model |> Maybe.map (Tuple.pair userId))

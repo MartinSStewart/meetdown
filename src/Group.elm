@@ -20,7 +20,7 @@ type Group
 
 
 type GroupVisibility
-    = PrivateGroup
+    = UnlistedGroup
     | PublicGroup
 
 

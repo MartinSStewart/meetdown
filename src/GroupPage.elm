@@ -437,21 +437,49 @@ view currentTime timezone owner group maybeLoggedIn =
              else
                 Element.none
             )
-            (case Maybe.map Tuple.second maybeLoggedIn of
+            ((case Maybe.map Tuple.second maybeLoggedIn of
                 Just model ->
                     if model.addingNewEvent then
-                        newEventView currentTime timezone model.newEvent
+                        [ newEventView currentTime timezone model.newEvent ]
 
                     else
-                        Element.paragraph
-                            []
-                            [ Element.text "No more events have been planned yet." ]
+                        []
 
                 _ ->
-                    Element.paragraph
-                        []
-                        [ Element.text "No more events have been planned yet." ]
+                    []
+             )
+                ++ (case futureEvents of
+                        [] ->
+                            [ Element.paragraph
+                                []
+                                [ Element.text "No new events have been planned yet." ]
+                            ]
+
+                        _ ->
+                            List.map (futureEventView timezone) futureEvents
+                   )
+                |> List.intersperse Ui.hr
+                |> Element.column
+                    [ Element.width Element.fill, Element.spacing 8 ]
             )
+        ]
+
+
+futureEventView : Time.Zone -> Event -> Element msg
+futureEventView timezone event =
+    Element.column
+        [ Element.width Element.fill, Element.spacing 8 ]
+        [ Event.name event |> EventName.toString |> Element.text
+        , Event.description event |> Description.toString |> Element.text |> List.singleton |> Element.paragraph []
+        , Event.startTime event
+            |> datetimeToString (Just timezone)
+            |> Element.text
+        , case Event.eventType event of
+            Event.MeetInPerson _ ->
+                Element.paragraph [] [ Element.text "This is an in person event." ]
+
+            Event.MeetOnline _ ->
+                Element.paragraph [] [ Element.text "This is an online event." ]
         ]
 
 
@@ -681,14 +709,7 @@ dateTimeInput currentTime timezone event =
                 Ui.error error
 
             ( _, Ok datetime ) ->
-                monthToText datetime Time.utc
-                    ++ " "
-                    ++ dayToText datetime Time.utc
-                    ++ ", "
-                    ++ String.fromInt (Time.toHour Time.utc datetime)
-                    ++ ":"
-                    ++ String.padLeft 2 '0' (String.fromInt (Time.toMinute Time.utc datetime))
-                    ++ " (UTC)"
+                datetimeToString Nothing datetime
                     |> Element.text
                     |> List.singleton
                     |> Element.paragraph [ Element.Font.size 16 ]
@@ -696,6 +717,28 @@ dateTimeInput currentTime timezone event =
             ( False, Err _ ) ->
                 Element.none
         ]
+
+
+datetimeToString : Maybe Time.Zone -> Time.Posix -> String
+datetimeToString maybeTimezone datetime =
+    let
+        timezone =
+            Maybe.withDefault Time.utc maybeTimezone
+    in
+    monthToText datetime Time.utc
+        ++ " "
+        ++ dayToText datetime timezone
+        ++ ", "
+        ++ String.fromInt (Time.toHour timezone datetime)
+        ++ ":"
+        ++ String.padLeft 2 '0' (String.fromInt (Time.toMinute timezone datetime))
+        ++ (case maybeTimezone of
+                Just _ ->
+                    ""
+
+                Nothing ->
+                    " (UTC)"
+           )
 
 
 dayToText : Time.Posix -> Time.Zone -> String

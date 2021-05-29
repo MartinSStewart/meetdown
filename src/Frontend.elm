@@ -120,10 +120,13 @@ initLoadedFrontend navigationKey windowWidth windowHeight route maybeLoginToken 
             , windowWidth = windowWidth
             , windowHeight = windowHeight
             }
+
+        ( model2, cmd ) =
+            routeRequest route model
     in
-    ( model
+    ( model2
     , FrontendEffect.batch
-        [ FrontendEffect.batch [ FrontendEffect.sendToBackend login, routeRequest route model ]
+        [ FrontendEffect.batch [ FrontendEffect.sendToBackend login, cmd ]
         , FrontendEffect.navigationReplaceUrl navigationKey (Route.encode route)
         ]
     )
@@ -184,33 +187,35 @@ update msg model =
             updateLoaded msg loaded |> Tuple.mapFirst Loaded
 
 
-routeRequest : Route -> LoadedFrontend -> FrontendEffect
+routeRequest : Route -> LoadedFrontend -> ( LoadedFrontend, FrontendEffect )
 routeRequest route model =
     case route of
         MyGroupsRoute ->
-            FrontendEffect.sendToBackend GetMyGroupsRequest
+            ( model, FrontendEffect.sendToBackend GetMyGroupsRequest )
 
         GroupRoute groupId _ ->
             if Dict.member groupId model.cachedGroups then
-                FrontendEffect.none
+                ( model, FrontendEffect.none )
 
             else
-                FrontendEffect.sendToBackend (GetGroupRequest groupId)
+                ( { model | cachedGroups = Dict.insert groupId GroupRequestPending model.cachedGroups }
+                , FrontendEffect.sendToBackend (GetGroupRequest groupId)
+                )
 
         HomepageRoute ->
-            FrontendEffect.none
+            ( model, FrontendEffect.none )
 
         AdminRoute ->
-            FrontendEffect.none
+            ( model, FrontendEffect.none )
 
         CreateGroupRoute ->
-            FrontendEffect.none
+            ( model, FrontendEffect.none )
 
         MyProfileRoute ->
-            FrontendEffect.none
+            ( model, FrontendEffect.none )
 
         SearchGroupsRoute searchText ->
-            FrontendEffect.sendToBackend (SearchGroupsRequest searchText)
+            ( model, FrontendEffect.sendToBackend (SearchGroupsRequest searchText) )
 
 
 updateLoaded : FrontendMsg -> LoadedFrontend -> ( LoadedFrontend, FrontendEffect )
@@ -239,9 +244,7 @@ updateLoaded msg model =
                         |> Maybe.map Tuple.first
                         |> Maybe.withDefault HomepageRoute
             in
-            ( { model | route = route }
-            , routeRequest route model
-            )
+            routeRequest route { model | route = route }
 
         GotTime time ->
             ( { model | time = time }, FrontendEffect.none )
@@ -418,14 +421,32 @@ updateLoadedFromBackend : ToFrontend -> LoadedFrontend -> ( LoadedFrontend, Fron
 updateLoadedFromBackend msg model =
     case msg of
         GetGroupResponse groupId result ->
-            ( { model | cachedGroups = Dict.insert groupId result model.cachedGroups }
+            ( { model
+                | cachedGroups =
+                    Dict.insert groupId
+                        (case result of
+                            GroupFound_ group _ ->
+                                GroupFound group
+
+                            GroupNotFound_ ->
+                                GroupNotFound
+                        )
+                        model.cachedGroups
+                , cachedUsers =
+                    case result of
+                        GroupFound_ _ users ->
+                            Dict.union users model.cachedUsers
+
+                        GroupNotFound_ ->
+                            model.cachedUsers
+              }
             , case result of
-                GroupFound groupData ->
+                GroupFound_ groupData _ ->
                     FrontendEffect.navigationReplaceRoute
                         model.navigationKey
                         (GroupRoute groupId (Group.name groupData))
 
-                GroupNotFoundOrIsPrivate ->
+                GroupNotFound_ ->
                     FrontendEffect.none
             )
 
@@ -441,6 +462,7 @@ updateLoadedFromBackend msg model =
                                 , myGroups = Nothing
                                 , groupPage = GroupPage.init
                                 }
+                        , cachedUsers = Dict.insert userId (userToFrontend user) model.cachedUsers
                       }
                     , FrontendEffect.none
                     )
@@ -476,7 +498,8 @@ updateLoadedFromBackend msg model =
                     case result of
                         Ok ( groupId, groupData ) ->
                             ( { model
-                                | cachedGroups = Dict.insert groupId (GroupFound groupData) model.cachedGroups
+                                | cachedGroups =
+                                    Dict.insert groupId (GroupFound groupData) model.cachedGroups
                                 , groupForm = CreateGroupForm.init
                               }
                             , FrontendEffect.navigationReplaceRoute
@@ -570,8 +593,11 @@ updateLoadedFromBackend msg model =
                                     GroupFound group ->
                                         Group.withName groupName group |> GroupFound
 
-                                    GroupNotFoundOrIsPrivate ->
-                                        GroupNotFoundOrIsPrivate
+                                    GroupNotFound ->
+                                        GroupNotFound
+
+                                    GroupRequestPending ->
+                                        GroupRequestPending
                             )
                         )
                         model.cachedGroups
@@ -599,8 +625,11 @@ updateLoadedFromBackend msg model =
                                     GroupFound group ->
                                         Group.withDescription description group |> GroupFound
 
-                                    GroupNotFoundOrIsPrivate ->
-                                        GroupNotFoundOrIsPrivate
+                                    GroupNotFound ->
+                                        GroupNotFound
+
+                                    GroupRequestPending ->
+                                        GroupRequestPending
                             )
                         )
                         model.cachedGroups
@@ -628,10 +657,15 @@ updateLoadedFromBackend msg model =
                                     (\a ->
                                         case a of
                                             GroupFound group ->
-                                                Group.addEvent event group |> Result.withDefault group |> GroupFound
+                                                Group.addEvent event group
+                                                    |> Result.withDefault group
+                                                    |> GroupFound
 
-                                            GroupNotFoundOrIsPrivate ->
-                                                GroupNotFoundOrIsPrivate
+                                            GroupNotFound ->
+                                                GroupNotFound
+
+                                            GroupRequestPending ->
+                                                GroupRequestPending
                                     )
                                 )
                                 model.cachedGroups
@@ -739,19 +773,12 @@ loginRequiredPage model pageView =
 
 getCachedUser : Id UserId -> LoadedFrontend -> Maybe FrontendUser
 getCachedUser userId loadedFrontend =
-    case loadedFrontend.loginStatus of
-        LoggedIn loggedIn ->
-            if loggedIn.userId == userId then
-                Types.userToFrontend loggedIn.user |> Just
+    case Dict.get userId loadedFrontend.cachedUsers of
+        Just user ->
+            Just user
 
-            else
-                Dict.get userId loadedFrontend.cachedUsers
-
-        NotLoggedIn _ ->
-            Dict.get userId loadedFrontend.cachedUsers
-
-        LoginStatusPending ->
-            Dict.get userId loadedFrontend.cachedUsers
+        Nothing ->
+            Nothing
 
 
 viewPage : LoadedFrontend -> Element FrontendMsg
@@ -787,11 +814,14 @@ viewPage model =
                         Nothing ->
                             Element.text "Loading group"
 
-                Just GroupNotFoundOrIsPrivate ->
-                    Element.text "Group not found or it is private"
+                Just GroupNotFound ->
+                    Element.text "Group not found"
+
+                Just GroupRequestPending ->
+                    Element.text "Loading group"
 
                 Nothing ->
-                    Element.text "Loading group"
+                    Element.none
 
         AdminRoute ->
             loginRequiredPage
@@ -888,7 +918,10 @@ getGroupsFromIds groups model =
                             GroupFound groupFound ->
                                 Just ( groupId, groupFound )
 
-                            GroupNotFoundOrIsPrivate ->
+                            GroupNotFound ->
+                                Nothing
+
+                            GroupRequestPending ->
                                 Nothing
                     )
         )

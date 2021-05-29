@@ -55,7 +55,7 @@ type alias LoadedFrontend =
     { navigationKey : NavigationKey
     , loginStatus : LoginStatus
     , route : Route
-    , cachedGroups : Dict GroupId GroupRequest
+    , cachedGroups : Dict GroupId GroupCache
     , cachedUsers : Dict (Id UserId) FrontendUser
     , time : Time.Posix
     , timezone : Time.Zone
@@ -74,8 +74,14 @@ type alias LoadedFrontend =
 
 
 type GroupRequest
-    = GroupNotFoundOrIsPrivate
+    = GroupNotFound_
+    | GroupFound_ Group (Dict (Id UserId) FrontendUser)
+
+
+type GroupCache
+    = GroupNotFound
     | GroupFound Group
+    | GroupRequestPending
 
 
 type alias LoginForm =
