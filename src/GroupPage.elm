@@ -274,15 +274,15 @@ update effects config group userId msg model =
         ( model, effects.none )
 
 
-view : Time.Posix -> Time.Zone -> FrontendUser -> Group -> Maybe ( Id UserId, Model ) -> Element Msg
-view currentTime timezone owner group maybeLoggedIn =
+view : Time.Posix -> Time.Zone -> FrontendUser -> Group -> Model -> Maybe (Id UserId) -> Element Msg
+view currentTime timezone owner group model maybeUserId =
     let
         { pastEvents, futureEvents } =
             Group.events currentTime group
 
         isOwner =
-            case maybeLoggedIn of
-                Just ( userId, _ ) ->
+            case maybeUserId of
+                Just userId ->
                     Group.ownerId group == userId
 
                 Nothing ->
@@ -293,8 +293,8 @@ view currentTime timezone owner group maybeLoggedIn =
         [ Element.row
             [ Element.width Element.fill, Element.spacing 8 ]
             [ Element.column [ Element.alignTop, Element.width Element.fill, Element.spacing 4 ]
-                (case Maybe.map (Tuple.second >> .name) maybeLoggedIn of
-                    Just (Editting name) ->
+                (case model.name of
+                    Editting name ->
                         let
                             error : Maybe String
                             error =
@@ -325,7 +325,7 @@ view currentTime timezone owner group maybeLoggedIn =
                             ]
                         ]
 
-                    Just (Submitting name) ->
+                    Submitting name ->
                         [ Element.el
                             [ Ui.titleFontSize, Element.width <| Element.maximum 800 Element.fill ]
                             (textInput TypedName (GroupName.toString name) "Group name")
@@ -336,7 +336,7 @@ view currentTime timezone owner group maybeLoggedIn =
                             ]
                         ]
 
-                    _ ->
+                    Unchanged ->
                         [ group
                             |> Group.name
                             |> GroupName.toString
@@ -357,8 +357,8 @@ view currentTime timezone owner group maybeLoggedIn =
                     ]
                 )
             ]
-        , case Maybe.map (Tuple.second >> .description) maybeLoggedIn of
-            Just (Editting description) ->
+        , case model.description of
+            Editting description ->
                 let
                     error : Maybe String
                     error =
@@ -385,7 +385,7 @@ view currentTime timezone owner group maybeLoggedIn =
                         ]
                     )
 
-            Just (Submitting description) ->
+            Submitting description ->
                 section
                     False
                     "Description"
@@ -396,7 +396,7 @@ view currentTime timezone owner group maybeLoggedIn =
                     )
                     (multiline TypedDescription (Description.toString description) "")
 
-            _ ->
+            Unchanged ->
                 section
                     False
                     "Description"
@@ -419,34 +419,24 @@ view currentTime timezone owner group maybeLoggedIn =
             False
             "Next event"
             (if isOwner then
-                case maybeLoggedIn of
-                    Just ( _, model ) ->
-                        if model.addingNewEvent then
-                            Element.row
-                                [ Element.spacing 8 ]
-                                [ smallButton PressedCancelNewEvent "Cancel"
-                                , smallSubmitButton False { onPress = PressedCreateNewEvent, label = "Create new event" }
-                                ]
+                if model.addingNewEvent then
+                    Element.row
+                        [ Element.spacing 8 ]
+                        [ smallButton PressedCancelNewEvent "Cancel"
+                        , smallSubmitButton False { onPress = PressedCreateNewEvent, label = "Create new event" }
+                        ]
 
-                        else
-                            Element.el [] (smallButton PressedAddEvent "Add event")
-
-                    Nothing ->
-                        Element.none
+                else
+                    Element.el [] (smallButton PressedAddEvent "Add event")
 
              else
                 Element.none
             )
-            ((case Maybe.map Tuple.second maybeLoggedIn of
-                Just model ->
-                    if model.addingNewEvent then
-                        [ newEventView currentTime timezone model.newEvent ]
+            ((if model.addingNewEvent then
+                [ newEventView currentTime timezone model.newEvent ]
 
-                    else
-                        []
-
-                _ ->
-                    []
+              else
+                []
              )
                 ++ (case futureEvents of
                         [] ->

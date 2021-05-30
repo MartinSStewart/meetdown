@@ -86,12 +86,11 @@ type alias Form =
     }
 
 
-type alias CurrentValues a =
-    { a
-        | name : Name
-        , description : Description
-        , emailAddress : EmailAddress
-        , profileImage : ProfileImage
+type alias CurrentValues =
+    { name : Name
+    , description : Description
+    , emailAddress : EmailAddress
+    , profileImage : ProfileImage
     }
 
 
@@ -625,7 +624,7 @@ imageEditorView windowSize imageEdit =
 
 view :
     { b | windowWidth : Quantity Int Pixels, windowHeight : Quantity Int Pixels }
-    -> CurrentValues a
+    -> CurrentValues
     -> Model
     -> Element Msg
 view windowSize currentValues ({ form } as model) =

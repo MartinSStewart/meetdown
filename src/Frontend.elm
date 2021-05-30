@@ -119,6 +119,7 @@ initLoadedFrontend navigationKey windowWidth windowHeight route maybeLoginToken 
             , searchList = []
             , windowWidth = windowWidth
             , windowHeight = windowHeight
+            , groupPage = Dict.empty
             }
 
         ( model2, cmd ) =
@@ -382,11 +383,9 @@ updateLoaded msg model =
                                                 group
                                                 loggedIn.userId
                                                 groupPageMsg
-                                                loggedIn.groupPage
+                                                (Dict.get groupId model.groupPage |> Maybe.withDefault GroupPage.init)
                                     in
-                                    ( { model | loginStatus = LoggedIn { loggedIn | groupPage = newModel } }
-                                    , effects
-                                    )
+                                    ( { model | groupPage = Dict.insert groupId newModel model.groupPage }, effects )
 
                                 _ ->
                                     ( model, FrontendEffect.none )
@@ -457,10 +456,9 @@ updateLoadedFromBackend msg model =
                         | loginStatus =
                             LoggedIn
                                 { userId = userId
-                                , user = user
+                                , emailAddress = user.emailAddress
                                 , profileForm = ProfileForm.init
                                 , myGroups = Nothing
-                                , groupPage = GroupPage.init
                                 }
                         , cachedUsers = Dict.insert userId (userToFrontend user) model.cachedUsers
                       }
@@ -471,23 +469,25 @@ updateLoadedFromBackend msg model =
                     ( { model | hasLoginError = True }, FrontendEffect.none )
 
         CheckLoginResponse loginStatus ->
-            ( { model
-                | loginStatus =
-                    case loginStatus of
-                        Just ( userId, user ) ->
+            case loginStatus of
+                Just ( userId, user ) ->
+                    ( { model
+                        | loginStatus =
                             LoggedIn
                                 { userId = userId
-                                , user = user
+                                , emailAddress = user.emailAddress
                                 , profileForm = ProfileForm.init
                                 , myGroups = Nothing
-                                , groupPage = GroupPage.init
                                 }
+                        , cachedUsers = Dict.insert userId (userToFrontend user) model.cachedUsers
+                      }
+                    , FrontendEffect.none
+                    )
 
-                        Nothing ->
-                            NotLoggedIn { showLogin = False }
-              }
-            , FrontendEffect.none
-            )
+                Nothing ->
+                    ( { model | loginStatus = NotLoggedIn { showLogin = False } }
+                    , FrontendEffect.none
+                    )
 
         GetAdminDataResponse logs ->
             ( { model | logs = Just logs }, FrontendEffect.none )
@@ -522,13 +522,52 @@ updateLoadedFromBackend msg model =
             ( { model | loginStatus = NotLoggedIn { showLogin = False } }, FrontendEffect.none )
 
         ChangeNameResponse name ->
-            ( updateUser (\user -> { user | name = name }) model, FrontendEffect.none )
+            case model.loginStatus of
+                LoggedIn loggedIn ->
+                    ( { model
+                        | cachedUsers =
+                            Dict.update loggedIn.userId (Maybe.map (\a -> { a | name = name })) model.cachedUsers
+                      }
+                    , FrontendEffect.none
+                    )
+
+                LoginStatusPending ->
+                    ( model, FrontendEffect.none )
+
+                NotLoggedIn _ ->
+                    ( model, FrontendEffect.none )
 
         ChangeDescriptionResponse description ->
-            ( updateUser (\user -> { user | description = description }) model, FrontendEffect.none )
+            case model.loginStatus of
+                LoggedIn loggedIn ->
+                    ( { model
+                        | cachedUsers =
+                            Dict.update
+                                loggedIn.userId
+                                (Maybe.map (\a -> { a | description = description }))
+                                model.cachedUsers
+                      }
+                    , FrontendEffect.none
+                    )
+
+                LoginStatusPending ->
+                    ( model, FrontendEffect.none )
+
+                NotLoggedIn _ ->
+                    ( model, FrontendEffect.none )
 
         ChangeEmailAddressResponse emailAddress ->
-            ( updateUser (\user -> { user | emailAddress = emailAddress }) model, FrontendEffect.none )
+            case model.loginStatus of
+                LoggedIn loggedIn ->
+                    ( { model | loginStatus = LoggedIn { loggedIn | emailAddress = emailAddress } }
+                    , FrontendEffect.none
+                    )
+
+                LoginStatusPending ->
+                    ( model, FrontendEffect.none )
+
+                NotLoggedIn _ ->
+                    ( model, FrontendEffect.none )
 
         DeleteUserResponse result ->
             case result of
@@ -544,7 +583,23 @@ updateLoadedFromBackend msg model =
                     ( { model | accountDeletedResult = Just result }, FrontendEffect.none )
 
         ChangeProfileImageResponse profileImage ->
-            ( updateUser (\user -> { user | profileImage = profileImage }) model, FrontendEffect.none )
+            case model.loginStatus of
+                LoggedIn loggedIn ->
+                    ( { model
+                        | cachedUsers =
+                            Dict.update
+                                loggedIn.userId
+                                (Maybe.map (\a -> { a | profileImage = profileImage }))
+                                model.cachedUsers
+                      }
+                    , FrontendEffect.none
+                    )
+
+                LoginStatusPending ->
+                    ( model, FrontendEffect.none )
+
+                NotLoggedIn _ ->
+                    ( model, FrontendEffect.none )
 
         GetMyGroupsResponse myGroups ->
             ( case model.loginStatus of
@@ -601,16 +656,7 @@ updateLoadedFromBackend msg model =
                             )
                         )
                         model.cachedGroups
-                , loginStatus =
-                    case model.loginStatus of
-                        LoggedIn loggedIn ->
-                            LoggedIn { loggedIn | groupPage = GroupPage.savedName loggedIn.groupPage }
-
-                        LoginStatusPending ->
-                            model.loginStatus
-
-                        NotLoggedIn _ ->
-                            model.loginStatus
+                , groupPage = Dict.update groupId (Maybe.map GroupPage.savedName) model.groupPage
               }
             , FrontendEffect.none
             )
@@ -633,16 +679,7 @@ updateLoadedFromBackend msg model =
                             )
                         )
                         model.cachedGroups
-                , loginStatus =
-                    case model.loginStatus of
-                        LoggedIn loggedIn ->
-                            LoggedIn { loggedIn | groupPage = GroupPage.savedDescription loggedIn.groupPage }
-
-                        LoginStatusPending ->
-                            model.loginStatus
-
-                        NotLoggedIn _ ->
-                            model.loginStatus
+                , groupPage = Dict.update groupId (Maybe.map GroupPage.savedDescription) model.groupPage
               }
             , FrontendEffect.none
             )
@@ -672,32 +709,10 @@ updateLoadedFromBackend msg model =
 
                         Err _ ->
                             model.cachedGroups
-                , loginStatus =
-                    case model.loginStatus of
-                        LoggedIn loggedIn ->
-                            LoggedIn { loggedIn | groupPage = GroupPage.addedNewEvent result loggedIn.groupPage }
-
-                        LoginStatusPending ->
-                            model.loginStatus
-
-                        NotLoggedIn _ ->
-                            model.loginStatus
+                , groupPage = Dict.update groupId (Maybe.map (GroupPage.addedNewEvent result)) model.groupPage
               }
             , FrontendEffect.none
             )
-
-
-updateUser : (BackendUser -> BackendUser) -> LoadedFrontend -> LoadedFrontend
-updateUser updateFunc model =
-    case model.loginStatus of
-        LoggedIn loggedIn ->
-            { model | loginStatus = LoggedIn { loggedIn | user = updateFunc loggedIn.user } }
-
-        NotLoggedIn _ ->
-            model
-
-        LoginStatusPending ->
-            model
 
 
 view : FrontendModel -> Browser.Document FrontendMsg
@@ -799,9 +814,10 @@ viewPage model =
                                 model.timezone
                                 owner
                                 group
+                                (Dict.get groupId model.groupPage |> Maybe.withDefault GroupPage.init)
                                 (case model.loginStatus of
                                     LoggedIn loggedIn ->
-                                        Just ( loggedIn.userId, loggedIn.groupPage )
+                                        Just loggedIn.userId
 
                                     NotLoggedIn _ ->
                                         Nothing
@@ -812,7 +828,7 @@ viewPage model =
                                 |> Element.map GroupPageMsg
 
                         Nothing ->
-                            Element.text "Loading group"
+                            Element.text "Error loading group owner"
 
                 Just GroupNotFound ->
                     Element.text "Group not found"
@@ -847,12 +863,24 @@ viewPage model =
             loginRequiredPage
                 model
                 (\loggedIn ->
-                    ProfileForm.view model loggedIn.user loggedIn.profileForm
-                        |> Element.el
-                            [ Element.width <| Element.maximum 800 Element.fill
-                            , Element.centerX
-                            ]
-                        |> Element.map ProfileFormMsg
+                    case Dict.get loggedIn.userId model.cachedUsers of
+                        Just user ->
+                            ProfileForm.view
+                                model
+                                { name = user.name
+                                , description = user.description
+                                , emailAddress = loggedIn.emailAddress
+                                , profileImage = user.profileImage
+                                }
+                                loggedIn.profileForm
+                                |> Element.el
+                                    [ Element.width <| Element.maximum 800 Element.fill
+                                    , Element.centerX
+                                    ]
+                                |> Element.map ProfileFormMsg
+
+                        Nothing ->
+                            Element.text "Failed to find user"
                 )
 
         SearchGroupsRoute searchText ->

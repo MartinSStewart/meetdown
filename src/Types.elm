@@ -70,6 +70,7 @@ type alias LoadedFrontend =
     , searchList : List GroupId
     , windowWidth : Quantity Int Pixels
     , windowHeight : Quantity Int Pixels
+    , groupPage : Dict GroupId GroupPage.Model
     }
 
 
@@ -99,10 +100,9 @@ type LoginStatus
 
 type alias LoggedIn_ =
     { userId : Id UserId
-    , user : BackendUser
+    , emailAddress : EmailAddress
     , profileForm : ProfileForm.Model
     , myGroups : Maybe (Set GroupId)
-    , groupPage : GroupPage.Model
     }
 
 
@@ -219,6 +219,7 @@ type alias BackendUser =
 userToFrontend : BackendUser -> FrontendUser
 userToFrontend backendUser =
     { name = backendUser.name
+    , description = backendUser.description
     , profileImage = backendUser.profileImage
     }
 
