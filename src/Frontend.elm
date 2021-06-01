@@ -159,11 +159,7 @@ gotTimeZone result model =
         Ok ( _, timezone ) ->
             { model | timezone = Just timezone }
 
-        Err error ->
-            let
-                _ =
-                    Debug.log "timezone error" error
-            in
+        Err _ ->
             { model | timezone = Just Time.utc }
 
 
