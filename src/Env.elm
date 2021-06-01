@@ -5,7 +5,7 @@ import SendGrid
 
 sendGridApiKey_ : String
 sendGridApiKey_ =
-    ""
+    " "
 
 
 sendGridApiKey : SendGrid.ApiKey
