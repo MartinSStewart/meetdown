@@ -4,7 +4,6 @@ import Element exposing (Element)
 import Element.Border
 import Element.Input
 import EmailAddress exposing (EmailAddress)
-import FrontendEffect
 import Route exposing (Route)
 import Types exposing (FrontendMsg(..), LoginForm, ToBackendRequest(..))
 import Ui
@@ -91,16 +90,16 @@ validateEmail text =
                 Err "Invalid email address"
 
 
-submitForm : Route -> LoginForm -> ( LoginForm, FrontendEffect.FrontendEffect )
-submitForm route loginForm =
+submitForm : { a | none : cmd, sendToBackend : ToBackendRequest -> cmd } -> Route -> LoginForm -> ( LoginForm, cmd )
+submitForm cmds route loginForm =
     case validateEmail loginForm.email of
         Ok email ->
             ( { loginForm | emailSent = Just email }
-            , Untrusted.untrust email |> GetLoginTokenRequest route |> FrontendEffect.sendToBackend
+            , Untrusted.untrust email |> GetLoginTokenRequest route |> cmds.sendToBackend
             )
 
         Err _ ->
-            ( { loginForm | pressedSubmitEmail = True }, FrontendEffect.none )
+            ( { loginForm | pressedSubmitEmail = True }, cmds.none )
 
 
 typedEmail : String -> LoginForm -> LoginForm

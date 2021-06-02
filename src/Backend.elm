@@ -1,4 +1,4 @@
-module Backend exposing (app, init, subscriptions, update, updateFromFrontend)
+module Backend exposing (Effects, Subscriptions, app, createApp)
 
 import Array
 import AssocList as Dict exposing (Dict)
@@ -32,6 +32,25 @@ import Types exposing (..)
 import Untrusted
 
 
+type alias Effects cmd =
+    { batch : List cmd -> cmd
+    , none : cmd
+    , sendToFrontend : ClientId -> ToFrontend -> cmd
+    , sendToFrontends : List ClientId -> ToFrontend -> cmd
+    , sendLoginEmail : (Result SendGrid.Error () -> BackendMsg) -> EmailAddress -> Route -> Id LoginToken -> cmd
+    , sendDeleteUserEmail : (Result SendGrid.Error () -> BackendMsg) -> EmailAddress -> Id DeleteUserToken -> cmd
+    , getTime : (Time.Posix -> BackendMsg) -> cmd
+    }
+
+
+type alias Subscriptions sub =
+    { batch : List sub -> sub
+    , timeEvery : Duration -> (Time.Posix -> BackendMsg) -> sub
+    , onConnect : (SessionId -> ClientId -> BackendMsg) -> sub
+    , onDisconnect : (SessionId -> ClientId -> BackendMsg) -> sub
+    }
+
+
 app =
     Lamdera.backend (createApp allEffects allSubscriptions)
 
@@ -47,7 +66,7 @@ createApp :
         }
 createApp cmds subs =
     { init = init cmds
-    , update = \msg model -> update cmds msg model
+    , update = update cmds
     , updateFromFrontend =
         \sessionId clientId toBackend model ->
             updateFromFrontend
@@ -141,17 +160,6 @@ allEffects =
     }
 
 
-type alias Effects cmd =
-    { batch : List cmd -> cmd
-    , none : cmd
-    , sendToFrontend : ClientId -> ToFrontend -> cmd
-    , sendToFrontends : List ClientId -> ToFrontend -> cmd
-    , sendLoginEmail : (Result SendGrid.Error () -> BackendMsg) -> EmailAddress -> Route -> Id LoginToken -> cmd
-    , sendDeleteUserEmail : (Result SendGrid.Error () -> BackendMsg) -> EmailAddress -> Id DeleteUserToken -> cmd
-    , getTime : (Time.Posix -> BackendMsg) -> cmd
-    }
-
-
 allSubscriptions : Subscriptions (Sub BackendMsg)
 allSubscriptions =
     { batch = Sub.batch
@@ -164,14 +172,6 @@ allSubscriptions =
         \msg ->
             Lamdera.onDisconnect
                 (\sessionId clientId -> msg (Id.sessionIdFromString sessionId) (Id.clientIdFromString clientId))
-    }
-
-
-type alias Subscriptions sub =
-    { batch : List sub -> sub
-    , timeEvery : Duration -> (Time.Posix -> BackendMsg) -> sub
-    , onConnect : (SessionId -> ClientId -> BackendMsg) -> sub
-    , onDisconnect : (SessionId -> ClientId -> BackendMsg) -> sub
     }
 
 
