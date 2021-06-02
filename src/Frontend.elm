@@ -139,19 +139,11 @@ allEffects =
 
                 MockNavigationKey ->
                     Cmd.none
-    , navigationLoad =
-        Browser.Navigation.load
-    , getTime =
-        \msg ->
-            Time.now |> Task.perform msg
-    , wait =
-        \duration msg ->
-            Process.sleep (Duration.inMilliseconds duration) |> Task.perform (always msg)
-    , selectFile =
-        \mimeTypes msg ->
-            File.Select.file mimeTypes (MockFile.RealFile >> msg)
-    , copyToClipboard =
-        supermario_copy_to_clipboard_to_js
+    , navigationLoad = Browser.Navigation.load
+    , getTime = \msg -> Time.now |> Task.perform msg
+    , wait = \duration msg -> Process.sleep (Duration.inMilliseconds duration) |> Task.perform (always msg)
+    , selectFile = \mimeTypes msg -> File.Select.file mimeTypes (MockFile.RealFile >> msg)
+    , copyToClipboard = supermario_copy_to_clipboard_to_js
     , cropImage =
         \data ->
             martinsstewart_crop_image_to_js
@@ -172,9 +164,7 @@ allEffects =
 
                 MockFile.MockFile ->
                     Cmd.none
-    , getElement =
-        \msg elementId ->
-            Browser.Dom.getElement elementId |> Task.attempt msg
+    , getElement = \msg elementId -> Browser.Dom.getElement elementId |> Task.attempt msg
     , getWindowSize =
         \msg ->
             Browser.Dom.getViewport
@@ -182,9 +172,7 @@ allEffects =
                     (\{ scene } ->
                         msg (Pixels.pixels (round scene.width)) (Pixels.pixels (round scene.height))
                     )
-    , getTimeZone =
-        \msg ->
-            TimeZone.getZone |> Task.attempt msg
+    , getTimeZone = \msg -> TimeZone.getZone |> Task.attempt msg
     }
 
 

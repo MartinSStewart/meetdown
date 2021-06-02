@@ -2,15 +2,11 @@ module TestFramework exposing (..)
 
 import AssocList as Dict exposing (Dict)
 import Backend
-import BackendEffect exposing (BackendEffect)
-import BackendSub exposing (BackendSub)
 import Basics.Extra as Basics
 import Duration exposing (Duration)
 import Env
 import Expect exposing (Expectation)
 import Frontend
-import FrontendEffect exposing (FrontendEffect)
-import FrontendSub exposing (FrontendSub)
 import Id exposing (ClientId, SessionId)
 import Quantity
 import Time
@@ -74,11 +70,19 @@ startTime =
     Time.millisToPosix 0
 
 
+frontendApp =
+    Frontend.createApp frontendEffects frontendSubscriptions
+
+
+backendApp =
+    Backend.createApp frontendEffects frontendSubscriptions
+
+
 init : State
 init =
     let
         ( backend, effects ) =
-            Backend.init
+            backendApp.init
     in
     { backend = backend
     , pendingEffects = effects
@@ -86,7 +90,7 @@ init =
     , counter = 0
     , elapsedTime = Quantity.zero
     , toBackend = []
-    , timers = getBackendTimers startTime (Backend.subscriptions backend)
+    , timers = getBackendTimers startTime (backendApp.subscriptions backend)
     , testErrors = []
     }
 
@@ -150,16 +154,16 @@ connectFrontend url state =
             "sessionId " ++ String.fromInt (state.counter + 1) |> Id.sessionIdFromString
 
         ( frontend, effects ) =
-            Frontend.init url MockNavigationKey
+            frontendApp.init url MockNavigationKey
 
         subscriptions =
-            Frontend.subscriptions frontend
+            frontendApp.subscriptions frontend
 
         ( backend, backendEffects ) =
-            getClientConnectSubs (Backend.subscriptions state.backend)
+            getClientConnectSubs (backendApp.subscriptions state.backend)
                 |> List.foldl
                     (\msg ( newBackend, newEffects ) ->
-                        Backend.update (msg sessionId clientId) newBackend
+                        backendApp.update (msg sessionId clientId) newBackend
                             |> Tuple.mapSecond (\a -> BackendEffect.batch [ newEffects, a ])
                     )
                     ( state.backend, state.pendingEffects )
@@ -191,10 +195,10 @@ disconnectFrontend clientId state =
         Just frontend ->
             let
                 ( backend, effects ) =
-                    getClientDisconnectSubs (Backend.subscriptions state.backend)
+                    getClientDisconnectSubs (backendApp.subscriptions state.backend)
                         |> List.foldl
                             (\msg ( newBackend, newEffects ) ->
-                                Backend.update (msg frontend.sessionId clientId) newBackend
+                                backendApp.update (msg frontend.sessionId clientId) newBackend
                                     |> Tuple.mapSecond (\a -> BackendEffect.batch [ newEffects, a ])
                             )
                             ( state.backend, state.pendingEffects )
@@ -212,10 +216,10 @@ reconnectFrontend frontendState state =
             "clientId " ++ String.fromInt state.counter |> Id.clientIdFromString
 
         ( backend, effects ) =
-            getClientConnectSubs (Backend.subscriptions state.backend)
+            getClientConnectSubs (backendApp.subscriptions state.backend)
                 |> List.foldl
                     (\msg ( newBackend, newEffects ) ->
-                        Backend.update (msg frontendState.sessionId clientId) newBackend
+                        backendApp.update (msg frontendState.sessionId clientId) newBackend
                             |> Tuple.mapSecond (\a -> BackendEffect.batch [ newEffects, a ])
                     )
                     ( state.backend, state.pendingEffects )
@@ -248,7 +252,7 @@ runFrontendMsg clientId frontendMsg state =
                     (\frontend ->
                         let
                             ( model, effects ) =
-                                Frontend.update frontendMsg frontend.model
+                                frontendApp.update frontendMsg frontend.model
                         in
                         { frontend
                             | model = model
@@ -292,7 +296,7 @@ simulateStep state =
             getCompletedTimers state.timers
                 |> List.foldl
                     (\( _, { msg } ) ( backend, effects ) ->
-                        Backend.update
+                        backendApp.update
                             (msg (Duration.addTo startTime newTime))
                             backend
                             |> Tuple.mapSecond (\a -> BackendEffect.batch [ effects, a ])
@@ -311,7 +315,7 @@ simulateStep state =
                             getCompletedTimers frontend.timers
                                 |> List.foldl
                                     (\( _, { msg } ) ( frontendModel, effects ) ->
-                                        Frontend.update
+                                        frontendApp.update
                                             (msg (Duration.addTo startTime newTime))
                                             frontendModel
                                             |> Tuple.mapSecond (\a -> FrontendEffect.batch [ effects, a ])
@@ -375,7 +379,7 @@ runNetwork state =
                     --    _ =
                     --        Debug.log "updateFromFrontend" ( clientId, toBackendMsg )
                     --in
-                    Backend.updateFromFrontend sessionId clientId toBackendMsg model
+                    backendApp.updateFromFrontend sessionId clientId toBackendMsg model
                         |> Tuple.mapSecond (\a -> BackendEffect.batch [ effects2, a ])
                 )
                 ( state.backend, state.pendingEffects )
@@ -392,7 +396,7 @@ runNetwork state =
                                     --    _ =
                                     --        Debug.log "Frontend.updateFromBackend" ( clientId, msg )
                                     --in
-                                    Frontend.updateFromBackend msg model
+                                    frontendApp.updateFromBackend msg model
                                         |> Tuple.mapSecond (\a -> FrontendEffect.batch [ newEffects, a ])
                                 )
                                 ( frontend.model, frontend.pendingEffects )
@@ -472,7 +476,7 @@ handleUrlChange urlText clientId state =
                 Just frontend ->
                     let
                         ( model, effects ) =
-                            Frontend.update (UrlChanged url) frontend.model
+                            frontendApp.update (UrlChanged url) frontend.model
                     in
                     { state
                         | frontends =
@@ -530,6 +534,6 @@ runBackendEffects effect state =
         TimeNow msg ->
             let
                 ( model, effects ) =
-                    Backend.update (msg (Duration.addTo startTime state.elapsedTime)) state.backend
+                    backendApp.update (msg (Duration.addTo startTime state.elapsedTime)) state.backend
             in
             { state | backend = model, pendingEffects = BackendEffect.batch [ state.pendingEffects, effects ] }
