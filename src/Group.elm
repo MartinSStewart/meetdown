@@ -1,5 +1,7 @@
-module Group exposing (Group, GroupVisibility(..), addEvent, description, events, init, name, ownerId, totalEvents, visibility, withDescription, withName)
+module Group exposing (EventId, Group, GroupVisibility(..), addEvent, description, events, init, joinEvent, leaveEvent, name, ownerId, totalEvents, visibility, withDescription, withName)
 
+import AssocList as Dict exposing (Dict)
+import AssocSet as Set exposing (Set)
 import Description exposing (Description)
 import Duration
 import Event exposing (Event)
@@ -14,8 +16,9 @@ type Group
         { ownerId : Id UserId
         , name : GroupName
         , description : Description
-        , events : List Event
+        , events : Dict EventId Event
         , visibility : GroupVisibility
+        , eventCounter : Int
         }
 
 
@@ -24,14 +27,15 @@ type GroupVisibility
     | PublicGroup
 
 
-init : Id UserId -> GroupName -> Description -> List Event -> GroupVisibility -> Group
-init ownerId_ groupName description_ events_ groupVisibility_ =
+init : Id UserId -> GroupName -> Description -> GroupVisibility -> Group
+init ownerId_ groupName description_ groupVisibility_ =
     Group
         { ownerId = ownerId_
         , name = groupName
         , description = description_
-        , events = List.sortBy (Event.endTime >> Time.posixToMillis) events_
+        , events = Dict.empty
         , visibility = groupVisibility_
+        , eventCounter = 0
         }
 
 
@@ -65,29 +69,47 @@ visibility (Group a) =
     a.visibility
 
 
-addEvent : Event -> Group -> Result () Group
-addEvent event (Group a) =
-    if List.any (Event.overlaps event) a.events then
-        Err ()
+type EventId
+    = EventId Int
 
-    else
-        { a | events = event :: a.events |> List.sortBy (Event.endTime >> Time.posixToMillis) }
-            |> Group
-            |> Ok
+
+addEvent : Event -> Group -> Result (Set EventId) Group
+addEvent event (Group a) =
+    case Dict.toList a.events |> List.filter (Tuple.second >> Event.overlaps event) of
+        head :: rest ->
+            head :: rest |> List.map Tuple.first |> Set.fromList |> Err
+
+        [] ->
+            { a
+                | events = Dict.insert (EventId a.eventCounter) event a.events
+                , eventCounter = a.eventCounter + 1
+            }
+                |> Group
+                |> Ok
+
+
+joinEvent : Id UserId -> EventId -> Group -> Group
+joinEvent userId eventId (Group group) =
+    Group { group | events = Dict.update eventId (Maybe.map (Event.addAttendee userId)) group.events }
+
+
+leaveEvent : Id UserId -> EventId -> Group -> Group
+leaveEvent userId eventId (Group group) =
+    Group { group | events = Dict.update eventId (Maybe.map (Event.removeAttendee userId)) group.events }
 
 
 totalEvents : Group -> Int
 totalEvents (Group a) =
-    List.length a.events
+    Dict.size a.events
 
 
 {-| pastEvents and futureEvents are sorted so the head element is the event closest to the currentTime
 -}
-events : Time.Posix -> Group -> { pastEvents : List Event, futureEvents : List Event }
+events : Time.Posix -> Group -> { pastEvents : List ( EventId, Event ), futureEvents : List ( EventId, Event ) }
 events currentTime (Group a) =
-    a.events
+    Dict.toList a.events
         |> List.partition
-            (\event ->
+            (\( _, event ) ->
                 Duration.from currentTime (Event.endTime event) |> Quantity.lessThanZero
             )
         |> (\( past, future ) -> { pastEvents = List.reverse past, futureEvents = future })

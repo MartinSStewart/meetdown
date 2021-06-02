@@ -439,6 +439,7 @@ updateFromRequest sessionId clientId msg model =
                                     newEvent : Event
                                     newEvent =
                                         Event.newEvent eventName description eventType startTime eventDuration
+                                            |> Event.addAttendee userId
                                 in
                                 case Group.addEvent newEvent group of
                                     Ok newGroup ->
@@ -448,11 +449,11 @@ updateFromRequest sessionId clientId msg model =
                                             (CreateEventResponse groupId (Ok newEvent))
                                         )
 
-                                    Err () ->
+                                    Err overlappingEvents ->
                                         ( model
                                         , BackendEffect.sendToFrontend
                                             clientId
-                                            (CreateEventResponse groupId (Err EventOverlapsAnotherEvent))
+                                            (CreateEventResponse groupId (Err (EventOverlapsOtherEvents overlappingEvents)))
                                         )
                         )
 
@@ -460,6 +461,54 @@ updateFromRequest sessionId clientId msg model =
                     ( addLog (UntrustedCheckFailed model.time msg) model
                     , BackendEffect.none
                     )
+
+        JoinEventRequest groupId eventId ->
+            userAuthorization
+                sessionId
+                model
+                (\( userId, _ ) ->
+                    case getGroup groupId model of
+                        Just group ->
+                            ( { model
+                                | groups =
+                                    Dict.insert groupId (Group.joinEvent userId eventId group) model.groups
+                              }
+                            , BackendEffect.sendToFrontends
+                                (getClientIdsForUser userId model)
+                                (JoinEventResponse groupId eventId (Ok ()))
+                            )
+
+                        Nothing ->
+                            ( model
+                            , BackendEffect.sendToFrontend
+                                clientId
+                                (JoinEventResponse groupId eventId (Err ()))
+                            )
+                )
+
+        LeaveEventRequest groupId eventId ->
+            userAuthorization
+                sessionId
+                model
+                (\( userId, _ ) ->
+                    case getGroup groupId model of
+                        Just group ->
+                            ( { model
+                                | groups =
+                                    Dict.insert groupId (Group.leaveEvent userId eventId group) model.groups
+                              }
+                            , BackendEffect.sendToFrontends
+                                (getClientIdsForUser userId model)
+                                (LeaveEventResponse groupId eventId (Ok ()))
+                            )
+
+                        Nothing ->
+                            ( model
+                            , BackendEffect.sendToFrontend
+                                clientId
+                                (LeaveEventResponse groupId eventId (Err ()))
+                            )
+                )
 
 
 handleDeleteUserRequest : ClientId -> Maybe DeleteUserTokenData -> BackendModel -> ( BackendModel, BackendEffect )
@@ -594,7 +643,7 @@ addGroup clientId userId name description visibility model =
                 Id.groupIdFromInt model.groupIdCounter
 
             newGroup =
-                Group.init userId name description [] visibility
+                Group.init userId name description visibility
         in
         ( { model | groupIdCounter = model.groupIdCounter + 1, groups = Dict.insert groupId newGroup model.groups }
         , Ok ( groupId, newGroup ) |> CreateGroupResponse |> BackendEffect.sendToFrontend clientId

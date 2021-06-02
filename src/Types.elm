@@ -13,7 +13,7 @@ import Event exposing (Event, EventType)
 import EventDuration exposing (EventDuration)
 import EventName exposing (EventName)
 import FrontendUser exposing (FrontendUser)
-import Group exposing (Group, GroupVisibility)
+import Group exposing (EventId, Group, GroupVisibility)
 import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError)
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
@@ -266,6 +266,8 @@ type ToBackendRequest
     | ChangeGroupNameRequest GroupId (Untrusted GroupName)
     | ChangeGroupDescriptionRequest GroupId (Untrusted Description)
     | CreateEventRequest GroupId (Untrusted EventName) (Untrusted Description) (Untrusted EventType) Time.Posix (Untrusted EventDuration)
+    | JoinEventRequest GroupId EventId
+    | LeaveEventRequest GroupId EventId
 
 
 type BackendMsg
@@ -293,3 +295,5 @@ type ToFrontend
     | ChangeGroupNameResponse GroupId GroupName
     | ChangeGroupDescriptionResponse GroupId Description
     | CreateEventResponse GroupId (Result CreateEventError Event)
+    | JoinEventResponse GroupId EventId (Result () ())
+    | LeaveEventResponse GroupId EventId (Result () ())

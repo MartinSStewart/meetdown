@@ -1,4 +1,4 @@
-module Event exposing (Event, EventType(..), attendees, description, duration, endTime, eventType, isCancelled, name, newEvent, overlaps, startTime)
+module Event exposing (Event, EventType(..), addAttendee, attendees, cancel, description, duration, endTime, eventType, isCancelled, name, newEvent, overlaps, removeAttendee, startTime)
 
 import Address exposing (Address)
 import AssocSet as Set exposing (Set)
@@ -34,6 +34,16 @@ newEvent eventName description_ eventType_ startTime_ duration_ =
     , isCancelled = False
     }
         |> Event
+
+
+addAttendee : Id UserId -> Event -> Event
+addAttendee userId (Event event) =
+    Event { event | attendees = Set.insert userId event.attendees }
+
+
+removeAttendee : Id UserId -> Event -> Event
+removeAttendee userId (Event event) =
+    Event { event | attendees = Set.remove userId event.attendees }
 
 
 type EventType
@@ -74,6 +84,11 @@ duration (Event event) =
 isCancelled : Event -> Bool
 isCancelled (Event event) =
     event.isCancelled
+
+
+cancel : Event -> Event
+cancel (Event event) =
+    Event { event | isCancelled = True }
 
 
 endTime : Event -> Time.Posix

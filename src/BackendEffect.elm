@@ -74,8 +74,8 @@ toCmd backendEffect =
                 loginLink =
                     Env.domain ++ Route.encodeWithToken route (Route.LoginToken loginToken)
 
-                --_ =
-                --    Debug.log "login" loginLink
+                _ =
+                    Debug.log "login" loginLink
             in
             case EmailAddress.fromString "noreply@meetdown.com" of
                 Just sender ->
@@ -104,8 +104,8 @@ toCmd backendEffect =
                 deleteUserLink =
                     Env.domain ++ Route.encodeWithToken HomepageRoute (Route.DeleteUserToken deleteUserToken)
 
-                --_ =
-                --    Debug.log "delete user" deleteUserLink
+                _ =
+                    Debug.log "delete user" deleteUserLink
             in
             case EmailAddress.fromString "noreply@meetdown.com" of
                 Just sender ->

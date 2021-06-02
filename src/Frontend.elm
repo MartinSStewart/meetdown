@@ -358,41 +358,44 @@ updateLoaded msg model =
             ( model, FrontendEffect.navigationPushRoute model.navigationKey (SearchGroupsRoute model.searchBox) )
 
         GroupPageMsg groupPageMsg ->
-            case model.loginStatus of
-                LoggedIn loggedIn ->
-                    case model.route of
-                        GroupRoute groupId _ ->
-                            case Dict.get groupId model.cachedGroups of
-                                Just (GroupFound group) ->
-                                    let
-                                        ( newModel, effects ) =
-                                            GroupPage.update
-                                                { none = FrontendEffect.none
-                                                , changeName =
-                                                    ChangeGroupNameRequest groupId >> FrontendEffect.sendToBackend
-                                                , changeDescription =
-                                                    ChangeGroupDescriptionRequest groupId >> FrontendEffect.sendToBackend
-                                                , createEvent =
-                                                    \a b c d e -> CreateEventRequest groupId a b c d e |> FrontendEffect.sendToBackend
-                                                }
-                                                model
-                                                group
-                                                loggedIn.userId
-                                                groupPageMsg
-                                                (Dict.get groupId model.groupPage |> Maybe.withDefault GroupPage.init)
-                                    in
-                                    ( { model | groupPage = Dict.insert groupId newModel model.groupPage }, effects )
+            case model.route of
+                GroupRoute groupId _ ->
+                    case Dict.get groupId model.cachedGroups of
+                        Just (GroupFound group) ->
+                            let
+                                ( newModel, effects ) =
+                                    GroupPage.update
+                                        { none = FrontendEffect.none
+                                        , changeName =
+                                            ChangeGroupNameRequest groupId >> FrontendEffect.sendToBackend
+                                        , changeDescription =
+                                            ChangeGroupDescriptionRequest groupId >> FrontendEffect.sendToBackend
+                                        , createEvent =
+                                            \a b c d e -> CreateEventRequest groupId a b c d e |> FrontendEffect.sendToBackend
+                                        , leaveEvent = \eventId -> LeaveEventRequest groupId eventId |> FrontendEffect.sendToBackend
+                                        , joinEvent = \eventId -> JoinEventRequest groupId eventId |> FrontendEffect.sendToBackend
+                                        }
+                                        model
+                                        group
+                                        (case model.loginStatus of
+                                            LoggedIn loggedIn ->
+                                                Just loggedIn.userId
 
-                                _ ->
-                                    ( model, FrontendEffect.none )
+                                            LoginStatusPending ->
+                                                Nothing
+
+                                            NotLoggedIn _ ->
+                                                Nothing
+                                        )
+                                        groupPageMsg
+                                        (Dict.get groupId model.groupPage |> Maybe.withDefault GroupPage.init)
+                            in
+                            ( { model | groupPage = Dict.insert groupId newModel model.groupPage }, effects )
 
                         _ ->
                             ( model, FrontendEffect.none )
 
-                NotLoggedIn _ ->
-                    ( model, FrontendEffect.none )
-
-                LoginStatusPending ->
+                _ ->
                     ( model, FrontendEffect.none )
 
         GotWindowSize width height ->
@@ -707,6 +710,98 @@ updateLoadedFromBackend msg model =
                             model.cachedGroups
                 , groupPage = Dict.update groupId (Maybe.map (GroupPage.addedNewEvent result)) model.groupPage
               }
+            , FrontendEffect.none
+            )
+
+        JoinEventResponse groupId eventId result ->
+            ( case model.loginStatus of
+                LoggedIn loggedIn ->
+                    case result of
+                        Ok () ->
+                            { model
+                                | cachedGroups =
+                                    Dict.update groupId
+                                        (Maybe.map
+                                            (\a ->
+                                                case a of
+                                                    GroupFound group ->
+                                                        Group.joinEvent loggedIn.userId eventId group |> GroupFound
+
+                                                    GroupNotFound ->
+                                                        GroupNotFound
+
+                                                    GroupRequestPending ->
+                                                        GroupRequestPending
+                                            )
+                                        )
+                                        model.cachedGroups
+                                , groupPage =
+                                    Dict.update
+                                        groupId
+                                        (Maybe.map (GroupPage.joinOrLeaveResponse eventId result))
+                                        model.groupPage
+                            }
+
+                        Err () ->
+                            { model
+                                | groupPage =
+                                    Dict.update
+                                        groupId
+                                        (Maybe.map (GroupPage.joinOrLeaveResponse eventId result))
+                                        model.groupPage
+                            }
+
+                LoginStatusPending ->
+                    model
+
+                NotLoggedIn _ ->
+                    model
+            , FrontendEffect.none
+            )
+
+        LeaveEventResponse groupId eventId result ->
+            ( case model.loginStatus of
+                LoggedIn loggedIn ->
+                    case result of
+                        Ok () ->
+                            { model
+                                | cachedGroups =
+                                    Dict.update groupId
+                                        (Maybe.map
+                                            (\a ->
+                                                case a of
+                                                    GroupFound group ->
+                                                        Group.leaveEvent loggedIn.userId eventId group |> GroupFound
+
+                                                    GroupNotFound ->
+                                                        GroupNotFound
+
+                                                    GroupRequestPending ->
+                                                        GroupRequestPending
+                                            )
+                                        )
+                                        model.cachedGroups
+                                , groupPage =
+                                    Dict.update
+                                        groupId
+                                        (Maybe.map (GroupPage.joinOrLeaveResponse eventId result))
+                                        model.groupPage
+                            }
+
+                        Err () ->
+                            { model
+                                | groupPage =
+                                    Dict.update
+                                        groupId
+                                        (Maybe.map (GroupPage.joinOrLeaveResponse eventId result))
+                                        model.groupPage
+                            }
+
+                LoginStatusPending ->
+                    model
+
+                NotLoggedIn _ ->
+                    model
             , FrontendEffect.none
             )
 

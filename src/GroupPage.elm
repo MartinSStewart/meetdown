@@ -1,6 +1,8 @@
-module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, addedNewEvent, init, savedDescription, savedName, update, view)
+module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, addedNewEvent, init, joinOrLeaveResponse, savedDescription, savedName, update, view)
 
 import Address exposing (Address, Error(..))
+import AssocList as Dict exposing (Dict)
+import AssocSet as Set exposing (Set)
 import Description exposing (Description)
 import Duration
 import Element exposing (Element)
@@ -12,7 +14,7 @@ import Event exposing (Event, EventType)
 import EventDuration exposing (EventDuration)
 import EventName exposing (EventName)
 import FrontendUser exposing (FrontendUser)
-import Group exposing (Group)
+import Group exposing (EventId, Group)
 import GroupName exposing (GroupName)
 import Html
 import Html.Attributes
@@ -34,7 +36,13 @@ type alias Model =
     , description : Editable Description
     , addingNewEvent : Bool
     , newEvent : NewEvent
+    , pendingJoinOrLeave : Dict EventId EventJoinOrLeaveStatus
     }
+
+
+type EventJoinOrLeaveStatus
+    = JoinOrLeavePending
+    | JoinOrLeaveFailure
 
 
 type Editable validated
@@ -56,6 +64,8 @@ type Msg
     | ChangedNewEvent NewEvent
     | PressedCancelNewEvent
     | PressedCreateNewEvent
+    | PressedLeaveEvent EventId
+    | PressedJoinEvent EventId
 
 
 type alias Effects cmd =
@@ -69,6 +79,8 @@ type alias Effects cmd =
         -> Time.Posix
         -> Untrusted EventDuration
         -> cmd
+    , joinEvent : EventId -> cmd
+    , leaveEvent : EventId -> cmd
     }
 
 
@@ -92,6 +104,7 @@ init =
     , description = Unchanged
     , addingNewEvent = False
     , newEvent = initNewEvent
+    , pendingJoinOrLeave = Dict.empty
     }
 
 
@@ -132,7 +145,7 @@ savedDescription model =
 
 type CreateEventError
     = EventStartsInThePast
-    | EventOverlapsAnotherEvent
+    | EventOverlapsOtherEvents (Set EventId)
     | TooManyEvents
 
 
@@ -146,16 +159,31 @@ addedNewEvent result model =
             model
 
 
-update : Effects cmd -> { a | time : Time.Posix, timezone : Time.Zone } -> Group -> Id UserId -> Msg -> Model -> ( Model, cmd )
-update effects config group userId msg model =
-    if Group.ownerId group == userId then
-        case msg of
-            PressedEditName ->
+update :
+    Effects cmd
+    -> { a | time : Time.Posix, timezone : Time.Zone }
+    -> Group
+    -> Maybe (Id UserId)
+    -> Msg
+    -> Model
+    -> ( Model, cmd )
+update effects config group maybeUserId msg model =
+    let
+        isOwner =
+            Just (Group.ownerId group) == maybeUserId
+    in
+    case msg of
+        PressedEditName ->
+            if isOwner then
                 ( { model | name = Group.name group |> GroupName.toString |> Editting }
                 , effects.none
                 )
 
-            PressedSaveName ->
+            else
+                ( model, effects.none )
+
+        PressedSaveName ->
+            if isOwner then
                 case model.name of
                     Unchanged ->
                         ( model, effects.none )
@@ -173,10 +201,18 @@ update effects config group userId msg model =
                     Submitting _ ->
                         ( model, effects.none )
 
-            PressedResetName ->
+            else
+                ( model, effects.none )
+
+        PressedResetName ->
+            if isOwner then
                 ( { model | name = Unchanged }, effects.none )
 
-            TypedName name ->
+            else
+                ( model, effects.none )
+
+        TypedName name ->
+            if isOwner then
                 case model.name of
                     Editting _ ->
                         ( { model | name = Editting name }, effects.none )
@@ -184,12 +220,20 @@ update effects config group userId msg model =
                     _ ->
                         ( model, effects.none )
 
-            PressedEditDescription ->
+            else
+                ( model, effects.none )
+
+        PressedEditDescription ->
+            if isOwner then
                 ( { model | description = Group.description group |> Description.toString |> Editting }
                 , effects.none
                 )
 
-            PressedSaveDescription ->
+            else
+                ( model, effects.none )
+
+        PressedSaveDescription ->
+            if isOwner then
                 case model.description of
                     Unchanged ->
                         ( model, effects.none )
@@ -207,10 +251,18 @@ update effects config group userId msg model =
                     Submitting _ ->
                         ( model, effects.none )
 
-            PressedResetDescription ->
+            else
+                ( model, effects.none )
+
+        PressedResetDescription ->
+            if isOwner then
                 ( { model | description = Unchanged }, effects.none )
 
-            TypedDescription description ->
+            else
+                ( model, effects.none )
+
+        TypedDescription description ->
+            if isOwner then
                 case model.description of
                     Editting _ ->
                         ( { model | description = Editting description }, effects.none )
@@ -218,40 +270,56 @@ update effects config group userId msg model =
                     _ ->
                         ( model, effects.none )
 
-            PressedAddEvent ->
+            else
+                ( model, effects.none )
+
+        PressedAddEvent ->
+            if isOwner then
                 ( { model | addingNewEvent = True }, effects.none )
 
-            ChangedNewEvent newEvent ->
+            else
+                ( model, effects.none )
+
+        ChangedNewEvent newEvent ->
+            if isOwner then
                 ( { model | newEvent = newEvent }, effects.none )
 
-            PressedCancelNewEvent ->
+            else
+                ( model, effects.none )
+
+        PressedCancelNewEvent ->
+            if isOwner then
                 ( { model | addingNewEvent = False }, effects.none )
 
-            PressedCreateNewEvent ->
-                let
-                    newEvent =
-                        model.newEvent
+            else
+                ( model, effects.none )
 
-                    maybeEventType : Maybe Event.EventType
-                    maybeEventType =
-                        case newEvent.meetingType of
-                            Just MeetOnline ->
-                                validateLink newEvent.meetOnlineLink
-                                    |> Result.toMaybe
-                                    |> Maybe.map Event.MeetOnline
+        PressedCreateNewEvent ->
+            let
+                newEvent =
+                    model.newEvent
 
-                            Just MeetInPerson ->
-                                validateAddress newEvent.meetInPersonAddress
-                                    |> Result.toMaybe
-                                    |> Maybe.map Event.MeetInPerson
+                maybeEventType : Maybe Event.EventType
+                maybeEventType =
+                    case newEvent.meetingType of
+                        Just MeetOnline ->
+                            validateLink newEvent.meetOnlineLink
+                                |> Result.toMaybe
+                                |> Maybe.map Event.MeetOnline
 
-                            Nothing ->
-                                Nothing
+                        Just MeetInPerson ->
+                            validateAddress newEvent.meetInPersonAddress
+                                |> Result.toMaybe
+                                |> Maybe.map Event.MeetInPerson
 
-                    maybeStartTime =
-                        validateDateTime config.time config.timezone newEvent.startDate newEvent.startTime
-                            |> Result.toMaybe
-                in
+                        Nothing ->
+                            Nothing
+
+                maybeStartTime =
+                    validateDateTime config.time config.timezone newEvent.startDate newEvent.startTime
+                        |> Result.toMaybe
+            in
+            if isOwner then
                 Maybe.map5
                     (\name description eventType startTime duration ->
                         ( { model | newEvent = { newEvent | isSubmitting = True } }
@@ -270,8 +338,41 @@ update effects config group userId msg model =
                     (validateDuration newEvent.duration |> Result.toMaybe)
                     |> Maybe.withDefault ( { model | newEvent = { newEvent | pressedSubmit = True } }, effects.none )
 
-    else
-        ( model, effects.none )
+            else
+                ( model, effects.none )
+
+        PressedLeaveEvent eventId ->
+            case Dict.get eventId model.pendingJoinOrLeave |> Debug.log "leave" of
+                Just JoinOrLeavePending ->
+                    ( model, effects.none )
+
+                _ ->
+                    ( { model | pendingJoinOrLeave = Dict.insert eventId JoinOrLeavePending model.pendingJoinOrLeave }
+                    , effects.leaveEvent eventId
+                    )
+
+        PressedJoinEvent eventId ->
+            case Dict.get eventId model.pendingJoinOrLeave |> Debug.log "join" of
+                Just JoinOrLeavePending ->
+                    ( model, effects.none )
+
+                _ ->
+                    ( { model | pendingJoinOrLeave = Dict.insert eventId JoinOrLeavePending model.pendingJoinOrLeave }
+                    , effects.joinEvent eventId
+                    )
+
+
+joinOrLeaveResponse : EventId -> Result () () -> Model -> Model
+joinOrLeaveResponse eventId result model =
+    { model
+        | pendingJoinOrLeave =
+            case result of
+                Ok () ->
+                    Dict.remove eventId model.pendingJoinOrLeave
+
+                Err () ->
+                    Dict.insert eventId JoinOrLeaveFailure model.pendingJoinOrLeave
+    }
 
 
 view : Time.Posix -> Time.Zone -> FrontendUser -> Group -> Model -> Maybe (Id UserId) -> Element Msg
@@ -446,7 +547,7 @@ view currentTime timezone owner group model maybeUserId =
                             ]
 
                         _ ->
-                            List.map (futureEventView timezone) futureEvents
+                            List.map (futureEventView timezone maybeUserId model.pendingJoinOrLeave) futureEvents
                    )
                 |> List.intersperse Ui.hr
                 |> Element.column
@@ -455,21 +556,60 @@ view currentTime timezone owner group model maybeUserId =
         ]
 
 
-futureEventView : Time.Zone -> Event -> Element msg
-futureEventView timezone event =
+futureEventView : Time.Zone -> Maybe (Id UserId) -> Dict EventId EventJoinOrLeaveStatus -> ( EventId, Event ) -> Element Msg
+futureEventView timezone maybeUserId pendingJoinOrLeaveStatuses ( eventId, event ) =
+    let
+        isAttending =
+            maybeUserId |> Maybe.map (\userId -> Set.member userId (Event.attendees event)) |> Maybe.withDefault False
+
+        maybeJoinOrLeaveStatus : Maybe EventJoinOrLeaveStatus
+        maybeJoinOrLeaveStatus =
+            Dict.get eventId pendingJoinOrLeaveStatuses
+
+        attendeeCount =
+            Event.attendees event |> Set.size
+    in
     Element.column
-        [ Element.width Element.fill, Element.spacing 8 ]
-        [ Event.name event |> EventName.toString |> Element.text
+        [ Element.width Element.fill, Element.spacing 8, Element.paddingXY 16 0 ]
+        [ Event.name event |> EventName.toString |> Element.text |> List.singleton |> Element.paragraph [ Element.Font.bold ]
         , Event.description event |> Description.toString |> Element.text |> List.singleton |> Element.paragraph []
         , Event.startTime event
             |> datetimeToString (Just timezone)
             |> Element.text
         , case Event.eventType event of
             Event.MeetInPerson _ ->
-                Element.paragraph [] [ Element.text "This is an in person event." ]
+                Element.paragraph [] [ Element.text "This is an in person event 🤝" ]
 
             Event.MeetOnline _ ->
-                Element.paragraph [] [ Element.text "This is an online event." ]
+                Element.paragraph [] [ Element.text "This is an online event 💻" ]
+        , case attendeeCount of
+            0 ->
+                Element.text "No one plans on attending"
+
+            1 ->
+                Element.text "One person plans on attending"
+
+            _ ->
+                String.fromInt attendeeCount ++ " people plan on attending" |> Element.text
+        , if isAttending then
+            Ui.submitButton
+                (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
+                { onPress = PressedLeaveEvent eventId, label = "Leave event" }
+
+          else
+            Ui.submitButton
+                (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
+                { onPress = PressedJoinEvent eventId, label = "Join event" }
+        , case maybeJoinOrLeaveStatus of
+            Just JoinOrLeaveFailure ->
+                if isAttending then
+                    Ui.error "Failed to leave event"
+
+                else
+                    Ui.error "Failed to join event"
+
+            _ ->
+                Element.none
         ]
 
 
