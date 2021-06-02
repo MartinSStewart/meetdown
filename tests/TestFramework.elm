@@ -1,13 +1,21 @@
 module TestFramework exposing (..)
 
 import AssocList as Dict exposing (Dict)
-import AssocSet as Dict
 import Backend
+import BackendEffect exposing (BackendEffect)
+import BackendSub exposing (BackendSub)
+import Basics.Extra as Basics
 import Duration exposing (Duration)
+import Env
+import Expect exposing (Expectation)
 import Frontend
-import Quantity as Basics
+import FrontendEffect exposing (FrontendEffect)
+import FrontendSub exposing (FrontendSub)
+import Id exposing (ClientId, SessionId)
+import Quantity
 import Time
-import Types exposing (ClientId, FrontendMsg, NavigationKey(..), SessionId)
+import Types exposing (BackendModel, BackendMsg, FrontendModel, FrontendMsg, NavigationKey(..), ToBackend, ToFrontend)
+import Url exposing (Url)
 
 
 unsafeUrl : String -> Url
@@ -62,14 +70,18 @@ type alias FrontendState =
     }
 
 
+startTime =
+    Time.millisToPosix 0
+
+
 init : State
 init =
     let
-        backend =
+        ( backend, effects ) =
             Backend.init
     in
     { backend = backend
-    , pendingEffects = Batch []
+    , pendingEffects = effects
     , frontends = Dict.empty
     , counter = 0
     , elapsedTime = Quantity.zero
@@ -132,10 +144,10 @@ connectFrontend : Url -> State -> ( State, ClientId )
 connectFrontend url state =
     let
         clientId =
-            "clientId " ++ String.fromInt state.counter |> ClientId
+            "clientId " ++ String.fromInt state.counter |> Id.clientIdFromString
 
         sessionId =
-            "sessionId " ++ String.fromInt (state.counter + 1) |> SessionId
+            "sessionId " ++ String.fromInt (state.counter + 1) |> Id.sessionIdFromString
 
         ( frontend, effects ) =
             Frontend.init url MockNavigationKey
@@ -148,7 +160,7 @@ connectFrontend url state =
                 |> List.foldl
                     (\msg ( newBackend, newEffects ) ->
                         Backend.update (msg sessionId clientId) newBackend
-                            |> Tuple.mapSecond (\a -> Batch [ newEffects, a ])
+                            |> Tuple.mapSecond (\a -> BackendEffect.batch [ newEffects, a ])
                     )
                     ( state.backend, state.pendingEffects )
     in
@@ -183,7 +195,7 @@ disconnectFrontend clientId state =
                         |> List.foldl
                             (\msg ( newBackend, newEffects ) ->
                                 Backend.update (msg frontend.sessionId clientId) newBackend
-                                    |> Tuple.mapSecond (\a -> Batch [ newEffects, a ])
+                                    |> Tuple.mapSecond (\a -> BackendEffect.batch [ newEffects, a ])
                             )
                             ( state.backend, state.pendingEffects )
             in
@@ -197,14 +209,14 @@ reconnectFrontend : FrontendState -> State -> ( State, ClientId )
 reconnectFrontend frontendState state =
     let
         clientId =
-            "clientId " ++ String.fromInt state.counter |> ClientId
+            "clientId " ++ String.fromInt state.counter |> Id.clientIdFromString
 
         ( backend, effects ) =
             getClientConnectSubs (Backend.subscriptions state.backend)
                 |> List.foldl
                     (\msg ( newBackend, newEffects ) ->
                         Backend.update (msg frontendState.sessionId clientId) newBackend
-                            |> Tuple.mapSecond (\a -> Batch [ newEffects, a ])
+                            |> Tuple.mapSecond (\a -> BackendEffect.batch [ newEffects, a ])
                     )
                     ( state.backend, state.pendingEffects )
     in
@@ -240,7 +252,7 @@ runFrontendMsg clientId frontendMsg state =
                         in
                         { frontend
                             | model = model
-                            , pendingEffects = Batch_ [ frontend.pendingEffects, effects ]
+                            , pendingEffects = FrontendEffect.batch [ frontend.pendingEffects, effects ]
                         }
                     )
                 )
@@ -283,7 +295,7 @@ simulateStep state =
                         Backend.update
                             (msg (Duration.addTo startTime newTime))
                             backend
-                            |> Tuple.mapSecond (\a -> Batch [ effects, a ])
+                            |> Tuple.mapSecond (\a -> BackendEffect.batch [ effects, a ])
                     )
                     ( state.backend, state.pendingEffects )
     in
@@ -302,7 +314,7 @@ simulateStep state =
                                         Frontend.update
                                             (msg (Duration.addTo startTime newTime))
                                             frontendModel
-                                            |> Tuple.mapSecond (\a -> Batch_ [ effects, a ])
+                                            |> Tuple.mapSecond (\a -> FrontendEffect.batch [ effects, a ])
                                     )
                                     ( frontend.model, frontend.pendingEffects )
                     in
@@ -342,11 +354,11 @@ runEffects state =
                 state.frontends
     in
     { state4
-        | pendingEffects = flattenBackendEffect state4.pendingEffects |> Batch
+        | pendingEffects = flattenBackendEffect state4.pendingEffects |> BackendEffect.batch
         , frontends =
             Dict.map
                 (\_ frontend ->
-                    { frontend | pendingEffects = flattenFrontendEffect frontend.pendingEffects |> Batch_ }
+                    { frontend | pendingEffects = flattenFrontendEffect frontend.pendingEffects |> FrontendEffect.batch }
                 )
                 state4.frontends
     }
@@ -364,7 +376,7 @@ runNetwork state =
                     --        Debug.log "updateFromFrontend" ( clientId, toBackendMsg )
                     --in
                     Backend.updateFromFrontend sessionId clientId toBackendMsg model
-                        |> Tuple.mapSecond (\a -> Batch [ effects2, a ])
+                        |> Tuple.mapSecond (\a -> BackendEffect.batch [ effects2, a ])
                 )
                 ( state.backend, state.pendingEffects )
                 state.toBackend
@@ -381,14 +393,14 @@ runNetwork state =
                                     --        Debug.log "Frontend.updateFromBackend" ( clientId, msg )
                                     --in
                                     Frontend.updateFromBackend msg model
-                                        |> Tuple.mapSecond (\a -> Batch_ [ newEffects, a ])
+                                        |> Tuple.mapSecond (\a -> FrontendEffect.batch [ newEffects, a ])
                                 )
                                 ( frontend.model, frontend.pendingEffects )
                                 frontend.toFrontend
                     in
                     { frontend
                         | model = newModel
-                        , pendingEffects = Batch_ [ frontend.pendingEffects, newEffects2 ]
+                        , pendingEffects = FrontendEffect.batch [ frontend.pendingEffects, newEffects2 ]
                         , toFrontend = []
                     }
                 )
@@ -397,7 +409,7 @@ runNetwork state =
     { state
         | toBackend = []
         , backend = backendModel
-        , pendingEffects = flattenBackendEffect effects |> Batch
+        , pendingEffects = flattenBackendEffect effects |> BackendEffect.batch
         , frontends = frontends
     }
 
@@ -405,8 +417,8 @@ runNetwork state =
 clearEffects : State -> State
 clearEffects state =
     { state
-        | pendingEffects = Batch []
-        , frontends = Dict.map (\_ frontend -> { frontend | pendingEffects = Batch_ [] }) state.frontends
+        | pendingEffects = BackendEffect.none
+        , frontends = Dict.map (\_ frontend -> { frontend | pendingEffects = FrontendEffect.none }) state.frontends
     }
 
 
@@ -449,7 +461,7 @@ handleUrlChange urlText clientId state =
     let
         urlText_ =
             if String.startsWith "/" urlText then
-                Frontend.domain ++ urlText
+                Env.domain ++ urlText
 
             else
                 urlText
@@ -467,7 +479,7 @@ handleUrlChange urlText clientId state =
                             Dict.insert clientId
                                 { frontend
                                     | model = model
-                                    , pendingEffects = Batch_ [ frontend.pendingEffects, effects ]
+                                    , pendingEffects = FrontendEffect.batch [ frontend.pendingEffects, effects ]
                                     , url = url
                                 }
                                 state.frontends
@@ -520,4 +532,4 @@ runBackendEffects effect state =
                 ( model, effects ) =
                     Backend.update (msg (Duration.addTo startTime state.elapsedTime)) state.backend
             in
-            { state | backend = model, pendingEffects = Batch [ state.pendingEffects, effects ] }
+            { state | backend = model, pendingEffects = BackendEffect.batch [ state.pendingEffects, effects ] }

@@ -1,4 +1,4 @@
-module Backend exposing (app, init, update, updateFromFrontend)
+module Backend exposing (app, init, subscriptions, update, updateFromFrontend)
 
 import Array
 import AssocList as Dict exposing (Dict)

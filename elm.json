@@ -20,6 +20,7 @@
             "elm/parser": "1.1.0",
             "elm/time": "1.0.0",
             "elm/url": "1.0.0",
+            "elm-community/basics-extra": "4.1.0",
             "elm-community/list-extra": "8.3.0",
             "erlandsona/assoc-set": "1.1.0",
             "ianmackenzie/elm-units": "2.9.0",

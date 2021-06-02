@@ -1,9 +1,8 @@
-module Frontend exposing (app, init, update, updateFromBackend, view)
+module Frontend exposing (app, init, subscriptions, update, updateFromBackend, view)
 
 import AssocList as Dict
 import AssocSet as Set
 import Browser exposing (UrlRequest(..))
-import Browser.Events
 import CreateGroupForm
 import Description
 import Element exposing (Element)
@@ -13,6 +12,7 @@ import Element.Font
 import Element.Input
 import Element.Region
 import FrontendEffect exposing (FrontendEffect)
+import FrontendSub
 import FrontendUser exposing (FrontendUser)
 import Group exposing (Group)
 import GroupName
@@ -40,15 +40,17 @@ app =
         , onUrlChange = UrlChanged
         , update = \msg model -> update msg model |> Tuple.mapSecond FrontendEffect.toCmd
         , updateFromBackend = \msg model -> updateFromBackend msg model |> Tuple.mapSecond FrontendEffect.toCmd
-        , subscriptions =
-            \_ ->
-                Sub.batch
-                    [ FrontendEffect.martinsstewart_crop_image_from_js CroppedImage
-                    , Browser.Events.onResize
-                        (\width height -> GotWindowSize (Pixels.pixels width) (Pixels.pixels height))
-                    ]
+        , subscriptions = subscriptions >> FrontendSub.toSub
         , view = view
         }
+
+
+subscriptions : FrontendModel -> FrontendSub.FrontendSub
+subscriptions _ =
+    FrontendSub.batch
+        [ FrontendSub.cropImageFromJs CroppedImage
+        , FrontendSub.onResize GotWindowSize
+        ]
 
 
 init : Url -> NavigationKey -> ( FrontendModel, FrontendEffect )

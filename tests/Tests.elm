@@ -19,10 +19,6 @@ import Types exposing (BackendEffect(..), BackendModel, BackendMsg(..), BackendS
 import Url exposing (Url)
 
 
-startTime =
-    Time.millisToPosix 0
-
-
 suite : Test
 suite =
     describe "Q&A app tests"
