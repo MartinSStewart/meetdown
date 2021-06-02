@@ -3,7 +3,7 @@ module Env exposing (..)
 
 sendGridApiKey_ : String
 sendGridApiKey_ =
-    " "
+    ""
 
 
 adminUserId_ : String
