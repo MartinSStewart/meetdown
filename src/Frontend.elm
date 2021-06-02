@@ -1,4 +1,4 @@
-port module Frontend exposing (Effects, Subscriptions, app, createApp)
+port module Frontend exposing (CropImageData, Effects, Subscriptions, app, createApp)
 
 import AssocList as Dict
 import AssocSet as Set
@@ -186,14 +186,26 @@ allSubscriptions =
 
 
 app =
-    Lamdera.frontend (createApp allEffects allSubscriptions)
+    let
+        app_ =
+            createApp allEffects allSubscriptions
+    in
+    Lamdera.frontend
+        { init = \url navKey -> app_.init url (RealNavigationKey navKey)
+        , onUrlRequest = app_.onUrlRequest
+        , onUrlChange = app_.onUrlChange
+        , update = app_.update
+        , updateFromBackend = app_.updateFromBackend
+        , subscriptions = app_.subscriptions
+        , view = app_.view
+        }
 
 
 createApp :
     Effects cmd
     -> Subscriptions sub
     ->
-        { init : Url -> Browser.Navigation.Key -> ( FrontendModel, cmd )
+        { init : Url -> NavigationKey -> ( FrontendModel, cmd )
         , onUrlRequest : UrlRequest -> FrontendMsg
         , onUrlChange : Url -> FrontendMsg
         , update : FrontendMsg -> FrontendModel -> ( FrontendModel, cmd )
@@ -202,7 +214,7 @@ createApp :
         , view : FrontendModel -> Browser.Document FrontendMsg
         }
 createApp cmds subs =
-    { init = \url key -> init cmds url (RealNavigationKey key)
+    { init = \url key -> init cmds url key
     , onUrlRequest = UrlClicked
     , onUrlChange = UrlChanged
     , update = update cmds
