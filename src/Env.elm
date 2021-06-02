@@ -1,16 +1,9 @@
 module Env exposing (..)
 
-import SendGrid
-
 
 sendGridApiKey_ : String
 sendGridApiKey_ =
     " "
-
-
-sendGridApiKey : SendGrid.ApiKey
-sendGridApiKey =
-    SendGrid.apiKey sendGridApiKey_
 
 
 adminUserId_ : String

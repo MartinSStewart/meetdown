@@ -93,7 +93,7 @@ toCmd backendEffect =
                         , emailAddressOfSender = sender
                         , nameOfSender = "Meetdown"
                         }
-                        |> SendGrid.sendEmail msg Env.sendGridApiKey
+                        |> SendGrid.sendEmail msg sendGridApiKey
 
                 Nothing ->
                     Cmd.none
@@ -123,7 +123,12 @@ toCmd backendEffect =
                         , emailAddressOfSender = sender
                         , nameOfSender = "Meetdown"
                         }
-                        |> SendGrid.sendEmail msg Env.sendGridApiKey
+                        |> SendGrid.sendEmail msg sendGridApiKey
 
                 Nothing ->
                     Cmd.none
+
+
+sendGridApiKey : SendGrid.ApiKey
+sendGridApiKey =
+    SendGrid.apiKey Env.sendGridApiKey_
