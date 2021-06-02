@@ -28,7 +28,7 @@ import Untrusted
 
 app =
     Lamdera.backend
-        { init = init
+        { init = init |> Tuple.mapSecond BackendEffect.toCmd
         , update = \msg model -> update msg model |> Tuple.mapSecond BackendEffect.toCmd
         , updateFromFrontend =
             \sessionId clientId toBackend model ->
@@ -42,7 +42,7 @@ app =
         }
 
 
-init : ( BackendModel, Cmd BackendMsg )
+init : ( BackendModel, BackendEffect )
 init =
     ( { users = Dict.empty
       , groups = Dict.empty
@@ -55,7 +55,7 @@ init =
       , pendingLoginTokens = Dict.empty
       , pendingDeleteUserTokens = Dict.empty
       }
-    , Cmd.none
+    , BackendEffect.getTime BackendGotTime
     )
 
 

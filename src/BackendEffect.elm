@@ -1,4 +1,4 @@
-module BackendEffect exposing (BackendEffect, batch, none, sendDeleteUserEmail, sendLoginEmail, sendToFrontend, sendToFrontends, toCmd)
+module BackendEffect exposing (BackendEffect, batch, getTime, none, sendDeleteUserEmail, sendLoginEmail, sendToFrontend, sendToFrontends, toCmd)
 
 import Email.Html
 import Email.Html.Attributes
@@ -10,6 +10,8 @@ import List.Nonempty exposing (Nonempty)
 import Route exposing (Route(..))
 import SendGrid
 import String.Nonempty exposing (NonemptyString(..))
+import Task
+import Time
 import Types exposing (BackendMsg, ToFrontend)
 
 
@@ -18,6 +20,7 @@ type BackendEffect
     | SendToFrontend ClientId ToFrontend
     | SendLoginEmail (Result SendGrid.Error () -> BackendMsg) EmailAddress Route (Id LoginToken)
     | SendDeleteUserEmail (Result SendGrid.Error () -> BackendMsg) EmailAddress (Id DeleteUserToken)
+    | GetTime (Time.Posix -> BackendMsg)
 
 
 none : BackendEffect
@@ -57,6 +60,11 @@ sendDeleteUserEmail :
     -> BackendEffect
 sendDeleteUserEmail =
     SendDeleteUserEmail
+
+
+getTime : (Time.Posix -> BackendMsg) -> BackendEffect
+getTime =
+    GetTime
 
 
 toCmd : BackendEffect -> Cmd BackendMsg
@@ -127,6 +135,9 @@ toCmd backendEffect =
 
                 Nothing ->
                     Cmd.none
+
+        GetTime msg ->
+            Time.now |> Task.perform msg
 
 
 sendGridApiKey : SendGrid.ApiKey
