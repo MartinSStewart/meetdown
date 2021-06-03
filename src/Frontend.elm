@@ -162,7 +162,7 @@ allEffects =
                 MockFile.RealFile realFile ->
                     File.toUrl realFile |> Task.perform msg
 
-                MockFile.MockFile ->
+                MockFile.MockFile _ ->
                     Cmd.none
     , getElement = \msg elementId -> Browser.Dom.getElement elementId |> Task.attempt msg
     , getWindowSize =

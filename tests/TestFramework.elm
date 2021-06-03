@@ -1,4 +1,4 @@
-module TestFramework exposing (..)
+module TestFramework exposing (State, checkState, connectFrontend, disconnectFrontend, fastForward, finishSimulation, init, reconnectFrontend, runEffects, runFrontendMsg, simulateStep, simulateTime, unsafeUrl)
 
 import AssocList as Dict exposing (Dict)
 import Backend
@@ -6,13 +6,17 @@ import BackendEffects exposing (BackendEffect)
 import BackendSub exposing (BackendSub)
 import Basics.Extra as Basics
 import Duration exposing (Duration)
+import EmailAddress exposing (EmailAddress)
 import Env
 import Expect exposing (Expectation)
 import Frontend
 import FrontendEffects exposing (FrontendEffect)
 import FrontendSub exposing (FrontendSub)
-import Id exposing (ClientId, SessionId)
+import Id exposing (ClientId, DeleteUserToken, Id, LoginToken, SessionId)
+import MockFile exposing (File(..))
+import Pixels
 import Quantity
+import Route exposing (Route)
 import Time
 import Types exposing (BackendModel, BackendMsg, FrontendModel, FrontendMsg, NavigationKey(..), ToBackend, ToFrontend)
 import Url exposing (Url)
@@ -37,7 +41,13 @@ type alias State =
     , toBackend : List ( SessionId, ClientId, ToBackend )
     , timers : Dict Duration { msg : Time.Posix -> BackendMsg, startTime : Time.Posix }
     , testErrors : List String
+    , emailInboxes : List ( EmailAddress, EmailType )
     }
+
+
+type EmailType
+    = LoginEmail Route (Id LoginToken)
+    | DeleteAccountEmail (Id DeleteUserToken)
 
 
 checkState : (State -> Maybe String) -> State -> State
@@ -96,6 +106,7 @@ init =
     , toBackend = []
     , timers = getBackendTimers startTime (backendApp.subscriptions backend)
     , testErrors = []
+    , emailInboxes = []
     }
 
 
@@ -436,35 +447,139 @@ clearEffects state =
 runFrontendEffects : SessionId -> ClientId -> FrontendEffect -> State -> State
 runFrontendEffects sessionId clientId effect state =
     case effect of
-        Batch_ effects ->
+        FrontendEffects.Batch effects ->
             List.foldl (runFrontendEffects sessionId clientId) state effects
 
-        SendToBackend toBackend ->
+        FrontendEffects.SendToBackend toBackend ->
             { state | toBackend = state.toBackend ++ [ ( sessionId, clientId, toBackend ) ] }
 
-        PushUrl _ urlText ->
+        FrontendEffects.NavigationPushUrl _ urlText ->
             handleUrlChange urlText clientId state
 
-        ReplaceUrl _ urlText ->
+        FrontendEffects.NavigationReplaceUrl _ urlText ->
             handleUrlChange urlText clientId state
 
-        LoadUrl urlText ->
+        FrontendEffects.NavigationLoad urlText ->
             handleUrlChange urlText clientId state
 
-        FileDownload _ _ _ ->
+        FrontendEffects.None ->
             state
 
-        CopyToClipboard text ->
-            { state
-                | frontends =
-                    Dict.update clientId (Maybe.map (\frontend -> { frontend | clipboard = text })) state.frontends
-            }
+        FrontendEffects.GetTime msg ->
+            case Dict.get clientId state.frontends of
+                Just frontend ->
+                    let
+                        ( model, effects ) =
+                            frontendApp.update (msg (Duration.addTo startTime state.elapsedTime)) frontend.model
+                    in
+                    { state
+                        | frontends =
+                            Dict.insert clientId
+                                { frontend
+                                    | model = model
+                                    , pendingEffects = FrontendEffects.Batch [ frontend.pendingEffects, effects ]
+                                }
+                                state.frontends
+                    }
 
-        ScrollToBottom _ ->
+                Nothing ->
+                    state
+
+        FrontendEffects.Wait duration msg ->
             state
 
-        Blur _ ->
+        FrontendEffects.SelectFile mimeTypes msg ->
             state
+
+        FrontendEffects.CopyToClipboard text ->
+            case Dict.get clientId state.frontends of
+                Just frontend ->
+                    { state | frontends = Dict.insert clientId { frontend | clipboard = text } state.frontends }
+
+                Nothing ->
+                    state
+
+        FrontendEffects.CropImage cropImageData ->
+            state
+
+        FrontendEffects.FileToUrl msg file ->
+            case file of
+                MockFile fileName ->
+                    case Dict.get clientId state.frontends of
+                        Just frontend ->
+                            let
+                                fileContent =
+                                    case fileName of
+                                        "profile.png" ->
+                                            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAABhWlDQ1BJQ0MgcHJvZmlsZQAAKJF9kT1Iw0AcxV9Ta0UqgnYQcchQnayIijhKFYtgobQVWnUwufRDaNKQpLg4Cq4FBz8Wqw4uzro6uAqC4AeIm5uToouU+L+k0CLGg+N+vLv3uHsHCPUyU82OcUDVLCMVj4nZ3IoYfEUn/OhDAGMSM/VEeiEDz/F1Dx9f76I8y/vcn6NHyZsM8InEs0w3LOJ14ulNS+e8TxxmJUkhPiceNeiCxI9cl11+41x0WOCZYSOTmiMOE4vFNpbbmJUMlXiKOKKoGuULWZcVzluc1XKVNe/JXxjKa8tprtMcQhyLSCAJETKq2EAZFqK0aqSYSNF+zMM/6PiT5JLJtQFGjnlUoEJy/OB/8LtbszA54SaFYkDgxbY/hoHgLtCo2fb3sW03TgD/M3CltfyVOjDzSXqtpUWOgN5t4OK6pcl7wOUOMPCkS4bkSH6aQqEAvJ/RN+WA/luge9XtrbmP0wcgQ10t3QAHh8BIkbLXPN7d1d7bv2ea/f0AT2FymQ2GVEYAAAAJcEhZcwAALiMAAC4jAXilP3YAAAAHdElNRQflBgMSBgvJgnPPAAAAGXRFWHRDb21tZW50AENyZWF0ZWQgd2l0aCBHSU1QV4EOFwAAAAxJREFUCNdjmH36PwAEagJmf/sZfAAAAABJRU5ErkJggg=="
+
+                                        _ ->
+                                            "uninteresting file"
+
+                                ( model, effects ) =
+                                    frontendApp.update (msg fileContent) frontend.model
+                            in
+                            { state
+                                | frontends =
+                                    Dict.insert clientId
+                                        { frontend
+                                            | model = model
+                                            , pendingEffects = FrontendEffects.Batch [ frontend.pendingEffects, effects ]
+                                        }
+                                        state.frontends
+                            }
+
+                        Nothing ->
+                            state
+
+                RealFile _ ->
+                    state
+
+        FrontendEffects.GetElement function string ->
+            state
+
+        FrontendEffects.GetWindowSize msg ->
+            case Dict.get clientId state.frontends of
+                Just frontend ->
+                    let
+                        ( model, effects ) =
+                            frontendApp.update (msg (Pixels.pixels 1920) (Pixels.pixels 1080)) frontend.model
+                    in
+                    { state
+                        | frontends =
+                            Dict.insert clientId
+                                { frontend
+                                    | model = model
+                                    , pendingEffects = FrontendEffects.Batch [ frontend.pendingEffects, effects ]
+                                }
+                                state.frontends
+                    }
+
+                Nothing ->
+                    state
+
+        FrontendEffects.GetTimeZone msg ->
+            case Dict.get clientId state.frontends of
+                Just frontend ->
+                    let
+                        timezone =
+                            Ok ( "utc", Time.utc )
+
+                        ( model, effects ) =
+                            frontendApp.update (msg timezone) frontend.model
+                    in
+                    { state
+                        | frontends =
+                            Dict.insert clientId
+                                { frontend
+                                    | model = model
+                                    , pendingEffects = FrontendEffects.Batch [ frontend.pendingEffects, effects ]
+                                }
+                                state.frontends
+                    }
+
+                Nothing ->
+                    state
 
 
 handleUrlChange : String -> ClientId -> State -> State
@@ -506,7 +621,7 @@ handleUrlChange urlText clientId state =
 flattenFrontendEffect : FrontendEffect -> List FrontendEffect
 flattenFrontendEffect effect =
     case effect of
-        Batch_ effects ->
+        FrontendEffects.Batch effects ->
             List.concatMap flattenFrontendEffect effects
 
         _ ->
@@ -516,7 +631,7 @@ flattenFrontendEffect effect =
 flattenBackendEffect : BackendEffect -> List BackendEffect
 flattenBackendEffect effect =
     case effect of
-        Batch effects ->
+        BackendEffects.Batch effects ->
             List.concatMap flattenBackendEffect effects
 
         _ ->
@@ -526,10 +641,10 @@ flattenBackendEffect effect =
 runBackendEffects : BackendEffect -> State -> State
 runBackendEffects effect state =
     case effect of
-        Batch effects ->
+        BackendEffects.Batch effects ->
             List.foldl runBackendEffects state effects
 
-        SendToFrontend clientId toFrontend ->
+        BackendEffects.SendToFrontend clientId toFrontend ->
             { state
                 | frontends =
                     Dict.update
@@ -538,9 +653,34 @@ runBackendEffects effect state =
                         state.frontends
             }
 
-        TimeNow msg ->
+        BackendEffects.GetTime msg ->
             let
                 ( model, effects ) =
                     backendApp.update (msg (Duration.addTo startTime state.elapsedTime)) state.backend
             in
             { state | backend = model, pendingEffects = BackendEffects.Batch [ state.pendingEffects, effects ] }
+
+        BackendEffects.None ->
+            state
+
+        BackendEffects.SendLoginEmail msg emailAddress route loginToken ->
+            let
+                ( model, effects ) =
+                    backendApp.update (msg (Ok ())) state.backend
+            in
+            { state
+                | backend = model
+                , pendingEffects = BackendEffects.Batch [ state.pendingEffects, effects ]
+                , emailInboxes = state.emailInboxes ++ [ ( emailAddress, LoginEmail route loginToken ) ]
+            }
+
+        BackendEffects.SendDeleteUserEmail msg emailAddress deleteToken ->
+            let
+                ( model, effects ) =
+                    backendApp.update (msg (Ok ())) state.backend
+            in
+            { state
+                | backend = model
+                , pendingEffects = BackendEffects.Batch [ state.pendingEffects, effects ]
+                , emailInboxes = state.emailInboxes ++ [ ( emailAddress, DeleteAccountEmail deleteToken ) ]
+            }

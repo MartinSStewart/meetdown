@@ -5,4 +5,4 @@ import File
 
 type File
     = RealFile File.File
-    | MockFile
+    | MockFile String

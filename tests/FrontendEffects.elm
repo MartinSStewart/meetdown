@@ -10,7 +10,7 @@ import Quantity exposing (Quantity)
 import Route
 import Time
 import TimeZone
-import Types exposing (FrontendMsg, NavigationKey, ToBackend)
+import Types exposing (FrontendMsg, NavigationKey, ToBackend(..))
 
 
 type FrontendEffect

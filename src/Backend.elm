@@ -52,7 +52,22 @@ type alias Subscriptions sub =
 
 
 app =
-    Lamdera.backend (createApp allEffects allSubscriptions)
+    let
+        app_ =
+            createApp allEffects allSubscriptions
+    in
+    Lamdera.backend
+        { init = app_.init
+        , update = app_.update
+        , updateFromFrontend =
+            \sessionId clientId toBackend model ->
+                app_.updateFromFrontend
+                    (Id.sessionIdFromString sessionId)
+                    (Id.clientIdFromString clientId)
+                    toBackend
+                    model
+        , subscriptions = app_.subscriptions
+        }
 
 
 createApp :
@@ -61,20 +76,13 @@ createApp :
     ->
         { init : ( BackendModel, cmd )
         , update : BackendMsg -> BackendModel -> ( BackendModel, cmd )
-        , updateFromFrontend : Lamdera.SessionId -> Lamdera.ClientId -> ToBackend -> BackendModel -> ( BackendModel, cmd )
+        , updateFromFrontend : Id.SessionId -> Id.ClientId -> ToBackend -> BackendModel -> ( BackendModel, cmd )
         , subscriptions : BackendModel -> sub
         }
 createApp cmds subs =
     { init = init cmds
     , update = update cmds
-    , updateFromFrontend =
-        \sessionId clientId toBackend model ->
-            updateFromFrontend
-                cmds
-                (Id.sessionIdFromString sessionId)
-                (Id.clientIdFromString clientId)
-                toBackend
-                model
+    , updateFromFrontend = updateFromFrontend cmds
     , subscriptions = subscriptions subs
     }
 
