@@ -199,7 +199,7 @@ suite =
                                         |> (\( state2, clientId3 ) ->
                                                 state2
                                                     |> TF.simulateTime Duration.second
-                                                    |> Debug.log "test"
+                                                    --|> Debug.log "test"
                                                     |> TF.checkLoadedFrontend
                                                         clientId3
                                                         (\frontend ->
@@ -223,49 +223,14 @@ suite =
                                     Debug.todo "Didn't find login email"
                        )
                     |> TF.finishSimulation
+
+        --, only <|
+        --    test "test" <|
+        --        \_ ->
+        --            TF.init
+        --                |> TF.connectFrontend (Id.sessionIdFromString "sessionId0") (TF.unsafeUrl Env.domain)
+        --                |> Tuple.first
+        --                |> TF.simulateStep
+        --                |> TF.simulateStep
+        --                |> TF.finishSimulation
         ]
-
-
-abc =
-    { backend = { connections = D [ ( SessionId "session1", Nonempty (ClientId "clientId 2") [] ), ( SessionId "session0", Nonempty (ClientId "clientId 1") [ ClientId "clientId 0" ] ) ], groupIdCounter = 0, groups = D [], logs = Array.fromList [ SendGridSendEmail (Posix 17) (Ok ()) (EmailAddress { domain = "a", localPart = "a", tags = [], tld = [ "se" ] }) ], pendingDeleteUserTokens = D [], pendingLoginTokens = D [], secretCounter = 2, sessions = BiDict { forward = D [ ( SessionId "session0", Id "4c603b6820b7935c59fe289d850b0f772221f1f80a4d8a9c7424c5448412a1ab" ) ], reverse = D [ ( Id "4c603b6820b7935c59fe289d850b0f772221f1f80a4d8a9c7424c5448412a1ab", Set (D [ ( SessionId "session0", () ) ]) ) ] }, time = Posix 17, users = D [ ( Id "4c603b6820b7935c59fe289d850b0f772221f1f80a4d8a9c7424c5448412a1ab", { description = Description "", emailAddress = EmailAddress { domain = "a", localPart = "a", tags = [], tld = [ "se" ] }, name = Name "Anonymous", profileImage = DefaultImage } ) ] }
-    , counter = 3
-    , elapsedTime = Quantity 5.999999999999984
-    , emailInboxes = [ ( EmailAddress { domain = "a", localPart = "a", tags = [], tld = [ "se" ] }, LoginEmail HomepageRoute (Id "71e63e426a6e8b910aa2b3c8c910cf8be113aae9d4b9a1a3fb7b43d2aa368823") ) ]
-    , frontends =
-        D
-            [ ( ClientId "clientId 2"
-              , { clipboard = ""
-                , model = Loaded { accountDeletedResult = Nothing, cachedGroups = D [], cachedUsers = D [], groupCreated = False, groupForm = Editting { description = "", name = "", pressedSubmit = False, visibility = Nothing }, groupPage = D [], hasLoginTokenError = True, lastConnectionCheck = Posix 5017, loginForm = { email = "", emailSent = Nothing, pressedSubmitEmail = False }, loginStatus = LoginStatusPending, logs = Nothing, navigationKey = MockNavigationKey, route = HomepageRoute, searchBox = "", searchList = [], time = Posix 5017, timezone = Zone 0 [], windowHeight = Quantity 1080, windowWidth = Quantity 1920 }
-                , pendingEffects = Batch [ Batch [ None ], Batch [ None ] ]
-                , sessionId = SessionId "session1"
-                , timers = D []
-                , toFrontend = []
-                , url = { fragment = Nothing, host = "localhost", path = "/", port_ = Just 8000, protocol = Https, query = Nothing }
-                }
-              )
-            , ( ClientId "clientId 1"
-              , { clipboard = ""
-                , model = Loaded { accountDeletedResult = Nothing, cachedGroups = D [], cachedUsers = D [ ( Id "4c603b6820b7935c59fe289d850b0f772221f1f80a4d8a9c7424c5448412a1ab", { description = Description "", name = Name "Anonymous", profileImage = DefaultImage } ) ], groupCreated = False, groupForm = Editting { description = "", name = "", pressedSubmit = False, visibility = Nothing }, groupPage = D [], hasLoginTokenError = True, lastConnectionCheck = Posix 4017, loginForm = { email = "", emailSent = Nothing, pressedSubmitEmail = False }, loginStatus = LoggedIn { emailAddress = EmailAddress { domain = "a", localPart = "a", tags = [], tld = [ "se" ] }, myGroups = Nothing, profileForm = { changeCounter = 0, form = { description = Unchanged, emailAddress = Unchanged, name = Unchanged }, pressedDeleteAccount = False, profileImage = Unchanged, profileImageSize = Nothing }, userId = Id "4c603b6820b7935c59fe289d850b0f772221f1f80a4d8a9c7424c5448412a1ab" }, logs = Nothing, navigationKey = MockNavigationKey, route = HomepageRoute, searchBox = "", searchList = [], time = Posix 4017, timezone = Zone 0 [], windowHeight = Quantity 1080, windowWidth = Quantity 1920 }
-                , pendingEffects = Batch [ Batch [ None ], Batch [ None ] ]
-                , sessionId = SessionId "session0"
-                , timers = D []
-                , toFrontend = []
-                , url = { fragment = Nothing, host = "localhost", path = "/", port_ = Just 8000, protocol = Https, query = Nothing }
-                }
-              )
-            , ( ClientId "clientId 0"
-              , { clipboard = ""
-                , model = Loaded { accountDeletedResult = Nothing, cachedGroups = D [], cachedUsers = D [ ( Id "4c603b6820b7935c59fe289d850b0f772221f1f80a4d8a9c7424c5448412a1ab", { description = Description "", name = Name "Anonymous", profileImage = DefaultImage } ) ], groupCreated = False, groupForm = Editting { description = "", name = "", pressedSubmit = False, visibility = Nothing }, groupPage = D [], hasLoginTokenError = False, lastConnectionCheck = Posix 17, loginForm = { email = "a@a.se", emailSent = Just (EmailAddress { domain = "a", localPart = "a", tags = [], tld = [ "se" ] }), pressedSubmitEmail = False }, loginStatus = LoggedIn { emailAddress = EmailAddress { domain = "a", localPart = "a", tags = [], tld = [ "se" ] }, myGroups = Nothing, profileForm = { changeCounter = 0, form = { description = Unchanged, emailAddress = Unchanged, name = Unchanged }, pressedDeleteAccount = False, profileImage = Unchanged, profileImageSize = Nothing }, userId = Id "4c603b6820b7935c59fe289d850b0f772221f1f80a4d8a9c7424c5448412a1ab" }, logs = Nothing, navigationKey = MockNavigationKey, route = HomepageRoute, searchBox = "", searchList = [], time = Posix17, timezone = Zone 0 [], windowHeight = Quantity 1080, windowWidth = Quantity 1920 }
-                , pendingEffects = Batch [ Batch [ None ], Batch [ None ] ]
-                , sessionId = SessionId "session0"
-                , timers = D []
-                , toFrontend = []
-                , url = { fragment = Nothing, host = "localhost", path = "/", port_ = Just 8000, protocol = Https, query = Nothing }
-                }
-              )
-            ]
-    , pendingEffects = Batch [ None ]
-    , testErrors = []
-    , timers = D [ ( Quantity 15, { msg = a, startTime = Posix 0 } ) ]
-    , toBackend = []
-    }

@@ -494,6 +494,10 @@ simulateStep state =
                             getCompletedTimers frontend.timers
                                 |> List.foldl
                                     (\( _, { msg } ) ( frontendModel, effects ) ->
+                                        --let
+                                        --    _ =
+                                        --        Debug.log "timer completed" ""
+                                        --in
                                         frontendApp.update
                                             (msg (Duration.addTo startTime newTime))
                                             frontendModel
@@ -505,6 +509,13 @@ simulateStep state =
                 )
                 state.frontends
     }
+        --|> (\a ->
+        --        let
+        --            _ =
+        --                Debug.log "runEffects" ""
+        --        in
+        --        a
+        --   )
         |> runEffects
 
 
@@ -526,15 +537,19 @@ runEffects : State -> State
 runEffects state =
     let
         state2 =
-            runBackendEffects state.pendingEffects (clearEffects state)
+            runBackendEffects state.pendingEffects (clearBackendEffects state)
 
         state4 =
             Dict.foldl
-                (\clientId frontend state3 ->
-                    runFrontendEffects frontend.sessionId clientId frontend.pendingEffects state3
+                (\clientId { sessionId, pendingEffects } state3 ->
+                    runFrontendEffects
+                        sessionId
+                        clientId
+                        pendingEffects
+                        (clearFrontendEffects clientId state3)
                 )
                 state2
-                state.frontends
+                state2.frontends
     in
     { state4
         | pendingEffects = flattenBackendEffect state4.pendingEffects |> BackendEffects.Batch
@@ -548,16 +563,26 @@ runEffects state =
         |> runNetwork
 
 
+
+--|> (\a ->
+--        let
+--            _ =
+--                Debug.log "finish run effects" ()
+--        in
+--        a
+--   )
+
+
 runNetwork : State -> State
 runNetwork state =
     let
         ( backendModel, effects ) =
             List.foldl
                 (\( sessionId, clientId, toBackendMsg ) ( model, effects2 ) ->
-                    --let
-                    --    _ =
-                    --        Debug.log "updateFromFrontend" ( clientId, toBackendMsg )
-                    --in
+                    let
+                        _ =
+                            Debug.log "updateFromFrontend" ( clientId, toBackendMsg )
+                    in
                     backendApp.updateFromFrontend sessionId clientId toBackendMsg model
                         |> Tuple.mapSecond (\a -> BackendEffects.Batch [ effects2, a ])
                 )
@@ -571,10 +596,10 @@ runNetwork state =
                         ( newModel, newEffects2 ) =
                             List.foldl
                                 (\msg ( model, newEffects ) ->
-                                    --let
-                                    --    _ =
-                                    --        Debug.log "Frontend.updateFromBackend" ( clientId, msg )
-                                    --in
+                                    let
+                                        _ =
+                                            Debug.log "Frontend.updateFromBackend" ( clientId, msg )
+                                    in
                                     frontendApp.updateFromBackend msg model
                                         |> Tuple.mapSecond (\a -> FrontendEffects.Batch [ newEffects, a ])
                                 )
@@ -583,7 +608,7 @@ runNetwork state =
                     in
                     { frontend
                         | model = newModel
-                        , pendingEffects = FrontendEffects.Batch [ frontend.pendingEffects, newEffects2 ]
+                        , pendingEffects = newEffects2
                         , toFrontend = []
                     }
                 )
@@ -597,19 +622,27 @@ runNetwork state =
     }
 
 
-clearEffects : State -> State
-clearEffects state =
+clearBackendEffects : State -> State
+clearBackendEffects state =
+    { state | pendingEffects = BackendEffects.None }
+
+
+clearFrontendEffects : ClientId -> State -> State
+clearFrontendEffects clientId state =
     { state
-        | pendingEffects = BackendEffects.None
-        , frontends = Dict.map (\_ frontend -> { frontend | pendingEffects = FrontendEffects.None }) state.frontends
+        | frontends =
+            Dict.update
+                clientId
+                (Maybe.map (\frontend -> { frontend | pendingEffects = FrontendEffects.None }))
+                state.frontends
     }
 
 
 runFrontendEffects : SessionId -> ClientId -> FrontendEffect -> State -> State
-runFrontendEffects sessionId clientId effect state =
-    case effect of
-        FrontendEffects.Batch effects ->
-            List.foldl (runFrontendEffects sessionId clientId) state effects
+runFrontendEffects sessionId clientId effectsToPerform state =
+    case effectsToPerform of
+        FrontendEffects.Batch nestedEffectsToPerform ->
+            List.foldl (runFrontendEffects sessionId clientId) state nestedEffectsToPerform
 
         FrontendEffects.SendToBackend toBackend ->
             { state | toBackend = state.toBackend ++ [ ( sessionId, clientId, toBackend ) ] }
@@ -785,6 +818,9 @@ flattenFrontendEffect effect =
         FrontendEffects.Batch effects ->
             List.concatMap flattenFrontendEffect effects
 
+        FrontendEffects.None ->
+            []
+
         _ ->
             [ effect ]
 
@@ -794,6 +830,9 @@ flattenBackendEffect effect =
     case effect of
         BackendEffects.Batch effects ->
             List.concatMap flattenBackendEffect effects
+
+        BackendEffects.None ->
+            []
 
         _ ->
             [ effect ]

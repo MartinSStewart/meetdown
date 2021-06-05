@@ -348,7 +348,7 @@ gotTimeZone result model =
 
 update : Effects cmd -> FrontendMsg -> FrontendModel -> ( FrontendModel, cmd )
 update cmds msg model =
-    case model of
+    (case model of
         Loading loading ->
             case msg of
                 GotTime time ->
@@ -365,6 +365,14 @@ update cmds msg model =
 
         Loaded loaded ->
             updateLoaded cmds msg loaded |> Tuple.mapFirst Loaded
+    )
+        |> (\( model2, effects ) ->
+                let
+                    _ =
+                        Debug.log "Frontend.update" ( msg, effects )
+                in
+                ( model2, effects )
+           )
 
 
 routeRequest : Effects cmd -> Route -> LoadedFrontend -> ( LoadedFrontend, cmd )
