@@ -1,4 +1,4 @@
-module Backend exposing (Effects, Subscriptions, app, createApp)
+module Backend exposing (Effects, Subscriptions, allEffects, app, createApp, loginEmailLink)
 
 import Array
 import AssocList as Dict exposing (Dict)
@@ -92,6 +92,11 @@ sendGridApiKey =
     SendGrid.apiKey Env.sendGridApiKey_
 
 
+loginEmailLink : Route -> Id LoginToken -> String
+loginEmailLink route loginToken =
+    Env.domain ++ Route.encodeWithToken route (Route.LoginToken loginToken)
+
+
 allEffects : Effects (Cmd BackendMsg)
 allEffects =
     { batch = Cmd.batch
@@ -109,7 +114,7 @@ allEffects =
             let
                 loginLink : String
                 loginLink =
-                    Env.domain ++ Route.encodeWithToken route (Route.LoginToken loginToken)
+                    loginEmailLink route loginToken
 
                 _ =
                     Debug.log "login" loginLink

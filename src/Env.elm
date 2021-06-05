@@ -18,4 +18,4 @@ secretKey =
 
 domain : String
 domain =
-    "localhost:8000"
+    "https://localhost:8000"

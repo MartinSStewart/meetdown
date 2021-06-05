@@ -1,8 +1,11 @@
 module TestFramework exposing
     ( EmailType(..)
     , State
+    , checkFrontend
+    , checkLoadedFrontend
     , checkState
     , clickEvent
+    , clickLink
     , connectFrontend
     , disconnectFrontend
     , fastForward
@@ -24,6 +27,7 @@ import Backend
 import BackendEffects exposing (BackendEffect)
 import BackendSub exposing (BackendSub)
 import Basics.Extra as Basics
+import Browser exposing (UrlRequest(..))
 import Duration exposing (Duration)
 import EmailAddress exposing (EmailAddress)
 import Env
@@ -32,6 +36,7 @@ import Frontend
 import FrontendEffects exposing (FrontendEffect)
 import FrontendSub exposing (FrontendSub)
 import Html
+import Html.Attributes
 import Id exposing (ClientId, DeleteUserToken, HtmlId(..), Id, LoginToken, SessionId)
 import Json.Encode
 import MockFile exposing (File(..))
@@ -41,8 +46,9 @@ import Route exposing (Route)
 import Test.Html.Event
 import Test.Html.Query
 import Test.Html.Selector
+import Test.Runner
 import Time
-import Types exposing (BackendModel, BackendMsg, FrontendModel, FrontendMsg, NavigationKey(..), ToBackend, ToFrontend)
+import Types exposing (BackendModel, BackendMsg, FrontendModel(..), FrontendMsg, LoadedFrontend, NavigationKey(..), ToBackend, ToFrontend)
 import Url exposing (Url)
 
 
@@ -92,6 +98,39 @@ checkState checkFunc state =
 
         Nothing ->
             state
+
+
+checkFrontend : ClientId -> (FrontendModel -> Result String ()) -> State -> State
+checkFrontend clientId checkFunc state =
+    case Dict.get clientId state.frontends of
+        Just frontend ->
+            case checkFunc frontend.model of
+                Ok () ->
+                    state
+
+                Err error ->
+                    { state | testErrors = state.testErrors ++ [ error ] }
+
+        Nothing ->
+            { state
+                | testErrors =
+                    state.testErrors ++ [ "ClientId \"" ++ Id.clientIdToString clientId ++ "\" not found." ]
+            }
+
+
+checkLoadedFrontend : ClientId -> (LoadedFrontend -> Result String ()) -> State -> State
+checkLoadedFrontend clientId checkFunc state =
+    checkFrontend
+        clientId
+        (\frontend ->
+            case frontend of
+                Loaded loaded ->
+                    checkFunc loaded
+
+                Loading _ ->
+                    Err "Frontend is still loading"
+        )
+        state
 
 
 finishSimulation : State -> Expectation
@@ -196,14 +235,11 @@ getClientConnectSubs backendSub =
             []
 
 
-connectFrontend : Url -> State -> ( State, ClientId )
-connectFrontend url state =
+connectFrontend : SessionId -> Url -> State -> ( State, ClientId )
+connectFrontend sessionId url state =
     let
         clientId =
             "clientId " ++ String.fromInt state.counter |> Id.clientIdFromString
-
-        sessionId =
-            "sessionId " ++ String.fromInt (state.counter + 1) |> Id.sessionIdFromString
 
         ( frontend, effects ) =
             frontendApp.init url MockNavigationKey
@@ -233,7 +269,7 @@ connectFrontend url state =
                 , url = url
                 }
                 state.frontends
-        , counter = state.counter + 2
+        , counter = state.counter + 1
         , backend = backend
         , pendingEffects = backendEffects
       }
@@ -254,6 +290,49 @@ clickEvent clientId htmlId state =
 inputEvent : ClientId -> HtmlId -> String -> State -> State
 inputEvent clientId htmlId text state =
     userEvent clientId htmlId (Test.Html.Event.input text) state
+
+
+clickLink : ClientId -> Route -> State -> State
+clickLink clientId route state =
+    let
+        href : String
+        href =
+            Route.encode route
+    in
+    case Dict.get clientId state.frontends of
+        Just frontend ->
+            case
+                frontendApp.view frontend.model
+                    |> .body
+                    |> Html.div []
+                    |> Test.Html.Query.fromHtml
+                    |> Test.Html.Query.find [ Test.Html.Selector.attribute (Html.Attributes.href href) ]
+                    |> Test.Html.Query.has []
+                    |> Test.Runner.getFailureReason
+            of
+                Nothing ->
+                    case Url.fromString (Env.domain ++ href) of
+                        Just url ->
+                            let
+                                ( newModel, effects ) =
+                                    frontendApp.update (Types.UrlClicked (Internal url)) frontend.model
+                            in
+                            { state
+                                | frontends =
+                                    Dict.insert
+                                        clientId
+                                        { frontend | model = newModel, pendingEffects = effects }
+                                        state.frontends
+                            }
+
+                        Nothing ->
+                            Debug.todo ("Invalid url: " ++ Env.domain ++ href)
+
+                Just err ->
+                    Debug.todo ("Clicking link failed for " ++ href ++ ": " ++ err.description)
+
+        Nothing ->
+            Debug.todo "ClientId not found"
 
 
 userEvent : ClientId -> HtmlId -> ( String, Json.Encode.Value ) -> State -> State
