@@ -1,4 +1,23 @@
-module TestFramework exposing (State, checkState, connectFrontend, disconnectFrontend, fastForward, finishSimulation, init, reconnectFrontend, runEffects, runFrontendMsg, simulateStep, simulateTime, unsafeUrl)
+module TestFramework exposing
+    ( EmailType(..)
+    , State
+    , checkState
+    , clickEvent
+    , connectFrontend
+    , disconnectFrontend
+    , fastForward
+    , finishSimulation
+    , init
+    , inputEvent
+    , keyDownEvent
+    , reconnectFrontend
+    , runEffects
+    , runFrontendMsg
+    , simulateStep
+    , simulateTime
+    , unsafeEmailAddress
+    , unsafeUrl
+    )
 
 import AssocList as Dict exposing (Dict)
 import Backend
@@ -12,11 +31,16 @@ import Expect exposing (Expectation)
 import Frontend
 import FrontendEffects exposing (FrontendEffect)
 import FrontendSub exposing (FrontendSub)
-import Id exposing (ClientId, DeleteUserToken, Id, LoginToken, SessionId)
+import Html
+import Id exposing (ClientId, DeleteUserToken, HtmlId(..), Id, LoginToken, SessionId)
+import Json.Encode
 import MockFile exposing (File(..))
 import Pixels
 import Quantity
 import Route exposing (Route)
+import Test.Html.Event
+import Test.Html.Query
+import Test.Html.Selector
 import Time
 import Types exposing (BackendModel, BackendMsg, FrontendModel, FrontendMsg, NavigationKey(..), ToBackend, ToFrontend)
 import Url exposing (Url)
@@ -30,6 +54,16 @@ unsafeUrl urlText =
 
         Nothing ->
             Debug.todo ("Invalid url " ++ urlText)
+
+
+unsafeEmailAddress : String -> EmailAddress
+unsafeEmailAddress text =
+    case EmailAddress.fromString text of
+        Just address ->
+            address
+
+        Nothing ->
+            Debug.todo ("Invalid email address " ++ text)
 
 
 type alias State =
@@ -205,6 +239,54 @@ connectFrontend url state =
       }
     , clientId
     )
+
+
+keyDownEvent : ClientId -> HtmlId -> Int -> State -> State
+keyDownEvent clientId htmlId keyCode state =
+    userEvent clientId htmlId ( "keydown", Json.Encode.object [ ( "keyCode", Json.Encode.int keyCode ) ] ) state
+
+
+clickEvent : ClientId -> HtmlId -> State -> State
+clickEvent clientId htmlId state =
+    userEvent clientId htmlId Test.Html.Event.click state
+
+
+inputEvent : ClientId -> HtmlId -> String -> State -> State
+inputEvent clientId htmlId text state =
+    userEvent clientId htmlId (Test.Html.Event.input text) state
+
+
+userEvent : ClientId -> HtmlId -> ( String, Json.Encode.Value ) -> State -> State
+userEvent clientId (HtmlId nodeId) event state =
+    case Dict.get clientId state.frontends of
+        Just frontend ->
+            case
+                frontendApp.view frontend.model
+                    |> .body
+                    |> Html.div []
+                    |> Test.Html.Query.fromHtml
+                    |> Test.Html.Query.find [ Test.Html.Selector.id nodeId ]
+                    |> Test.Html.Event.simulate event
+                    |> Test.Html.Event.toResult
+            of
+                Ok msg ->
+                    let
+                        ( newModel, effects ) =
+                            frontendApp.update msg frontend.model
+                    in
+                    { state
+                        | frontends =
+                            Dict.insert
+                                clientId
+                                { frontend | model = newModel, pendingEffects = effects }
+                                state.frontends
+                    }
+
+                Err err ->
+                    Debug.todo ("User event failed for " ++ nodeId ++ ": " ++ err)
+
+        Nothing ->
+            Debug.todo "ClientId not found"
 
 
 disconnectFrontend : ClientId -> State -> ( State, FrontendState )

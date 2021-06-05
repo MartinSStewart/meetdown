@@ -1,17 +1,18 @@
-module LoginForm exposing (submitForm, typedEmail, view)
+module LoginForm exposing (emailAddressInputId, submitForm, typedEmail, view)
 
 import Element exposing (Element)
 import Element.Border
 import Element.Input
 import EmailAddress exposing (EmailAddress)
+import Id exposing (HtmlId(..))
 import Route exposing (Route)
 import Types exposing (FrontendMsg(..), LoginForm, ToBackendRequest(..))
 import Ui
 import Untrusted
 
 
-emailInput : msg -> (String -> msg) -> String -> String -> Maybe String -> Element msg
-emailInput onSubmit onChange text labelText maybeError =
+emailInput : HtmlId -> msg -> (String -> msg) -> String -> String -> Maybe String -> Element msg
+emailInput id onSubmit onChange text labelText maybeError =
     Element.column
         [ Element.width Element.fill
         , Ui.inputBackground (maybeError /= Nothing)
@@ -19,7 +20,7 @@ emailInput onSubmit onChange text labelText maybeError =
         , Element.Border.rounded 4
         ]
         [ Element.Input.email
-            [ Element.width Element.fill, Ui.onEnter onSubmit ]
+            [ Element.width Element.fill, Ui.onEnter onSubmit, Ui.id id ]
             { text = text
             , onChange = onChange
             , placeholder = Nothing
@@ -60,6 +61,7 @@ view { email, pressedSubmitEmail, emailSent } =
                 )
             ]
             [ emailInput
+                emailAddressInputId
                 PressedSubmitEmail
                 TypedEmail
                 email
@@ -71,7 +73,7 @@ view { email, pressedSubmitEmail, emailSent } =
                     _ ->
                         Nothing
                 )
-            , Ui.submitButton False { onPress = PressedSubmitEmail, label = "Sign up/Login" }
+            , Ui.submitButton submitId False { onPress = PressedSubmitEmail, label = "Sign up/Login" }
             ]
         )
 
@@ -105,3 +107,11 @@ submitForm cmds route loginForm =
 typedEmail : String -> LoginForm -> LoginForm
 typedEmail emailText loginForm =
     { loginForm | email = emailText }
+
+
+emailAddressInputId =
+    HtmlId "loginTextInput"
+
+
+submitId =
+    HtmlId "loginSubmit"

@@ -1,4 +1,4 @@
-module Ui exposing (button, css, dangerButton, emailAddressText, error, filler, formError, headerButton, headerLink, hr, inputBackground, inputFocusClass, linkColor, multiline, onEnter, radioGroup, routeLink, section, submitButton, textInput, title, titleFontSize)
+module Ui exposing (button, css, dangerButton, emailAddressText, enterKeyCode, error, filler, formError, headerButton, headerLink, hr, id, inputBackground, inputFocusClass, linkColor, multiline, onEnter, radioGroup, routeLink, section, submitButton, textInput, title, titleFontSize)
 
 import Element exposing (Element)
 import Element.Background
@@ -10,6 +10,7 @@ import EmailAddress exposing (EmailAddress)
 import Html exposing (Html)
 import Html.Attributes
 import Html.Events
+import Id exposing (HtmlId(..))
 import Json.Decode
 import List.Nonempty exposing (Nonempty)
 import Route exposing (Route)
@@ -36,7 +37,7 @@ onEnter msg =
         (Json.Decode.field "keyCode" Json.Decode.int
             |> Json.Decode.andThen
                 (\code ->
-                    if code == 13 then
+                    if code == enterKeyCode then
                         Json.Decode.succeed ( msg, True )
 
                     else
@@ -46,18 +47,23 @@ onEnter msg =
         |> Element.htmlAttribute
 
 
+enterKeyCode =
+    13
+
+
 inputFocusClass : Element.Attribute msg
 inputFocusClass =
     Element.htmlAttribute <| Html.Attributes.class "linkFocus"
 
 
-headerButton : { onPress : msg, label : String } -> Element msg
-headerButton { onPress, label } =
+headerButton : HtmlId -> { onPress : msg, label : String } -> Element msg
+headerButton htmlId { onPress, label } =
     Element.Input.button
         [ Element.mouseOver [ Element.Background.color <| Element.rgba 1 1 1 0.5 ]
         , Element.paddingXY 16 8
         , Element.Font.center
         , inputFocusClass
+        , id htmlId
         ]
         { onPress = Just onPress
         , label = Element.text label
@@ -104,8 +110,8 @@ section sectionTitle content =
         ]
 
 
-button : { onPress : msg, label : String } -> Element msg
-button { onPress, label } =
+button : HtmlId -> { onPress : msg, label : String } -> Element msg
+button htmlId { onPress, label } =
     Element.Input.button
         [ Element.Background.color <| Element.rgb 0.9 0.9 0.9
         , Element.Border.width 2
@@ -114,6 +120,7 @@ button { onPress, label } =
         , Element.Border.rounded 4
         , Element.Font.center
         , Element.width (Element.minimum 150 Element.shrink)
+        , id htmlId
         ]
         { onPress = Just onPress
         , label = Element.text label
@@ -125,14 +132,20 @@ linkColor =
     Element.rgb 0.2 0.2 1
 
 
-submitButton : Bool -> { onPress : msg, label : String } -> Element msg
-submitButton isSubmitting { onPress, label } =
+id : HtmlId -> Element.Attribute msg
+id (HtmlId htmlId) =
+    Html.Attributes.id htmlId |> Element.htmlAttribute
+
+
+submitButton : HtmlId -> Bool -> { onPress : msg, label : String } -> Element msg
+submitButton htmlId isSubmitting { onPress, label } =
     Element.Input.button
         [ Element.Background.color <| Element.rgb 0.1 0.6 0.25
         , Element.padding 10
         , Element.Border.rounded 4
         , Element.Font.center
         , Element.Font.color <| Element.rgb 1 1 1
+        , id htmlId
         ]
         { onPress = Just onPress
         , label =
@@ -149,14 +162,15 @@ submitButton isSubmitting { onPress, label } =
         }
 
 
-dangerButton : { onPress : msg, label : String } -> Element msg
-dangerButton { onPress, label } =
+dangerButton : HtmlId -> { onPress : msg, label : String } -> Element msg
+dangerButton htmlId { onPress, label } =
     Element.Input.button
         [ Element.Background.color <| Element.rgb 0.9 0 0
         , Element.padding 10
         , Element.Border.rounded 4
         , Element.Font.center
         , Element.Font.color <| Element.rgb 1 1 1
+        , id htmlId
         ]
         { onPress = Just onPress
         , label = Element.text label
@@ -209,8 +223,8 @@ formError errorMessage =
         [ Element.text errorMessage ]
 
 
-radioGroup : (a -> msg) -> Nonempty a -> Maybe a -> (a -> String) -> Maybe String -> Element msg
-radioGroup onSelect options selected optionToLabel maybeError =
+radioGroup : (a -> HtmlId) -> (a -> msg) -> Nonempty a -> Maybe a -> (a -> String) -> Maybe String -> Element msg
+radioGroup htmlId onSelect options selected optionToLabel maybeError =
     let
         optionsView =
             List.Nonempty.map
@@ -218,6 +232,7 @@ radioGroup onSelect options selected optionToLabel maybeError =
                     Element.Input.button
                         [ Element.width Element.fill
                         , Element.paddingEach { left = 32, right = 8, top = 8, bottom = 8 }
+                        , id (htmlId value)
                         ]
                         { onPress = Just (onSelect value)
                         , label =
@@ -256,8 +271,8 @@ inputBackground hasError =
             Element.rgb 0.94 0.94 0.94
 
 
-textInput : (String -> msg) -> String -> String -> Maybe String -> Element msg
-textInput onChange text labelText maybeError =
+textInput : HtmlId -> (String -> msg) -> String -> String -> Maybe String -> Element msg
+textInput htmlId onChange text labelText maybeError =
     Element.column
         [ Element.width Element.fill
         , inputBackground (maybeError /= Nothing)
@@ -265,7 +280,7 @@ textInput onChange text labelText maybeError =
         , Element.Border.rounded 4
         ]
         [ Element.Input.text
-            [ Element.width Element.fill ]
+            [ Element.width Element.fill, id htmlId ]
             { text = text
             , onChange = onChange
             , placeholder = Nothing
@@ -278,13 +293,14 @@ textInput onChange text labelText maybeError =
         ]
 
 
-multiline : (String -> msg) -> String -> String -> Maybe String -> Element msg
-multiline onChange text labelText maybeError =
+multiline : HtmlId -> (String -> msg) -> String -> String -> Maybe String -> Element msg
+multiline htmlId onChange text labelText maybeError =
     Element.column
         [ Element.width Element.fill
         , inputBackground (maybeError /= Nothing)
         , Element.paddingEach { left = 8, right = 8, top = 8, bottom = 8 }
         , Element.Border.rounded 4
+        , id htmlId
         ]
         [ Element.Input.multiline
             [ Element.width Element.fill, Element.height (Element.px 200) ]

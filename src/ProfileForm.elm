@@ -1,4 +1,4 @@
-module ProfileForm exposing (CurrentValues, Effects, Form, Model, Msg, cropImageResponse, init, update, view)
+module ProfileForm exposing (CurrentValues, Effects, Form, Model, Msg, cancelImageButtonId, cropImageResponse, deleteAccountButtonId, init, update, uploadImageButtonId, view)
 
 import Browser.Dom
 import Description exposing (Description, Error(..))
@@ -12,6 +12,7 @@ import EmailAddress exposing (EmailAddress)
 import Html
 import Html.Attributes
 import Html.Events
+import Id exposing (HtmlId(..))
 import Json.Decode
 import List.Extra as List
 import MockFile exposing (File)
@@ -616,10 +617,20 @@ imageEditorView windowSize imageEdit =
             }
         , Element.row
             [ Element.width Element.fill ]
-            [ Ui.submitButton False { onPress = PressedConfirmImage, label = "Upload image" }
-            , Element.el [ Element.alignRight ] (Ui.button { onPress = PressedCancelImage, label = "Cancel" })
+            [ Ui.submitButton uploadImageButtonId False { onPress = PressedConfirmImage, label = "Upload image" }
+            , Element.el
+                [ Element.alignRight ]
+                (Ui.button cancelImageButtonId { onPress = PressedCancelImage, label = "Cancel" })
             ]
         ]
+
+
+uploadImageButtonId =
+    HtmlId "profileUploadImage"
+
+
+cancelImageButtonId =
+    HtmlId "profileCancelImage"
 
 
 view :
@@ -689,7 +700,7 @@ view windowSize currentValues ({ form } as model) =
                     form.emailAddress
                     "Your email address"
                 , Ui.filler (Element.px 8)
-                , Ui.dangerButton { onPress = PressedDeleteAccount, label = "Delete account" }
+                , Ui.dangerButton deleteAccountButtonId { onPress = PressedDeleteAccount, label = "Delete account" }
                 , if model.pressedDeleteAccount then
                     Element.column
                         [ Element.spacing 20 ]
@@ -704,6 +715,10 @@ view windowSize currentValues ({ form } as model) =
                   else
                     Element.none
                 ]
+
+
+deleteAccountButtonId =
+    HtmlId "profileDeleteAccount"
 
 
 editableTextInput :

@@ -1,4 +1,4 @@
-port module Frontend exposing (CropImageData, Effects, Subscriptions, app, createApp)
+port module Frontend exposing (CropImageData, Effects, Subscriptions, app, createApp, logOutButtonId, signUpOrLoginButtonId)
 
 import AssocList as Dict
 import AssocSet as Set
@@ -21,7 +21,7 @@ import FrontendUser exposing (FrontendUser)
 import Group exposing (Group)
 import GroupName
 import GroupPage
-import Id exposing (GroupId, Id, UserId)
+import Id exposing (GroupId, HtmlId(..), Id, UserId)
 import Lamdera
 import List.Nonempty
 import LoginForm
@@ -1358,6 +1358,7 @@ header isLoggedIn_ route searchText =
                         , label = "Profile"
                         }
                 , Ui.headerButton
+                    logOutButtonId
                     { onPress = PressedLogout
                     , label = "Log out"
                     }
@@ -1365,9 +1366,18 @@ header isLoggedIn_ route searchText =
 
              else
                 [ Ui.headerButton
+                    signUpOrLoginButtonId
                     { onPress = PressedLogin
                     , label = "Sign up/Login"
                     }
                 ]
             )
         ]
+
+
+logOutButtonId =
+    HtmlId "headerLogOut"
+
+
+signUpOrLoginButtonId =
+    HtmlId "headerSignUpOrLogin"

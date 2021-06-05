@@ -1,4 +1,4 @@
-module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, addedNewEvent, init, joinOrLeaveResponse, savedDescription, savedName, update, view)
+module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, addedNewEvent, eventMeetingInPersonInputId, eventMeetingOnlineInputId, init, joinOrLeaveResponse, savedDescription, savedName, update, view)
 
 import Address exposing (Address, Error(..))
 import AssocList as Dict exposing (Dict)
@@ -19,7 +19,7 @@ import GroupName exposing (GroupName)
 import Html
 import Html.Attributes
 import Html.Events
-import Id exposing (Id, UserId)
+import Id exposing (HtmlId(..), Id, UserId)
 import Link exposing (Link)
 import List.Nonempty exposing (Nonempty(..))
 import Name
@@ -593,11 +593,13 @@ futureEventView timezone maybeUserId pendingJoinOrLeaveStatuses ( eventId, event
                 String.fromInt attendeeCount ++ " people plan on attending" |> Element.text
         , if isAttending then
             Ui.submitButton
+                leaveEventButtonId
                 (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
                 { onPress = PressedLeaveEvent eventId, label = "Leave event" }
 
           else
             Ui.submitButton
+                joinEventButtonId
                 (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
                 { onPress = PressedJoinEvent eventId, label = "Join event" }
         , case maybeJoinOrLeaveStatus of
@@ -611,6 +613,14 @@ futureEventView timezone maybeUserId pendingJoinOrLeaveStatuses ( eventId, event
             _ ->
                 Element.none
         ]
+
+
+leaveEventButtonId =
+    HtmlId "groupLeaveEvent"
+
+
+joinEventButtonId =
+    HtmlId "groupJoinEvent"
 
 
 intToMonth : Int -> Maybe Time.Month
@@ -709,11 +719,40 @@ type EventType
     | MeetInPerson
 
 
+eventNameInputId =
+    HtmlId "groupEventName"
+
+
+eventDescriptionInputId =
+    HtmlId "groupEventDescription"
+
+
+eventMeetingTypeId meetingType =
+    "groupEventMeeting_"
+        ++ (case meetingType of
+                MeetOnline ->
+                    "MeetOnline"
+
+                MeetInPerson ->
+                    "MeetInPerson"
+           )
+        |> HtmlId
+
+
+eventMeetingOnlineInputId =
+    HtmlId "groupEventMeetingOnline"
+
+
+eventMeetingInPersonInputId =
+    HtmlId "groupEventMeetingInPerson"
+
+
 newEventView : Time.Posix -> Time.Zone -> NewEvent -> Element Msg
 newEventView currentTime timezone event =
     Element.column
         [ Element.width Element.fill, Element.spacing 8 ]
         [ Ui.textInput
+            eventNameInputId
             (\text -> ChangedNewEvent { event | eventName = text })
             event.eventName
             "Event name"
@@ -725,6 +764,7 @@ newEventView currentTime timezone event =
                     Nothing
             )
         , Ui.multiline
+            eventDescriptionInputId
             (\text -> ChangedNewEvent { event | description = text })
             event.description
             "Event description"
@@ -736,6 +776,7 @@ newEventView currentTime timezone event =
                     Nothing
             )
         , Ui.radioGroup
+            eventMeetingTypeId
             (\meetingType -> ChangedNewEvent { event | meetingType = Just meetingType })
             (Nonempty MeetOnline [ MeetInPerson ])
             event.meetingType
@@ -757,6 +798,7 @@ newEventView currentTime timezone event =
         , case event.meetingType of
             Just MeetOnline ->
                 Ui.textInput
+                    eventMeetingOnlineInputId
                     (\text -> ChangedNewEvent { event | meetOnlineLink = text })
                     event.meetOnlineLink
                     "Meeting url (you can add this later)"
@@ -770,6 +812,7 @@ newEventView currentTime timezone event =
 
             Just MeetInPerson ->
                 Ui.textInput
+                    eventMeetingInPersonInputId
                     (\text -> ChangedNewEvent { event | meetInPersonAddress = text })
                     event.meetInPersonAddress
                     "Meeting address (you can add this later)"

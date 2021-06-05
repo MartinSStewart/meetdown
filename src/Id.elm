@@ -2,6 +2,7 @@ module Id exposing
     ( ClientId
     , DeleteUserToken
     , GroupId
+    , HtmlId(..)
     , Id
     , LoginToken
     , SessionId
@@ -49,6 +50,10 @@ type LoginToken
 
 type DeleteUserToken
     = DeleteUserToken Never
+
+
+type HtmlId
+    = HtmlId String
 
 
 sessionIdFromString : Lamdera.SessionId -> SessionId

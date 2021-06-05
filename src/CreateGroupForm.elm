@@ -4,7 +4,12 @@ module CreateGroupForm exposing
     , Model
     , Msg
     , OutMsg(..)
+    , clearButtonId
+    , descriptionInputId
+    , groupVisibilityId
     , init
+    , nameInputId
+    , submitButtonId
     , submitFailed
     , update
     , view
@@ -14,6 +19,7 @@ import Description exposing (Description)
 import Element exposing (Element)
 import Group exposing (GroupVisibility(..))
 import GroupName exposing (GroupName)
+import Id exposing (HtmlId(..))
 import List.Nonempty exposing (Nonempty(..))
 import Ui
 
@@ -162,7 +168,9 @@ formView maybeSubmitError isSubmitting form =
         , Element.padding 8
         ]
         [ Ui.title "Create group"
-        , Ui.textInput (\a -> FormChanged { form | name = a })
+        , Ui.textInput
+            nameInputId
+            (\a -> FormChanged { form | name = a })
             form.name
             "What's the name of your group?"
             (case ( form.pressedSubmit, GroupName.fromString form.name ) of
@@ -184,6 +192,7 @@ formView maybeSubmitError isSubmitting form =
                     Nothing
             )
         , Ui.multiline
+            descriptionInputId
             (\a -> FormChanged { form | description = a })
             form.description
             "Describe what your group is about (you can fill out this later)"
@@ -195,6 +204,7 @@ formView maybeSubmitError isSubmitting form =
                     Nothing
             )
         , Ui.radioGroup
+            groupVisibilityId
             (\a -> FormChanged { form | visibility = Just a })
             (Nonempty PublicGroup [ UnlistedGroup ])
             form.visibility
@@ -223,8 +233,36 @@ formView maybeSubmitError isSubmitting form =
                     Element.none
             , Element.row
                 [ Element.spacing 16, Element.width Element.fill ]
-                [ Ui.submitButton isSubmitting { onPress = PressedSubmit, label = "Submit" }
-                , Ui.button { onPress = PressedClear, label = "Clear" }
+                [ Ui.submitButton submitButtonId isSubmitting { onPress = PressedSubmit, label = "Submit" }
+                , Ui.button clearButtonId { onPress = PressedClear, label = "Clear" }
                 ]
             ]
         ]
+
+
+nameInputId =
+    HtmlId "createGroupName"
+
+
+descriptionInputId =
+    HtmlId "createGroupDescription"
+
+
+clearButtonId =
+    HtmlId "createGroupClear"
+
+
+submitButtonId =
+    HtmlId "createGroupSubmit"
+
+
+groupVisibilityId visibility =
+    "groupCreateVisibility_"
+        ++ (case visibility of
+                UnlistedGroup ->
+                    "UnlistedGroup"
+
+                PublicGroup ->
+                    "PublicGroup"
+           )
+        |> HtmlId
