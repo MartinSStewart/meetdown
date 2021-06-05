@@ -15,7 +15,6 @@ module TestFramework exposing
     , keyDownEvent
     , reconnectFrontend
     , runEffects
-    , runFrontendMsg
     , simulateStep
     , simulateTime
     , unsafeEmailAddress
@@ -158,7 +157,25 @@ startTime =
 
 
 frontendApp =
-    Frontend.createApp FrontendEffects.effects FrontendSub.subscriptions
+    let
+        app_ =
+            Frontend.createApp FrontendEffects.effects FrontendSub.subscriptions
+    in
+    { init = app_.init
+    , update =
+        \clientId msg model ->
+            let
+                ( newModel, effects ) =
+                    app_.update msg model
+
+                _ =
+                    Debug.log "Frontend.update" ( Id.clientIdToString clientId, msg, effects )
+            in
+            ( newModel, effects )
+    , updateFromBackend = app_.updateFromBackend
+    , view = app_.view
+    , subscriptions = app_.subscriptions
+    }
 
 
 backendApp =
@@ -315,7 +332,7 @@ clickLink clientId route state =
                         Just url ->
                             let
                                 ( newModel, effects ) =
-                                    frontendApp.update (Types.UrlClicked (Internal url)) frontend.model
+                                    frontendApp.update clientId (Types.UrlClicked (Internal url)) frontend.model
                             in
                             { state
                                 | frontends =
@@ -351,7 +368,7 @@ userEvent clientId (HtmlId nodeId) event state =
                 Ok msg ->
                     let
                         ( newModel, effects ) =
-                            frontendApp.update msg frontend.model
+                            frontendApp.update clientId msg frontend.model
                     in
                     { state
                         | frontends =
@@ -413,36 +430,6 @@ reconnectFrontend frontendState state =
     )
 
 
-runFrontendMsg : ClientId -> FrontendMsg -> State -> State
-runFrontendMsg clientId frontendMsg state =
-    let
-        _ =
-            if Dict.member clientId state.frontends then
-                ()
-
-            else
-                Debug.todo "clientId not found in runFrontendMsg"
-    in
-    { state
-        | frontends =
-            Dict.update
-                clientId
-                (Maybe.map
-                    (\frontend ->
-                        let
-                            ( model, effects ) =
-                                frontendApp.update frontendMsg frontend.model
-                        in
-                        { frontend
-                            | model = model
-                            , pendingEffects = FrontendEffects.Batch [ frontend.pendingEffects, effects ]
-                        }
-                    )
-                )
-                state.frontends
-    }
-
-
 animationFrame =
     Duration.seconds (1 / 60)
 
@@ -488,7 +475,7 @@ simulateStep state =
         , backend = newBackend
         , frontends =
             Dict.map
-                (\_ frontend ->
+                (\clientId frontend ->
                     let
                         ( newFrontendModel, newFrontendEffects ) =
                             getCompletedTimers frontend.timers
@@ -499,6 +486,7 @@ simulateStep state =
                                         --        Debug.log "timer completed" ""
                                         --in
                                         frontendApp.update
+                                            clientId
                                             (msg (Duration.addTo startTime newTime))
                                             frontendModel
                                             |> Tuple.mapSecond (\a -> FrontendEffects.Batch [ effects, a ])
@@ -509,13 +497,6 @@ simulateStep state =
                 )
                 state.frontends
     }
-        --|> (\a ->
-        --        let
-        --            _ =
-        --                Debug.log "runEffects" ""
-        --        in
-        --        a
-        --   )
         |> runEffects
 
 
@@ -664,7 +645,7 @@ runFrontendEffects sessionId clientId effectsToPerform state =
                 Just frontend ->
                     let
                         ( model, effects ) =
-                            frontendApp.update (msg (Duration.addTo startTime state.elapsedTime)) frontend.model
+                            frontendApp.update clientId (msg (Duration.addTo startTime state.elapsedTime)) frontend.model
                     in
                     { state
                         | frontends =
@@ -711,7 +692,7 @@ runFrontendEffects sessionId clientId effectsToPerform state =
                                             "uninteresting file"
 
                                 ( model, effects ) =
-                                    frontendApp.update (msg fileContent) frontend.model
+                                    frontendApp.update clientId (msg fileContent) frontend.model
                             in
                             { state
                                 | frontends =
@@ -737,7 +718,7 @@ runFrontendEffects sessionId clientId effectsToPerform state =
                 Just frontend ->
                     let
                         ( model, effects ) =
-                            frontendApp.update (msg (Pixels.pixels 1920) (Pixels.pixels 1080)) frontend.model
+                            frontendApp.update clientId (msg (Pixels.pixels 1920) (Pixels.pixels 1080)) frontend.model
                     in
                     { state
                         | frontends =
@@ -760,7 +741,7 @@ runFrontendEffects sessionId clientId effectsToPerform state =
                             Ok ( "utc", Time.utc )
 
                         ( model, effects ) =
-                            frontendApp.update (msg timezone) frontend.model
+                            frontendApp.update clientId (msg timezone) frontend.model
                     in
                     { state
                         | frontends =
@@ -792,7 +773,7 @@ handleUrlChange urlText clientId state =
                 Just frontend ->
                     let
                         ( model, effects ) =
-                            frontendApp.update (Types.UrlChanged url) frontend.model
+                            frontendApp.update clientId (Types.UrlChanged url) frontend.model
                     in
                     { state
                         | frontends =

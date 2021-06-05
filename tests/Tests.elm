@@ -199,7 +199,6 @@ suite =
                                         |> (\( state2, clientId3 ) ->
                                                 state2
                                                     |> TF.simulateTime Duration.second
-                                                    --|> Debug.log "test"
                                                     |> TF.checkLoadedFrontend
                                                         clientId3
                                                         (\frontend ->

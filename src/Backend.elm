@@ -256,18 +256,7 @@ addLog log model =
 
 
 updateFromFrontend : Effects cmd -> SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, cmd )
-updateFromFrontend cmds sessionId clientId (ToBackend msgs) model =
-    List.Nonempty.foldl
-        (\msg ( newModel, effects ) ->
-            updateFromRequest cmds sessionId clientId msg newModel
-                |> Tuple.mapSecond (\a -> cmds.batch [ a, effects ])
-        )
-        ( model, cmds.none )
-        msgs
-
-
-updateFromRequest : Effects cmd -> SessionId -> ClientId -> ToBackendRequest -> BackendModel -> ( BackendModel, cmd )
-updateFromRequest cmds sessionId clientId msg model =
+updateFromFrontend cmds sessionId clientId msg model =
     case msg of
         GetGroupRequest groupId ->
             ( model

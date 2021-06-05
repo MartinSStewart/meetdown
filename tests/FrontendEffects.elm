@@ -3,7 +3,6 @@ module FrontendEffects exposing (FrontendEffect(..), effects)
 import Browser.Dom
 import Duration exposing (Duration)
 import Frontend exposing (CropImageData)
-import List.Nonempty
 import MockFile
 import Pixels exposing (Pixels)
 import Quantity exposing (Quantity)
@@ -35,7 +34,7 @@ effects : Frontend.Effects FrontendEffect
 effects =
     { batch = Batch
     , none = None
-    , sendToBackend = List.Nonempty.fromElement >> ToBackend >> SendToBackend
+    , sendToBackend = SendToBackend
     , navigationPushUrl = NavigationPushUrl
     , navigationReplaceUrl = NavigationReplaceUrl
     , navigationPushRoute = \navigationKey route -> NavigationPushUrl navigationKey (Route.encode route)

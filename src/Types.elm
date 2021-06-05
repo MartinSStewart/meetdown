@@ -129,7 +129,7 @@ type alias DeleteUserTokenData =
 
 
 type Log
-    = UntrustedCheckFailed Time.Posix ToBackendRequest
+    = UntrustedCheckFailed Time.Posix ToBackend
     | SendGridSendEmail Time.Posix (Result SendGrid.Error ()) EmailAddress
 
 
@@ -244,10 +244,6 @@ type FrontendMsg
 
 
 type ToBackend
-    = ToBackend (Nonempty ToBackendRequest)
-
-
-type ToBackendRequest
     = GetGroupRequest GroupId
     | CheckLoginRequest
     | LoginWithTokenRequest (Id LoginToken)

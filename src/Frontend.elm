@@ -76,7 +76,7 @@ port martinsstewart_crop_image_from_js : ({ requestId : Int, croppedImageUrl : S
 type alias Effects cmd =
     { batch : List cmd -> cmd
     , none : cmd
-    , sendToBackend : ToBackendRequest -> cmd
+    , sendToBackend : ToBackend -> cmd
     , navigationPushUrl : NavigationKey -> String -> cmd
     , navigationReplaceUrl : NavigationKey -> String -> cmd
     , navigationPushRoute : NavigationKey -> Route -> cmd
@@ -106,7 +106,7 @@ allEffects : Effects (Cmd FrontendMsg)
 allEffects =
     { batch = Cmd.batch
     , none = Cmd.none
-    , sendToBackend = List.Nonempty.fromElement >> ToBackend >> Lamdera.sendToBackend
+    , sendToBackend = Lamdera.sendToBackend
     , navigationPushUrl =
         \navigationKey string ->
             case navigationKey of
@@ -348,7 +348,7 @@ gotTimeZone result model =
 
 update : Effects cmd -> FrontendMsg -> FrontendModel -> ( FrontendModel, cmd )
 update cmds msg model =
-    (case model of
+    case model of
         Loading loading ->
             case msg of
                 GotTime time ->
@@ -365,14 +365,6 @@ update cmds msg model =
 
         Loaded loaded ->
             updateLoaded cmds msg loaded |> Tuple.mapFirst Loaded
-    )
-        |> (\( model2, effects ) ->
-                let
-                    _ =
-                        Debug.log "Frontend.update" ( msg, effects )
-                in
-                ( model2, effects )
-           )
 
 
 routeRequest : Effects cmd -> Route -> LoadedFrontend -> ( LoadedFrontend, cmd )
@@ -655,7 +647,7 @@ updateLoadedFromBackend cmds msg model =
                     )
 
                 Err () ->
-                    ( { model | hasLoginTokenError = True }, cmds.none )
+                    ( { model | hasLoginTokenError = True, loginStatus = NotLoggedIn { showLogin = True } }, cmds.none )
 
         CheckLoginResponse loginStatus ->
             case loginStatus of

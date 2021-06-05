@@ -6,7 +6,7 @@ import Element.Input
 import EmailAddress exposing (EmailAddress)
 import Id exposing (HtmlId(..))
 import Route exposing (Route)
-import Types exposing (FrontendMsg(..), LoginForm, ToBackendRequest(..))
+import Types exposing (FrontendMsg(..), LoginForm, ToBackend(..))
 import Ui
 import Untrusted
 
@@ -92,7 +92,7 @@ validateEmail text =
                 Err "Invalid email address"
 
 
-submitForm : { a | none : cmd, sendToBackend : ToBackendRequest -> cmd } -> Route -> LoginForm -> ( LoginForm, cmd )
+submitForm : { a | none : cmd, sendToBackend : ToBackend -> cmd } -> Route -> LoginForm -> ( LoginForm, cmd )
 submitForm cmds route loginForm =
     case validateEmail loginForm.email of
         Ok email ->
