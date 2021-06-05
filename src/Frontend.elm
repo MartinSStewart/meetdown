@@ -293,7 +293,7 @@ initLoadedFrontend cmds navigationKey windowWidth windowHeight route maybeLoginT
                 , emailSent = Nothing
                 }
             , logs = Nothing
-            , hasLoginError = False
+            , hasLoginTokenError = False
             , groupForm = CreateGroupForm.init
             , groupCreated = False
             , accountDeletedResult = Nothing
@@ -647,7 +647,7 @@ updateLoadedFromBackend cmds msg model =
                     )
 
                 Err () ->
-                    ( { model | hasLoginError = True }, cmds.none )
+                    ( { model | hasLoginTokenError = True }, cmds.none )
 
         CheckLoginResponse loginStatus ->
             case loginStatus of
@@ -1012,7 +1012,7 @@ viewLoaded model =
         [ Element.width Element.fill
         , Element.height Element.fill
         , Element.inFront
-            (if model.hasLoginError then
+            (if model.hasLoginTokenError then
                 Element.el
                     [ Element.width Element.fill
                     , Element.height Element.fill

@@ -62,7 +62,7 @@ type alias LoadedFrontend =
     , lastConnectionCheck : Time.Posix
     , loginForm : LoginForm
     , logs : Maybe (Array Log)
-    , hasLoginError : Bool
+    , hasLoginTokenError : Bool
     , groupForm : CreateGroupForm.Model
     , groupCreated : Bool
     , accountDeletedResult : Maybe (Result () ())

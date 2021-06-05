@@ -1,4 +1,4 @@
-module LoginForm exposing (emailAddressInputId, submitForm, typedEmail, view)
+module LoginForm exposing (emailAddressInputId, submitButtonId, submitForm, typedEmail, view)
 
 import Element exposing (Element)
 import Element.Border
@@ -73,7 +73,7 @@ view { email, pressedSubmitEmail, emailSent } =
                     _ ->
                         Nothing
                 )
-            , Ui.submitButton submitId False { onPress = PressedSubmitEmail, label = "Sign up/Login" }
+            , Ui.submitButton submitButtonId False { onPress = PressedSubmitEmail, label = "Sign up/Login" }
             ]
         )
 
@@ -113,5 +113,6 @@ emailAddressInputId =
     HtmlId "loginTextInput"
 
 
-submitId =
+submitButtonId : HtmlId
+submitButtonId =
     HtmlId "loginSubmit"
