@@ -3,6 +3,7 @@ module Tests exposing (suite)
 import AssocList as Dict
 import Backend
 import CreateGroupForm
+import Date
 import Duration
 import EmailAddress exposing (EmailAddress)
 import Env
@@ -11,12 +12,14 @@ import Group
 import GroupName exposing (GroupName)
 import GroupPage
 import Id
+import List.Extra as List
 import LoginForm
 import Route
 import Test exposing (..)
 import Test.Html.Query
 import Test.Html.Selector
 import TestFramework as TF exposing (EmailType(..))
+import Time
 import Types exposing (FrontendModel(..), LoginStatus(..))
 import Ui
 import Url exposing (Url)
@@ -280,17 +283,57 @@ suite =
 
                     groupDescription =
                         "This is the best group"
+
+                    emailAddress =
+                        unsafeEmailAddress "a@a.se"
                 in
                 TF.init
-                    |> loginFromHomepage False session0 session0 (unsafeEmailAddress "a@a.se")
+                    |> loginFromHomepage False session0 session0 emailAddress
                     |> (\{ state, clientId, clientIdFromEmail } ->
                             createGroup clientId groupName groupDescription state
                                 |> TF.clickButton clientId GroupPage.createNewEventId
                                 |> TF.inputText clientId GroupPage.eventNameInputId "First group event!"
                                 |> TF.inputText clientId GroupPage.eventDescriptionInputId "We're gonna party!"
                                 |> TF.clickRadioButton clientId (GroupPage.eventMeetingTypeId GroupPage.MeetOnline)
+                                |> TF.inputDate
+                                    clientId
+                                    GroupPage.createEventStartDateId
+                                    (Date.fromPosix Time.utc (Duration.addTo TF.startTime (Duration.days 3)))
+                                |> TF.inputTime clientId GroupPage.createEventStartTimeId 12 0
                                 |> TF.clickButton clientId GroupPage.createEventSubmitId
                                 |> TF.simulateTime Duration.second
+                                |> TF.fastForward (Duration.days 1.999)
+                                |> TF.checkState
+                                    (\model ->
+                                        case
+                                            List.find
+                                                (\( address, emailType ) ->
+                                                    address == emailAddress && TF.isEventReminderEmail emailType
+                                                )
+                                                model.emailInboxes
+                                        of
+                                            Just _ ->
+                                                Err "Shouldn't have gotten an event notification yet"
+
+                                            Nothing ->
+                                                Ok ()
+                                    )
+                                |> TF.simulateTime (Duration.days 0.002)
+                                |> TF.checkState
+                                    (\model ->
+                                        case
+                                            List.find
+                                                (\( address, emailType ) ->
+                                                    address == emailAddress && TF.isEventReminderEmail emailType
+                                                )
+                                                model.emailInboxes
+                                        of
+                                            Just _ ->
+                                                Ok ()
+
+                                            Nothing ->
+                                                Err "Should have gotten an event notification"
+                                    )
                        )
                     |> TF.finishSimulation
         ]

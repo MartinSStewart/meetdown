@@ -14,12 +14,17 @@ module TestFramework exposing
     , fastForward
     , finishSimulation
     , init
+    , inputDate
+    , inputNumber
     , inputText
+    , inputTime
+    , isEventReminderEmail
     , keyDownEvent
     , reconnectFrontend
     , runEffects
     , simulateStep
     , simulateTime
+    , startTime
     )
 
 import AssocList as Dict exposing (Dict)
@@ -28,6 +33,7 @@ import BackendEffects exposing (BackendEffect)
 import BackendSub exposing (BackendSub)
 import Basics.Extra as Basics
 import Browser exposing (UrlRequest(..))
+import Date exposing (Date)
 import Duration exposing (Duration)
 import EmailAddress exposing (EmailAddress)
 import Env
@@ -39,7 +45,7 @@ import FrontendSub exposing (FrontendSub)
 import Group exposing (EventId)
 import Html exposing (Html)
 import Html.Attributes
-import Id exposing (ButtonId(..), ClientId, DeleteUserToken, GroupId, HtmlId, Id, LoginToken, RadioButtonId, SessionId, TextInputId)
+import Id exposing (ButtonId(..), ClientId, DateInputId, DeleteUserToken, GroupId, HtmlId, Id, LoginToken, NumberInputId, RadioButtonId, SessionId, TextInputId, TimeInputId)
 import Json.Encode
 import MockFile exposing (File(..))
 import Pixels
@@ -73,14 +79,24 @@ type EmailType
     | EventReminderEmail GroupId EventId Time.Posix EventType
 
 
-checkState : (State -> Maybe String) -> State -> State
+isEventReminderEmail : EmailType -> Bool
+isEventReminderEmail emailType =
+    case emailType of
+        EventReminderEmail _ _ _ _ ->
+            True
+
+        _ ->
+            False
+
+
+checkState : (State -> Result String ()) -> State -> State
 checkState checkFunc state =
     case checkFunc state of
-        Just error ->
-            { state | testErrors = state.testErrors ++ [ error ] }
-
-        Nothing ->
+        Ok () ->
             state
+
+        Err error ->
+            { state | testErrors = state.testErrors ++ [ error ] }
 
 
 checkBackend : (BackendModel -> Result String ()) -> State -> State
@@ -171,6 +187,7 @@ type alias FrontendState =
     }
 
 
+startTime : Time.Posix
 startTime =
     Time.millisToPosix 0
 
@@ -331,6 +348,21 @@ clickRadioButton clientId htmlId state =
 inputText : ClientId -> HtmlId TextInputId -> String -> State -> State
 inputText clientId htmlId text state =
     userEvent clientId htmlId (Test.Html.Event.input text) state
+
+
+inputNumber : ClientId -> HtmlId NumberInputId -> String -> State -> State
+inputNumber clientId htmlId value state =
+    userEvent clientId htmlId (Test.Html.Event.input value) state
+
+
+inputDate : ClientId -> HtmlId DateInputId -> Date -> State -> State
+inputDate clientId htmlId date state =
+    userEvent clientId htmlId (Test.Html.Event.input (Date.toIsoString date)) state
+
+
+inputTime : ClientId -> HtmlId TimeInputId -> Int -> Int -> State -> State
+inputTime clientId htmlId hour minute state =
+    userEvent clientId htmlId (Test.Html.Event.input (String.fromInt hour ++ ":" ++ String.fromInt minute)) state
 
 
 clickLink : ClientId -> Route -> State -> State
