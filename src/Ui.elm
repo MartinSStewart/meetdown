@@ -300,10 +300,9 @@ multiline htmlId onChange text labelText maybeError =
         , inputBackground (maybeError /= Nothing)
         , Element.paddingEach { left = 8, right = 8, top = 8, bottom = 8 }
         , Element.Border.rounded 4
-        , id htmlId
         ]
         [ Element.Input.multiline
-            [ Element.width Element.fill, Element.height (Element.px 200) ]
+            [ Element.width Element.fill, Element.height (Element.px 200), id htmlId ]
             { text = text
             , onChange = onChange
             , placeholder = Nothing

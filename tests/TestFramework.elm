@@ -1,9 +1,11 @@
 module TestFramework exposing
     ( EmailType(..)
     , State
+    , checkBackend
     , checkFrontend
     , checkLoadedFrontend
     , checkState
+    , checkView
     , clickEvent
     , clickLink
     , connectFrontend
@@ -17,8 +19,6 @@ module TestFramework exposing
     , runEffects
     , simulateStep
     , simulateTime
-    , unsafeEmailAddress
-    , unsafeUrl
     )
 
 import AssocList as Dict exposing (Dict)
@@ -30,13 +30,15 @@ import Browser exposing (UrlRequest(..))
 import Duration exposing (Duration)
 import EmailAddress exposing (EmailAddress)
 import Env
+import Event exposing (EventType)
 import Expect exposing (Expectation)
 import Frontend
 import FrontendEffects exposing (FrontendEffect)
 import FrontendSub exposing (FrontendSub)
-import Html
+import Group exposing (EventId)
+import Html exposing (Html)
 import Html.Attributes
-import Id exposing (ClientId, DeleteUserToken, HtmlId(..), Id, LoginToken, SessionId)
+import Id exposing (ClientId, DeleteUserToken, GroupId, HtmlId(..), Id, LoginToken, SessionId)
 import Json.Encode
 import MockFile exposing (File(..))
 import Pixels
@@ -49,26 +51,6 @@ import Test.Runner
 import Time
 import Types exposing (BackendModel, BackendMsg, FrontendModel(..), FrontendMsg, LoadedFrontend, NavigationKey(..), ToBackend, ToFrontend)
 import Url exposing (Url)
-
-
-unsafeUrl : String -> Url
-unsafeUrl urlText =
-    case Url.fromString urlText of
-        Just url ->
-            url
-
-        Nothing ->
-            Debug.todo ("Invalid url " ++ urlText)
-
-
-unsafeEmailAddress : String -> EmailAddress
-unsafeEmailAddress text =
-    case EmailAddress.fromString text of
-        Just address ->
-            address
-
-        Nothing ->
-            Debug.todo ("Invalid email address " ++ text)
 
 
 type alias State =
@@ -87,6 +69,7 @@ type alias State =
 type EmailType
     = LoginEmail Route (Id LoginToken)
     | DeleteAccountEmail (Id DeleteUserToken)
+    | EventReminderEmail GroupId EventId Time.Posix EventType
 
 
 checkState : (State -> Maybe String) -> State -> State
@@ -99,6 +82,16 @@ checkState checkFunc state =
             state
 
 
+checkBackend : (BackendModel -> Result String ()) -> State -> State
+checkBackend checkFunc state =
+    case checkFunc state.backend of
+        Ok () ->
+            state
+
+        Err error ->
+            { state | testErrors = state.testErrors ++ [ error ] }
+
+
 checkFrontend : ClientId -> (FrontendModel -> Result String ()) -> State -> State
 checkFrontend clientId checkFunc state =
     case Dict.get clientId state.frontends of
@@ -109,6 +102,31 @@ checkFrontend clientId checkFunc state =
 
                 Err error ->
                     { state | testErrors = state.testErrors ++ [ error ] }
+
+        Nothing ->
+            { state
+                | testErrors =
+                    state.testErrors ++ [ "ClientId \"" ++ Id.clientIdToString clientId ++ "\" not found." ]
+            }
+
+
+checkView : ClientId -> (Test.Html.Query.Single FrontendMsg -> Expectation) -> State -> State
+checkView clientId query state =
+    case Dict.get clientId state.frontends of
+        Just frontend ->
+            case
+                frontendApp.view frontend.model
+                    |> .body
+                    |> Html.div []
+                    |> Test.Html.Query.fromHtml
+                    |> query
+                    |> Test.Runner.getFailureReason
+            of
+                Just { description } ->
+                    { state | testErrors = state.testErrors ++ [ description ] }
+
+                Nothing ->
+                    state
 
         Nothing ->
             { state

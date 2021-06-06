@@ -1,16 +1,24 @@
 module Tests exposing (suite)
 
+import AssocList as Dict
 import Backend
+import CreateGroupForm
 import Duration
-import EmailAddress
+import EmailAddress exposing (EmailAddress)
 import Env
 import Frontend
+import Group
+import GroupName exposing (GroupName)
 import Id
 import LoginForm
+import Route
 import Test exposing (..)
+import Test.Html.Query
+import Test.Html.Selector
 import TestFramework as TF exposing (EmailType(..))
 import Types exposing (FrontendModel(..), LoginStatus(..))
 import Ui
+import Url exposing (Url)
 
 
 loginFromHomepage :
@@ -22,7 +30,7 @@ loginFromHomepage :
     -> { state : TF.State, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId }
 loginFromHomepage loginWithEnterKey sessionId sessionIdFromEmail emailAddress state =
     state
-        |> TF.connectFrontend sessionId (TF.unsafeUrl Env.domain)
+        |> TF.connectFrontend sessionId (unsafeUrl Env.domain)
         |> (\( state2, clientId ) ->
                 state2
                     |> TF.simulateTime Duration.second
@@ -43,7 +51,7 @@ loginFromHomepage loginWithEnterKey sessionId sessionIdFromEmail emailAddress st
                                     state3
                                         |> TF.connectFrontend
                                             sessionIdFromEmail
-                                            (TF.unsafeUrl (Backend.loginEmailLink route loginToken))
+                                            (unsafeUrl (Backend.loginEmailLink route loginToken))
                                         |> (\( state4, clientIdFromEmail ) ->
                                                 { state = state4 |> TF.simulateTime Duration.second
                                                 , clientId = clientId
@@ -67,7 +75,7 @@ suite =
                         Id.sessionIdFromString "session0"
 
                     emailAddress =
-                        TF.unsafeEmailAddress "a@a.se"
+                        unsafeEmailAddress "a@a.se"
                 in
                 TF.init
                     |> loginFromHomepage False sessionId sessionId emailAddress
@@ -98,7 +106,7 @@ suite =
                         Id.sessionIdFromString "session0"
 
                     emailAddress =
-                        TF.unsafeEmailAddress "a@a.se"
+                        unsafeEmailAddress "a@a.se"
                 in
                 TF.init
                     |> loginFromHomepage True sessionId sessionId emailAddress
@@ -129,7 +137,7 @@ suite =
                         Id.sessionIdFromString "session0"
 
                     emailAddress =
-                        TF.unsafeEmailAddress "a@a.se"
+                        unsafeEmailAddress "a@a.se"
                 in
                 TF.init
                     |> loginFromHomepage True sessionId sessionId emailAddress
@@ -160,7 +168,7 @@ suite =
                         True
                         (Id.sessionIdFromString "session0")
                         (Id.sessionIdFromString "session1")
-                        (TF.unsafeEmailAddress "a@a.se")
+                        (unsafeEmailAddress "a@a.se")
                     |> (\{ state, clientId, clientIdFromEmail } ->
                             state
                                 |> TF.checkLoadedFrontend
@@ -182,7 +190,7 @@ suite =
             \_ ->
                 let
                     emailAddress =
-                        TF.unsafeEmailAddress "a@a.se"
+                        unsafeEmailAddress "a@a.se"
 
                     sessionId =
                         Id.sessionIdFromString "session0"
@@ -195,7 +203,7 @@ suite =
                                     state
                                         |> TF.connectFrontend
                                             (Id.sessionIdFromString "session1")
-                                            (TF.unsafeUrl (Backend.loginEmailLink route loginToken))
+                                            (unsafeUrl (Backend.loginEmailLink route loginToken))
                                         |> (\( state2, clientId3 ) ->
                                                 state2
                                                     |> TF.simulateTime Duration.second
@@ -222,6 +230,51 @@ suite =
                                     Debug.todo "Didn't find login email"
                        )
                     |> TF.finishSimulation
+        , test "Creating a group redirects to group page and updates backend" <|
+            \_ ->
+                let
+                    session0 =
+                        Id.sessionIdFromString "session0"
+
+                    groupName =
+                        "It's my Group!"
+
+                    groupDescription =
+                        "This is the best group"
+                in
+                TF.init
+                    |> loginFromHomepage False session0 session0 (unsafeEmailAddress "a@a.se")
+                    |> (\{ state, clientId, clientIdFromEmail } ->
+                            state
+                                |> TF.clickLink clientIdFromEmail Route.CreateGroupRoute
+                                |> TF.simulateTime Duration.second
+                                |> TF.inputEvent clientIdFromEmail CreateGroupForm.nameInputId groupName
+                                |> TF.inputEvent clientIdFromEmail CreateGroupForm.descriptionInputId groupDescription
+                                |> TF.clickEvent clientIdFromEmail (CreateGroupForm.groupVisibilityId Group.PublicGroup)
+                                |> TF.clickEvent clientIdFromEmail CreateGroupForm.submitButtonId
+                                |> TF.simulateTime Duration.second
+                                |> TF.checkFrontend clientIdFromEmail
+                                    (\model ->
+                                        case model of
+                                            Loaded loaded ->
+                                                if loaded.route == Route.GroupRoute (Id.groupIdFromInt 0) (unsafeGroupName groupName) then
+                                                    Ok ()
+
+                                                else
+                                                    Err "Was redirected to incorrect route"
+
+                                            Loading _ ->
+                                                Err "Somehow we ended up in the loading state"
+                                    )
+                                |> TF.checkView
+                                    clientIdFromEmail
+                                    (Test.Html.Query.has
+                                        [ Test.Html.Selector.text groupName
+                                        , Test.Html.Selector.text groupDescription
+                                        ]
+                                    )
+                       )
+                    |> TF.finishSimulation
 
         --, only <|
         --    test "test" <|
@@ -233,3 +286,33 @@ suite =
         --                |> TF.simulateStep
         --                |> TF.finishSimulation
         ]
+
+
+unsafeUrl : String -> Url
+unsafeUrl urlText =
+    case Url.fromString urlText of
+        Just url ->
+            url
+
+        Nothing ->
+            Debug.todo ("Invalid url " ++ urlText)
+
+
+unsafeEmailAddress : String -> EmailAddress
+unsafeEmailAddress text =
+    case EmailAddress.fromString text of
+        Just address ->
+            address
+
+        Nothing ->
+            Debug.todo ("Invalid email address " ++ text)
+
+
+unsafeGroupName : String -> GroupName
+unsafeGroupName name =
+    case GroupName.fromString name of
+        Ok value ->
+            value
+
+        Err _ ->
+            Debug.todo ("Invalid group name " ++ name)
