@@ -6,14 +6,15 @@ module TestFramework exposing
     , checkLoadedFrontend
     , checkState
     , checkView
-    , clickEvent
+    , clickButton
     , clickLink
+    , clickRadioButton
     , connectFrontend
     , disconnectFrontend
     , fastForward
     , finishSimulation
     , init
-    , inputEvent
+    , inputText
     , keyDownEvent
     , reconnectFrontend
     , runEffects
@@ -38,7 +39,7 @@ import FrontendSub exposing (FrontendSub)
 import Group exposing (EventId)
 import Html exposing (Html)
 import Html.Attributes
-import Id exposing (ClientId, DeleteUserToken, GroupId, HtmlId(..), Id, LoginToken, SessionId)
+import Id exposing (ButtonId(..), ClientId, DeleteUserToken, GroupId, HtmlId, Id, LoginToken, RadioButtonId, SessionId, TextInputId)
 import Json.Encode
 import MockFile exposing (File(..))
 import Pixels
@@ -312,18 +313,23 @@ connectFrontend sessionId url state =
     )
 
 
-keyDownEvent : ClientId -> HtmlId -> Int -> State -> State
+keyDownEvent : ClientId -> HtmlId any -> Int -> State -> State
 keyDownEvent clientId htmlId keyCode state =
     userEvent clientId htmlId ( "keydown", Json.Encode.object [ ( "keyCode", Json.Encode.int keyCode ) ] ) state
 
 
-clickEvent : ClientId -> HtmlId -> State -> State
-clickEvent clientId htmlId state =
+clickButton : ClientId -> HtmlId ButtonId -> State -> State
+clickButton clientId htmlId state =
     userEvent clientId htmlId Test.Html.Event.click state
 
 
-inputEvent : ClientId -> HtmlId -> String -> State -> State
-inputEvent clientId htmlId text state =
+clickRadioButton : ClientId -> HtmlId RadioButtonId -> State -> State
+clickRadioButton clientId htmlId state =
+    userEvent clientId htmlId Test.Html.Event.click state
+
+
+inputText : ClientId -> HtmlId TextInputId -> String -> State -> State
+inputText clientId htmlId text state =
     userEvent clientId htmlId (Test.Html.Event.input text) state
 
 
@@ -370,8 +376,8 @@ clickLink clientId route state =
             Debug.todo "ClientId not found"
 
 
-userEvent : ClientId -> HtmlId -> ( String, Json.Encode.Value ) -> State -> State
-userEvent clientId (HtmlId nodeId) event state =
+userEvent : ClientId -> HtmlId any -> ( String, Json.Encode.Value ) -> State -> State
+userEvent clientId htmlId event state =
     case Dict.get clientId state.frontends of
         Just frontend ->
             case
@@ -379,7 +385,7 @@ userEvent clientId (HtmlId nodeId) event state =
                     |> .body
                     |> Html.div []
                     |> Test.Html.Query.fromHtml
-                    |> Test.Html.Query.find [ Test.Html.Selector.id nodeId ]
+                    |> Test.Html.Query.find [ Test.Html.Selector.id (Id.htmlIdToString htmlId) ]
                     |> Test.Html.Event.simulate event
                     |> Test.Html.Event.toResult
             of
@@ -397,7 +403,7 @@ userEvent clientId (HtmlId nodeId) event state =
                     }
 
                 Err err ->
-                    Debug.todo ("User event failed for " ++ nodeId ++ ": " ++ err)
+                    Debug.todo ("User event failed for " ++ Id.htmlIdToString htmlId ++ ": " ++ err)
 
         Nothing ->
             Debug.todo "ClientId not found"

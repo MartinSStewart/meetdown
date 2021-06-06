@@ -1,4 +1,4 @@
-module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, addedNewEvent, eventMeetingInPersonInputId, eventMeetingOnlineInputId, init, joinOrLeaveResponse, savedDescription, savedName, update, view)
+module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, addedNewEvent, createEventCancelId, createEventSubmitId, createNewEventId, editDescriptionId, editGroupNameId, eventDescriptionInputId, eventMeetingInPersonInputId, eventMeetingOnlineInputId, eventMeetingTypeId, eventNameInputId, init, joinEventButtonId, joinOrLeaveResponse, leaveEventButtonId, resetDescriptionId, resetGroupNameId, saveDescriptionId, saveGroupNameId, savedDescription, savedName, update, view)
 
 import Address exposing (Address, Error(..))
 import AssocList as Dict exposing (Dict)
@@ -16,10 +16,8 @@ import EventName exposing (EventName)
 import FrontendUser exposing (FrontendUser)
 import Group exposing (EventId, Group)
 import GroupName exposing (GroupName)
-import Html
 import Html.Attributes
-import Html.Events
-import Id exposing (HtmlId(..), Id, UserId)
+import Id exposing (ButtonId(..), HtmlId, Id, UserId)
 import Link exposing (Link)
 import List.Nonempty exposing (Nonempty(..))
 import Name
@@ -421,8 +419,8 @@ view currentTime timezone owner group model maybeUserId =
                         , Maybe.map Ui.error error |> Maybe.withDefault Element.none
                         , Element.row
                             [ Element.spacing 16, Element.paddingXY 8 0 ]
-                            [ smallButton PressedResetName "Reset"
-                            , smallSubmitButton False { onPress = PressedSaveName, label = "Save" }
+                            [ smallButton resetGroupNameId PressedResetName "Reset"
+                            , smallSubmitButton saveGroupNameId False { onPress = PressedSaveName, label = "Save" }
                             ]
                         ]
 
@@ -432,8 +430,8 @@ view currentTime timezone owner group model maybeUserId =
                             (textInput TypedName (GroupName.toString name) "Group name")
                         , Element.row
                             [ Element.spacing 16, Element.paddingXY 8 0 ]
-                            [ smallButton PressedResetName "Reset"
-                            , smallSubmitButton True { onPress = PressedSaveName, label = "Save" }
+                            [ smallButton resetGroupNameId PressedResetName "Reset"
+                            , smallSubmitButton saveGroupNameId True { onPress = PressedSaveName, label = "Save" }
                             ]
                         ]
 
@@ -444,7 +442,7 @@ view currentTime timezone owner group model maybeUserId =
                             |> Ui.title
                             |> Element.el [ Element.paddingXY 8 4 ]
                         , if isOwner then
-                            Element.el [ Element.paddingXY 8 0 ] (smallButton PressedEditName "Edit")
+                            Element.el [ Element.paddingXY 8 0 ] (smallButton editGroupNameId PressedEditName "Edit")
 
                           else
                             Element.none
@@ -475,8 +473,8 @@ view currentTime timezone owner group model maybeUserId =
                     "Description"
                     (Element.row
                         [ Element.spacing 8 ]
-                        [ smallButton PressedResetDescription "Reset"
-                        , smallSubmitButton False { onPress = PressedSaveDescription, label = "Save" }
+                        [ smallButton resetDescriptionId PressedResetDescription "Reset"
+                        , smallSubmitButton saveDescriptionId False { onPress = PressedSaveDescription, label = "Save" }
                         ]
                     )
                     (Element.column
@@ -491,8 +489,8 @@ view currentTime timezone owner group model maybeUserId =
                     False
                     "Description"
                     (Element.row [ Element.spacing 8 ]
-                        [ smallButton PressedResetDescription "Reset"
-                        , smallSubmitButton True { onPress = PressedSaveDescription, label = "Save" }
+                        [ smallButton resetDescriptionId PressedResetDescription "Reset"
+                        , smallSubmitButton saveDescriptionId True { onPress = PressedSaveDescription, label = "Save" }
                         ]
                     )
                     (multiline TypedDescription (Description.toString description) "")
@@ -503,7 +501,7 @@ view currentTime timezone owner group model maybeUserId =
                     "Description"
                     (if isOwner then
                         -- Extra el prevents focus on both reset and save buttons
-                        Element.el [] (smallButton PressedEditDescription "Edit")
+                        Element.el [] (smallButton editDescriptionId PressedEditDescription "Edit")
 
                      else
                         Element.none
@@ -523,12 +521,12 @@ view currentTime timezone owner group model maybeUserId =
                 if model.addingNewEvent then
                     Element.row
                         [ Element.spacing 8 ]
-                        [ smallButton PressedCancelNewEvent "Cancel"
-                        , smallSubmitButton False { onPress = PressedCreateNewEvent, label = "Create new event" }
+                        [ smallButton createEventCancelId PressedCancelNewEvent "Cancel"
+                        , smallSubmitButton createEventSubmitId False { onPress = PressedCreateNewEvent, label = "Create new event" }
                         ]
 
                 else
-                    Element.el [] (smallButton PressedAddEvent "Add event")
+                    Element.el [] (smallButton createNewEventId PressedAddEvent "Add event")
 
              else
                 Element.none
@@ -554,6 +552,42 @@ view currentTime timezone owner group model maybeUserId =
                     [ Element.width Element.fill, Element.spacing 8 ]
             )
         ]
+
+
+resetGroupNameId =
+    Id.buttonId "groupPageResetGroupNameButton"
+
+
+editGroupNameId =
+    Id.buttonId "groupPageEditGroupNameButton"
+
+
+saveGroupNameId =
+    Id.buttonId "groupPageSaveGroupNameButton"
+
+
+resetDescriptionId =
+    Id.buttonId "groupPageResetDescriptionButton"
+
+
+editDescriptionId =
+    Id.buttonId "groupPageEditDescriptionButton"
+
+
+saveDescriptionId =
+    Id.buttonId "groupPageSaveDescriptionButton"
+
+
+createEventCancelId =
+    Id.buttonId "groupPageCreateEventCancelButton"
+
+
+createEventSubmitId =
+    Id.buttonId "groupPageCreateEventSubmitButton"
+
+
+createNewEventId =
+    Id.buttonId "groupPageCreateNewEventButton"
 
 
 futureEventView : Time.Zone -> Maybe (Id UserId) -> Dict EventId EventJoinOrLeaveStatus -> ( EventId, Event ) -> Element Msg
@@ -616,11 +650,11 @@ futureEventView timezone maybeUserId pendingJoinOrLeaveStatuses ( eventId, event
 
 
 leaveEventButtonId =
-    HtmlId "groupLeaveEvent"
+    Id.buttonId "groupLeaveEvent"
 
 
 joinEventButtonId =
-    HtmlId "groupJoinEvent"
+    Id.buttonId "groupJoinEvent"
 
 
 intToMonth : Int -> Maybe Time.Month
@@ -666,85 +700,38 @@ intToMonth value =
             Nothing
 
 
-datestamp : Time.Posix -> Time.Zone -> String
-datestamp time timezone =
-    let
-        monthValue =
-            case Time.toMonth timezone time of
-                Time.Jan ->
-                    "01"
-
-                Time.Feb ->
-                    "02"
-
-                Time.Mar ->
-                    "03"
-
-                Time.Apr ->
-                    "04"
-
-                Time.May ->
-                    "05"
-
-                Time.Jun ->
-                    "06"
-
-                Time.Jul ->
-                    "07"
-
-                Time.Aug ->
-                    "08"
-
-                Time.Sep ->
-                    "09"
-
-                Time.Oct ->
-                    "10"
-
-                Time.Nov ->
-                    "11"
-
-                Time.Dec ->
-                    "12"
-    in
-    String.fromInt (Time.toYear timezone time)
-        ++ "-"
-        ++ monthValue
-        ++ "-"
-        ++ String.padLeft 2 '0' (String.fromInt (Time.toDay timezone time))
-
-
 type EventType
     = MeetOnline
     | MeetInPerson
 
 
 eventNameInputId =
-    HtmlId "groupEventName"
+    Id.textInputId "groupEventName"
 
 
 eventDescriptionInputId =
-    HtmlId "groupEventDescription"
+    Id.textInputId "groupEventDescription"
 
 
-eventMeetingTypeId meetingType =
-    "groupEventMeeting_"
-        ++ (case meetingType of
+eventMeetingTypeId =
+    Id.radioButtonId
+        "groupEventMeeting_"
+        (\meetingType ->
+            case meetingType of
                 MeetOnline ->
                     "MeetOnline"
 
                 MeetInPerson ->
                     "MeetInPerson"
-           )
-        |> HtmlId
+        )
 
 
 eventMeetingOnlineInputId =
-    HtmlId "groupEventMeetingOnline"
+    Id.textInputId "groupEventMeetingOnline"
 
 
 eventMeetingInPersonInputId =
-    HtmlId "groupEventMeetingInPerson"
+    Id.textInputId "groupEventMeetingInPerson"
 
 
 newEventView : Time.Posix -> Time.Zone -> NewEvent -> Element Msg
@@ -830,12 +817,7 @@ newEventView currentTime timezone event =
         , Element.column
             [ Element.spacing 4 ]
             [ Element.text "How many hours long is it?"
-            , Element.html <|
-                Html.input
-                    [ Html.Attributes.type_ "number"
-                    , Html.Events.onInput (\text -> ChangedNewEvent { event | duration = text })
-                    ]
-                    []
+            , Ui.numberInput eventDurationId (\text -> ChangedNewEvent { event | duration = text }) event.duration
             , (case ( event.pressedSubmit, validateDuration event.duration ) of
                 ( True, Err error ) ->
                     Just error
@@ -849,6 +831,18 @@ newEventView currentTime timezone event =
         ]
 
 
+eventDurationId =
+    Id.numberInputId "groupPageEventDurationId"
+
+
+createEventStartDateId =
+    Id.dateInputId "groupPageCreateEventStartDate"
+
+
+createEventStartTimeId =
+    Id.timeInputId "groupPageCreateEventStartTime"
+
+
 dateTimeInput : Time.Posix -> Time.Zone -> NewEvent -> Element Msg
 dateTimeInput currentTime timezone event =
     Element.column [ Element.spacing 4 ]
@@ -856,25 +850,20 @@ dateTimeInput currentTime timezone event =
             [ Element.column
                 [ Element.spacing 4 ]
                 [ Element.text "Start date"
-                , Element.html <|
-                    Html.input
-                        [ Html.Attributes.type_ "date"
-                        , Html.Attributes.min (datestamp currentTime timezone)
-                        , Html.Events.onInput (\text -> ChangedNewEvent { event | startDate = text })
-                        , Html.Attributes.value event.startDate
-                        ]
-                        []
+                , Ui.dateInput
+                    createEventStartDateId
+                    (\text -> ChangedNewEvent { event | startDate = text })
+                    currentTime
+                    timezone
+                    event.startDate
                 ]
             , Element.column
                 [ Element.spacing 4 ]
                 [ Element.text "Start time"
-                , Element.html <|
-                    Html.input
-                        [ Html.Attributes.type_ "time"
-                        , Html.Events.onInput (\text -> ChangedNewEvent { event | startTime = text })
-                        , Html.Attributes.value event.startTime
-                        ]
-                        []
+                , Ui.timeInput
+                    createEventStartTimeId
+                    (\text -> ChangedNewEvent { event | startTime = text })
+                    event.startTime
                 ]
             ]
         , case ( event.pressedSubmit, validateDateTime currentTime timezone event.startDate event.startTime ) of
@@ -1080,8 +1069,8 @@ section hasError title headerExtra content =
         ]
 
 
-smallButton : msg -> String -> Element msg
-smallButton onPress label =
+smallButton : HtmlId ButtonId -> msg -> String -> Element msg
+smallButton htmlId onPress label =
     Element.Input.button
         [ Element.Background.color <| Element.rgb 0.9 0.9 0.9
         , Element.Border.width 2
@@ -1089,20 +1078,22 @@ smallButton onPress label =
         , Element.paddingXY 8 2
         , Element.Border.rounded 4
         , Element.Font.center
+        , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         ]
         { onPress = Just onPress
         , label = Element.text label
         }
 
 
-smallSubmitButton : Bool -> { onPress : msg, label : String } -> Element msg
-smallSubmitButton isSubmitting { onPress, label } =
+smallSubmitButton : HtmlId ButtonId -> Bool -> { onPress : msg, label : String } -> Element msg
+smallSubmitButton htmlId isSubmitting { onPress, label } =
     Element.Input.button
         [ Element.Background.color <| Element.rgb 0.1 0.6 0.25
         , Element.paddingXY 8 4
         , Element.Border.rounded 4
         , Element.Font.center
         , Element.Font.color <| Element.rgb 1 1 1
+        , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         ]
         { onPress = Just onPress
         , label =

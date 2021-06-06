@@ -12,7 +12,7 @@ import EmailAddress exposing (EmailAddress)
 import Html
 import Html.Attributes
 import Html.Events
-import Id exposing (HtmlId(..))
+import Id exposing (ButtonId(..))
 import Json.Decode
 import List.Extra as List
 import MockFile exposing (File)
@@ -626,11 +626,11 @@ imageEditorView windowSize imageEdit =
 
 
 uploadImageButtonId =
-    HtmlId "profileUploadImage"
+    Id.buttonId "profileUploadImage"
 
 
 cancelImageButtonId =
-    HtmlId "profileCancelImage"
+    Id.buttonId "profileCancelImage"
 
 
 view :
@@ -718,7 +718,7 @@ view windowSize currentValues ({ form } as model) =
 
 
 deleteAccountButtonId =
-    HtmlId "profileDeleteAccount"
+    Id.buttonId "profileDeleteAccount"
 
 
 editableTextInput :

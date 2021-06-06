@@ -4,14 +4,15 @@ import Element exposing (Element)
 import Element.Border
 import Element.Input
 import EmailAddress exposing (EmailAddress)
-import Id exposing (HtmlId(..))
+import Html.Attributes
+import Id exposing (ButtonId(..), HtmlId, TextInputId)
 import Route exposing (Route)
 import Types exposing (FrontendMsg(..), LoginForm, ToBackend(..))
 import Ui
 import Untrusted
 
 
-emailInput : HtmlId -> msg -> (String -> msg) -> String -> String -> Maybe String -> Element msg
+emailInput : HtmlId TextInputId -> msg -> (String -> msg) -> String -> String -> Maybe String -> Element msg
 emailInput id onSubmit onChange text labelText maybeError =
     Element.column
         [ Element.width Element.fill
@@ -20,7 +21,10 @@ emailInput id onSubmit onChange text labelText maybeError =
         , Element.Border.rounded 4
         ]
         [ Element.Input.email
-            [ Element.width Element.fill, Ui.onEnter onSubmit, Ui.id id ]
+            [ Element.width Element.fill
+            , Ui.onEnter onSubmit
+            , Id.htmlIdToString id |> Html.Attributes.id |> Element.htmlAttribute
+            ]
             { text = text
             , onChange = onChange
             , placeholder = Nothing
@@ -109,10 +113,11 @@ typedEmail emailText loginForm =
     { loginForm | email = emailText }
 
 
+emailAddressInputId : HtmlId TextInputId
 emailAddressInputId =
-    HtmlId "loginTextInput"
+    Id.textInputId "loginTextInput"
 
 
-submitButtonId : HtmlId
+submitButtonId : HtmlId ButtonId
 submitButtonId =
-    HtmlId "loginSubmit"
+    Id.buttonId "loginSubmit"

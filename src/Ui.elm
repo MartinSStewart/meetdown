@@ -1,4 +1,31 @@
-module Ui exposing (button, css, dangerButton, emailAddressText, enterKeyCode, error, filler, formError, headerButton, headerLink, hr, id, inputBackground, inputFocusClass, linkColor, multiline, onEnter, radioGroup, routeLink, section, submitButton, textInput, title, titleFontSize)
+module Ui exposing
+    ( button
+    , css
+    , dangerButton
+    , dateInput
+    , emailAddressText
+    , enterKeyCode
+    , error
+    , filler
+    , formError
+    , headerButton
+    , headerLink
+    , hr
+    , inputBackground
+    , inputFocusClass
+    , linkColor
+    , multiline
+    , numberInput
+    , onEnter
+    , radioGroup
+    , routeLink
+    , section
+    , submitButton
+    , textInput
+    , timeInput
+    , title
+    , titleFontSize
+    )
 
 import Element exposing (Element)
 import Element.Background
@@ -10,10 +37,11 @@ import EmailAddress exposing (EmailAddress)
 import Html exposing (Html)
 import Html.Attributes
 import Html.Events
-import Id exposing (HtmlId(..))
+import Id exposing (ButtonId(..), DateInputId(..), HtmlId, NumberInputId(..), RadioButtonId(..), TextInputId(..), TimeInputId(..))
 import Json.Decode
 import List.Nonempty exposing (Nonempty)
 import Route exposing (Route)
+import Time
 
 
 css : Html msg
@@ -56,14 +84,14 @@ inputFocusClass =
     Element.htmlAttribute <| Html.Attributes.class "linkFocus"
 
 
-headerButton : HtmlId -> { onPress : msg, label : String } -> Element msg
+headerButton : HtmlId ButtonId -> { onPress : msg, label : String } -> Element msg
 headerButton htmlId { onPress, label } =
     Element.Input.button
         [ Element.mouseOver [ Element.Background.color <| Element.rgba 1 1 1 0.5 ]
         , Element.paddingXY 16 8
         , Element.Font.center
         , inputFocusClass
-        , id htmlId
+        , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         ]
         { onPress = Just onPress
         , label = Element.text label
@@ -110,7 +138,7 @@ section sectionTitle content =
         ]
 
 
-button : HtmlId -> { onPress : msg, label : String } -> Element msg
+button : HtmlId ButtonId -> { onPress : msg, label : String } -> Element msg
 button htmlId { onPress, label } =
     Element.Input.button
         [ Element.Background.color <| Element.rgb 0.9 0.9 0.9
@@ -120,7 +148,7 @@ button htmlId { onPress, label } =
         , Element.Border.rounded 4
         , Element.Font.center
         , Element.width (Element.minimum 150 Element.shrink)
-        , id htmlId
+        , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         ]
         { onPress = Just onPress
         , label = Element.text label
@@ -132,12 +160,7 @@ linkColor =
     Element.rgb 0.2 0.2 1
 
 
-id : HtmlId -> Element.Attribute msg
-id (HtmlId htmlId) =
-    Html.Attributes.id htmlId |> Element.htmlAttribute
-
-
-submitButton : HtmlId -> Bool -> { onPress : msg, label : String } -> Element msg
+submitButton : HtmlId ButtonId -> Bool -> { onPress : msg, label : String } -> Element msg
 submitButton htmlId isSubmitting { onPress, label } =
     Element.Input.button
         [ Element.Background.color <| Element.rgb 0.1 0.6 0.25
@@ -145,7 +168,7 @@ submitButton htmlId isSubmitting { onPress, label } =
         , Element.Border.rounded 4
         , Element.Font.center
         , Element.Font.color <| Element.rgb 1 1 1
-        , id htmlId
+        , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         ]
         { onPress = Just onPress
         , label =
@@ -162,7 +185,7 @@ submitButton htmlId isSubmitting { onPress, label } =
         }
 
 
-dangerButton : HtmlId -> { onPress : msg, label : String } -> Element msg
+dangerButton : HtmlId ButtonId -> { onPress : msg, label : String } -> Element msg
 dangerButton htmlId { onPress, label } =
     Element.Input.button
         [ Element.Background.color <| Element.rgb 0.9 0 0
@@ -170,7 +193,7 @@ dangerButton htmlId { onPress, label } =
         , Element.Border.rounded 4
         , Element.Font.center
         , Element.Font.color <| Element.rgb 1 1 1
-        , id htmlId
+        , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         ]
         { onPress = Just onPress
         , label = Element.text label
@@ -223,7 +246,7 @@ formError errorMessage =
         [ Element.text errorMessage ]
 
 
-radioGroup : (a -> HtmlId) -> (a -> msg) -> Nonempty a -> Maybe a -> (a -> String) -> Maybe String -> Element msg
+radioGroup : (a -> HtmlId RadioButtonId) -> (a -> msg) -> Nonempty a -> Maybe a -> (a -> String) -> Maybe String -> Element msg
 radioGroup htmlId onSelect options selected optionToLabel maybeError =
     let
         optionsView =
@@ -232,7 +255,7 @@ radioGroup htmlId onSelect options selected optionToLabel maybeError =
                     Element.Input.button
                         [ Element.width Element.fill
                         , Element.paddingEach { left = 32, right = 8, top = 8, bottom = 8 }
-                        , id (htmlId value)
+                        , htmlId value |> Id.htmlIdToString |> Html.Attributes.id |> Element.htmlAttribute
                         ]
                         { onPress = Just (onSelect value)
                         , label =
@@ -271,7 +294,7 @@ inputBackground hasError =
             Element.rgb 0.94 0.94 0.94
 
 
-textInput : HtmlId -> (String -> msg) -> String -> String -> Maybe String -> Element msg
+textInput : HtmlId TextInputId -> (String -> msg) -> String -> String -> Maybe String -> Element msg
 textInput htmlId onChange text labelText maybeError =
     Element.column
         [ Element.width Element.fill
@@ -280,7 +303,9 @@ textInput htmlId onChange text labelText maybeError =
         , Element.Border.rounded 4
         ]
         [ Element.Input.text
-            [ Element.width Element.fill, id htmlId ]
+            [ Element.width Element.fill
+            , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
+            ]
             { text = text
             , onChange = onChange
             , placeholder = Nothing
@@ -293,7 +318,7 @@ textInput htmlId onChange text labelText maybeError =
         ]
 
 
-multiline : HtmlId -> (String -> msg) -> String -> String -> Maybe String -> Element msg
+multiline : HtmlId TextInputId -> (String -> msg) -> String -> String -> Maybe String -> Element msg
 multiline htmlId onChange text labelText maybeError =
     Element.column
         [ Element.width Element.fill
@@ -302,7 +327,10 @@ multiline htmlId onChange text labelText maybeError =
         , Element.Border.rounded 4
         ]
         [ Element.Input.multiline
-            [ Element.width Element.fill, Element.height (Element.px 200), id htmlId ]
+            [ Element.width Element.fill
+            , Element.height (Element.px 200)
+            , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
+            ]
             { text = text
             , onChange = onChange
             , placeholder = Nothing
@@ -314,3 +342,88 @@ multiline htmlId onChange text labelText maybeError =
             }
         , Maybe.map error maybeError |> Maybe.withDefault Element.none
         ]
+
+
+numberInput : HtmlId NumberInputId -> (String -> msg) -> String -> Element msg
+numberInput htmlId onChange value =
+    Element.html <|
+        Html.input
+            [ Html.Attributes.type_ "number"
+            , Html.Events.onInput onChange
+            , Id.htmlIdToString htmlId |> Html.Attributes.id
+            , Html.Attributes.value value
+            ]
+            []
+
+
+timeInput : HtmlId TimeInputId -> (String -> msg) -> String -> Element msg
+timeInput htmlId onChange time =
+    Element.html <|
+        Html.input
+            [ Html.Attributes.type_ "time"
+            , Html.Events.onInput onChange
+            , Html.Attributes.value time
+            , Id.htmlIdToString htmlId |> Html.Attributes.id
+            ]
+            []
+
+
+dateInput : HtmlId DateInputId -> (String -> msg) -> Time.Posix -> Time.Zone -> String -> Element msg
+dateInput htmlId onChange minDateTime timeZone date =
+    Element.html <|
+        Html.input
+            [ Html.Attributes.type_ "date"
+            , Html.Attributes.min (datestamp minDateTime timeZone)
+            , Html.Events.onInput onChange
+            , Html.Attributes.value date
+            , Id.htmlIdToString htmlId |> Html.Attributes.id
+            ]
+            []
+
+
+datestamp : Time.Posix -> Time.Zone -> String
+datestamp time timezone =
+    let
+        monthValue =
+            case Time.toMonth timezone time of
+                Time.Jan ->
+                    "01"
+
+                Time.Feb ->
+                    "02"
+
+                Time.Mar ->
+                    "03"
+
+                Time.Apr ->
+                    "04"
+
+                Time.May ->
+                    "05"
+
+                Time.Jun ->
+                    "06"
+
+                Time.Jul ->
+                    "07"
+
+                Time.Aug ->
+                    "08"
+
+                Time.Sep ->
+                    "09"
+
+                Time.Oct ->
+                    "10"
+
+                Time.Nov ->
+                    "11"
+
+                Time.Dec ->
+                    "12"
+    in
+    String.fromInt (Time.toYear timezone time)
+        ++ "-"
+        ++ monthValue
+        ++ "-"
+        ++ String.padLeft 2 '0' (String.fromInt (Time.toDay timezone time))

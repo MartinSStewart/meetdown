@@ -19,7 +19,7 @@ import Description exposing (Description)
 import Element exposing (Element)
 import Group exposing (GroupVisibility(..))
 import GroupName exposing (GroupName)
-import Id exposing (HtmlId(..))
+import Id exposing (ButtonId(..))
 import List.Nonempty exposing (Nonempty(..))
 import Ui
 
@@ -240,29 +240,35 @@ formView maybeSubmitError isSubmitting form =
         ]
 
 
+nameInputId : Id.HtmlId Id.TextInputId
 nameInputId =
-    HtmlId "createGroupName"
+    Id.textInputId "createGroupName"
 
 
+descriptionInputId : Id.HtmlId Id.TextInputId
 descriptionInputId =
-    HtmlId "createGroupDescription"
+    Id.textInputId "createGroupDescription"
 
 
+clearButtonId : Id.HtmlId ButtonId
 clearButtonId =
-    HtmlId "createGroupClear"
+    Id.buttonId "createGroupClear"
 
 
+submitButtonId : Id.HtmlId ButtonId
 submitButtonId =
-    HtmlId "createGroupSubmit"
+    Id.buttonId "createGroupSubmit"
 
 
-groupVisibilityId visibility =
-    "groupCreateVisibility_"
-        ++ (case visibility of
+groupVisibilityId : GroupVisibility -> Id.HtmlId Id.RadioButtonId
+groupVisibilityId =
+    Id.radioButtonId
+        "groupCreateVisibility_"
+        (\visibility ->
+            case visibility of
                 UnlistedGroup ->
                     "UnlistedGroup"
 
                 PublicGroup ->
                     "PublicGroup"
-           )
-        |> HtmlId
+        )

@@ -21,7 +21,7 @@ import FrontendUser exposing (FrontendUser)
 import Group exposing (Group)
 import GroupName
 import GroupPage
-import Id exposing (GroupId, HtmlId(..), Id, UserId)
+import Id exposing (ButtonId(..), GroupId, Id, UserId)
 import Lamdera
 import List.Nonempty
 import LoginForm
@@ -1376,8 +1376,8 @@ header isLoggedIn_ route searchText =
 
 
 logOutButtonId =
-    HtmlId "headerLogOut"
+    Id.buttonId "headerLogOut"
 
 
 signUpOrLoginButtonId =
-    HtmlId "headerSignUpOrLogin"
+    Id.buttonId "headerSignUpOrLogin"

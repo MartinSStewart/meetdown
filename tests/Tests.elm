@@ -9,6 +9,7 @@ import Env
 import Frontend
 import Group
 import GroupName exposing (GroupName)
+import GroupPage
 import Id
 import LoginForm
 import Route
@@ -34,15 +35,15 @@ loginFromHomepage loginWithEnterKey sessionId sessionIdFromEmail emailAddress st
         |> (\( state2, clientId ) ->
                 state2
                     |> TF.simulateTime Duration.second
-                    |> TF.clickEvent clientId Frontend.signUpOrLoginButtonId
+                    |> TF.clickButton clientId Frontend.signUpOrLoginButtonId
                     |> TF.simulateTime Duration.second
-                    |> TF.inputEvent clientId LoginForm.emailAddressInputId (EmailAddress.toString emailAddress)
+                    |> TF.inputText clientId LoginForm.emailAddressInputId (EmailAddress.toString emailAddress)
                     |> TF.simulateTime Duration.second
                     |> (if loginWithEnterKey then
                             TF.keyDownEvent clientId LoginForm.emailAddressInputId Ui.enterKeyCode
 
                         else
-                            TF.clickEvent clientId LoginForm.submitButtonId
+                            TF.clickButton clientId LoginForm.submitButtonId
                        )
                     |> TF.simulateTime Duration.second
                     |> (\state3 ->
@@ -230,7 +231,7 @@ suite =
                                     Debug.todo "Didn't find login email"
                        )
                     |> TF.finishSimulation
-        , test "Creating a group redirects to group page and updates backend" <|
+        , test "Creating a group redirects to newly created group page" <|
             \_ ->
                 let
                     session0 =
@@ -245,14 +246,7 @@ suite =
                 TF.init
                     |> loginFromHomepage False session0 session0 (unsafeEmailAddress "a@a.se")
                     |> (\{ state, clientId, clientIdFromEmail } ->
-                            state
-                                |> TF.clickLink clientIdFromEmail Route.CreateGroupRoute
-                                |> TF.simulateTime Duration.second
-                                |> TF.inputEvent clientIdFromEmail CreateGroupForm.nameInputId groupName
-                                |> TF.inputEvent clientIdFromEmail CreateGroupForm.descriptionInputId groupDescription
-                                |> TF.clickEvent clientIdFromEmail (CreateGroupForm.groupVisibilityId Group.PublicGroup)
-                                |> TF.clickEvent clientIdFromEmail CreateGroupForm.submitButtonId
-                                |> TF.simulateTime Duration.second
+                            createGroup clientIdFromEmail groupName groupDescription state
                                 |> TF.checkFrontend clientIdFromEmail
                                     (\model ->
                                         case model of
@@ -275,17 +269,43 @@ suite =
                                     )
                        )
                     |> TF.finishSimulation
+        , test "Create an event and get an email a day before it occurs" <|
+            \_ ->
+                let
+                    session0 =
+                        Id.sessionIdFromString "session0"
 
-        --, only <|
-        --    test "test" <|
-        --        \_ ->
-        --            TF.init
-        --                |> TF.connectFrontend (Id.sessionIdFromString "sessionId0") (TF.unsafeUrl Env.domain)
-        --                |> Tuple.first
-        --                |> TF.simulateStep
-        --                |> TF.simulateStep
-        --                |> TF.finishSimulation
+                    groupName =
+                        "It's my Group!"
+
+                    groupDescription =
+                        "This is the best group"
+                in
+                TF.init
+                    |> loginFromHomepage False session0 session0 (unsafeEmailAddress "a@a.se")
+                    |> (\{ state, clientId, clientIdFromEmail } ->
+                            createGroup clientId groupName groupDescription state
+                                |> TF.clickButton clientId GroupPage.createNewEventId
+                                |> TF.inputText clientId GroupPage.eventNameInputId "First group event!"
+                                |> TF.inputText clientId GroupPage.eventDescriptionInputId "We're gonna party!"
+                                |> TF.clickRadioButton clientId (GroupPage.eventMeetingTypeId GroupPage.MeetOnline)
+                                |> TF.clickButton clientId GroupPage.createEventSubmitId
+                                |> TF.simulateTime Duration.second
+                       )
+                    |> TF.finishSimulation
         ]
+
+
+createGroup : Id.ClientId -> String -> String -> TF.State -> TF.State
+createGroup loggedInClient groupName groupDescription state =
+    state
+        |> TF.clickLink loggedInClient Route.CreateGroupRoute
+        |> TF.simulateTime Duration.second
+        |> TF.inputText loggedInClient CreateGroupForm.nameInputId groupName
+        |> TF.inputText loggedInClient CreateGroupForm.descriptionInputId groupDescription
+        |> TF.clickRadioButton loggedInClient (CreateGroupForm.groupVisibilityId Group.PublicGroup)
+        |> TF.clickButton loggedInClient CreateGroupForm.submitButtonId
+        |> TF.simulateTime Duration.second
 
 
 unsafeUrl : String -> Url
