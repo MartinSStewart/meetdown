@@ -1,4 +1,4 @@
-port module Frontend exposing (CropImageData, Effects, Subscriptions, app, createApp, logOutButtonId, signUpOrLoginButtonId)
+port module Frontend exposing (CropImageData, Effects, Subscriptions, app, createApp, groupSearchId, logOutButtonId, signUpOrLoginButtonId)
 
 import AssocList as Dict
 import AssocSet as Set
@@ -19,8 +19,9 @@ import File
 import File.Select
 import FrontendUser exposing (FrontendUser)
 import Group exposing (Group)
-import GroupName
+import GroupName exposing (GroupName)
 import GroupPage
+import Html.Attributes
 import Id exposing (ButtonId(..), GroupId, Id, UserId)
 import Lamdera
 import List.Nonempty
@@ -1317,6 +1318,7 @@ header isLoggedIn_ route searchText =
             [ Element.width <| Element.maximum 400 Element.fill
             , Element.paddingEach { left = 32, right = 8, top = 4, bottom = 4 }
             , Ui.onEnter SubmittedSearchBox
+            , Id.htmlIdToString groupSearchId |> Html.Attributes.id |> Element.htmlAttribute
             , Element.inFront
                 (Element.el
                     [ Element.Font.size 16
@@ -1375,6 +1377,10 @@ header isLoggedIn_ route searchText =
                 ]
             )
         ]
+
+
+groupSearchId =
+    Id.textInputId "headerGroupSearch"
 
 
 logOutButtonId =

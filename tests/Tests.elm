@@ -13,6 +13,7 @@ import GroupPage
 import Id
 import List.Extra as List
 import LoginForm
+import Quantity
 import Route
 import Test exposing (..)
 import Test.Html.Query
@@ -277,42 +278,28 @@ suite =
                     session0 =
                         Id.sessionIdFromString "session0"
 
-                    groupName =
-                        "It's my Group!"
-
-                    groupDescription =
-                        "This is the best group"
-
                     emailAddress =
                         unsafeEmailAddress "a@a.se"
-
-                    gotReminder model =
-                        List.find
-                            (\( address, emailType ) ->
-                                address == emailAddress && TF.isEventReminderEmail emailType
-                            )
-                            model.emailInboxes
-
-                    eventDate =
-                        Date.fromPosix Time.utc (Duration.addTo TF.startTime (Duration.days 3))
                 in
                 TF.init
                     |> loginFromHomepage False session0 session0 emailAddress
                     |> (\{ state, clientId, clientIdFromEmail } ->
-                            createGroup clientId groupName groupDescription state
-                                |> TF.clickButton clientId GroupPage.createNewEventId
-                                |> TF.inputText clientId GroupPage.eventNameInputId "First group event!"
-                                |> TF.inputText clientId GroupPage.eventDescriptionInputId "We're gonna party!"
-                                |> TF.clickRadioButton clientId (GroupPage.eventMeetingTypeId GroupPage.MeetOnline)
-                                |> TF.inputDate clientId GroupPage.createEventStartDateId eventDate
-                                |> TF.inputTime clientId GroupPage.createEventStartTimeId 0 0
-                                |> TF.inputNumber clientId GroupPage.eventDurationId "1"
-                                |> TF.clickButton clientId GroupPage.createEventSubmitId
-                                |> TF.simulateTime Duration.second
-                                |> TF.fastForward (Duration.days 1.999)
+                            createGroupAndEvent
+                                clientId
+                                { groupName = "It's my Group!"
+                                , groupDescription = "This is the best group"
+                                , eventName = "First group event!"
+                                , eventDescription = "We're gonna party!"
+                                , eventDate = Date.fromPosix Time.utc (Duration.addTo TF.startTime (Duration.days 3))
+                                , eventHour = 14
+                                , eventMinute = 0
+                                , eventDuration = "1"
+                                }
+                                state
+                                |> TF.fastForward (Duration.days 1.999 |> Quantity.plus (Duration.hours 14))
                                 |> TF.checkState
                                     (\model ->
-                                        case gotReminder model of
+                                        case gotReminder emailAddress model of
                                             Just _ ->
                                                 Err "Shouldn't have gotten an event notification yet"
 
@@ -322,7 +309,7 @@ suite =
                                 |> TF.simulateTime (Duration.days 0.002)
                                 |> TF.checkState
                                     (\model ->
-                                        case gotReminder model of
+                                        case gotReminder emailAddress model of
                                             Just _ ->
                                                 Ok ()
 
@@ -331,7 +318,117 @@ suite =
                                     )
                        )
                     |> TF.finishSimulation
+        , test "Create an event and but don't get a notification if it's occurring within 24 hours" <|
+            \_ ->
+                let
+                    session0 =
+                        Id.sessionIdFromString "session0"
+
+                    emailAddress =
+                        unsafeEmailAddress "a@a.se"
+                in
+                TF.init
+                    |> loginFromHomepage False session0 session0 emailAddress
+                    |> (\{ state, clientId, clientIdFromEmail } ->
+                            createGroupAndEvent
+                                clientId
+                                { groupName = "It's my Group!"
+                                , groupDescription = "This is the best group"
+                                , eventName = "First group event!"
+                                , eventDescription = "We're gonna party!"
+                                , eventDate = Date.fromPosix Time.utc TF.startTime
+                                , eventHour = 14
+                                , eventMinute = 0
+                                , eventDuration = "1"
+                                }
+                                state
+                                |> TF.fastForward (Duration.hours 1.99)
+                                |> TF.simulateTime (Duration.hours 0.02)
+                                |> TF.checkState
+                                    (\model ->
+                                        case gotReminder emailAddress model of
+                                            Just _ ->
+                                                Err "Shouldn't have gotten an event notification"
+
+                                            Nothing ->
+                                                Ok ()
+                                    )
+                       )
+                    |> TF.finishSimulation
+        , only <|
+            test "Create an event and another user joins it and gets an event reminder" <|
+                \_ ->
+                    let
+                        session0 =
+                            Id.sessionIdFromString "session0"
+
+                        session1 =
+                            Id.sessionIdFromString "session1"
+
+                        emailAddress0 =
+                            unsafeEmailAddress "a@a.se"
+
+                        emailAddress1 =
+                            unsafeEmailAddress "jim@a.com"
+
+                        groupName =
+                            unsafeGroupName "It's my Group!"
+                    in
+                    TF.init
+                        |> loginFromHomepage False session0 session0 emailAddress0
+                        |> (\{ state, clientId, clientIdFromEmail } ->
+                                createGroupAndEvent
+                                    clientId
+                                    { groupName = GroupName.toString groupName
+                                    , groupDescription = "This is the best group"
+                                    , eventName = "First group event!"
+                                    , eventDescription = "We're gonna party!"
+                                    , eventDate = Date.fromPosix Time.utc TF.startTime
+                                    , eventHour = 14
+                                    , eventMinute = 0
+                                    , eventDuration = "1"
+                                    }
+                                    state
+                           )
+                        |> loginFromHomepage False session1 session1 emailAddress1
+                        |> (\{ state, clientId, clientIdFromEmail } ->
+                                state
+                                    |> TF.inputText clientId Frontend.groupSearchId "my group!"
+                                    |> TF.keyDownEvent clientId Frontend.groupSearchId Ui.enterKeyCode
+                                    |> TF.checkState
+                                        (\model ->
+                                            let
+                                                _ =
+                                                    Debug.log "testtesttest" model.backend
+                                            in
+                                            Ok ()
+                                        )
+                                    |> TF.simulateTime Duration.second
+                                    |> TF.clickLink clientIdFromEmail (Route.GroupRoute (Id.groupIdFromInt 0) groupName)
+                                    |> TF.simulateTime Duration.second
+                                    |> TF.clickButton clientIdFromEmail GroupPage.joinEventButtonId
+                                    |> TF.fastForward (Duration.hours (24 + 14))
+                                    |> TF.fastForward Duration.minute
+                                    |> TF.checkState
+                                        (\model ->
+                                            case gotReminder emailAddress1 model of
+                                                Just _ ->
+                                                    Ok ()
+
+                                                Nothing ->
+                                                    Err "Should have gotten an event notification"
+                                        )
+                           )
+                        |> TF.finishSimulation
         ]
+
+
+gotReminder emailAddress model =
+    List.find
+        (\( address, emailType ) ->
+            address == emailAddress && TF.isEventReminderEmail emailType
+        )
+        model.emailInboxes
 
 
 createGroup : Id.ClientId -> String -> String -> TF.State -> TF.State
@@ -343,6 +440,33 @@ createGroup loggedInClient groupName groupDescription state =
         |> TF.inputText loggedInClient CreateGroupForm.descriptionInputId groupDescription
         |> TF.clickRadioButton loggedInClient (CreateGroupForm.groupVisibilityId Group.PublicGroup)
         |> TF.clickButton loggedInClient CreateGroupForm.submitButtonId
+        |> TF.simulateTime Duration.second
+
+
+createGroupAndEvent :
+    Id.ClientId
+    ->
+        { groupName : String
+        , groupDescription : String
+        , eventName : String
+        , eventDescription : String
+        , eventDate : Date.Date
+        , eventHour : Int
+        , eventMinute : Int
+        , eventDuration : String
+        }
+    -> TF.State
+    -> TF.State
+createGroupAndEvent loggedInClient { groupName, groupDescription, eventName, eventDescription, eventDate, eventHour, eventMinute, eventDuration } state =
+    createGroup loggedInClient groupName groupDescription state
+        |> TF.clickButton loggedInClient GroupPage.createNewEventId
+        |> TF.inputText loggedInClient GroupPage.eventNameInputId eventName
+        |> TF.inputText loggedInClient GroupPage.eventDescriptionInputId eventDescription
+        |> TF.clickRadioButton loggedInClient (GroupPage.eventMeetingTypeId GroupPage.MeetOnline)
+        |> TF.inputDate loggedInClient GroupPage.createEventStartDateId eventDate
+        |> TF.inputTime loggedInClient GroupPage.createEventStartTimeId eventHour eventMinute
+        |> TF.inputNumber loggedInClient GroupPage.eventDurationId eventDuration
+        |> TF.clickButton loggedInClient GroupPage.createEventSubmitId
         |> TF.simulateTime Duration.second
 
 
