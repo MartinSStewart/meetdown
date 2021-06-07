@@ -395,6 +395,22 @@ updateFromFrontend cmds sessionId clientId msg model =
                 |> cmds.sendToFrontend clientId
             )
 
+        GetUserRequest userId ->
+            userAuthorization
+                cmds
+                sessionId
+                model
+                (\( _, _ ) ->
+                    case getUser userId model of
+                        Just user ->
+                            ( model
+                            , Ok (Types.userToFrontend user) |> GetUserResponse userId |> cmds.sendToFrontend clientId
+                            )
+
+                        Nothing ->
+                            ( model, Err () |> GetUserResponse userId |> cmds.sendToFrontend clientId )
+                )
+
         CheckLoginRequest ->
             ( model, checkLogin sessionId model |> CheckLoginResponse |> cmds.sendToFrontend clientId )
 

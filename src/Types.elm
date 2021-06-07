@@ -56,7 +56,7 @@ type alias LoadedFrontend =
     , loginStatus : LoginStatus
     , route : Route
     , cachedGroups : Dict GroupId GroupCache
-    , cachedUsers : Dict (Id UserId) FrontendUser
+    , cachedUsers : Dict (Id UserId) UserCache
     , time : Time.Posix
     , timezone : Time.Zone
     , lastConnectionCheck : Time.Posix
@@ -83,6 +83,25 @@ type GroupCache
     = GroupNotFound
     | GroupFound Group
     | GroupRequestPending
+
+
+type UserCache
+    = UserNotFound
+    | UserFound FrontendUser
+    | UserRequestPending
+
+
+mapUserCache : (FrontendUser -> FrontendUser) -> UserCache -> UserCache
+mapUserCache mapFunc userCache =
+    case userCache of
+        UserNotFound ->
+            UserNotFound
+
+        UserFound frontendUser ->
+            mapFunc frontendUser |> UserFound
+
+        UserRequestPending ->
+            UserRequestPending
 
 
 type alias LoginForm =
@@ -288,6 +307,7 @@ type FrontendMsg
 
 type ToBackend
     = GetGroupRequest GroupId
+    | GetUserRequest (Id UserId)
     | CheckLoginRequest
     | LoginWithTokenRequest (Id LoginToken)
     | GetLoginTokenRequest Route (Untrusted EmailAddress)
@@ -320,6 +340,7 @@ type BackendMsg
 
 type ToFrontend
     = GetGroupResponse GroupId GroupRequest
+    | GetUserResponse (Id UserId) (Result () FrontendUser)
     | CheckLoginResponse (Maybe ( Id UserId, BackendUser ))
     | LoginWithTokenResponse (Result () ( Id UserId, BackendUser ))
     | GetAdminDataResponse (Array Log)

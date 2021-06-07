@@ -375,13 +375,33 @@ routeRequest cmds route model =
             ( model, cmds.sendToBackend GetMyGroupsRequest )
 
         GroupRoute groupId _ ->
-            if Dict.member groupId model.cachedGroups then
-                ( model, cmds.none )
+            case Dict.get groupId model.cachedGroups of
+                Just (GroupFound group) ->
+                    let
+                        ownerId =
+                            Group.ownerId group
+                    in
+                    case Dict.get ownerId model.cachedUsers of
+                        Just _ ->
+                            ( model, cmds.none )
 
-            else
-                ( { model | cachedGroups = Dict.insert groupId GroupRequestPending model.cachedGroups }
-                , cmds.sendToBackend (GetGroupRequest groupId)
-                )
+                        Nothing ->
+                            ( { model | cachedUsers = Dict.insert ownerId UserRequestPending model.cachedUsers }
+                            , cmds.sendToBackend (GetUserRequest ownerId)
+                            )
+
+                Just GroupRequestPending ->
+                    ( model, cmds.none )
+
+                Just GroupNotFound ->
+                    ( { model | cachedGroups = Dict.insert groupId GroupRequestPending model.cachedGroups }
+                    , cmds.sendToBackend (GetGroupRequest groupId)
+                    )
+
+                Nothing ->
+                    ( { model | cachedGroups = Dict.insert groupId GroupRequestPending model.cachedGroups }
+                    , cmds.sendToBackend (GetGroupRequest groupId)
+                    )
 
         HomepageRoute ->
             ( model, cmds.none )
@@ -616,7 +636,7 @@ updateLoadedFromBackend cmds msg model =
                 , cachedUsers =
                     case result of
                         GroupFound_ _ users ->
-                            Dict.union users model.cachedUsers
+                            Dict.union (Dict.map (\_ v -> UserFound v) users) model.cachedUsers
 
                         GroupNotFound_ ->
                             model.cachedUsers
@@ -631,6 +651,23 @@ updateLoadedFromBackend cmds msg model =
                     cmds.none
             )
 
+        GetUserResponse userId result ->
+            ( { model
+                | cachedUsers =
+                    Dict.insert
+                        userId
+                        (case result of
+                            Ok user ->
+                                UserFound user
+
+                            Err () ->
+                                UserNotFound
+                        )
+                        model.cachedUsers
+              }
+            , cmds.none
+            )
+
         LoginWithTokenResponse result ->
             case result of
                 Ok ( userId, user ) ->
@@ -643,7 +680,7 @@ updateLoadedFromBackend cmds msg model =
                                 , myGroups = Nothing
                                 , adminState = Nothing
                                 }
-                        , cachedUsers = Dict.insert userId (userToFrontend user) model.cachedUsers
+                        , cachedUsers = Dict.insert userId (userToFrontend user |> UserFound) model.cachedUsers
                       }
                     , cmds.none
                     )
@@ -663,7 +700,7 @@ updateLoadedFromBackend cmds msg model =
                                 , myGroups = Nothing
                                 , adminState = Nothing
                                 }
-                        , cachedUsers = Dict.insert userId (userToFrontend user) model.cachedUsers
+                        , cachedUsers = Dict.insert userId (userToFrontend user |> UserFound) model.cachedUsers
                       }
                     , cmds.none
                     )
@@ -710,7 +747,10 @@ updateLoadedFromBackend cmds msg model =
                 LoggedIn loggedIn ->
                     ( { model
                         | cachedUsers =
-                            Dict.update loggedIn.userId (Maybe.map (\a -> { a | name = name })) model.cachedUsers
+                            Dict.update
+                                loggedIn.userId
+                                (Maybe.map (Types.mapUserCache (\a -> { a | name = name })))
+                                model.cachedUsers
                       }
                     , cmds.none
                     )
@@ -728,7 +768,7 @@ updateLoadedFromBackend cmds msg model =
                         | cachedUsers =
                             Dict.update
                                 loggedIn.userId
-                                (Maybe.map (\a -> { a | description = description }))
+                                (Maybe.map (Types.mapUserCache (\a -> { a | description = description })))
                                 model.cachedUsers
                       }
                     , cmds.none
@@ -773,7 +813,7 @@ updateLoadedFromBackend cmds msg model =
                         | cachedUsers =
                             Dict.update
                                 loggedIn.userId
-                                (Maybe.map (\a -> { a | profileImage = profileImage }))
+                                (Maybe.map (Types.mapUserCache (\a -> { a | profileImage = profileImage })))
                                 model.cachedUsers
                       }
                     , cmds.none
@@ -1065,10 +1105,10 @@ loginRequiredPage model pageView =
 getCachedUser : Id UserId -> LoadedFrontend -> Maybe FrontendUser
 getCachedUser userId loadedFrontend =
     case Dict.get userId loadedFrontend.cachedUsers of
-        Just user ->
+        Just (UserFound user) ->
             Just user
 
-        Nothing ->
+        _ ->
             Nothing
 
 
@@ -1140,7 +1180,7 @@ viewPage model =
                 model
                 (\loggedIn ->
                     case Dict.get loggedIn.userId model.cachedUsers of
-                        Just user ->
+                        Just (UserFound user) ->
                             ProfileForm.view
                                 model
                                 { name = user.name
@@ -1154,6 +1194,12 @@ viewPage model =
                                     , Element.centerX
                                     ]
                                 |> Element.map ProfileFormMsg
+
+                        Just UserRequestPending ->
+                            Element.text "Loading user"
+
+                        Just UserNotFound ->
+                            Element.text "Failed to find user"
 
                         Nothing ->
                             Element.text "Failed to find user"

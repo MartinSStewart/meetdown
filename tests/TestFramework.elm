@@ -413,15 +413,15 @@ userEvent : ClientId -> HtmlId any -> ( String, Json.Encode.Value ) -> State -> 
 userEvent clientId htmlId event state =
     case Dict.get clientId state.frontends of
         Just frontend ->
-            case
-                frontendApp.view frontend.model
-                    |> .body
-                    |> Html.div []
-                    |> Test.Html.Query.fromHtml
-                    |> Test.Html.Query.find [ Test.Html.Selector.id (Id.htmlIdToString htmlId) ]
-                    |> Test.Html.Event.simulate event
-                    |> Test.Html.Event.toResult
-            of
+            let
+                query =
+                    frontendApp.view frontend.model
+                        |> .body
+                        |> Html.div []
+                        |> Test.Html.Query.fromHtml
+                        |> Test.Html.Query.find [ Test.Html.Selector.id (Id.htmlIdToString htmlId) ]
+            in
+            case Test.Html.Event.simulate event query |> Test.Html.Event.toResult of
                 Ok msg ->
                     let
                         ( newModel, effects ) =
@@ -436,7 +436,12 @@ userEvent clientId htmlId event state =
                     }
 
                 Err err ->
-                    Debug.todo ("User event failed for " ++ Id.htmlIdToString htmlId ++ ": " ++ err)
+                    case Test.Runner.getFailureReason (Test.Html.Query.has [] query) of
+                        Just { description } ->
+                            Debug.todo ("User event failed for " ++ Id.htmlIdToString htmlId ++ ": " ++ description)
+
+                        Nothing ->
+                            Debug.todo ("User event failed for " ++ Id.htmlIdToString htmlId ++ ": " ++ err)
 
         Nothing ->
             Debug.todo "ClientId not found"

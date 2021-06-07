@@ -395,18 +395,11 @@ suite =
                                 state
                                     |> TF.inputText clientId Frontend.groupSearchId "my group!"
                                     |> TF.keyDownEvent clientId Frontend.groupSearchId Ui.enterKeyCode
-                                    |> TF.checkState
-                                        (\model ->
-                                            let
-                                                _ =
-                                                    Debug.log "testtesttest" model.backend
-                                            in
-                                            Ok ()
-                                        )
                                     |> TF.simulateTime Duration.second
-                                    |> TF.clickLink clientIdFromEmail (Route.GroupRoute (Id.groupIdFromInt 0) groupName)
+                                    |> TF.clickLink clientId (Route.GroupRoute (Id.groupIdFromInt 0) groupName)
                                     |> TF.simulateTime Duration.second
-                                    |> TF.clickButton clientIdFromEmail GroupPage.joinEventButtonId
+                                    |> TF.clickButton clientId GroupPage.joinEventButtonId
+                                    |> TF.simulateTime Duration.second
                                     |> TF.fastForward (Duration.hours (24 + 14))
                                     |> TF.fastForward Duration.minute
                                     |> TF.checkState
