@@ -1,8 +1,10 @@
-module GroupName exposing (Error(..), GroupName, fromString, maxLength, minLength, namesMatch, toString)
+module GroupName exposing (Error(..), GroupName, fromString, maxLength, minLength, namesMatch, toNonemptyString, toString)
+
+import String.Nonempty exposing (NonemptyString)
 
 
 type GroupName
-    = GroupName String
+    = GroupName NonemptyString
 
 
 type Error
@@ -33,14 +35,24 @@ fromString text =
         Err GroupNameTooLong
 
     else
-        Ok (GroupName trimmed)
+        case String.Nonempty.fromString trimmed of
+            Just nonempty ->
+                Ok (GroupName nonempty)
+
+            Nothing ->
+                Err GroupNameTooShort
 
 
 toString : GroupName -> String
 toString (GroupName groupName) =
+    String.Nonempty.toString groupName
+
+
+toNonemptyString : GroupName -> NonemptyString
+toNonemptyString (GroupName groupName) =
     groupName
 
 
 namesMatch : GroupName -> GroupName -> Bool
 namesMatch (GroupName name0) (GroupName name1) =
-    String.toLower name0 == String.toLower name1
+    String.Nonempty.toLower name0 == String.Nonempty.toLower name1

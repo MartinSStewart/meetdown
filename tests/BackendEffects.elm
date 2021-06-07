@@ -2,7 +2,9 @@ module BackendEffects exposing (BackendEffect(..), effects)
 
 import Backend
 import EmailAddress exposing (EmailAddress)
-import Id exposing (ClientId, DeleteUserToken, Id, LoginToken)
+import Event exposing (Event)
+import GroupName exposing (GroupName)
+import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken)
 import Route exposing (Route)
 import SendGrid
 import Time
@@ -15,6 +17,7 @@ type BackendEffect
     | SendToFrontend ClientId ToFrontend
     | SendLoginEmail (Result SendGrid.Error () -> BackendMsg) EmailAddress Route (Id LoginToken)
     | SendDeleteUserEmail (Result SendGrid.Error () -> BackendMsg) EmailAddress (Id DeleteUserToken)
+    | SendEventReminderEmail (Result SendGrid.Error () -> BackendMsg) GroupId GroupName Event Time.Zone EmailAddress
     | GetTime (Time.Posix -> BackendMsg)
 
 
@@ -28,5 +31,6 @@ effects =
             List.map (\clientId -> SendToFrontend clientId toFrontend) clientIds |> Batch
     , sendLoginEmail = SendLoginEmail
     , sendDeleteUserEmail = SendDeleteUserEmail
+    , sendEventReminderEmail = SendEventReminderEmail
     , getTime = GetTime
     }

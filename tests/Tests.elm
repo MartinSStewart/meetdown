@@ -1,6 +1,5 @@
 module Tests exposing (suite)
 
-import AssocList as Dict
 import Backend
 import CreateGroupForm
 import Date
@@ -286,6 +285,16 @@ suite =
 
                     emailAddress =
                         unsafeEmailAddress "a@a.se"
+
+                    gotReminder model =
+                        List.find
+                            (\( address, emailType ) ->
+                                address == emailAddress && TF.isEventReminderEmail emailType
+                            )
+                            model.emailInboxes
+
+                    eventDate =
+                        Date.fromPosix Time.utc (Duration.addTo TF.startTime (Duration.days 3))
                 in
                 TF.init
                     |> loginFromHomepage False session0 session0 emailAddress
@@ -295,23 +304,15 @@ suite =
                                 |> TF.inputText clientId GroupPage.eventNameInputId "First group event!"
                                 |> TF.inputText clientId GroupPage.eventDescriptionInputId "We're gonna party!"
                                 |> TF.clickRadioButton clientId (GroupPage.eventMeetingTypeId GroupPage.MeetOnline)
-                                |> TF.inputDate
-                                    clientId
-                                    GroupPage.createEventStartDateId
-                                    (Date.fromPosix Time.utc (Duration.addTo TF.startTime (Duration.days 3)))
-                                |> TF.inputTime clientId GroupPage.createEventStartTimeId 12 0
+                                |> TF.inputDate clientId GroupPage.createEventStartDateId eventDate
+                                |> TF.inputTime clientId GroupPage.createEventStartTimeId 0 0
+                                |> TF.inputNumber clientId GroupPage.eventDurationId "1"
                                 |> TF.clickButton clientId GroupPage.createEventSubmitId
                                 |> TF.simulateTime Duration.second
                                 |> TF.fastForward (Duration.days 1.999)
                                 |> TF.checkState
                                     (\model ->
-                                        case
-                                            List.find
-                                                (\( address, emailType ) ->
-                                                    address == emailAddress && TF.isEventReminderEmail emailType
-                                                )
-                                                model.emailInboxes
-                                        of
+                                        case gotReminder model of
                                             Just _ ->
                                                 Err "Shouldn't have gotten an event notification yet"
 
@@ -321,13 +322,7 @@ suite =
                                 |> TF.simulateTime (Duration.days 0.002)
                                 |> TF.checkState
                                     (\model ->
-                                        case
-                                            List.find
-                                                (\( address, emailType ) ->
-                                                    address == emailAddress && TF.isEventReminderEmail emailType
-                                                )
-                                                model.emailInboxes
-                                        of
+                                        case gotReminder model of
                                             Just _ ->
                                                 Ok ()
 

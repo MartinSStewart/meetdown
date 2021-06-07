@@ -1,7 +1,7 @@
 module Types exposing (..)
 
 import Array exposing (Array)
-import AssocList exposing (Dict)
+import AssocList as Dict exposing (Dict)
 import AssocSet exposing (Set)
 import BiDict.Assoc exposing (BiDict)
 import Browser exposing (UrlRequest)
@@ -103,6 +103,13 @@ type alias LoggedIn_ =
     , emailAddress : EmailAddress
     , profileForm : ProfileForm.Model
     , myGroups : Maybe (Set GroupId)
+    , adminState : Maybe AdminModel
+    }
+
+
+type alias AdminModel =
+    { cachedEmailAddress : Dict (Id UserId) EmailAddress
+    , logs : Array Log
     }
 
 
@@ -129,83 +136,118 @@ type alias DeleteUserTokenData =
 
 
 type Log
-    = UntrustedCheckFailed Time.Posix ToBackend
-    | SendGridSendEmail Time.Posix (Result SendGrid.Error ()) EmailAddress
+    = LogUntrustedCheckFailed Time.Posix ToBackend
+    | LogLoginEmail Time.Posix (Result SendGrid.Error ()) EmailAddress
+    | LogDeleteAccountEmail Time.Posix (Result SendGrid.Error ()) (Id UserId)
+    | LogEventReminderEmail Time.Posix (Result SendGrid.Error ()) (Id UserId) GroupId
 
 
-logTime : Log -> Time.Posix
-logTime log =
+logData : AdminModel -> Log -> { time : Time.Posix, isError : Bool, message : String }
+logData model log =
+    let
+        getEmailAddress userId =
+            case Dict.get userId model.cachedEmailAddress of
+                Just address ->
+                    EmailAddress.toString address
+
+                Nothing ->
+                    "<not found>"
+
+        emailErrorToString email error =
+            "Tried sending a login email to "
+                ++ email
+                ++ " but got this error "
+                ++ (case error of
+                        SendGrid.StatusCode400 errors ->
+                            List.map (\a -> a.message) errors
+                                |> String.join ", "
+                                |> (++) "StatusCode400: "
+
+                        SendGrid.StatusCode401 errors ->
+                            List.map (\a -> a.message) errors
+                                |> String.join ", "
+                                |> (++) "StatusCode401: "
+
+                        SendGrid.StatusCode403 { errors } ->
+                            List.filterMap (\a -> a.message) errors
+                                |> String.join ", "
+                                |> (++) "StatusCode403: "
+
+                        SendGrid.StatusCode413 errors ->
+                            List.map (\a -> a.message) errors
+                                |> String.join ", "
+                                |> (++) "StatusCode413: "
+
+                        SendGrid.UnknownError { statusCode, body } ->
+                            "UnknownError: " ++ String.fromInt statusCode ++ " " ++ body
+
+                        SendGrid.NetworkError ->
+                            "NetworkError"
+
+                        SendGrid.Timeout ->
+                            "Timeout"
+
+                        SendGrid.BadUrl url ->
+                            "BadUrl: " ++ url
+                   )
+    in
     case log of
-        UntrustedCheckFailed time _ ->
-            time
+        LogUntrustedCheckFailed time _ ->
+            { time = time, isError = True, message = "Trust check failed: TODO" }
 
-        SendGridSendEmail time _ _ ->
-            time
+        LogLoginEmail time result emailAddress ->
+            { time = time
+            , isError =
+                case result of
+                    Ok _ ->
+                        False
 
+                    Err _ ->
+                        True
+            , message =
+                case result of
+                    Ok () ->
+                        "Sent an email to " ++ EmailAddress.toString emailAddress
 
-logIsError : Log -> Bool
-logIsError log =
-    case log of
-        UntrustedCheckFailed _ _ ->
-            True
+                    Err error ->
+                        emailErrorToString (EmailAddress.toString emailAddress) error
+            }
 
-        SendGridSendEmail _ result _ ->
-            case result of
-                Ok _ ->
-                    False
+        LogDeleteAccountEmail time result userId ->
+            { time = time
+            , isError =
+                case result of
+                    Ok _ ->
+                        False
 
-                Err _ ->
-                    True
+                    Err _ ->
+                        True
+            , message =
+                case result of
+                    Ok () ->
+                        "Sent an email to " ++ getEmailAddress userId ++ " for deleting their account"
 
+                    Err error ->
+                        emailErrorToString (getEmailAddress userId) error
+            }
 
-logToString : Log -> String
-logToString log =
-    case log of
-        SendGridSendEmail _ result email ->
-            case result of
-                Ok () ->
-                    "Sent an email to " ++ EmailAddress.toString email
+        LogEventReminderEmail time result userId groupId ->
+            { time = time
+            , isError =
+                case result of
+                    Ok _ ->
+                        False
 
-                Err error ->
-                    "Tried sending a login email to "
-                        ++ EmailAddress.toString email
-                        ++ " but got this error "
-                        ++ (case error of
-                                SendGrid.StatusCode400 errors ->
-                                    List.map (\a -> a.message) errors
-                                        |> String.join ", "
-                                        |> (++) "StatusCode400: "
+                    Err _ ->
+                        True
+            , message =
+                case result of
+                    Ok () ->
+                        "Sent an email to " ++ getEmailAddress userId ++ " to notify of an upcoming event"
 
-                                SendGrid.StatusCode401 errors ->
-                                    List.map (\a -> a.message) errors
-                                        |> String.join ", "
-                                        |> (++) "StatusCode401: "
-
-                                SendGrid.StatusCode403 { errors } ->
-                                    List.filterMap (\a -> a.message) errors
-                                        |> String.join ", "
-                                        |> (++) "StatusCode403: "
-
-                                SendGrid.StatusCode413 errors ->
-                                    List.map (\a -> a.message) errors
-                                        |> String.join ", "
-                                        |> (++) "StatusCode413: "
-
-                                SendGrid.UnknownError { statusCode, body } ->
-                                    "UnknownError: " ++ String.fromInt statusCode ++ " " ++ body
-
-                                SendGrid.NetworkError ->
-                                    "NetworkError"
-
-                                SendGrid.Timeout ->
-                                    "Timeout"
-
-                                SendGrid.BadUrl url ->
-                                    "BadUrl: " ++ url
-                           )
-
-        UntrustedCheckFailed _ toBackend ->
-            "Trust check failed: TODO"
+                    Err error ->
+                        emailErrorToString (getEmailAddress userId) error
+            }
 
 
 type alias BackendUser =
@@ -213,6 +255,7 @@ type alias BackendUser =
     , description : Description
     , emailAddress : EmailAddress
     , profileImage : ProfileImage
+    , timezone : Time.Zone
     }
 
 
@@ -268,7 +311,8 @@ type ToBackend
 
 type BackendMsg
     = SentLoginEmail EmailAddress (Result SendGrid.Error ())
-    | SentDeleteUserEmail EmailAddress (Result SendGrid.Error ())
+    | SentDeleteUserEmail (Id UserId) (Result SendGrid.Error ())
+    | SentEventReminderEmail (Id UserId) GroupId EventId (Result SendGrid.Error ())
     | BackendGotTime Time.Posix
     | Connected SessionId ClientId
     | Disconnected SessionId ClientId

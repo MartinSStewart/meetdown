@@ -12,7 +12,7 @@ import Email.Html.Attributes
 import EmailAddress exposing (EmailAddress)
 import Env
 import Event exposing (Event)
-import Group exposing (Group, GroupVisibility)
+import Group exposing (EventId, Group, GroupVisibility)
 import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError(..))
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
@@ -39,6 +39,14 @@ type alias Effects cmd =
     , sendToFrontends : List ClientId -> ToFrontend -> cmd
     , sendLoginEmail : (Result SendGrid.Error () -> BackendMsg) -> EmailAddress -> Route -> Id LoginToken -> cmd
     , sendDeleteUserEmail : (Result SendGrid.Error () -> BackendMsg) -> EmailAddress -> Id DeleteUserToken -> cmd
+    , sendEventReminderEmail :
+        (Result SendGrid.Error () -> BackendMsg)
+        -> GroupId
+        -> GroupName
+        -> Event
+        -> Time.Zone
+        -> EmailAddress
+        -> cmd
     , getTime : (Time.Posix -> BackendMsg) -> cmd
     }
 
@@ -169,6 +177,54 @@ allEffects =
 
                 Nothing ->
                     Cmd.none
+    , sendEventReminderEmail =
+        \msg groupId groupName event timezone emailAddress ->
+            let
+                groupRoute =
+                    Route.GroupRoute groupId groupName |> Route.encode
+
+                startTime =
+                    Event.startTime event
+
+                hour =
+                    String.fromInt (Time.toHour timezone startTime)
+
+                minute =
+                    Time.toMinute timezone startTime |> String.fromInt |> String.padLeft 2 '0'
+
+                startText =
+                    hour
+                        ++ ":"
+                        ++ minute
+                        ++ (if timezone == Time.utc then
+                                " (UTC)"
+
+                            else
+                                ""
+                           )
+            in
+            case EmailAddress.fromString "noreply@meetdown.com" of
+                Just sender ->
+                    SendGrid.htmlEmail
+                        { subject =
+                            String.Nonempty.append_
+                                (GroupName.toNonemptyString groupName)
+                                ("'s next event starts tomorrow, " ++ startText)
+                        , content =
+                            Email.Html.div
+                                []
+                                [ Email.Html.a
+                                    [ Email.Html.Attributes.href groupRoute ]
+                                    [ Email.Html.text "Go to their group page" ]
+                                ]
+                        , to = List.Nonempty.fromElement emailAddress
+                        , emailAddressOfSender = sender
+                        , nameOfSender = "Meetdown"
+                        }
+                        |> SendGrid.sendEmail msg sendGridApiKey
+
+                Nothing ->
+                    Cmd.none
     , getTime = \msg -> Time.now |> Task.perform msg
     }
 
@@ -214,14 +270,60 @@ subscriptions subs _ =
         ]
 
 
+handleNotifications : Effects cmd -> Time.Posix -> Time.Posix -> BackendModel -> cmd
+handleNotifications cmds lastCheck currentTime backendModel =
+    Dict.toList backendModel.groups
+        |> List.concatMap
+            (\( groupId, group ) ->
+                let
+                    { futureEvents } =
+                        Group.events currentTime group
+                in
+                List.concatMap
+                    (\( eventId, event ) ->
+                        let
+                            start =
+                                Event.startTime event
+                        in
+                        if
+                            (Duration.from lastCheck start |> Quantity.greaterThan Duration.day)
+                                && not (Duration.from currentTime start |> Quantity.greaterThan Duration.day)
+                        then
+                            Event.attendees event
+                                |> Set.toList
+                                |> List.filterMap
+                                    (\userId ->
+                                        case getUser userId backendModel of
+                                            Just user ->
+                                                cmds.sendEventReminderEmail
+                                                    (SentEventReminderEmail userId groupId eventId)
+                                                    groupId
+                                                    (Group.name group)
+                                                    event
+                                                    user.timezone
+                                                    user.emailAddress
+                                                    |> Just
+
+                                            Nothing ->
+                                                Nothing
+                                    )
+
+                        else
+                            []
+                    )
+                    futureEvents
+            )
+        |> cmds.batch
+
+
 update : Effects cmd -> BackendMsg -> BackendModel -> ( BackendModel, cmd )
 update cmds msg model =
     case msg of
-        SentLoginEmail emailAddress result ->
-            ( addLog (SendGridSendEmail model.time result emailAddress) model, cmds.none )
+        SentLoginEmail userId result ->
+            ( addLog (LogLoginEmail model.time result userId) model, cmds.none )
 
         BackendGotTime time ->
-            ( { model | time = time }, cmds.none )
+            ( { model | time = time }, handleNotifications cmds model.time time model )
 
         Connected sessionId clientId ->
             ( { model
@@ -246,8 +348,11 @@ update cmds msg model =
             , cmds.none
             )
 
-        SentDeleteUserEmail emailAddress result ->
-            ( addLog (SendGridSendEmail model.time result emailAddress) model, cmds.none )
+        SentDeleteUserEmail userId result ->
+            ( addLog (LogDeleteAccountEmail model.time result userId) model, cmds.none )
+
+        SentEventReminderEmail userId groupId eventId result ->
+            ( addLog (LogEventReminderEmail model.time result userId groupId) model, cmds.none )
 
 
 addLog : Log -> BackendModel -> BackendModel
@@ -311,7 +416,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                     )
 
                 Nothing ->
-                    ( addLog (UntrustedCheckFailed model.time msg) model
+                    ( addLog (LogUntrustedCheckFailed model.time msg) model
                     , cmds.none
                     )
 
@@ -352,7 +457,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                             addGroup cmds clientId userId groupName description visibility model
 
                         _ ->
-                            ( addLog (UntrustedCheckFailed model.time msg) model
+                            ( addLog (LogUntrustedCheckFailed model.time msg) model
                             , cmds.none
                             )
                 )
@@ -373,7 +478,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 Nothing ->
-                    ( addLog (UntrustedCheckFailed model.time msg) model
+                    ( addLog (LogUntrustedCheckFailed model.time msg) model
                     , cmds.none
                     )
 
@@ -393,7 +498,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 Nothing ->
-                    ( addLog (UntrustedCheckFailed model.time msg) model
+                    ( addLog (LogUntrustedCheckFailed model.time msg) model
                     , cmds.none
                     )
 
@@ -419,7 +524,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 Nothing ->
-                    ( addLog (UntrustedCheckFailed model.time msg) model
+                    ( addLog (LogUntrustedCheckFailed model.time msg) model
                     , cmds.none
                     )
 
@@ -441,7 +546,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                                 model2.pendingDeleteUserTokens
                       }
                     , cmds.sendDeleteUserEmail
-                        (SentDeleteUserEmail user.emailAddress)
+                        (SentDeleteUserEmail userId)
                         user.emailAddress
                         deleteUserToken
                     )
@@ -473,7 +578,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                             )
 
                         Nothing ->
-                            ( addLog (UntrustedCheckFailed model.time msg) model
+                            ( addLog (LogUntrustedCheckFailed model.time msg) model
                             , cmds.none
                             )
                 )
@@ -525,7 +630,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 Nothing ->
-                    ( addLog (UntrustedCheckFailed model.time msg) model
+                    ( addLog (LogUntrustedCheckFailed model.time msg) model
                     , cmds.none
                     )
 
@@ -549,7 +654,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 Nothing ->
-                    ( addLog (UntrustedCheckFailed model.time msg) model
+                    ( addLog (LogUntrustedCheckFailed model.time msg) model
                     , cmds.none
                     )
 
@@ -604,7 +709,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 _ ->
-                    ( addLog (UntrustedCheckFailed model.time msg) model
+                    ( addLog (LogUntrustedCheckFailed model.time msg) model
                     , cmds.none
                     )
 
@@ -737,6 +842,7 @@ loginWithToken cmds sessionId clientId maybeLoginTokenData model =
                                 , description = Description.empty
                                 , emailAddress = emailAddress
                                 , profileImage = ProfileImage.defaultImage
+                                , timezone = Time.utc
                                 }
                         in
                         ( { model2 | users = Dict.insert userId newUser model2.users }

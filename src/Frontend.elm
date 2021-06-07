@@ -640,6 +640,7 @@ updateLoadedFromBackend cmds msg model =
                                 , emailAddress = user.emailAddress
                                 , profileForm = ProfileForm.init
                                 , myGroups = Nothing
+                                , adminState = Nothing
                                 }
                         , cachedUsers = Dict.insert userId (userToFrontend user) model.cachedUsers
                       }
@@ -659,6 +660,7 @@ updateLoadedFromBackend cmds msg model =
                                 , emailAddress = user.emailAddress
                                 , profileForm = ProfileForm.init
                                 , myGroups = Nothing
+                                , adminState = Nothing
                                 }
                         , cachedUsers = Dict.insert userId (userToFrontend user) model.cachedUsers
                       }

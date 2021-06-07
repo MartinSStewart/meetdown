@@ -43,6 +43,7 @@ import Frontend
 import FrontendEffects exposing (FrontendEffect)
 import FrontendSub exposing (FrontendSub)
 import Group exposing (EventId)
+import GroupName exposing (GroupName)
 import Html exposing (Html)
 import Html.Attributes
 import Id exposing (ButtonId(..), ClientId, DateInputId, DeleteUserToken, GroupId, HtmlId, Id, LoginToken, NumberInputId, RadioButtonId, SessionId, TextInputId, TimeInputId)
@@ -76,7 +77,7 @@ type alias State =
 type EmailType
     = LoginEmail Route (Id LoginToken)
     | DeleteAccountEmail (Id DeleteUserToken)
-    | EventReminderEmail GroupId EventId Time.Posix EventType
+    | EventReminderEmail GroupId GroupName Event.Event Time.Zone
 
 
 isEventReminderEmail : EmailType -> Bool
@@ -920,4 +921,15 @@ runBackendEffects effect state =
                 | backend = model
                 , pendingEffects = BackendEffects.Batch [ state.pendingEffects, effects ]
                 , emailInboxes = state.emailInboxes ++ [ ( emailAddress, DeleteAccountEmail deleteToken ) ]
+            }
+
+        BackendEffects.SendEventReminderEmail msg groupId groupName event timezone emailAddress ->
+            let
+                ( model, effects ) =
+                    backendApp.update (msg (Ok ())) state.backend
+            in
+            { state
+                | backend = model
+                , pendingEffects = BackendEffects.Batch [ state.pendingEffects, effects ]
+                , emailInboxes = state.emailInboxes ++ [ ( emailAddress, EventReminderEmail groupId groupName event timezone ) ]
             }
