@@ -1,5 +1,6 @@
 module Backend exposing (Effects, Subscriptions, allEffects, app, createApp, loginEmailLink)
 
+import Address
 import Array
 import AssocList as Dict exposing (Dict)
 import AssocSet as Set
@@ -17,6 +18,7 @@ import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError(..))
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
 import Lamdera
+import Link
 import List.Extra as List
 import List.Nonempty
 import Name
@@ -213,7 +215,22 @@ allEffects =
                         , content =
                             Email.Html.div
                                 []
-                                [ Email.Html.a
+                                [ "The event will be taking place "
+                                    ++ (case Event.eventType event of
+                                            Event.MeetOnline (Just meetingLink) ->
+                                                "online. You can join using this link " ++ Link.toString meetingLink
+
+                                            Event.MeetOnline Nothing ->
+                                                "online."
+
+                                            Event.MeetInPerson (Just address) ->
+                                                "in person at " ++ Address.toString address ++ "."
+
+                                            Event.MeetInPerson Nothing ->
+                                                "in person."
+                                       )
+                                    |> Email.Html.text
+                                , Email.Html.a
                                     [ Email.Html.Attributes.href groupRoute ]
                                     [ Email.Html.text "Go to their group page" ]
                                 ]
