@@ -19,6 +19,7 @@ type Group
         , events : Dict EventId Event
         , visibility : GroupVisibility
         , eventCounter : Int
+        , createdAt : Time.Posix
         }
 
 
@@ -27,8 +28,8 @@ type GroupVisibility
     | PublicGroup
 
 
-init : Id UserId -> GroupName -> Description -> GroupVisibility -> Group
-init ownerId_ groupName description_ groupVisibility_ =
+init : Id UserId -> GroupName -> Description -> GroupVisibility -> Time.Posix -> Group
+init ownerId_ groupName description_ groupVisibility_ createdAt =
     Group
         { ownerId = ownerId_
         , name = groupName
@@ -36,6 +37,7 @@ init ownerId_ groupName description_ groupVisibility_ =
         , events = Dict.empty
         , visibility = groupVisibility_
         , eventCounter = 0
+        , createdAt = createdAt
         }
 
 

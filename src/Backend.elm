@@ -1,4 +1,4 @@
-module Backend exposing (Effects, Subscriptions, allEffects, app, createApp, eventReminderEmailContent, eventReminderEmailSubject, loginEmailLink)
+module Backend exposing (Effects, Subscriptions, allEffects, app, createApp, deleteAccountEmailContent, deleteAccountEmailSubject, eventReminderEmailContent, eventReminderEmailSubject, loginEmailContent, loginEmailLink, loginEmailSubject)
 
 import Address
 import Array
@@ -121,26 +121,11 @@ allEffects =
                 |> Cmd.batch
     , sendLoginEmail =
         \msg emailAddress route loginToken ->
-            let
-                loginLink : String
-                loginLink =
-                    loginEmailLink route loginToken
-
-                --_ =
-                --    Debug.log "login" loginLink
-            in
             case EmailAddress.fromString "noreply@meetdown.com" of
                 Just sender ->
                     SendGrid.htmlEmail
-                        { subject = NonemptyString 'M' "eetdown login link"
-                        , content =
-                            Email.Html.div
-                                []
-                                [ Email.Html.a
-                                    [ Email.Html.Attributes.href loginLink ]
-                                    [ Email.Html.text "Click here to log in." ]
-                                , Email.Html.text " If you didn't request this email then it's safe to ignore it."
-                                ]
+                        { subject = loginEmailSubject
+                        , content = loginEmailContent route loginToken
                         , to = List.Nonempty.fromElement emailAddress
                         , emailAddressOfSender = sender
                         , nameOfSender = "Meetdown"
@@ -151,26 +136,11 @@ allEffects =
                     Cmd.none
     , sendDeleteUserEmail =
         \msg emailAddress deleteUserToken ->
-            let
-                deleteUserLink : String
-                deleteUserLink =
-                    Env.domain ++ Route.encodeWithToken HomepageRoute (Route.DeleteUserToken deleteUserToken)
-
-                --_ =
-                --    Debug.log "delete user" deleteUserLink
-            in
             case EmailAddress.fromString "noreply@meetdown.com" of
                 Just sender ->
                     SendGrid.htmlEmail
-                        { subject = NonemptyString 'C' "onfirm account deletion"
-                        , content =
-                            Email.Html.div
-                                []
-                                [ Email.Html.a
-                                    [ Email.Html.Attributes.href deleteUserLink ]
-                                    [ Email.Html.text "Click here confirm you want to delete your account." ]
-                                , Email.Html.text " Remember, this action can not be reversed! If you didn't request this email then it's safe to ignore it."
-                                ]
+                        { subject = deleteAccountEmailSubject
+                        , content = deleteAccountEmailContent deleteUserToken
                         , to = List.Nonempty.fromElement emailAddress
                         , emailAddressOfSender = sender
                         , nameOfSender = "Meetdown"
@@ -196,6 +166,54 @@ allEffects =
                     Cmd.none
     , getTime = \msg -> Time.now |> Task.perform msg
     }
+
+
+loginEmailSubject : NonemptyString
+loginEmailSubject =
+    NonemptyString 'M' "eetdown login link"
+
+
+loginEmailContent : Route -> Id LoginToken -> Email.Html.Html
+loginEmailContent route loginToken =
+    let
+        loginLink : String
+        loginLink =
+            loginEmailLink route loginToken
+
+        --_ =
+        --    Debug.log "login" loginLink
+    in
+    Email.Html.div
+        []
+        [ Email.Html.a
+            [ Email.Html.Attributes.href loginLink ]
+            [ Email.Html.text "Click here to log in." ]
+        , Email.Html.text " If you didn't request this email then it's safe to ignore it."
+        ]
+
+
+deleteAccountEmailSubject : NonemptyString
+deleteAccountEmailSubject =
+    NonemptyString 'C' "onfirm account deletion"
+
+
+deleteAccountEmailContent : Id DeleteUserToken -> Email.Html.Html
+deleteAccountEmailContent deleteUserToken =
+    let
+        deleteUserLink : String
+        deleteUserLink =
+            Env.domain ++ Route.encodeWithToken HomepageRoute (Route.DeleteUserToken deleteUserToken)
+
+        --_ =
+        --    Debug.log "delete user" deleteUserLink
+    in
+    Email.Html.div
+        []
+        [ Email.Html.a
+            [ Email.Html.Attributes.href deleteUserLink ]
+            [ Email.Html.text "Click here confirm you want to delete your account." ]
+        , Email.Html.text " Remember, this action can not be reversed! If you didn't request this email then it's safe to ignore it."
+        ]
 
 
 eventReminderEmailSubject : GroupName -> Event -> Time.Zone -> NonemptyString
@@ -940,7 +958,7 @@ addGroup cmds clientId userId name description visibility model =
                 Id.groupIdFromInt model.groupIdCounter
 
             newGroup =
-                Group.init userId name description visibility
+                Group.init userId name description visibility model.time
         in
         ( { model | groupIdCounter = model.groupIdCounter + 1, groups = Dict.insert groupId newGroup model.groups }
         , Ok ( groupId, newGroup ) |> CreateGroupResponse |> cmds.sendToFrontend clientId
