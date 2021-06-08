@@ -1,4 +1,4 @@
-module Backend exposing (Effects, Subscriptions, allEffects, app, createApp, loginEmailLink)
+module Backend exposing (Effects, Subscriptions, allEffects, app, createApp, eventReminderEmailContent, eventReminderEmailSubject, loginEmailLink)
 
 import Address
 import Array
@@ -181,59 +181,11 @@ allEffects =
                     Cmd.none
     , sendEventReminderEmail =
         \msg groupId groupName event timezone emailAddress ->
-            let
-                groupRoute =
-                    Route.GroupRoute groupId groupName |> Route.encode
-
-                startTime =
-                    Event.startTime event
-
-                hour =
-                    String.fromInt (Time.toHour timezone startTime)
-
-                minute =
-                    Time.toMinute timezone startTime |> String.fromInt |> String.padLeft 2 '0'
-
-                startText =
-                    hour
-                        ++ ":"
-                        ++ minute
-                        ++ (if timezone == Time.utc then
-                                " (UTC)"
-
-                            else
-                                ""
-                           )
-            in
             case EmailAddress.fromString "noreply@meetdown.com" of
                 Just sender ->
                     SendGrid.htmlEmail
-                        { subject =
-                            String.Nonempty.append_
-                                (GroupName.toNonemptyString groupName)
-                                ("'s next event starts tomorrow, " ++ startText)
-                        , content =
-                            Email.Html.div
-                                []
-                                [ "The event will be taking place "
-                                    ++ (case Event.eventType event of
-                                            Event.MeetOnline (Just meetingLink) ->
-                                                "online. You can join using this link " ++ Link.toString meetingLink
-
-                                            Event.MeetOnline Nothing ->
-                                                "online."
-
-                                            Event.MeetInPerson (Just address) ->
-                                                "in person at " ++ Address.toString address ++ "."
-
-                                            Event.MeetInPerson Nothing ->
-                                                "in person."
-                                       )
-                                    |> Email.Html.text
-                                , Email.Html.a
-                                    [ Email.Html.Attributes.href groupRoute ]
-                                    [ Email.Html.text "Go to their group page" ]
-                                ]
+                        { subject = eventReminderEmailSubject groupName event timezone
+                        , content = eventReminderEmailContent groupId groupName event
                         , to = List.Nonempty.fromElement emailAddress
                         , emailAddressOfSender = sender
                         , nameOfSender = "Meetdown"
@@ -244,6 +196,63 @@ allEffects =
                     Cmd.none
     , getTime = \msg -> Time.now |> Task.perform msg
     }
+
+
+eventReminderEmailSubject : GroupName -> Event -> Time.Zone -> NonemptyString
+eventReminderEmailSubject groupName event timezone =
+    let
+        startTime =
+            Event.startTime event
+
+        hour =
+            String.fromInt (Time.toHour timezone startTime)
+
+        minute =
+            Time.toMinute timezone startTime |> String.fromInt |> String.padLeft 2 '0'
+
+        startText =
+            hour
+                ++ ":"
+                ++ minute
+                ++ (if timezone == Time.utc then
+                        " (UTC)"
+
+                    else
+                        ""
+                   )
+    in
+    String.Nonempty.append_
+        (GroupName.toNonemptyString groupName)
+        ("'s next event starts tomorrow, " ++ startText)
+
+
+eventReminderEmailContent : GroupId -> GroupName -> Event -> Email.Html.Html
+eventReminderEmailContent groupId groupName event =
+    let
+        groupRoute =
+            Env.domain ++ Route.encode (Route.GroupRoute groupId groupName)
+    in
+    Email.Html.div
+        []
+        [ "The event will be taking place "
+            ++ (case Event.eventType event of
+                    Event.MeetOnline (Just meetingLink) ->
+                        "online. You can join using this link " ++ Link.toString meetingLink
+
+                    Event.MeetOnline Nothing ->
+                        "online."
+
+                    Event.MeetInPerson (Just address) ->
+                        "in person at " ++ Address.toString address ++ "."
+
+                    Event.MeetInPerson Nothing ->
+                        "in person."
+               )
+            |> Email.Html.text
+        , Email.Html.a
+            [ Email.Html.Attributes.href groupRoute ]
+            [ Email.Html.text "Go to their group page" ]
+        ]
 
 
 allSubscriptions : Subscriptions (Sub BackendMsg)

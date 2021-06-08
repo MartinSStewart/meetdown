@@ -1,16 +1,20 @@
-module Tests exposing (suite)
+module Tests exposing (suite, unsafeDescription, unsafeEventDuration, unsafeEventName, unsafeGroupName, unsafeLink)
 
 import Backend
 import CreateGroupForm
 import Date
+import Description exposing (Description)
 import Duration
 import EmailAddress exposing (EmailAddress)
 import Env
+import EventDuration exposing (EventDuration)
+import EventName exposing (EventName)
 import Frontend
 import Group
 import GroupName exposing (GroupName)
 import GroupPage
 import Id
+import Link exposing (Link)
 import List.Extra as List
 import LoginForm
 import Quantity
@@ -491,3 +495,43 @@ unsafeGroupName name =
 
         Err _ ->
             Debug.todo ("Invalid group name " ++ name)
+
+
+unsafeEventName : String -> EventName
+unsafeEventName name =
+    case EventName.fromString name of
+        Ok value ->
+            value
+
+        Err _ ->
+            Debug.todo ("Invalid event name " ++ name)
+
+
+unsafeDescription : String -> Description
+unsafeDescription name =
+    case Description.fromString name of
+        Ok value ->
+            value
+
+        Err _ ->
+            Debug.todo ("Invalid description " ++ name)
+
+
+unsafeLink : String -> Link
+unsafeLink text =
+    case Link.fromString text of
+        Just value ->
+            value
+
+        Nothing ->
+            Debug.todo ("Invalid link " ++ text)
+
+
+unsafeEventDuration : Int -> EventDuration
+unsafeEventDuration minutes =
+    case EventDuration.fromMinutes minutes of
+        Ok duration ->
+            duration
+
+        Err _ ->
+            Debug.todo ("Invalid event duration " ++ String.fromInt minutes)
