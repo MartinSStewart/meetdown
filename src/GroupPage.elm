@@ -340,7 +340,7 @@ update effects config group maybeUserId msg model =
                 ( model, effects.none )
 
         PressedLeaveEvent eventId ->
-            case Dict.get eventId model.pendingJoinOrLeave |> Debug.log "leave" of
+            case Dict.get eventId model.pendingJoinOrLeave of
                 Just JoinOrLeavePending ->
                     ( model, effects.none )
 
@@ -350,7 +350,7 @@ update effects config group maybeUserId msg model =
                     )
 
         PressedJoinEvent eventId ->
-            case Dict.get eventId model.pendingJoinOrLeave |> Debug.log "join" of
+            case Dict.get eventId model.pendingJoinOrLeave of
                 Just JoinOrLeavePending ->
                     ( model, effects.none )
 
