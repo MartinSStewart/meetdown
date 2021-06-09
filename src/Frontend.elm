@@ -1037,7 +1037,7 @@ view model =
     , body =
         [ Ui.css
         , Element.layout
-            []
+            [ Ui.defaultFontSize ]
             (case model of
                 Loading _ ->
                     Element.none
@@ -1366,15 +1366,16 @@ header isLoggedIn_ route searchText =
         ]
         [ Element.Input.text
             [ Element.width <| Element.maximum 400 Element.fill
-            , Element.paddingEach { left = 32, right = 8, top = 4, bottom = 4 }
+            , Element.paddingEach { left = 24, right = 8, top = 4, bottom = 4 }
             , Ui.onEnter SubmittedSearchBox
             , Id.htmlIdToString groupSearchId |> Html.Attributes.id |> Element.htmlAttribute
             , Element.inFront
                 (Element.el
-                    [ Element.Font.size 16
+                    [ Element.Font.size 12
                     , Element.moveDown 6
                     , Element.moveRight 4
                     , Element.alpha 0.8
+                    , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
                     ]
                     (Element.text "🔍")
                 )
@@ -1382,41 +1383,18 @@ header isLoggedIn_ route searchText =
             { text = searchText
             , onChange = TypedSearchText
             , placeholder = Nothing
-            , label = Element.Input.labelHidden "Search groups"
+            , label = Element.Input.labelHidden "Search for groups"
             }
         , Element.row
             [ Element.alignRight ]
             (if isLoggedIn_ then
-                [ if route == CreateGroupRoute then
-                    Element.none
-
-                  else
-                    Ui.headerLink
-                        { route = CreateGroupRoute
-                        , label = "Create group"
-                        }
-                , if route == MyGroupsRoute then
-                    Element.none
-
-                  else
-                    Ui.headerLink
-                        { route = MyGroupsRoute
-                        , label = "My groups"
-                        }
-                , if route == MyProfileRoute then
-                    Element.none
-
-                  else
-                    Ui.headerLink
-                        { route = MyProfileRoute
-                        , label = "Profile"
-                        }
-                , Ui.headerButton
-                    logOutButtonId
-                    { onPress = PressedLogout
-                    , label = "Log out"
-                    }
-                ]
+                headerButtons route
+                    ++ [ Ui.headerButton
+                            logOutButtonId
+                            { onPress = PressedLogout
+                            , label = "Log out"
+                            }
+                       ]
 
              else
                 [ Ui.headerButton
@@ -1427,6 +1405,25 @@ header isLoggedIn_ route searchText =
                 ]
             )
         ]
+
+
+headerButtons route =
+    [ Ui.headerLink
+        (route == CreateGroupRoute)
+        { route = CreateGroupRoute
+        , label = "Create group"
+        }
+    , Ui.headerLink
+        (route == MyGroupsRoute)
+        { route = MyGroupsRoute
+        , label = "My groups"
+        }
+    , Ui.headerLink
+        (route == MyProfileRoute)
+        { route = MyProfileRoute
+        , label = "Profile"
+        }
+    ]
 
 
 groupSearchId =

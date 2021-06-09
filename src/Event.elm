@@ -1,4 +1,4 @@
-module Event exposing (Event, EventType(..), addAttendee, attendees, cancel, description, duration, endTime, eventType, isCancelled, name, newEvent, overlaps, removeAttendee, startTime)
+module Event exposing (Event, EventType(..), addAttendee, attendees, cancel, description, duration, endTime, eventType, isCancelled, isOngoing, name, newEvent, overlaps, removeAttendee, startTime)
 
 import Address exposing (Address)
 import AssocSet as Set exposing (Set)
@@ -114,3 +114,18 @@ overlaps eventA eventB =
             startTime eventB |> Time.posixToMillis
     in
     endA < startB || endB < startA |> not
+
+
+isOngoing : Time.Posix -> Event -> Bool
+isOngoing currentTime event =
+    let
+        start =
+            startTime event |> Time.posixToMillis
+
+        end =
+            endTime event |> Time.posixToMillis
+
+        time =
+            Time.posixToMillis currentTime
+    in
+    start <= time && time < end

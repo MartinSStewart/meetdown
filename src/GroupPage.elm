@@ -4,7 +4,7 @@ import Address exposing (Address, Error(..))
 import AssocList as Dict exposing (Dict)
 import AssocSet as Set exposing (Set)
 import Description exposing (Description)
-import Duration
+import Duration exposing (Duration)
 import Element exposing (Element)
 import Element.Background
 import Element.Border
@@ -22,7 +22,7 @@ import Link exposing (Link)
 import List.Nonempty exposing (Nonempty(..))
 import Name
 import ProfileImage
-import Quantity
+import Quantity exposing (Quantity)
 import Time
 import Time.Extra as Time
 import Ui
@@ -35,6 +35,7 @@ type alias Model =
     , addingNewEvent : Bool
     , newEvent : NewEvent
     , pendingJoinOrLeave : Dict EventId EventJoinOrLeaveStatus
+    , showAllFutureEvents : Bool
     }
 
 
@@ -59,6 +60,8 @@ type Msg
     | PressedResetName
     | TypedName String
     | PressedAddEvent
+    | PressedShowAllFutureEvents
+    | PressedShowFirstFutureEvents
     | ChangedNewEvent NewEvent
     | PressedCancelNewEvent
     | PressedCreateNewEvent
@@ -103,6 +106,7 @@ init =
     , addingNewEvent = False
     , newEvent = initNewEvent
     , pendingJoinOrLeave = Dict.empty
+    , showAllFutureEvents = False
     }
 
 
@@ -278,6 +282,12 @@ update effects config group maybeUserId msg model =
             else
                 ( model, effects.none )
 
+        PressedShowAllFutureEvents ->
+            ( { model | showAllFutureEvents = True }, effects.none )
+
+        PressedShowFirstFutureEvents ->
+            ( { model | showAllFutureEvents = False }, effects.none )
+
         ChangedNewEvent newEvent ->
             if isOwner then
                 ( { model | newEvent = newEvent }, effects.none )
@@ -375,8 +385,16 @@ joinOrLeaveResponse eventId result model =
 
 view : Time.Posix -> Time.Zone -> FrontendUser -> Group -> Model -> Maybe (Id UserId) -> Element Msg
 view currentTime timezone owner group model maybeUserId =
+    if model.addingNewEvent then
+        newEventView currentTime timezone model.newEvent
+
+    else
+        groupView currentTime timezone owner group model maybeUserId
+
+
+groupView currentTime timezone owner group model maybeUserId =
     let
-        { pastEvents, futureEvents } =
+        { pastEvents, ongoingEvent, futureEvents } =
             Group.events currentTime group
 
         isOwner =
@@ -514,89 +532,262 @@ view currentTime timezone owner group model maybeUserId =
                             |> Element.text
                         ]
                     )
+        , case ongoingEvent of
+            Just ( _, ongoing ) ->
+                section
+                    False
+                    "Ongoing event"
+                    Element.none
+                    (ongoingEventView currentTime maybeUserId ongoing)
+
+            Nothing ->
+                Element.none
         , section
             False
-            "Next event"
-            (if isOwner then
-                if model.addingNewEvent then
-                    Element.row
-                        [ Element.spacing 8 ]
-                        [ smallButton createEventCancelId PressedCancelNewEvent "Cancel"
-                        , smallSubmitButton createEventSubmitId False { onPress = PressedCreateNewEvent, label = "Create new event" }
-                        ]
+            "Future events"
+            (let
+                showAllButton =
+                    if model.showAllFutureEvents then
+                        smallButton showFirstFutureEventsId PressedShowFirstFutureEvents "Show first"
 
-                else
-                    Element.el [] (smallButton createNewEventId PressedAddEvent "Add event")
+                    else
+                        smallButton showAllFutureEventsId PressedShowAllFutureEvents "Show all"
+             in
+             if isOwner then
+                Element.row
+                    [ Element.spacing 16 ]
+                    [ showAllButton
+                    , smallButton createNewEventId PressedAddEvent "Add event"
+                    ]
 
              else
-                Element.none
+                Element.el [] showAllButton
             )
-            ((if model.addingNewEvent then
-                [ newEventView currentTime timezone model.newEvent ]
+            ((case futureEvents of
+                [] ->
+                    [ Element.paragraph
+                        []
+                        [ Element.text "No new events have been planned yet." ]
+                    ]
 
-              else
-                []
+                soonest :: rest ->
+                    (if model.showAllFutureEvents then
+                        soonest :: rest
+
+                     else
+                        [ soonest ]
+                    )
+                        |> List.map (futureEventView currentTime timezone maybeUserId model.pendingJoinOrLeave)
              )
-                ++ (case futureEvents of
-                        [] ->
-                            [ Element.paragraph
-                                []
-                                [ Element.text "No new events have been planned yet." ]
-                            ]
-
-                        _ ->
-                            List.map (futureEventView timezone maybeUserId model.pendingJoinOrLeave) futureEvents
-                   )
                 |> List.intersperse Ui.hr
                 |> Element.column
                     [ Element.width Element.fill, Element.spacing 8 ]
             )
+        , case pastEvents of
+            head :: rest ->
+                section
+                    False
+                    "Past events"
+                    Element.none
+                    (List.map (Tuple.second >> pastEventView currentTime) (head :: rest)
+                        |> List.intersperse Ui.hr
+                        |> Element.column
+                            [ Element.width Element.fill, Element.spacing 8 ]
+                    )
+
+            [] ->
+                Element.none
         , Ui.section "Info"
             (Element.paragraph
-                [ Ui.smallFontSize, Element.alignRight ]
-                [ Element.text ("Created on " ++ dateToString (Just timezone) (Group.createdAt group)) ]
+                [ Element.alignRight ]
+                [ Element.text ("This group was created on " ++ dateToString (Just timezone) (Group.createdAt group)) ]
             )
         ]
 
 
+showAllFutureEventsId =
+    Id.buttonId "groupPageShowAllFutureEvents"
+
+
+showFirstFutureEventsId =
+    Id.buttonId "groupPageShowFirstFutureEvents"
+
+
 resetGroupNameId =
-    Id.buttonId "groupPageResetGroupNameButton"
+    Id.buttonId "groupPageResetGroupName"
 
 
 editGroupNameId =
-    Id.buttonId "groupPageEditGroupNameButton"
+    Id.buttonId "groupPageEditGroupName"
 
 
 saveGroupNameId =
-    Id.buttonId "groupPageSaveGroupNameButton"
+    Id.buttonId "groupPageSaveGroupName"
 
 
 resetDescriptionId =
-    Id.buttonId "groupPageResetDescriptionButton"
+    Id.buttonId "groupPageResetDescription"
 
 
 editDescriptionId =
-    Id.buttonId "groupPageEditDescriptionButton"
+    Id.buttonId "groupPageEditDescription"
 
 
 saveDescriptionId =
-    Id.buttonId "groupPageSaveDescriptionButton"
+    Id.buttonId "groupPageSaveDescription"
 
 
 createEventCancelId =
-    Id.buttonId "groupPageCreateEventCancelButton"
+    Id.buttonId "groupPageCreateEventCancel"
 
 
 createEventSubmitId =
-    Id.buttonId "groupPageCreateEventSubmitButton"
+    Id.buttonId "groupPageCreateEventSubmit"
 
 
 createNewEventId =
-    Id.buttonId "groupPageCreateNewEventButton"
+    Id.buttonId "groupPageCreateNewEvent"
 
 
-futureEventView : Time.Zone -> Maybe (Id UserId) -> Dict EventId EventJoinOrLeaveStatus -> ( EventId, Event ) -> Element Msg
-futureEventView timezone maybeUserId pendingJoinOrLeaveStatuses ( eventId, event ) =
+timeDifference : Time.Posix -> Time.Posix -> String
+timeDifference start end =
+    let
+        difference : Duration
+        difference =
+            Duration.from start end |> Quantity.abs
+
+        months =
+            Duration.inDays difference / 30 |> floor
+
+        weeks =
+            Duration.inWeeks difference |> floor
+
+        days =
+            Duration.inDays difference |> floor
+
+        hours =
+            Duration.inHours difference |> floor
+
+        minutes =
+            Duration.inMinutes difference |> round
+
+        suffix =
+            if Time.posixToMillis start <= Time.posixToMillis end then
+                ""
+
+            else
+                " ago"
+    in
+    if months >= 2 then
+        String.fromInt months ++ " months" ++ suffix
+
+    else if weeks >= 2 then
+        String.fromInt weeks ++ " weeks" ++ suffix
+
+    else if days > 1 then
+        String.fromInt days ++ " days" ++ suffix
+
+    else if days == 1 then
+        if Time.posixToMillis start <= Time.posixToMillis end then
+            "tomorrow"
+
+        else
+            "yesterday"
+
+    else if hours > 6 then
+        String.fromInt hours ++ " hours" ++ suffix
+
+    else if hours > 1 then
+        (String.fromFloat (Duration.inHours difference) |> String.left 3) ++ " hours" ++ suffix
+
+    else if hours == 1 then
+        "1 hour" ++ suffix
+
+    else if minutes > 1 then
+        String.fromInt minutes ++ " minutes" ++ suffix
+
+    else if minutes == 1 then
+        "1 minute" ++ suffix
+
+    else
+        "now"
+
+
+ongoingEventView : Time.Posix -> Maybe (Id UserId) -> Event -> Element Msg
+ongoingEventView currentTime maybeUserId event =
+    let
+        isAttending =
+            maybeUserId |> Maybe.map (\userId -> Set.member userId (Event.attendees event)) |> Maybe.withDefault False
+
+        attendeeCount =
+            Event.attendees event |> Set.size
+    in
+    Element.column
+        [ Element.width Element.fill, Element.spacing 8, Element.paddingXY 16 0 ]
+        [ Event.name event |> EventName.toString |> Element.text |> List.singleton |> Element.paragraph [ Element.Font.bold ]
+        , Event.description event |> Description.toString |> Element.text |> List.singleton |> Element.paragraph []
+        , "Ends in "
+            ++ timeDifference currentTime (Event.endTime event)
+            |> Element.text
+            |> List.singleton
+            |> Element.paragraph []
+        , case Event.eventType event of
+            Event.MeetInPerson _ ->
+                Element.paragraph [] [ Element.text "This is an in person event 🤝" ]
+
+            Event.MeetOnline _ ->
+                Element.paragraph [] [ Element.text "This is an online event 💻" ]
+        , case attendeeCount of
+            0 ->
+                Element.text "No one plans on attending"
+
+            1 ->
+                if isAttending then
+                    Element.text "One person is attending (it's you)"
+
+                else
+                    Element.text "One person is attending"
+
+            _ ->
+                String.fromInt attendeeCount ++ " people is attending" |> Element.text
+        ]
+
+
+pastEventView : Time.Posix -> Event -> Element Msg
+pastEventView currentTime event =
+    let
+        attendeeCount =
+            Event.attendees event |> Set.size
+    in
+    Element.column
+        [ Element.width Element.fill, Element.spacing 8, Element.paddingXY 16 0 ]
+        [ Event.name event |> EventName.toString |> Element.text |> List.singleton |> Element.paragraph [ Element.Font.bold ]
+        , Event.description event |> Description.toString |> Element.text |> List.singleton |> Element.paragraph []
+        , "Ended "
+            ++ timeDifference currentTime (Event.endTime event)
+            |> Element.text
+            |> List.singleton
+            |> Element.paragraph []
+        , case Event.eventType event of
+            Event.MeetInPerson _ ->
+                Element.paragraph [] [ Element.text "This is an in person event 🤝" ]
+
+            Event.MeetOnline _ ->
+                Element.paragraph [] [ Element.text "This is an online event 💻" ]
+        , case attendeeCount of
+            0 ->
+                Element.text "No one attended 💔"
+
+            1 ->
+                Element.text "One person attended"
+
+            _ ->
+                String.fromInt attendeeCount ++ " people attended" |> Element.text
+        ]
+
+
+futureEventView : Time.Posix -> Time.Zone -> Maybe (Id UserId) -> Dict EventId EventJoinOrLeaveStatus -> ( EventId, Event ) -> Element Msg
+futureEventView currentTime timezone maybeUserId pendingJoinOrLeaveStatuses ( eventId, event ) =
     let
         isAttending =
             maybeUserId |> Maybe.map (\userId -> Set.member userId (Event.attendees event)) |> Maybe.withDefault False
@@ -612,9 +803,13 @@ futureEventView timezone maybeUserId pendingJoinOrLeaveStatuses ( eventId, event
         [ Element.width Element.fill, Element.spacing 8, Element.paddingXY 16 0 ]
         [ Event.name event |> EventName.toString |> Element.text |> List.singleton |> Element.paragraph [ Element.Font.bold ]
         , Event.description event |> Description.toString |> Element.text |> List.singleton |> Element.paragraph []
-        , Event.startTime event
-            |> datetimeToString (Just timezone)
+        , datetimeToString (Just timezone) (Event.startTime event)
+            ++ " (Starts in "
+            ++ timeDifference currentTime (Event.startTime event)
+            ++ ")"
             |> Element.text
+            |> List.singleton
+            |> Element.paragraph []
         , case Event.eventType event of
             Event.MeetInPerson _ ->
                 Element.paragraph [] [ Element.text "This is an in person event 🤝" ]
@@ -626,7 +821,11 @@ futureEventView timezone maybeUserId pendingJoinOrLeaveStatuses ( eventId, event
                 Element.text "No one plans on attending"
 
             1 ->
-                Element.text "One person plans on attending"
+                if isAttending then
+                    Element.text "One person plans on attending (it's you)"
+
+                else
+                    Element.text "One person plans on attending"
 
             _ ->
                 String.fromInt attendeeCount ++ " people plan on attending" |> Element.text
@@ -742,7 +941,7 @@ eventMeetingInPersonInputId =
 newEventView : Time.Posix -> Time.Zone -> NewEvent -> Element Msg
 newEventView currentTime timezone event =
     Element.column
-        [ Element.width Element.fill, Element.spacing 8 ]
+        [ Element.spacing 8, Element.padding 8, Element.width Element.fill ]
         [ Ui.textInput
             eventNameInputId
             (\text -> ChangedNewEvent { event | eventName = text })
@@ -818,20 +1017,40 @@ newEventView currentTime timezone event =
 
             Nothing ->
                 Element.none
-        , dateTimeInput currentTime timezone event
-        , Element.column
-            [ Element.spacing 4 ]
-            [ Element.text "How many hours long is it?"
-            , Ui.numberInput eventDurationId (\text -> ChangedNewEvent { event | duration = text }) event.duration
-            , (case ( event.pressedSubmit, validateDuration event.duration ) of
+        , Ui.dateTimeInput
+            { dateInputId = createEventStartDateId
+            , timeInputId = createEventStartTimeId
+            , dateChanged = \text -> ChangedNewEvent { event | startDate = text }
+            , timeChanged = \text -> ChangedNewEvent { event | startTime = text }
+            , labelText = "When does it start?"
+            , minTime = currentTime
+            , timezone = timezone
+            , dateText = event.startDate
+            , timeText = event.startTime
+            , maybeError =
+                case ( event.pressedSubmit, validateDateTime currentTime timezone event.startDate event.startTime ) of
+                    ( True, Err error ) ->
+                        Just error
+
+                    _ ->
+                        Nothing
+            }
+        , Ui.numberInput
+            eventDurationId
+            (\text -> ChangedNewEvent { event | duration = text })
+            event.duration
+            "How many hours long is it?"
+            (case ( event.pressedSubmit, validateDuration event.duration ) of
                 ( True, Err error ) ->
                     Just error
 
                 _ ->
                     Nothing
-              )
-                |> Maybe.map Ui.error
-                |> Maybe.withDefault Element.none
+            )
+        , Element.row
+            [ Element.spacing 8 ]
+            [ Ui.submitButton createEventSubmitId event.isSubmitting { onPress = PressedCreateNewEvent, label = "Create new event" }
+            , Ui.button createEventCancelId { onPress = PressedCancelNewEvent, label = "Cancel" }
             ]
         ]
 
@@ -846,44 +1065,6 @@ createEventStartDateId =
 
 createEventStartTimeId =
     Id.timeInputId "groupPageCreateEventStartTime"
-
-
-dateTimeInput : Time.Posix -> Time.Zone -> NewEvent -> Element Msg
-dateTimeInput currentTime timezone event =
-    Element.column [ Element.spacing 4 ]
-        [ Element.row [ Element.spacing 8 ]
-            [ Element.column
-                [ Element.spacing 4 ]
-                [ Element.text "Start date"
-                , Ui.dateInput
-                    createEventStartDateId
-                    (\text -> ChangedNewEvent { event | startDate = text })
-                    currentTime
-                    timezone
-                    event.startDate
-                ]
-            , Element.column
-                [ Element.spacing 4 ]
-                [ Element.text "Start time"
-                , Ui.timeInput
-                    createEventStartTimeId
-                    (\text -> ChangedNewEvent { event | startTime = text })
-                    event.startTime
-                ]
-            ]
-        , case ( event.pressedSubmit, validateDateTime currentTime timezone event.startDate event.startTime ) of
-            ( True, Err error ) ->
-                Ui.error error
-
-            ( _, Ok datetime ) ->
-                datetimeToString Nothing datetime
-                    |> Element.text
-                    |> List.singleton
-                    |> Element.paragraph [ Element.Font.size 16 ]
-
-            ( False, Err _ ) ->
-                Element.none
-        ]
 
 
 datetimeToString : Maybe Time.Zone -> Time.Posix -> String

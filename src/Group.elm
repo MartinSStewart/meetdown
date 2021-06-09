@@ -107,14 +107,39 @@ totalEvents (Group a) =
 
 {-| pastEvents and futureEvents are sorted so the head element is the event closest to the currentTime
 -}
-events : Time.Posix -> Group -> { pastEvents : List ( EventId, Event ), futureEvents : List ( EventId, Event ) }
+events :
+    Time.Posix
+    -> Group
+    ->
+        { pastEvents : List ( EventId, Event )
+        , ongoingEvent : Maybe ( EventId, Event )
+        , futureEvents : List ( EventId, Event )
+        }
 events currentTime (Group a) =
     Dict.toList a.events
         |> List.partition
             (\( _, event ) ->
-                Duration.from currentTime (Event.endTime event) |> Quantity.lessThanZero
+                Duration.from currentTime (Event.startTime event) |> Quantity.lessThanZero
             )
-        |> (\( past, future ) -> { pastEvents = List.reverse past, futureEvents = future })
+        |> (\( past, future ) ->
+                let
+                    ( ongoingEvent, pastEvents ) =
+                        case List.sortBy (Tuple.second >> Event.startTime >> Time.posixToMillis) past |> List.reverse of
+                            head :: rest ->
+                                if Event.isOngoing currentTime (Tuple.second head) then
+                                    ( Just head, rest )
+
+                                else
+                                    ( Nothing, head :: rest )
+
+                            [] ->
+                                ( Nothing, [] )
+                in
+                { pastEvents = pastEvents
+                , ongoingEvent = ongoingEvent
+                , futureEvents = List.sortBy (Tuple.second >> Event.startTime >> Time.posixToMillis) future
+                }
+           )
 
 
 createdAt : Group -> Time.Posix

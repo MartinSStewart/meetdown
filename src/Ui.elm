@@ -2,7 +2,8 @@ module Ui exposing
     ( button
     , css
     , dangerButton
-    , dateInput
+    , dateTimeInput
+    , defaultFontSize
     , emailAddressText
     , enterKeyCode
     , error
@@ -20,14 +21,13 @@ module Ui exposing
     , radioGroup
     , routeLink
     , section
-    , smallFontSize
     , submitButton
     , textInput
-    , timeInput
     , title
     , titleFontSize
     )
 
+import Date exposing (Date)
 import Element exposing (Element)
 import Element.Background
 import Element.Border
@@ -89,7 +89,7 @@ headerButton : HtmlId ButtonId -> { onPress : msg, label : String } -> Element m
 headerButton htmlId { onPress, label } =
     Element.Input.button
         [ Element.mouseOver [ Element.Background.color <| Element.rgba 1 1 1 0.5 ]
-        , Element.paddingXY 16 8
+        , Element.paddingXY 8 8
         , Element.Font.center
         , inputFocusClass
         , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
@@ -99,11 +99,16 @@ headerButton htmlId { onPress, label } =
         }
 
 
-headerLink : { route : Route, label : String } -> Element msg
-headerLink { route, label } =
+headerLink : Bool -> { route : Route, label : String } -> Element msg
+headerLink isSelected { route, label } =
     Element.link
         [ Element.mouseOver [ Element.Background.color <| Element.rgba 1 1 1 0.5 ]
-        , Element.paddingXY 16 8
+        , if isSelected then
+            Element.Background.color <| Element.rgba 1 1 1 0.5
+
+          else
+            Element.Background.color <| Element.rgba 1 1 1 0
+        , Element.paddingXY 8 8
         , Element.Font.center
         , inputFocusClass
         ]
@@ -208,11 +213,11 @@ filler length =
 
 titleFontSize : Element.Attr decorative msg
 titleFontSize =
-    Element.Font.size 32
+    Element.Font.size 28
 
 
-smallFontSize : Element.Attr decorative msg
-smallFontSize =
+defaultFontSize : Element.Attr decorative msg
+defaultFontSize =
     Element.Font.size 16
 
 
@@ -305,7 +310,7 @@ textInput htmlId onChange text labelText maybeError =
     Element.column
         [ Element.width Element.fill
         , inputBackground (maybeError /= Nothing)
-        , Element.paddingEach { left = 8, right = 8, top = 8, bottom = 8 }
+        , Element.padding 8
         , Element.Border.rounded 4
         ]
         [ Element.Input.text
@@ -329,7 +334,7 @@ multiline htmlId onChange text labelText maybeError =
     Element.column
         [ Element.width Element.fill
         , inputBackground (maybeError /= Nothing)
-        , Element.paddingEach { left = 8, right = 8, top = 8, bottom = 8 }
+        , Element.padding 8
         , Element.Border.rounded 4
         ]
         [ Element.Input.multiline
@@ -350,86 +355,93 @@ multiline htmlId onChange text labelText maybeError =
         ]
 
 
-numberInput : HtmlId NumberInputId -> (String -> msg) -> String -> Element msg
-numberInput htmlId onChange value =
-    Element.html <|
-        Html.input
+numberInput : HtmlId NumberInputId -> (String -> msg) -> String -> String -> Maybe String -> Element msg
+numberInput htmlId onChange value labelText maybeError =
+    Element.column
+        [ inputBackground (maybeError /= Nothing)
+        , Element.padding 8
+        , Element.Border.rounded 4
+        ]
+        [ Element.paragraph
+            [ Element.paddingEach { left = 4, right = 4, top = 0, bottom = 4 } ]
+            [ Element.text labelText ]
+        , Html.input
             [ Html.Attributes.type_ "number"
             , Html.Events.onInput onChange
             , Id.htmlIdToString htmlId |> Html.Attributes.id
             , Html.Attributes.value value
+            , Html.Attributes.style "line-height" "38px"
             ]
             []
+            |> Element.html
+            |> Element.el []
+        , maybeError |> Maybe.map error |> Maybe.withDefault Element.none
+        ]
+
+
+dateTimeInput :
+    { dateInputId : HtmlId DateInputId
+    , timeInputId : HtmlId TimeInputId
+    , dateChanged : String -> msg
+    , timeChanged : String -> msg
+    , labelText : String
+    , minTime : Time.Posix
+    , timezone : Time.Zone
+    , dateText : String
+    , timeText : String
+    , maybeError : Maybe String
+    }
+    -> Element msg
+dateTimeInput { dateInputId, timeInputId, dateChanged, timeChanged, labelText, minTime, timezone, dateText, timeText, maybeError } =
+    Element.column
+        [ inputBackground (maybeError /= Nothing)
+        , Element.padding 8
+        , Element.Border.rounded 4
+        ]
+        [ Element.paragraph
+            [ Element.paddingEach { left = 4, right = 4, top = 0, bottom = 4 } ]
+            [ Element.text labelText ]
+        , Element.row [ Element.spacing 8 ]
+            [ dateInput dateInputId dateChanged (Date.fromPosix timezone minTime) dateText
+            , timeInput timeInputId timeChanged timeText
+            ]
+        , maybeError |> Maybe.map error |> Maybe.withDefault Element.none
+        ]
 
 
 timeInput : HtmlId TimeInputId -> (String -> msg) -> String -> Element msg
 timeInput htmlId onChange time =
-    Element.html <|
-        Html.input
-            [ Html.Attributes.type_ "time"
-            , Html.Events.onInput onChange
-            , Html.Attributes.value time
-            , Id.htmlIdToString htmlId |> Html.Attributes.id
-            ]
-            []
+    Html.input
+        [ Html.Attributes.type_ "time"
+        , Html.Events.onInput onChange
+        , Html.Attributes.value time
+        , Html.Attributes.style "padding" "0"
+        , Id.htmlIdToString htmlId |> Html.Attributes.id
+        ]
+        []
+        |> Element.html
+        |> Element.el []
 
 
-dateInput : HtmlId DateInputId -> (String -> msg) -> Time.Posix -> Time.Zone -> String -> Element msg
-dateInput htmlId onChange minDateTime timeZone date =
-    Element.html <|
-        Html.input
-            [ Html.Attributes.type_ "date"
-            , Html.Attributes.min (datestamp minDateTime timeZone)
-            , Html.Events.onInput onChange
-            , Html.Attributes.value date
-            , Id.htmlIdToString htmlId |> Html.Attributes.id
-            ]
-            []
+dateInput : HtmlId DateInputId -> (String -> msg) -> Date -> String -> Element msg
+dateInput htmlId onChange minDateTime date =
+    Html.input
+        [ Html.Attributes.type_ "date"
+        , Html.Attributes.min (datestamp minDateTime)
+        , Html.Events.onInput onChange
+        , Html.Attributes.value date
+        , Html.Attributes.style "padding" "0"
+        , Id.htmlIdToString htmlId |> Html.Attributes.id
+        ]
+        []
+        |> Element.html
+        |> Element.el []
 
 
-datestamp : Time.Posix -> Time.Zone -> String
-datestamp time timezone =
-    let
-        monthValue =
-            case Time.toMonth timezone time of
-                Time.Jan ->
-                    "01"
-
-                Time.Feb ->
-                    "02"
-
-                Time.Mar ->
-                    "03"
-
-                Time.Apr ->
-                    "04"
-
-                Time.May ->
-                    "05"
-
-                Time.Jun ->
-                    "06"
-
-                Time.Jul ->
-                    "07"
-
-                Time.Aug ->
-                    "08"
-
-                Time.Sep ->
-                    "09"
-
-                Time.Oct ->
-                    "10"
-
-                Time.Nov ->
-                    "11"
-
-                Time.Dec ->
-                    "12"
-    in
-    String.fromInt (Time.toYear timezone time)
+datestamp : Date -> String
+datestamp date =
+    String.fromInt (Date.year date)
         ++ "-"
-        ++ monthValue
+        ++ String.padLeft 2 '0' (String.fromInt (Date.monthNumber date))
         ++ "-"
-        ++ String.padLeft 2 '0' (String.fromInt (Time.toDay timezone time))
+        ++ String.padLeft 2 '0' (String.fromInt (Date.day date))
