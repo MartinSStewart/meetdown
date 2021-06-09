@@ -589,7 +589,7 @@ groupView currentTime timezone owner group model maybeUserId =
                     False
                     "Past events"
                     Element.none
-                    (List.map (Tuple.second >> pastEventView currentTime) (head :: rest)
+                    (List.map (Tuple.second >> pastEventView currentTime maybeUserId) (head :: rest)
                         |> List.intersperse Ui.hr
                         |> Element.column
                             [ Element.width Element.fill, Element.spacing 8 ]
@@ -749,13 +749,24 @@ ongoingEventView currentTime maybeUserId event =
                     Element.text "One person is attending"
 
             _ ->
-                String.fromInt attendeeCount ++ " people is attending" |> Element.text
+                String.fromInt attendeeCount
+                    ++ " people are attending"
+                    ++ (if isAttending then
+                            "(including you)"
+
+                        else
+                            ""
+                       )
+                    |> Element.text
         ]
 
 
-pastEventView : Time.Posix -> Event -> Element Msg
-pastEventView currentTime event =
+pastEventView : Time.Posix -> Maybe (Id UserId) -> Event -> Element Msg
+pastEventView currentTime maybeUserId event =
     let
+        isAttending =
+            maybeUserId |> Maybe.map (\userId -> Set.member userId (Event.attendees event)) |> Maybe.withDefault False
+
         attendeeCount =
             Event.attendees event |> Set.size
     in
@@ -779,10 +790,22 @@ pastEventView currentTime event =
                 Element.text "No one attended 💔"
 
             1 ->
-                Element.text "One person attended"
+                if isAttending then
+                    Element.text "One person attended (it was you)"
+
+                else
+                    Element.text "One person attended"
 
             _ ->
-                String.fromInt attendeeCount ++ " people attended" |> Element.text
+                String.fromInt attendeeCount
+                    ++ " people attended"
+                    ++ (if isAttending then
+                            "(you included)"
+
+                        else
+                            ""
+                       )
+                    |> Element.text
         ]
 
 
@@ -828,7 +851,15 @@ futureEventView currentTime timezone maybeUserId pendingJoinOrLeaveStatuses ( ev
                     Element.text "One person plans on attending"
 
             _ ->
-                String.fromInt attendeeCount ++ " people plan on attending" |> Element.text
+                String.fromInt attendeeCount
+                    ++ " people plan on attending"
+                    ++ (if isAttending then
+                            "(including you)"
+
+                        else
+                            ""
+                       )
+                    |> Element.text
         , if isAttending then
             Ui.submitButton
                 leaveEventButtonId
