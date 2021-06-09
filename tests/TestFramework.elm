@@ -403,7 +403,7 @@ clickLink clientId route state =
                             Debug.todo ("Invalid url: " ++ Env.domain ++ href)
 
                 Just err ->
-                    Debug.todo ("Clicking link failed for " ++ href ++ ": " ++ err.description)
+                    Debug.todo ("Clicking link failed for " ++ href ++ ": " ++ formatHtmlError err.description)
 
         Nothing ->
             Debug.todo "ClientId not found"
@@ -438,13 +438,32 @@ userEvent clientId htmlId event state =
                 Err err ->
                     case Test.Runner.getFailureReason (Test.Html.Query.has [] query) of
                         Just { description } ->
-                            Debug.todo ("User event failed for " ++ Id.htmlIdToString htmlId ++ ": " ++ description)
+                            Debug.todo ("User event failed for " ++ Id.htmlIdToString htmlId ++ ": " ++ formatHtmlError description)
 
                         Nothing ->
                             Debug.todo ("User event failed for " ++ Id.htmlIdToString htmlId ++ ": " ++ err)
 
         Nothing ->
             Debug.todo "ClientId not found"
+
+
+formatHtmlError : String -> String
+formatHtmlError description =
+    let
+        stylesStart =
+            String.indexes "<style>" description
+
+        stylesEnd =
+            String.indexes "</style>" description
+    in
+    List.map2 Tuple.pair stylesStart stylesEnd
+        |> List.foldr
+            (\( start, end ) text ->
+                String.slice 0 (start + String.length "<style>") text
+                    ++ "..."
+                    ++ String.slice end (String.length text - 1) text
+            )
+            description
 
 
 disconnectFrontend : ClientId -> State -> ( State, FrontendState )

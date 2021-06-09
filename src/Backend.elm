@@ -180,8 +180,8 @@ loginEmailContent route loginToken =
         loginLink =
             loginEmailLink route loginToken
 
-        --_ =
-        --    Debug.log "login" loginLink
+        _ =
+            Debug.log "login" loginLink
     in
     Email.Html.div
         []
@@ -440,20 +440,14 @@ updateFromFrontend cmds sessionId clientId msg model =
             )
 
         GetUserRequest userId ->
-            userAuthorization
-                cmds
-                sessionId
-                model
-                (\( _, _ ) ->
-                    case getUser userId model of
-                        Just user ->
-                            ( model
-                            , Ok (Types.userToFrontend user) |> GetUserResponse userId |> cmds.sendToFrontend clientId
-                            )
+            case getUser userId model of
+                Just user ->
+                    ( model
+                    , Ok (Types.userToFrontend user) |> GetUserResponse userId |> cmds.sendToFrontend clientId
+                    )
 
-                        Nothing ->
-                            ( model, Err () |> GetUserResponse userId |> cmds.sendToFrontend clientId )
-                )
+                Nothing ->
+                    ( model, Err () |> GetUserResponse userId |> cmds.sendToFrontend clientId )
 
         CheckLoginRequest ->
             ( model, checkLogin sessionId model |> CheckLoginResponse |> cmds.sendToFrontend clientId )
@@ -749,7 +743,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                                 let
                                     newEvent : Event
                                     newEvent =
-                                        Event.newEvent eventName description eventType startTime eventDuration
+                                        Event.newEvent eventName description eventType startTime eventDuration model.time
                                             |> Event.addAttendee userId
                                 in
                                 case Group.addEvent newEvent group of
@@ -903,6 +897,7 @@ loginWithToken cmds sessionId clientId maybeLoginTokenData model =
                                 , emailAddress = emailAddress
                                 , profileImage = ProfileImage.defaultImage
                                 , timezone = Time.utc
+                                , allowEventReminders = True
                                 }
                         in
                         ( { model2 | users = Dict.insert userId newUser model2.users }

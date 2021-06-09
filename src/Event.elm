@@ -19,19 +19,21 @@ type Event
         , attendees : Set (Id UserId)
         , startTime : Time.Posix
         , duration : EventDuration
-        , isCancelled : Bool
+        , isCancelled : Maybe Time.Posix
+        , createdAt : Time.Posix
         }
 
 
-newEvent : EventName -> Description -> EventType -> Time.Posix -> EventDuration -> Event
-newEvent eventName description_ eventType_ startTime_ duration_ =
+newEvent : EventName -> Description -> EventType -> Time.Posix -> EventDuration -> Time.Posix -> Event
+newEvent eventName description_ eventType_ startTime_ duration_ createdAt =
     { name = eventName
     , description = description_
     , eventType = eventType_
     , attendees = Set.empty
     , startTime = startTime_
     , duration = duration_
-    , isCancelled = False
+    , isCancelled = Nothing
+    , createdAt = createdAt
     }
         |> Event
 
@@ -83,12 +85,12 @@ duration (Event event) =
 
 isCancelled : Event -> Bool
 isCancelled (Event event) =
-    event.isCancelled
+    event.isCancelled /= Nothing
 
 
-cancel : Event -> Event
-cancel (Event event) =
-    Event { event | isCancelled = True }
+cancel : Time.Posix -> Event -> Event
+cancel currentTime (Event event) =
+    Event { event | isCancelled = Just currentTime }
 
 
 endTime : Event -> Time.Posix

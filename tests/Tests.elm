@@ -416,6 +416,53 @@ suite =
                                     )
                        )
                     |> TF.finishSimulation
+        , test "Create an event and another user (who isn't logged in) joins it " <|
+            \_ ->
+                let
+                    session0 =
+                        Id.sessionIdFromString "session0"
+
+                    session1 =
+                        Id.sessionIdFromString "session1"
+
+                    emailAddress0 =
+                        unsafeEmailAddress "a@a.se"
+
+                    emailAddress1 =
+                        unsafeEmailAddress "jim@a.com"
+
+                    groupName =
+                        unsafeGroupName "It's my Group!"
+                in
+                TF.init
+                    |> loginFromHomepage False session0 session0 emailAddress0
+                    |> (\{ state, clientId, clientIdFromEmail } ->
+                            createGroupAndEvent
+                                clientId
+                                { groupName = GroupName.toString groupName
+                                , groupDescription = "This is the best group"
+                                , eventName = "First group event!"
+                                , eventDescription = "We're gonna party!"
+                                , eventDate = Date.fromPosix Time.utc (Duration.addTo TF.startTime Duration.day)
+                                , eventHour = 14
+                                , eventMinute = 0
+                                , eventDuration = "1"
+                                }
+                                state
+                       )
+                    |> TF.connectFrontend session1 (Env.domain ++ Route.encode Route.HomepageRoute |> unsafeUrl)
+                    |> (\( state, clientId ) ->
+                            state
+                                |> TF.simulateTime Duration.second
+                                |> TF.inputText clientId Frontend.groupSearchId "my group!"
+                                |> TF.keyDownEvent clientId Frontend.groupSearchId Ui.enterKeyCode
+                                |> TF.simulateTime Duration.second
+                                |> TF.clickLink clientId (Route.GroupRoute (Id.groupIdFromInt 0) groupName)
+                                |> TF.simulateTime Duration.second
+                                |> TF.clickButton clientId GroupPage.joinEventButtonId
+                                |> TF.simulateTime Duration.second
+                       )
+                    |> TF.finishSimulation
         ]
 
 

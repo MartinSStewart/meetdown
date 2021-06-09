@@ -20,6 +20,7 @@ module Ui exposing
     , radioGroup
     , routeLink
     , section
+    , smallFontSize
     , submitButton
     , textInput
     , timeInput
@@ -208,6 +209,11 @@ filler length =
 titleFontSize : Element.Attr decorative msg
 titleFontSize =
     Element.Font.size 32
+
+
+smallFontSize : Element.Attr decorative msg
+smallFontSize =
+    Element.Font.size 16
 
 
 title : String -> Element msg

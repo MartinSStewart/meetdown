@@ -551,6 +551,11 @@ view currentTime timezone owner group model maybeUserId =
                 |> Element.column
                     [ Element.width Element.fill, Element.spacing 8 ]
             )
+        , Ui.section "Info"
+            (Element.paragraph
+                [ Ui.smallFontSize, Element.alignRight ]
+                [ Element.text ("Created on " ++ dateToString (Just timezone) (Group.createdAt group)) ]
+            )
         ]
 
 
@@ -901,6 +906,15 @@ datetimeToString maybeTimezone datetime =
                 Nothing ->
                     " (UTC)"
            )
+
+
+dateToString : Maybe Time.Zone -> Time.Posix -> String
+dateToString maybeTimezone datetime =
+    let
+        timezone =
+            Maybe.withDefault Time.utc maybeTimezone
+    in
+    monthToText datetime Time.utc ++ " " ++ dayToText datetime timezone
 
 
 dayToText : Time.Posix -> Time.Zone -> String

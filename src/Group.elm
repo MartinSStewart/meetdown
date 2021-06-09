@@ -1,4 +1,4 @@
-module Group exposing (EventId, Group, GroupVisibility(..), addEvent, description, events, init, joinEvent, leaveEvent, name, ownerId, totalEvents, visibility, withDescription, withName)
+module Group exposing (EventId, Group, GroupVisibility(..), addEvent, createdAt, description, events, init, joinEvent, leaveEvent, name, ownerId, totalEvents, visibility, withDescription, withName)
 
 import AssocList as Dict exposing (Dict)
 import AssocSet as Set exposing (Set)
@@ -29,7 +29,7 @@ type GroupVisibility
 
 
 init : Id UserId -> GroupName -> Description -> GroupVisibility -> Time.Posix -> Group
-init ownerId_ groupName description_ groupVisibility_ createdAt =
+init ownerId_ groupName description_ groupVisibility_ createdAt_ =
     Group
         { ownerId = ownerId_
         , name = groupName
@@ -37,7 +37,7 @@ init ownerId_ groupName description_ groupVisibility_ createdAt =
         , events = Dict.empty
         , visibility = groupVisibility_
         , eventCounter = 0
-        , createdAt = createdAt
+        , createdAt = createdAt_
         }
 
 
@@ -115,3 +115,8 @@ events currentTime (Group a) =
                 Duration.from currentTime (Event.endTime event) |> Quantity.lessThanZero
             )
         |> (\( past, future ) -> { pastEvents = List.reverse past, futureEvents = future })
+
+
+createdAt : Group -> Time.Posix
+createdAt (Group a) =
+    a.createdAt

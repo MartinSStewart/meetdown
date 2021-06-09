@@ -78,6 +78,7 @@ eventReminderEmail =
                 eventType
                 (Time.millisToPosix 10000000)
                 (Tests.unsafeEventDuration 60)
+                (Time.millisToPosix 1000000)
     in
     emailView
         (Backend.eventReminderEmailSubject groupName event Time.utc)

@@ -1073,19 +1073,22 @@ viewLoaded model =
 
             _ ->
                 header (isLoggedIn model) model.route model.searchBox
-        , case model.loginStatus of
-            NotLoggedIn { showLogin } ->
-                if showLogin then
-                    LoginForm.view model.loginForm
+        , Element.el
+            [ Element.Region.mainContent, Element.width Element.fill, Element.height Element.fill ]
+            (case model.loginStatus of
+                NotLoggedIn { showLogin } ->
+                    if showLogin then
+                        LoginForm.view model.loginForm
 
-                else
+                    else
+                        viewPage model
+
+                LoggedIn _ ->
                     viewPage model
 
-            LoggedIn _ ->
-                viewPage model
-
-            LoginStatusPending ->
-                Element.none
+                LoginStatusPending ->
+                    Element.none
+            )
         ]
 
 
@@ -1359,6 +1362,7 @@ header isLoggedIn_ route searchText =
         [ Element.width Element.fill
         , Element.Background.color <| Element.rgb 0.8 0.8 0.8
         , Element.paddingEach { left = 4, right = 0, top = 0, bottom = 0 }
+        , Element.Region.navigation
         ]
         [ Element.Input.text
             [ Element.width <| Element.maximum 400 Element.fill
@@ -1381,7 +1385,7 @@ header isLoggedIn_ route searchText =
             , label = Element.Input.labelHidden "Search groups"
             }
         , Element.row
-            [ Element.alignRight, Element.Region.navigation ]
+            [ Element.alignRight ]
             (if isLoggedIn_ then
                 [ if route == CreateGroupRoute then
                     Element.none

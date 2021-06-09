@@ -275,6 +275,7 @@ type alias BackendUser =
     , emailAddress : EmailAddress
     , profileImage : ProfileImage
     , timezone : Time.Zone
+    , allowEventReminders : Bool
     }
 
 
