@@ -396,7 +396,7 @@ update cmds msg model =
             ( addLog (LogDeleteAccountEmail model.time result userId) model, cmds.none )
 
         SentEventReminderEmail userId groupId eventId result ->
-            ( addLog (LogEventReminderEmail model.time result userId groupId) model, cmds.none )
+            ( addLog (LogEventReminderEmail model.time result userId groupId eventId) model, cmds.none )
 
 
 addLog : Log -> BackendModel -> BackendModel
@@ -816,6 +816,52 @@ updateFromFrontend cmds sessionId clientId msg model =
                                 (LeaveEventResponse groupId eventId (Err ()))
                             )
                 )
+
+        EditEventRequest groupId eventId eventName_ description_ eventType_ startTime eventDuration_ ->
+            case
+                T4
+                    (Untrusted.eventName eventName_)
+                    (Untrusted.description description_)
+                    (Untrusted.eventType eventType_)
+                    (Untrusted.eventDuration eventDuration_)
+            of
+                T4 (Just eventName) (Just description) (Just eventType) (Just eventDuration) ->
+                    userWithGroupAuthorization
+                        cmds
+                        sessionId
+                        groupId
+                        model
+                        (\( userId, _, group ) ->
+                            case
+                                Group.editEvent model.time
+                                    eventId
+                                    (Event.withName eventName
+                                        >> Event.withDescription description
+                                        >> Event.withEventType eventType
+                                        >> Event.withDuration eventDuration
+                                        >> Event.withStartTime startTime
+                                    )
+                                    group
+                            of
+                                Ok ( newEvent, newGroup ) ->
+                                    ( { model | groups = Dict.insert groupId newGroup model.groups }
+                                    , cmds.sendToFrontends
+                                        (getClientIdsForUser userId model)
+                                        (EditEventResponse groupId eventId (Ok newEvent))
+                                    )
+
+                                Err error ->
+                                    ( model
+                                    , cmds.sendToFrontend
+                                        clientId
+                                        (EditEventResponse groupId eventId (Err error))
+                                    )
+                        )
+
+                _ ->
+                    ( addLog (LogUntrustedCheckFailed model.time msg) model
+                    , cmds.none
+                    )
 
 
 handleDeleteUserRequest : Effects cmd -> ClientId -> Maybe DeleteUserTokenData -> BackendModel -> ( BackendModel, cmd )

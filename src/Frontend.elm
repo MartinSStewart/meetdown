@@ -1030,6 +1030,20 @@ updateLoadedFromBackend cmds msg model =
             , cmds.none
             )
 
+        EditEventResponse groupId eventId result ->
+            ( { model
+                | cachedGroups =
+                    case result of
+                        Ok event ->
+                            Dict.update (Maybe.map (Group.editEvent eventId (\_ -> event))) model.cachedGroups
+
+                        Err _ ->
+                            model.cachedGroups
+                , groupPage = GroupPage.editEventResponse (Err error) model.groupPage
+              }
+            , cmds.none
+            )
+
 
 view : FrontendModel -> Browser.Document FrontendMsg
 view model =

@@ -1,4 +1,4 @@
-module Group exposing (EventId, Group, GroupVisibility(..), addEvent, createdAt, description, events, init, joinEvent, leaveEvent, name, ownerId, totalEvents, visibility, withDescription, withName)
+module Group exposing (EditEventError(..), EventId, Group, GroupVisibility(..), addEvent, createdAt, description, editEvent, events, init, joinEvent, leaveEvent, name, ownerId, totalEvents, visibility, withDescription, withName)
 
 import AssocList as Dict exposing (Dict)
 import AssocSet as Set exposing (Set)
@@ -7,6 +7,7 @@ import Duration
 import Event exposing (Event)
 import GroupName exposing (GroupName)
 import Id exposing (Id, UserId)
+import List.Extra as List
 import Quantity
 import Time
 
@@ -90,6 +91,73 @@ addEvent event (Group a) =
                 |> Ok
 
 
+type EditEventError
+    = EditEventStartsInThePast
+    | EditEventOverlapsOtherEvents (Set EventId)
+    | CantEditPastEvent
+    | CantChangeStartTimeOfOngoingEvent
+    | EditEventNotFound
+
+
+editEvent : Time.Posix -> EventId -> (Event -> Event) -> Group -> Result EditEventError ( Event, Group )
+editEvent currentTime eventId editEventFunc group =
+    let
+        { pastEvents, ongoingEvent, futureEvents } =
+            events currentTime group
+    in
+    case List.find (Tuple.first >> (==) eventId) pastEvents of
+        Just _ ->
+            Err CantEditPastEvent
+
+        Nothing ->
+            case List.find (Tuple.first >> (==) eventId) futureEvents of
+                Just ( _, event ) ->
+                    let
+                        edittedEvent =
+                            editEventFunc event
+                    in
+                    if Duration.from currentTime (Event.startTime edittedEvent) |> Quantity.lessThanZero then
+                        Err EditEventStartsInThePast
+
+                    else
+                        case
+                            allEvents group
+                                |> Dict.remove eventId
+                                |> Dict.toList
+                                |> List.filter (Tuple.second >> Event.overlaps edittedEvent)
+                        of
+                            head :: rest ->
+                                List.map Tuple.first (head :: rest) |> Set.fromList |> EditEventOverlapsOtherEvents |> Err
+
+                            [] ->
+                                ( edittedEvent, editEventHelper eventId edittedEvent group ) |> Ok
+
+                Nothing ->
+                    case ongoingEvent of
+                        Just ( eventId_, event_ ) ->
+                            let
+                                edittedEvent =
+                                    editEventFunc event_
+                            in
+                            if eventId == eventId_ then
+                                if Event.startTime edittedEvent == Event.startTime event_ then
+                                    ( edittedEvent, editEventHelper eventId edittedEvent group ) |> Ok
+
+                                else
+                                    Err CantChangeStartTimeOfOngoingEvent
+
+                            else
+                                Err EditEventNotFound
+
+                        _ ->
+                            Err EditEventNotFound
+
+
+editEventHelper : EventId -> Event -> Group -> Group
+editEventHelper eventId event (Group group) =
+    Group { group | events = Dict.insert eventId event group.events }
+
+
 joinEvent : Id UserId -> EventId -> Group -> Group
 joinEvent userId eventId (Group group) =
     Group { group | events = Dict.update eventId (Maybe.map (Event.addAttendee userId)) group.events }
@@ -103,6 +171,11 @@ leaveEvent userId eventId (Group group) =
 totalEvents : Group -> Int
 totalEvents (Group a) =
     Dict.size a.events
+
+
+allEvents : Group -> Dict EventId Event
+allEvents (Group group) =
+    group.events
 
 
 {-| pastEvents and futureEvents are sorted so the head element is the event closest to the currentTime

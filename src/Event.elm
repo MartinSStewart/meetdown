@@ -1,4 +1,4 @@
-module Event exposing (Event, EventType(..), addAttendee, attendees, cancel, description, duration, endTime, eventType, isCancelled, isOngoing, name, newEvent, overlaps, removeAttendee, startTime)
+module Event exposing (Event, EventType(..), addAttendee, attendees, cancel, description, duration, endTime, eventType, isCancelled, isOngoing, name, newEvent, overlaps, removeAttendee, startTime, withDescription, withDuration, withEventType, withName, withStartTime)
 
 import Address exposing (Address)
 import AssocSet as Set exposing (Set)
@@ -129,3 +129,28 @@ isOngoing currentTime event =
             Time.posixToMillis currentTime
     in
     start <= time && time < end
+
+
+withName : EventName -> Event -> Event
+withName eventName (Event event) =
+    Event { event | name = eventName }
+
+
+withDescription : Description -> Event -> Event
+withDescription description_ (Event event) =
+    Event { event | description = description_ }
+
+
+withEventType : EventType -> Event -> Event
+withEventType eventType_ (Event event) =
+    Event { event | eventType = eventType_ }
+
+
+withDuration : EventDuration -> Event -> Event
+withDuration eventDuration_ (Event event) =
+    Event { event | duration = eventDuration_ }
+
+
+withStartTime : Time.Posix -> Event -> Event
+withStartTime startTime_ (Event event) =
+    Event { event | startTime = startTime_ }

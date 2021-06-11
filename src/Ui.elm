@@ -3,6 +3,7 @@ module Ui exposing
     , css
     , dangerButton
     , dateTimeInput
+    , datestamp
     , defaultFontSize
     , emailAddressText
     , enterKeyCode

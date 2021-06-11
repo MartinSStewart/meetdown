@@ -3,6 +3,7 @@ module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, adde
 import Address exposing (Address, Error(..))
 import AssocList as Dict exposing (Dict)
 import AssocSet as Set exposing (Set)
+import Date
 import Description exposing (Description)
 import Duration exposing (Duration)
 import Element exposing (Element)
@@ -14,11 +15,12 @@ import Event exposing (Event, EventType)
 import EventDuration exposing (EventDuration)
 import EventName exposing (EventName)
 import FrontendUser exposing (FrontendUser)
-import Group exposing (EventId, Group)
+import Group exposing (EditEventError, EventId, Group)
 import GroupName exposing (GroupName)
 import Html.Attributes
 import Id exposing (ButtonId(..), HtmlId, Id, UserId)
 import Link exposing (Link)
+import List.Extra as List
 import List.Nonempty exposing (Nonempty(..))
 import Name
 import ProfileImage
@@ -32,7 +34,7 @@ import Untrusted exposing (Untrusted)
 type alias Model =
     { name : Editable GroupName
     , description : Editable Description
-    , addingNewEvent : Bool
+    , eventOverlay : Maybe EventOverlay
     , newEvent : NewEvent
     , pendingJoinOrLeave : Dict EventId EventJoinOrLeaveStatus
     , showAllFutureEvents : Bool
@@ -67,6 +69,8 @@ type Msg
     | PressedCreateNewEvent
     | PressedLeaveEvent EventId
     | PressedJoinEvent EventId
+    | PressedEditEvent EventId
+    | ChangedEditEvent EditEvent
 
 
 type alias Effects cmd =
@@ -85,12 +89,30 @@ type alias Effects cmd =
     }
 
 
+type SubmitStatus a
+    = NotSubmitted { pressedSubmit : Bool }
+    | IsSubmitting
+    | Failed { pressedSubmit : Bool, error : a }
+
+
 type alias NewEvent =
-    { pressedSubmit : Bool
-    , isSubmitting : Bool
+    { submitStatus : SubmitStatus ()
     , eventName : String
     , description : String
     , meetingType : Maybe EventType
+    , meetOnlineLink : String
+    , meetInPersonAddress : String
+    , startDate : String
+    , startTime : String
+    , duration : String
+    }
+
+
+type alias EditEvent =
+    { submitStatus : SubmitStatus ()
+    , eventName : String
+    , description : String
+    , meetingType : EventType
     , meetOnlineLink : String
     , meetInPersonAddress : String
     , startDate : String
@@ -103,17 +125,21 @@ init : Model
 init =
     { name = Unchanged
     , description = Unchanged
-    , addingNewEvent = False
+    , eventOverlay = Nothing
     , newEvent = initNewEvent
     , pendingJoinOrLeave = Dict.empty
     , showAllFutureEvents = False
     }
 
 
+type EventOverlay
+    = AddingNewEvent
+    | EdittingEvent EventId EditEvent
+
+
 initNewEvent : NewEvent
 initNewEvent =
-    { pressedSubmit = False
-    , isSubmitting = False
+    { submitStatus = NotSubmitted { pressedSubmit = False }
     , eventName = ""
     , description = ""
     , meetingType = Nothing
@@ -155,7 +181,27 @@ addedNewEvent : Result CreateEventError Event -> Model -> Model
 addedNewEvent result model =
     case result of
         Ok _ ->
-            { model | addingNewEvent = False, newEvent = initNewEvent }
+            case model.eventOverlay of
+                Just AddingNewEvent ->
+                    { model | eventOverlay = Nothing, newEvent = initNewEvent }
+
+                _ ->
+                    model
+
+        Err _ ->
+            model
+
+
+editEventResponse : Result EditEventError Event -> Model -> Model
+editEventResponse result model =
+    case result of
+        Ok _ ->
+            case model.eventOverlay of
+                Just AddingNewEvent ->
+                    { model | eventOverlay = Nothing, newEvent = initNewEvent }
+
+                _ ->
+                    model
 
         Err _ ->
             model
@@ -276,8 +322,8 @@ update effects config group maybeUserId msg model =
                 ( model, effects.none )
 
         PressedAddEvent ->
-            if isOwner then
-                ( { model | addingNewEvent = True }, effects.none )
+            if isOwner && model.eventOverlay == Nothing then
+                ( { model | eventOverlay = Just AddingNewEvent }, effects.none )
 
             else
                 ( model, effects.none )
@@ -297,7 +343,12 @@ update effects config group maybeUserId msg model =
 
         PressedCancelNewEvent ->
             if isOwner then
-                ( { model | addingNewEvent = False }, effects.none )
+                case model.eventOverlay of
+                    Just AddingNewEvent ->
+                        ( { model | eventOverlay = Nothing }, effects.none )
+
+                    _ ->
+                        ( model, effects.none )
 
             else
                 ( model, effects.none )
@@ -330,7 +381,7 @@ update effects config group maybeUserId msg model =
             if isOwner then
                 Maybe.map5
                     (\name description eventType startTime duration ->
-                        ( { model | newEvent = { newEvent | isSubmitting = True } }
+                        ( { model | newEvent = { newEvent | submitStatus = IsSubmitting } }
                         , effects.createEvent
                             (Untrusted.untrust name)
                             (Untrusted.untrust description)
@@ -344,7 +395,7 @@ update effects config group maybeUserId msg model =
                     maybeEventType
                     maybeStartTime
                     (validateDuration newEvent.duration |> Result.toMaybe)
-                    |> Maybe.withDefault ( { model | newEvent = { newEvent | pressedSubmit = True } }, effects.none )
+                    |> Maybe.withDefault ( { model | newEvent = pressSubmit model.newEvent }, effects.none )
 
             else
                 ( model, effects.none )
@@ -369,6 +420,93 @@ update effects config group maybeUserId msg model =
                     , effects.joinEvent eventId
                     )
 
+        PressedEditEvent eventId ->
+            if isOwner && model.eventOverlay == Nothing then
+                case Group.events config.time group |> .futureEvents |> List.find (Tuple.first >> (==) eventId) of
+                    Just ( _, event ) ->
+                        ( { model
+                            | eventOverlay =
+                                EdittingEvent
+                                    eventId
+                                    { submitStatus = NotSubmitted { pressedSubmit = False }
+                                    , eventName = Event.name event |> EventName.toString
+                                    , description = Event.description event |> Description.toString
+                                    , meetingType =
+                                        case Event.eventType event of
+                                            Event.MeetOnline _ ->
+                                                MeetOnline
+
+                                            Event.MeetInPerson _ ->
+                                                MeetInPerson
+                                    , meetOnlineLink =
+                                        case Event.eventType event of
+                                            Event.MeetOnline (Just link) ->
+                                                Link.toString link
+
+                                            Event.MeetOnline Nothing ->
+                                                ""
+
+                                            Event.MeetInPerson _ ->
+                                                ""
+                                    , meetInPersonAddress =
+                                        case Event.eventType event of
+                                            Event.MeetOnline _ ->
+                                                ""
+
+                                            Event.MeetInPerson (Just address) ->
+                                                Address.toString address
+
+                                            Event.MeetInPerson Nothing ->
+                                                ""
+                                    , startDate = Event.startTime event |> Date.fromPosix config.timezone |> Ui.datestamp
+                                    , startTime = Event.startTime event |> Date.fromPosix config.timezone |> Ui.datestamp
+                                    , duration =
+                                        Event.duration event
+                                            |> EventDuration.toDuration
+                                            |> Duration.inHours
+                                            |> String.fromFloat
+                                            |> String.left 4
+                                    }
+                                    |> Just
+                          }
+                        , effects.none
+                        )
+
+                    Nothing ->
+                        ( model, effects.none )
+
+            else
+                ( model, effects.none )
+
+        ChangedEditEvent editEvent ->
+            ( { model
+                | eventOverlay =
+                    case model.eventOverlay of
+                        Just (EdittingEvent eventId _) ->
+                            Just (EdittingEvent eventId editEvent)
+
+                        _ ->
+                            model.eventOverlay
+              }
+            , effects.none
+            )
+
+
+pressSubmit : { a | submitStatus : SubmitStatus b } -> { a | submitStatus : SubmitStatus b }
+pressSubmit event =
+    { event
+        | submitStatus =
+            case event.submitStatus of
+                NotSubmitted notSubmitted ->
+                    NotSubmitted { notSubmitted | pressedSubmit = True }
+
+                IsSubmitting ->
+                    IsSubmitting
+
+                Failed failed ->
+                    Failed { failed | pressedSubmit = True }
+    }
+
 
 joinOrLeaveResponse : EventId -> Result () () -> Model -> Model
 joinOrLeaveResponse eventId result model =
@@ -385,11 +523,15 @@ joinOrLeaveResponse eventId result model =
 
 view : Time.Posix -> Time.Zone -> FrontendUser -> Group -> Model -> Maybe (Id UserId) -> Element Msg
 view currentTime timezone owner group model maybeUserId =
-    if model.addingNewEvent then
-        newEventView currentTime timezone model.newEvent
+    case model.eventOverlay of
+        Just AddingNewEvent ->
+            newEventView currentTime timezone model.newEvent
 
-    else
-        groupView currentTime timezone owner group model maybeUserId
+        Just (EdittingEvent _ event) ->
+            editEventView currentTime timezone event
+
+        Nothing ->
+            groupView currentTime timezone owner group model maybeUserId
 
 
 groupView currentTime timezone owner group model maybeUserId =
@@ -577,7 +719,7 @@ groupView currentTime timezone owner group model maybeUserId =
                      else
                         [ soonest ]
                     )
-                        |> List.map (futureEventView currentTime timezone maybeUserId model.pendingJoinOrLeave)
+                        |> List.map (futureEventView currentTime timezone isOwner maybeUserId model.pendingJoinOrLeave)
              )
                 |> List.intersperse Ui.hr
                 |> Element.column
@@ -809,8 +951,15 @@ pastEventView currentTime maybeUserId event =
         ]
 
 
-futureEventView : Time.Posix -> Time.Zone -> Maybe (Id UserId) -> Dict EventId EventJoinOrLeaveStatus -> ( EventId, Event ) -> Element Msg
-futureEventView currentTime timezone maybeUserId pendingJoinOrLeaveStatuses ( eventId, event ) =
+futureEventView :
+    Time.Posix
+    -> Time.Zone
+    -> Bool
+    -> Maybe (Id UserId)
+    -> Dict EventId EventJoinOrLeaveStatus
+    -> ( EventId, Event )
+    -> Element Msg
+futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatuses ( eventId, event ) =
     let
         isAttending =
             maybeUserId |> Maybe.map (\userId -> Set.member userId (Event.attendees event)) |> Maybe.withDefault False
@@ -824,7 +973,15 @@ futureEventView currentTime timezone maybeUserId pendingJoinOrLeaveStatuses ( ev
     in
     Element.column
         [ Element.width Element.fill, Element.spacing 8, Element.paddingXY 16 0 ]
-        [ Event.name event |> EventName.toString |> Element.text |> List.singleton |> Element.paragraph [ Element.Font.bold ]
+        [ Element.row
+            [ Element.spacing 16 ]
+            [ Event.name event |> EventName.toString |> Element.text |> List.singleton |> Element.paragraph [ Element.Font.bold ]
+            , if isOwner then
+                smallButton editEventId (PressedEditEvent eventId) "Edit"
+
+              else
+                Element.none
+            ]
         , Event.description event |> Description.toString |> Element.text |> List.singleton |> Element.paragraph []
         , datetimeToString (Just timezone) (Event.startTime event)
             ++ " (Starts in "
@@ -882,6 +1039,10 @@ futureEventView currentTime timezone maybeUserId pendingJoinOrLeaveStatuses ( ev
             _ ->
                 Element.none
         ]
+
+
+editEventId =
+    Id.buttonId "groupEditEvent"
 
 
 leaveEventButtonId =
@@ -969,16 +1130,172 @@ eventMeetingInPersonInputId =
     Id.textInputId "groupEventMeetingInPerson"
 
 
-newEventView : Time.Posix -> Time.Zone -> NewEvent -> Element Msg
-newEventView currentTime timezone event =
+editEventView : Time.Posix -> Time.Zone -> EditEvent -> Element Msg
+editEventView currentTime timezone event =
+    let
+        pressedSubmit =
+            case event.submitStatus of
+                NotSubmitted notSubmitted ->
+                    notSubmitted.pressedSubmit
+
+                IsSubmitting ->
+                    False
+
+                Failed failed ->
+                    failed.pressedSubmit
+
+        isSubmitting =
+            case event.submitStatus of
+                IsSubmitting ->
+                    True
+
+                _ ->
+                    False
+    in
     Element.column
         [ Element.spacing 8, Element.padding 8, Element.width Element.fill ]
-        [ Ui.textInput
+        [ Ui.title "Edit event"
+        , Ui.textInput
+            eventNameInputId
+            (\text -> ChangedEditEvent { event | eventName = text })
+            event.eventName
+            "Event name"
+            (case ( pressedSubmit, EventName.fromString event.eventName ) of
+                ( True, Err error ) ->
+                    EventName.errorToString event.eventName error |> Just
+
+                _ ->
+                    Nothing
+            )
+        , Ui.multiline
+            eventDescriptionInputId
+            (\text -> ChangedEditEvent { event | description = text })
+            event.description
+            "Event description"
+            (case ( pressedSubmit, Description.fromString event.description ) of
+                ( True, Err error ) ->
+                    Description.errorToString event.description error |> Just
+
+                _ ->
+                    Nothing
+            )
+        , Ui.radioGroup
+            eventMeetingTypeId
+            (\meetingType -> ChangedEditEvent { event | meetingType = meetingType })
+            (Nonempty MeetOnline [ MeetInPerson ])
+            (Just event.meetingType)
+            (\a ->
+                case a of
+                    MeetOnline ->
+                        "This event will be online"
+
+                    MeetInPerson ->
+                        "This event will be in person"
+            )
+            Nothing
+        , case event.meetingType of
+            MeetOnline ->
+                Ui.textInput
+                    eventMeetingOnlineInputId
+                    (\text -> ChangedEditEvent { event | meetOnlineLink = text })
+                    event.meetOnlineLink
+                    "Meeting url (you can add this later)"
+                    (case ( pressedSubmit, validateLink event.meetOnlineLink ) of
+                        ( True, Err error ) ->
+                            Just error
+
+                        _ ->
+                            Nothing
+                    )
+
+            MeetInPerson ->
+                Ui.textInput
+                    eventMeetingInPersonInputId
+                    (\text -> ChangedEditEvent { event | meetInPersonAddress = text })
+                    event.meetInPersonAddress
+                    "Meeting address (you can add this later)"
+                    (case ( pressedSubmit, validateAddress event.meetInPersonAddress ) of
+                        ( True, Err error ) ->
+                            Just error
+
+                        _ ->
+                            Nothing
+                    )
+        , Ui.dateTimeInput
+            { dateInputId = createEventStartDateId
+            , timeInputId = createEventStartTimeId
+            , dateChanged = \text -> ChangedEditEvent { event | startDate = text }
+            , timeChanged = \text -> ChangedEditEvent { event | startTime = text }
+            , labelText = "When does it start?"
+            , minTime = currentTime
+            , timezone = timezone
+            , dateText = event.startDate
+            , timeText = event.startTime
+            , maybeError =
+                case ( pressedSubmit, validateDateTime currentTime timezone event.startDate event.startTime ) of
+                    ( True, Err error ) ->
+                        Just error
+
+                    _ ->
+                        Nothing
+            }
+        , Ui.numberInput
+            eventDurationId
+            (\text -> ChangedEditEvent { event | duration = text })
+            event.duration
+            "How many hours long is it?"
+            (case ( pressedSubmit, validateDuration event.duration ) of
+                ( True, Err error ) ->
+                    Just error
+
+                _ ->
+                    Nothing
+            )
+        , Element.row
+            [ Element.spacing 8 ]
+            [ Ui.submitButton createEventSubmitId isSubmitting { onPress = PressedCreateNewEvent, label = "Create new event" }
+            , Ui.button createEventCancelId { onPress = PressedCancelNewEvent, label = "Cancel" }
+            ]
+        , case event.submitStatus of
+            Failed { error } ->
+                Ui.error "Event overlaps with another event"
+
+            _ ->
+                Element.none
+        ]
+
+
+newEventView : Time.Posix -> Time.Zone -> NewEvent -> Element Msg
+newEventView currentTime timezone event =
+    let
+        pressedSubmit =
+            case event.submitStatus of
+                NotSubmitted notSubmitted ->
+                    notSubmitted.pressedSubmit
+
+                IsSubmitting ->
+                    False
+
+                Failed failed ->
+                    failed.pressedSubmit
+
+        isSubmitting =
+            case event.submitStatus of
+                IsSubmitting ->
+                    True
+
+                _ ->
+                    False
+    in
+    Element.column
+        [ Element.spacing 8, Element.padding 8, Element.width Element.fill ]
+        [ Ui.title "New event"
+        , Ui.textInput
             eventNameInputId
             (\text -> ChangedNewEvent { event | eventName = text })
             event.eventName
             "Event name"
-            (case ( event.pressedSubmit, EventName.fromString event.eventName ) of
+            (case ( pressedSubmit, EventName.fromString event.eventName ) of
                 ( True, Err error ) ->
                     EventName.errorToString event.eventName error |> Just
 
@@ -990,7 +1307,7 @@ newEventView currentTime timezone event =
             (\text -> ChangedNewEvent { event | description = text })
             event.description
             "Event description"
-            (case ( event.pressedSubmit, Description.fromString event.description ) of
+            (case ( pressedSubmit, Description.fromString event.description ) of
                 ( True, Err error ) ->
                     Description.errorToString event.description error |> Just
 
@@ -1010,7 +1327,7 @@ newEventView currentTime timezone event =
                     MeetInPerson ->
                         "This event will be in person"
             )
-            (case ( event.pressedSubmit, event.meetingType ) of
+            (case ( pressedSubmit, event.meetingType ) of
                 ( True, Nothing ) ->
                     Just "Choose what type of event this is"
 
@@ -1024,7 +1341,7 @@ newEventView currentTime timezone event =
                     (\text -> ChangedNewEvent { event | meetOnlineLink = text })
                     event.meetOnlineLink
                     "Meeting url (you can add this later)"
-                    (case ( event.pressedSubmit, validateLink event.meetOnlineLink ) of
+                    (case ( pressedSubmit, validateLink event.meetOnlineLink ) of
                         ( True, Err error ) ->
                             Just error
 
@@ -1038,7 +1355,7 @@ newEventView currentTime timezone event =
                     (\text -> ChangedNewEvent { event | meetInPersonAddress = text })
                     event.meetInPersonAddress
                     "Meeting address (you can add this later)"
-                    (case ( event.pressedSubmit, validateAddress event.meetInPersonAddress ) of
+                    (case ( pressedSubmit, validateAddress event.meetInPersonAddress ) of
                         ( True, Err error ) ->
                             Just error
 
@@ -1059,7 +1376,7 @@ newEventView currentTime timezone event =
             , dateText = event.startDate
             , timeText = event.startTime
             , maybeError =
-                case ( event.pressedSubmit, validateDateTime currentTime timezone event.startDate event.startTime ) of
+                case ( pressedSubmit, validateDateTime currentTime timezone event.startDate event.startTime ) of
                     ( True, Err error ) ->
                         Just error
 
@@ -1071,7 +1388,7 @@ newEventView currentTime timezone event =
             (\text -> ChangedNewEvent { event | duration = text })
             event.duration
             "How many hours long is it?"
-            (case ( event.pressedSubmit, validateDuration event.duration ) of
+            (case ( pressedSubmit, validateDuration event.duration ) of
                 ( True, Err error ) ->
                     Just error
 
@@ -1080,9 +1397,15 @@ newEventView currentTime timezone event =
             )
         , Element.row
             [ Element.spacing 8 ]
-            [ Ui.submitButton createEventSubmitId event.isSubmitting { onPress = PressedCreateNewEvent, label = "Create new event" }
+            [ Ui.submitButton createEventSubmitId isSubmitting { onPress = PressedCreateNewEvent, label = "Update event" }
             , Ui.button createEventCancelId { onPress = PressedCancelNewEvent, label = "Cancel" }
             ]
+        , case event.submitStatus of
+            Failed { error } ->
+                Ui.error "Event overlaps with another event"
+
+            _ ->
+                Element.none
         ]
 
 

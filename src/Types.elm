@@ -158,7 +158,7 @@ type Log
     = LogUntrustedCheckFailed Time.Posix ToBackend
     | LogLoginEmail Time.Posix (Result SendGrid.Error ()) EmailAddress
     | LogDeleteAccountEmail Time.Posix (Result SendGrid.Error ()) (Id UserId)
-    | LogEventReminderEmail Time.Posix (Result SendGrid.Error ()) (Id UserId) GroupId
+    | LogEventReminderEmail Time.Posix (Result SendGrid.Error ()) (Id UserId) GroupId EventId
 
 
 logData : AdminModel -> Log -> { time : Time.Posix, isError : Bool, message : String }
@@ -250,7 +250,7 @@ logData model log =
                         emailErrorToString (getEmailAddress userId) error
             }
 
-        LogEventReminderEmail time result userId groupId ->
+        LogEventReminderEmail time result userId groupId eventId ->
             { time = time
             , isError =
                 case result of
@@ -326,6 +326,7 @@ type ToBackend
     | ChangeGroupNameRequest GroupId (Untrusted GroupName)
     | ChangeGroupDescriptionRequest GroupId (Untrusted Description)
     | CreateEventRequest GroupId (Untrusted EventName) (Untrusted Description) (Untrusted EventType) Time.Posix (Untrusted EventDuration)
+    | EditEventRequest GroupId EventId (Untrusted EventName) (Untrusted Description) (Untrusted EventType) Time.Posix (Untrusted EventDuration)
     | JoinEventRequest GroupId EventId
     | LeaveEventRequest GroupId EventId
 
@@ -357,5 +358,6 @@ type ToFrontend
     | ChangeGroupNameResponse GroupId GroupName
     | ChangeGroupDescriptionResponse GroupId Description
     | CreateEventResponse GroupId (Result CreateEventError Event)
+    | EditEventResponse GroupId EventId (Result Group.EditEventError Event)
     | JoinEventResponse GroupId EventId (Result () ())
     | LeaveEventResponse GroupId EventId (Result () ())
