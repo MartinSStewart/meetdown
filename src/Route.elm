@@ -30,7 +30,7 @@ decode =
                         head :: rest ->
                             case ( String.toInt head, String.join "-" rest |> Url.percentDecode ) of
                                 ( Just groupId, Just groupNameText ) ->
-                                    case GroupName.fromString groupNameText of
+                                    case GroupName.fromString (String.replace "-" " " groupNameText) of
                                         Ok groupName ->
                                             GroupRoute (Id.groupIdFromInt groupId) groupName
 
@@ -104,9 +104,13 @@ encodeWithToken route token =
                 []
 
             GroupRoute groupId groupName ->
-                [ "group"
-                , String.fromInt (Id.groupIdToInt groupId) ++ "-" ++ Url.percentEncode (GroupName.toString groupName)
-                ]
+                let
+                    groupNameText =
+                        GroupName.toString groupName
+                            |> String.replace " " "-"
+                            |> Url.percentEncode
+                in
+                [ "group", String.fromInt (Id.groupIdToInt groupId) ++ "-" ++ groupNameText ]
 
             AdminRoute ->
                 [ "admin" ]

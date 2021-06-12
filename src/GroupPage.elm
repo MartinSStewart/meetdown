@@ -777,11 +777,15 @@ groupView currentTime timezone owner group model maybeUserId =
             "Future events"
             (let
                 showAllButton =
-                    if model.showAllFutureEvents then
-                        smallButton showFirstFutureEventsId PressedShowFirstFutureEvents "Show first"
+                    if List.length futureEvents > 1 then
+                        if model.showAllFutureEvents then
+                            smallButton showFirstFutureEventsId PressedShowFirstFutureEvents "Show first"
+
+                        else
+                            smallButton showAllFutureEventsId PressedShowAllFutureEvents "Show all"
 
                     else
-                        smallButton showAllFutureEventsId PressedShowAllFutureEvents "Show all"
+                        Element.none
              in
              if isOwner then
                 Element.row
