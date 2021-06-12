@@ -358,6 +358,6 @@ type ToFrontend
     | ChangeGroupNameResponse GroupId GroupName
     | ChangeGroupDescriptionResponse GroupId Description
     | CreateEventResponse GroupId (Result CreateEventError Event)
-    | EditEventResponse GroupId EventId (Result Group.EditEventError Event)
+    | EditEventResponse GroupId EventId (Result Group.EditEventError Event) Time.Posix
     | JoinEventResponse GroupId EventId (Result () ())
     | LeaveEventResponse GroupId EventId (Result () ())

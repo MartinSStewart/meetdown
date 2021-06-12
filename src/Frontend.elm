@@ -8,6 +8,7 @@ import Browser.Events
 import Browser.Navigation
 import CreateGroupForm
 import Description
+import DictExtra as Dict
 import Duration exposing (Duration)
 import Element exposing (Element)
 import Element.Background
@@ -24,7 +25,6 @@ import GroupPage
 import Html.Attributes
 import Id exposing (ButtonId(..), GroupId, Id, UserId)
 import Lamdera
-import List.Nonempty
 import LoginForm
 import MockFile
 import Pixels exposing (Pixels)
@@ -577,6 +577,8 @@ updateLoaded cmds msg model =
                                             \a b c d e -> CreateEventRequest groupId a b c d e |> cmds.sendToBackend
                                         , leaveEvent = \eventId -> LeaveEventRequest groupId eventId |> cmds.sendToBackend
                                         , joinEvent = \eventId -> JoinEventRequest groupId eventId |> cmds.sendToBackend
+                                        , editEvent =
+                                            \a b c d e f -> EditEventRequest groupId a b c d e f |> cmds.sendToBackend
                                         }
                                         model
                                         group
@@ -747,9 +749,9 @@ updateLoadedFromBackend cmds msg model =
                 LoggedIn loggedIn ->
                     ( { model
                         | cachedUsers =
-                            Dict.update
+                            Dict.updateJust
                                 loggedIn.userId
-                                (Maybe.map (Types.mapUserCache (\a -> { a | name = name })))
+                                (Types.mapUserCache (\a -> { a | name = name }))
                                 model.cachedUsers
                       }
                     , cmds.none
@@ -766,9 +768,9 @@ updateLoadedFromBackend cmds msg model =
                 LoggedIn loggedIn ->
                     ( { model
                         | cachedUsers =
-                            Dict.update
+                            Dict.updateJust
                                 loggedIn.userId
-                                (Maybe.map (Types.mapUserCache (\a -> { a | description = description })))
+                                (Types.mapUserCache (\a -> { a | description = description }))
                                 model.cachedUsers
                       }
                     , cmds.none
@@ -811,9 +813,9 @@ updateLoadedFromBackend cmds msg model =
                 LoggedIn loggedIn ->
                     ( { model
                         | cachedUsers =
-                            Dict.update
+                            Dict.updateJust
                                 loggedIn.userId
-                                (Maybe.map (Types.mapUserCache (\a -> { a | profileImage = profileImage })))
+                                (Types.mapUserCache (\a -> { a | profileImage = profileImage }))
                                 model.cachedUsers
                       }
                     , cmds.none
@@ -865,22 +867,20 @@ updateLoadedFromBackend cmds msg model =
         ChangeGroupNameResponse groupId groupName ->
             ( { model
                 | cachedGroups =
-                    Dict.update groupId
-                        (Maybe.map
-                            (\a ->
-                                case a of
-                                    GroupFound group ->
-                                        Group.withName groupName group |> GroupFound
+                    Dict.updateJust groupId
+                        (\a ->
+                            case a of
+                                GroupFound group ->
+                                    Group.withName groupName group |> GroupFound
 
-                                    GroupNotFound ->
-                                        GroupNotFound
+                                GroupNotFound ->
+                                    GroupNotFound
 
-                                    GroupRequestPending ->
-                                        GroupRequestPending
-                            )
+                                GroupRequestPending ->
+                                    GroupRequestPending
                         )
                         model.cachedGroups
-                , groupPage = Dict.update groupId (Maybe.map GroupPage.savedName) model.groupPage
+                , groupPage = Dict.updateJust groupId GroupPage.savedName model.groupPage
               }
             , cmds.none
             )
@@ -888,22 +888,20 @@ updateLoadedFromBackend cmds msg model =
         ChangeGroupDescriptionResponse groupId description ->
             ( { model
                 | cachedGroups =
-                    Dict.update groupId
-                        (Maybe.map
-                            (\a ->
-                                case a of
-                                    GroupFound group ->
-                                        Group.withDescription description group |> GroupFound
+                    Dict.updateJust groupId
+                        (\a ->
+                            case a of
+                                GroupFound group ->
+                                    Group.withDescription description group |> GroupFound
 
-                                    GroupNotFound ->
-                                        GroupNotFound
+                                GroupNotFound ->
+                                    GroupNotFound
 
-                                    GroupRequestPending ->
-                                        GroupRequestPending
-                            )
+                                GroupRequestPending ->
+                                    GroupRequestPending
                         )
                         model.cachedGroups
-                , groupPage = Dict.update groupId (Maybe.map GroupPage.savedDescription) model.groupPage
+                , groupPage = Dict.updateJust groupId GroupPage.savedDescription model.groupPage
               }
             , cmds.none
             )
@@ -913,27 +911,25 @@ updateLoadedFromBackend cmds msg model =
                 | cachedGroups =
                     case result of
                         Ok event ->
-                            Dict.update groupId
-                                (Maybe.map
-                                    (\a ->
-                                        case a of
-                                            GroupFound group ->
-                                                Group.addEvent event group
-                                                    |> Result.withDefault group
-                                                    |> GroupFound
+                            Dict.updateJust groupId
+                                (\a ->
+                                    case a of
+                                        GroupFound group ->
+                                            Group.addEvent event group
+                                                |> Result.withDefault group
+                                                |> GroupFound
 
-                                            GroupNotFound ->
-                                                GroupNotFound
+                                        GroupNotFound ->
+                                            GroupNotFound
 
-                                            GroupRequestPending ->
-                                                GroupRequestPending
-                                    )
+                                        GroupRequestPending ->
+                                            GroupRequestPending
                                 )
                                 model.cachedGroups
 
                         Err _ ->
                             model.cachedGroups
-                , groupPage = Dict.update groupId (Maybe.map (GroupPage.addedNewEvent result)) model.groupPage
+                , groupPage = Dict.updateJust groupId (GroupPage.addedNewEvent result) model.groupPage
               }
             , cmds.none
             )
@@ -945,34 +941,32 @@ updateLoadedFromBackend cmds msg model =
                         Ok () ->
                             { model
                                 | cachedGroups =
-                                    Dict.update groupId
-                                        (Maybe.map
-                                            (\a ->
-                                                case a of
-                                                    GroupFound group ->
-                                                        Group.joinEvent loggedIn.userId eventId group |> GroupFound
+                                    Dict.updateJust groupId
+                                        (\a ->
+                                            case a of
+                                                GroupFound group ->
+                                                    Group.joinEvent loggedIn.userId eventId group |> GroupFound
 
-                                                    GroupNotFound ->
-                                                        GroupNotFound
+                                                GroupNotFound ->
+                                                    GroupNotFound
 
-                                                    GroupRequestPending ->
-                                                        GroupRequestPending
-                                            )
+                                                GroupRequestPending ->
+                                                    GroupRequestPending
                                         )
                                         model.cachedGroups
                                 , groupPage =
-                                    Dict.update
+                                    Dict.updateJust
                                         groupId
-                                        (Maybe.map (GroupPage.joinOrLeaveResponse eventId result))
+                                        (GroupPage.joinOrLeaveResponse eventId result)
                                         model.groupPage
                             }
 
                         Err () ->
                             { model
                                 | groupPage =
-                                    Dict.update
+                                    Dict.updateJust
                                         groupId
-                                        (Maybe.map (GroupPage.joinOrLeaveResponse eventId result))
+                                        (GroupPage.joinOrLeaveResponse eventId result)
                                         model.groupPage
                             }
 
@@ -991,34 +985,32 @@ updateLoadedFromBackend cmds msg model =
                         Ok () ->
                             { model
                                 | cachedGroups =
-                                    Dict.update groupId
-                                        (Maybe.map
-                                            (\a ->
-                                                case a of
-                                                    GroupFound group ->
-                                                        Group.leaveEvent loggedIn.userId eventId group |> GroupFound
+                                    Dict.updateJust groupId
+                                        (\a ->
+                                            case a of
+                                                GroupFound group ->
+                                                    Group.leaveEvent loggedIn.userId eventId group |> GroupFound
 
-                                                    GroupNotFound ->
-                                                        GroupNotFound
+                                                GroupNotFound ->
+                                                    GroupNotFound
 
-                                                    GroupRequestPending ->
-                                                        GroupRequestPending
-                                            )
+                                                GroupRequestPending ->
+                                                    GroupRequestPending
                                         )
                                         model.cachedGroups
                                 , groupPage =
-                                    Dict.update
+                                    Dict.updateJust
                                         groupId
-                                        (Maybe.map (GroupPage.joinOrLeaveResponse eventId result))
+                                        (GroupPage.joinOrLeaveResponse eventId result)
                                         model.groupPage
                             }
 
                         Err () ->
                             { model
                                 | groupPage =
-                                    Dict.update
+                                    Dict.updateJust
                                         groupId
-                                        (Maybe.map (GroupPage.joinOrLeaveResponse eventId result))
+                                        (GroupPage.joinOrLeaveResponse eventId result)
                                         model.groupPage
                             }
 
@@ -1030,16 +1022,34 @@ updateLoadedFromBackend cmds msg model =
             , cmds.none
             )
 
-        EditEventResponse groupId eventId result ->
+        EditEventResponse groupId eventId result backendTime ->
             ( { model
                 | cachedGroups =
                     case result of
                         Ok event ->
-                            Dict.update (Maybe.map (Group.editEvent eventId (\_ -> event))) model.cachedGroups
+                            Dict.updateJust groupId
+                                (\a ->
+                                    case a of
+                                        GroupFound group ->
+                                            case Group.editEvent backendTime eventId (\_ -> event) group of
+                                                Ok ( _, newGroup ) ->
+                                                    GroupFound newGroup
+
+                                                Err _ ->
+                                                    a
+
+                                        GroupNotFound ->
+                                            a
+
+                                        GroupRequestPending ->
+                                            a
+                                )
+                                model.cachedGroups
 
                         Err _ ->
                             model.cachedGroups
-                , groupPage = GroupPage.editEventResponse (Err error) model.groupPage
+                , groupPage =
+                    Dict.updateJust groupId (GroupPage.editEventResponse result) model.groupPage
               }
             , cmds.none
             )

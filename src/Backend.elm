@@ -847,14 +847,14 @@ updateFromFrontend cmds sessionId clientId msg model =
                                     ( { model | groups = Dict.insert groupId newGroup model.groups }
                                     , cmds.sendToFrontends
                                         (getClientIdsForUser userId model)
-                                        (EditEventResponse groupId eventId (Ok newEvent))
+                                        (EditEventResponse groupId eventId (Ok newEvent) model.time)
                                     )
 
                                 Err error ->
                                     ( model
                                     , cmds.sendToFrontend
                                         clientId
-                                        (EditEventResponse groupId eventId (Err error))
+                                        (EditEventResponse groupId eventId (Err error) model.time)
                                     )
                         )
 

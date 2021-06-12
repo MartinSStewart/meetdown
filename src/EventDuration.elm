@@ -1,4 +1,4 @@
-module EventDuration exposing (Error(..), EventDuration, errorToString, fromMinutes, maxLength, toDuration, toMinutes)
+module EventDuration exposing (Error(..), EventDuration, errorToString, fromMinutes, maxLength, toDuration, toMinutes, toString)
 
 import Duration exposing (Duration)
 
@@ -47,3 +47,39 @@ toMinutes (EventDuration minutes) =
 toDuration : EventDuration -> Duration
 toDuration (EventDuration minutes) =
     Duration.minutes (toFloat minutes)
+
+
+toString : EventDuration -> String
+toString eventDuration =
+    let
+        minutes =
+            toMinutes eventDuration
+
+        hours =
+            toFloat minutes / 60
+    in
+    if minutes >= 60 then
+        String.fromFloat hours
+            |> String.left 4
+            |> String.foldr
+                (\char newText ->
+                    if newText == "" && (char == '0' || char == '.') then
+                        newText
+
+                    else
+                        newText ++ String.fromChar char
+                )
+                ""
+            |> (\a ->
+                    if a == "1" then
+                        "1 hour"
+
+                    else
+                        a ++ " hours"
+               )
+
+    else if minutes == 1 then
+        "1 minute"
+
+    else
+        String.fromInt minutes ++ " minutes"

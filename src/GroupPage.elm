@@ -1,4 +1,4 @@
-module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, addedNewEvent, createEventCancelId, createEventStartDateId, createEventStartTimeId, createEventSubmitId, createNewEventId, editDescriptionId, editGroupNameId, eventDescriptionInputId, eventDurationId, eventMeetingInPersonInputId, eventMeetingOnlineInputId, eventMeetingTypeId, eventNameInputId, init, joinEventButtonId, joinOrLeaveResponse, leaveEventButtonId, resetDescriptionId, resetGroupNameId, saveDescriptionId, saveGroupNameId, savedDescription, savedName, update, view)
+module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, addedNewEvent, createEventCancelId, createEventStartDateId, createEventStartTimeId, createEventSubmitId, createNewEventId, editDescriptionId, editEventResponse, editGroupNameId, eventDescriptionInputId, eventDurationId, eventMeetingInPersonInputId, eventMeetingOnlineInputId, eventMeetingTypeId, eventNameInputId, init, joinEventButtonId, joinOrLeaveResponse, leaveEventButtonId, resetDescriptionId, resetGroupNameId, saveDescriptionId, saveGroupNameId, savedDescription, savedName, update, view)
 
 import Address exposing (Address, Error(..))
 import AssocList as Dict exposing (Dict)
@@ -15,7 +15,7 @@ import Event exposing (Event, EventType)
 import EventDuration exposing (EventDuration)
 import EventName exposing (EventName)
 import FrontendUser exposing (FrontendUser)
-import Group exposing (EditEventError, EventId, Group)
+import Group exposing (EditEventError(..), EventId, Group)
 import GroupName exposing (GroupName)
 import Html.Attributes
 import Id exposing (ButtonId(..), HtmlId, Id, UserId)
@@ -71,6 +71,8 @@ type Msg
     | PressedJoinEvent EventId
     | PressedEditEvent EventId
     | ChangedEditEvent EditEvent
+    | PressedSubmitEditEvent
+    | PressedCancelEditEvent
 
 
 type alias Effects cmd =
@@ -84,19 +86,27 @@ type alias Effects cmd =
         -> Time.Posix
         -> Untrusted EventDuration
         -> cmd
+    , editEvent :
+        EventId
+        -> Untrusted EventName
+        -> Untrusted Description
+        -> Untrusted Event.EventType
+        -> Time.Posix
+        -> Untrusted EventDuration
+        -> cmd
     , joinEvent : EventId -> cmd
     , leaveEvent : EventId -> cmd
     }
 
 
-type SubmitStatus a
+type SubmitStatus error
     = NotSubmitted { pressedSubmit : Bool }
     | IsSubmitting
-    | Failed { pressedSubmit : Bool, error : a }
+    | Failed error
 
 
 type alias NewEvent =
-    { submitStatus : SubmitStatus ()
+    { submitStatus : SubmitStatus CreateEventError
     , eventName : String
     , description : String
     , meetingType : Maybe EventType
@@ -109,7 +119,7 @@ type alias NewEvent =
 
 
 type alias EditEvent =
-    { submitStatus : SubmitStatus ()
+    { submitStatus : SubmitStatus EditEventError
     , eventName : String
     , description : String
     , meetingType : EventType
@@ -179,31 +189,41 @@ type CreateEventError
 
 addedNewEvent : Result CreateEventError Event -> Model -> Model
 addedNewEvent result model =
-    case result of
-        Ok _ ->
-            case model.eventOverlay of
-                Just AddingNewEvent ->
+    case model.eventOverlay of
+        Just AddingNewEvent ->
+            case result of
+                Ok _ ->
                     { model | eventOverlay = Nothing, newEvent = initNewEvent }
 
-                _ ->
-                    model
+                Err error ->
+                    let
+                        newEvent =
+                            model.newEvent
+                    in
+                    { model
+                        | eventOverlay = Just AddingNewEvent
+                        , newEvent = { newEvent | submitStatus = Failed error }
+                    }
 
-        Err _ ->
+        _ ->
             model
 
 
 editEventResponse : Result EditEventError Event -> Model -> Model
 editEventResponse result model =
-    case result of
-        Ok _ ->
-            case model.eventOverlay of
-                Just AddingNewEvent ->
+    case model.eventOverlay of
+        Just (EdittingEvent eventId editting) ->
+            case result of
+                Ok _ ->
                     { model | eventOverlay = Nothing, newEvent = initNewEvent }
 
-                _ ->
-                    model
+                Err error ->
+                    { model
+                        | eventOverlay =
+                            EdittingEvent eventId { editting | submitStatus = Failed error } |> Just
+                    }
 
-        Err _ ->
+        _ ->
             model
 
 
@@ -459,7 +479,7 @@ update effects config group maybeUserId msg model =
                                             Event.MeetInPerson Nothing ->
                                                 ""
                                     , startDate = Event.startTime event |> Date.fromPosix config.timezone |> Ui.datestamp
-                                    , startTime = Event.startTime event |> Date.fromPosix config.timezone |> Ui.datestamp
+                                    , startTime = timeToString config.timezone (Event.startTime event)
                                     , duration =
                                         Event.duration event
                                             |> EventDuration.toDuration
@@ -491,6 +511,74 @@ update effects config group maybeUserId msg model =
             , effects.none
             )
 
+        PressedSubmitEditEvent ->
+            case model.eventOverlay of
+                Just (EdittingEvent eventId event) ->
+                    if event.submitStatus == IsSubmitting then
+                        ( model, effects.none )
+
+                    else if isOwner then
+                        let
+                            maybeEventType : Maybe Event.EventType
+                            maybeEventType =
+                                case event.meetingType of
+                                    MeetOnline ->
+                                        validateLink event.meetOnlineLink
+                                            |> Result.toMaybe
+                                            |> Maybe.map Event.MeetOnline
+
+                                    MeetInPerson ->
+                                        validateAddress event.meetInPersonAddress
+                                            |> Result.toMaybe
+                                            |> Maybe.map Event.MeetInPerson
+
+                            maybeStartTime =
+                                validateDateTime config.time config.timezone event.startDate event.startTime
+                                    |> Result.toMaybe
+                        in
+                        Maybe.map5
+                            (\name description eventType startTime duration ->
+                                ( { model
+                                    | eventOverlay =
+                                        EdittingEvent eventId
+                                            { event | submitStatus = IsSubmitting }
+                                            |> Just
+                                  }
+                                , effects.editEvent
+                                    eventId
+                                    (Untrusted.untrust name)
+                                    (Untrusted.untrust description)
+                                    (Untrusted.untrust eventType)
+                                    startTime
+                                    (Untrusted.untrust duration)
+                                )
+                            )
+                            (EventName.fromString event.eventName |> Result.toMaybe)
+                            (Description.fromString event.description |> Result.toMaybe)
+                            maybeEventType
+                            maybeStartTime
+                            (validateDuration event.duration |> Result.toMaybe)
+                            |> Maybe.withDefault
+                                ( { model
+                                    | eventOverlay = EdittingEvent eventId (pressSubmit event) |> Just
+                                  }
+                                , effects.none
+                                )
+
+                    else
+                        ( model, effects.none )
+
+                _ ->
+                    ( model, effects.none )
+
+        PressedCancelEditEvent ->
+            case model.eventOverlay of
+                Just (EdittingEvent _ _) ->
+                    ( { model | eventOverlay = Nothing }, effects.none )
+
+                _ ->
+                    ( model, effects.none )
+
 
 pressSubmit : { a | submitStatus : SubmitStatus b } -> { a | submitStatus : SubmitStatus b }
 pressSubmit event =
@@ -504,7 +592,7 @@ pressSubmit event =
                     IsSubmitting
 
                 Failed failed ->
-                    Failed { failed | pressedSubmit = True }
+                    Failed failed
     }
 
 
@@ -921,6 +1009,7 @@ pastEventView currentTime maybeUserId event =
             |> Element.text
             |> List.singleton
             |> Element.paragraph []
+        , EventDuration.toString (Event.duration event) ++ " long" |> Element.text
         , case Event.eventType event of
             Event.MeetInPerson _ ->
                 Element.paragraph [] [ Element.text "This is an in person event 🤝" ]
@@ -990,6 +1079,7 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
             |> Element.text
             |> List.singleton
             |> Element.paragraph []
+        , EventDuration.toString (Event.duration event) ++ " long" |> Element.text
         , case Event.eventType event of
             Event.MeetInPerson _ ->
                 Element.paragraph [] [ Element.text "This is an in person event 🤝" ]
@@ -1141,8 +1231,8 @@ editEventView currentTime timezone event =
                 IsSubmitting ->
                     False
 
-                Failed failed ->
-                    failed.pressedSubmit
+                Failed _ ->
+                    True
 
         isSubmitting =
             case event.submitStatus of
@@ -1253,14 +1343,29 @@ editEventView currentTime timezone event =
             )
         , Element.row
             [ Element.spacing 8 ]
-            [ Ui.submitButton createEventSubmitId isSubmitting { onPress = PressedCreateNewEvent, label = "Create new event" }
-            , Ui.button createEventCancelId { onPress = PressedCancelNewEvent, label = "Cancel" }
+            [ Ui.submitButton createEventSubmitId isSubmitting { onPress = PressedSubmitEditEvent, label = "Update event" }
+            , Ui.button createEventCancelId { onPress = PressedCancelEditEvent, label = "Cancel" }
             ]
         , case event.submitStatus of
-            Failed { error } ->
-                Ui.error "Event overlaps with another event"
+            Failed EditEventStartsInThePast ->
+                Ui.error "Event can't start in the past"
 
-            _ ->
+            Failed (EditEventOverlapsOtherEvents _) ->
+                Ui.error "Event overlaps other events"
+
+            Failed CantEditPastEvent ->
+                Ui.error "You can't edit events that have already happened"
+
+            Failed CantChangeStartTimeOfOngoingEvent ->
+                Ui.error "You can't edit the start time of an event that is ongoing"
+
+            Failed EditEventNotFound ->
+                Ui.error "This event somehow doesn't exist. Try refreshing the page?"
+
+            NotSubmitted _ ->
+                Element.none
+
+            IsSubmitting ->
                 Element.none
         ]
 
@@ -1276,8 +1381,8 @@ newEventView currentTime timezone event =
                 IsSubmitting ->
                     False
 
-                Failed failed ->
-                    failed.pressedSubmit
+                Failed _ ->
+                    True
 
         isSubmitting =
             case event.submitStatus of
@@ -1397,14 +1502,26 @@ newEventView currentTime timezone event =
             )
         , Element.row
             [ Element.spacing 8 ]
-            [ Ui.submitButton createEventSubmitId isSubmitting { onPress = PressedCreateNewEvent, label = "Update event" }
+            [ Ui.submitButton
+                createEventSubmitId
+                isSubmitting
+                { onPress = PressedCreateNewEvent, label = "Create event" }
             , Ui.button createEventCancelId { onPress = PressedCancelNewEvent, label = "Cancel" }
             ]
         , case event.submitStatus of
-            Failed { error } ->
+            Failed EventStartsInThePast ->
+                Ui.error "Events can't start in the past"
+
+            Failed (EventOverlapsOtherEvents _) ->
                 Ui.error "Event overlaps with another event"
 
-            _ ->
+            Failed TooManyEvents ->
+                Ui.error "This group has too many events"
+
+            NotSubmitted _ ->
+                Element.none
+
+            IsSubmitting ->
                 Element.none
         ]
 
@@ -1431,9 +1548,7 @@ datetimeToString maybeTimezone datetime =
         ++ " "
         ++ dayToText datetime timezone
         ++ ", "
-        ++ String.fromInt (Time.toHour timezone datetime)
-        ++ ":"
-        ++ String.padLeft 2 '0' (String.fromInt (Time.toMinute timezone datetime))
+        ++ timeToString timezone datetime
         ++ (case maybeTimezone of
                 Just _ ->
                     ""
@@ -1441,6 +1556,13 @@ datetimeToString maybeTimezone datetime =
                 Nothing ->
                     " (UTC)"
            )
+
+
+timeToString : Time.Zone -> Time.Posix -> String
+timeToString timezone time =
+    String.fromInt (Time.toHour timezone time)
+        ++ ":"
+        ++ String.padLeft 2 '0' (String.fromInt (Time.toMinute timezone time))
 
 
 dateToString : Maybe Time.Zone -> Time.Posix -> String
