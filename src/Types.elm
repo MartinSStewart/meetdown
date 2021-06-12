@@ -310,8 +310,8 @@ type ToBackend
     = GetGroupRequest GroupId
     | GetUserRequest (Id UserId)
     | CheckLoginRequest
-    | LoginWithTokenRequest (Id LoginToken)
-    | GetLoginTokenRequest Route (Untrusted EmailAddress)
+    | LoginWithTokenRequest (Id LoginToken) (Maybe ( GroupId, EventId ))
+    | GetLoginTokenRequest Route (Untrusted EmailAddress) (Maybe ( GroupId, EventId ))
     | GetAdminDataRequest
     | LogoutRequest
     | CreateGroupRequest (Untrusted GroupName) (Untrusted Description) GroupVisibility

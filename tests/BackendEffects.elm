@@ -3,6 +3,7 @@ module BackendEffects exposing (BackendEffect(..), effects)
 import Backend
 import EmailAddress exposing (EmailAddress)
 import Event exposing (Event)
+import Group exposing (EventId)
 import GroupName exposing (GroupName)
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken)
 import Route exposing (Route)
@@ -15,7 +16,7 @@ type BackendEffect
     = Batch (List BackendEffect)
     | None
     | SendToFrontend ClientId ToFrontend
-    | SendLoginEmail (Result SendGrid.Error () -> BackendMsg) EmailAddress Route (Id LoginToken)
+    | SendLoginEmail (Result SendGrid.Error () -> BackendMsg) EmailAddress Route (Id LoginToken) (Maybe ( GroupId, EventId ))
     | SendDeleteUserEmail (Result SendGrid.Error () -> BackendMsg) EmailAddress (Id DeleteUserToken)
     | SendEventReminderEmail (Result SendGrid.Error () -> BackendMsg) GroupId GroupName Event Time.Zone EmailAddress
     | GetTime (Time.Posix -> BackendMsg)

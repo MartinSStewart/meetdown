@@ -43,33 +43,45 @@ loginFromHomepage loginWithEnterKey sessionId sessionIdFromEmail emailAddress st
                 state2
                     |> TF.simulateTime Duration.second
                     |> TF.clickButton clientId Frontend.signUpOrLoginButtonId
-                    |> TF.simulateTime Duration.second
-                    |> TF.inputText clientId LoginForm.emailAddressInputId (EmailAddress.toString emailAddress)
-                    |> TF.simulateTime Duration.second
-                    |> (if loginWithEnterKey then
-                            TF.keyDownEvent clientId LoginForm.emailAddressInputId Ui.enterKeyCode
+                    |> handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress
+           )
 
-                        else
-                            TF.clickButton clientId LoginForm.submitButtonId
-                       )
-                    |> TF.simulateTime Duration.second
-                    |> (\state3 ->
-                            case List.filter (Tuple.first >> (==) emailAddress) state3.emailInboxes of
-                                [ ( _, LoginEmail route loginToken ) ] ->
-                                    state3
-                                        |> TF.connectFrontend
-                                            sessionIdFromEmail
-                                            (unsafeUrl (Backend.loginEmailLink route loginToken))
-                                        |> (\( state4, clientIdFromEmail ) ->
-                                                { state = state4 |> TF.simulateTime Duration.second
-                                                , clientId = clientId
-                                                , clientIdFromEmail = clientIdFromEmail
-                                                }
-                                           )
 
-                                _ ->
-                                    Debug.todo "Should have gotten a login email"
-                       )
+handleLoginForm :
+    Bool
+    -> Id.ClientId
+    -> Id.SessionId
+    -> EmailAddress
+    -> TF.State
+    -> { state : TF.State, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId }
+handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress state =
+    state
+        |> TF.simulateTime Duration.second
+        |> TF.inputText clientId LoginForm.emailAddressInputId (EmailAddress.toString emailAddress)
+        |> TF.simulateTime Duration.second
+        |> (if loginWithEnterKey then
+                TF.keyDownEvent clientId LoginForm.emailAddressInputId Ui.enterKeyCode
+
+            else
+                TF.clickButton clientId LoginForm.submitButtonId
+           )
+        |> TF.simulateTime Duration.second
+        |> (\state3 ->
+                case List.filter (Tuple.first >> (==) emailAddress) state3.emailInboxes of
+                    [ ( _, LoginEmail route loginToken maybeJoinEvent ) ] ->
+                        state3
+                            |> TF.connectFrontend
+                                sessionIdFromEmail
+                                (unsafeUrl (Backend.loginEmailLink route loginToken maybeJoinEvent))
+                            |> (\( state4, clientIdFromEmail ) ->
+                                    { state = state4 |> TF.simulateTime Duration.second
+                                    , clientId = clientId
+                                    , clientIdFromEmail = clientIdFromEmail
+                                    }
+                               )
+
+                    _ ->
+                        Debug.todo "Should have gotten a login email"
            )
 
 
@@ -207,11 +219,11 @@ suite =
                     |> loginFromHomepage True sessionId sessionId emailAddress
                     |> (\{ state, clientId, clientIdFromEmail } ->
                             case List.filter (Tuple.first >> (==) emailAddress) state.emailInboxes of
-                                [ ( _, LoginEmail route loginToken ) ] ->
+                                [ ( _, LoginEmail route loginToken maybeJoinEvent ) ] ->
                                     state
                                         |> TF.connectFrontend
                                             (Id.sessionIdFromString "session1")
-                                            (unsafeUrl (Backend.loginEmailLink route loginToken))
+                                            (unsafeUrl (Backend.loginEmailLink route loginToken maybeJoinEvent))
                                         |> (\( state2, clientId3 ) ->
                                                 state2
                                                     |> TF.simulateTime Duration.second
@@ -461,6 +473,13 @@ suite =
                                 |> TF.simulateTime Duration.second
                                 |> TF.clickButton clientId GroupPage.joinEventButtonId
                                 |> TF.simulateTime Duration.second
+                                |> handleLoginForm True clientId session1 emailAddress1
+                                |> (\a ->
+                                        a.state
+                                            |> TF.simulateTime Duration.second
+                                            -- We are just clicking the leave button to test that we had joined the event.
+                                            |> TF.clickButton a.clientIdFromEmail GroupPage.leaveEventButtonId
+                                   )
                        )
                     |> TF.finishSimulation
         ]

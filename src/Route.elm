@@ -1,5 +1,6 @@
 module Route exposing (Route(..), Token(..), decode, encode, encodeWithToken, loginTokenName)
 
+import Group exposing (EventId)
 import GroupName exposing (GroupName)
 import Id exposing (DeleteUserToken, GroupId, Id, LoginToken)
 import Url
@@ -58,8 +59,12 @@ decode =
 
 decodeToken : Url.Parser.Query.Parser Token
 decodeToken =
-    Url.Parser.Query.map2
-        (\maybeLoginToken maybeDeleteUserToken ->
+    Url.Parser.Query.map4
+        (\maybeLoginToken maybeGroupId maybeEventId maybeDeleteUserToken ->
+            let
+                maybeJoinEvent =
+                    Maybe.map2 Tuple.pair maybeGroupId maybeEventId
+            in
             case ( maybeLoginToken, maybeDeleteUserToken ) of
                 ( Just _, Just _ ) ->
                     NoToken
@@ -68,17 +73,27 @@ decodeToken =
                     DeleteUserToken deleteUserToken
 
                 ( Just loginToken, Nothing ) ->
-                    LoginToken loginToken
+                    LoginToken loginToken maybeJoinEvent
 
                 ( Nothing, Nothing ) ->
                     NoToken
         )
         (Url.Parser.Query.string loginTokenName |> Url.Parser.Query.map (Maybe.map Id.cryptoHashFromString))
+        (Url.Parser.Query.int groupIdName |> Url.Parser.Query.map (Maybe.map Id.groupIdFromInt))
+        (Url.Parser.Query.int eventIdName |> Url.Parser.Query.map (Maybe.map Group.eventIdFromInt))
         (Url.Parser.Query.string deleteUserTokenName |> Url.Parser.Query.map (Maybe.map Id.cryptoHashFromString))
 
 
 loginTokenName =
     "login-token"
+
+
+groupIdName =
+    "group-id"
+
+
+eventIdName =
+    "event-id"
 
 
 deleteUserTokenName =
@@ -87,7 +102,7 @@ deleteUserTokenName =
 
 type Token
     = NoToken
-    | LoginToken (Id LoginToken)
+    | LoginToken (Id LoginToken) (Maybe ( GroupId, EventId ))
     | DeleteUserToken (Id DeleteUserToken)
 
 
@@ -134,8 +149,17 @@ encodeWithToken route token =
                        )
         )
         (case token of
-            LoginToken loginToken ->
-                [ Id.cryptoHashToString loginToken |> Url.Builder.string loginTokenName ]
+            LoginToken loginToken maybeJoinEvent ->
+                Url.Builder.string loginTokenName (Id.cryptoHashToString loginToken)
+                    :: (case maybeJoinEvent of
+                            Just ( groupId, eventId ) ->
+                                [ Url.Builder.int groupIdName (Id.groupIdToInt groupId)
+                                , Url.Builder.int eventIdName (Group.eventIdToInt eventId)
+                                ]
+
+                            Nothing ->
+                                []
+                       )
 
             DeleteUserToken deleteUserToken ->
                 [ Id.cryptoHashToString deleteUserToken |> Url.Builder.string deleteUserTokenName ]

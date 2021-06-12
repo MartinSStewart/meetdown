@@ -46,7 +46,7 @@ loginEmail : Element msg
 loginEmail =
     emailView
         Backend.loginEmailSubject
-        (Backend.loginEmailContent Route.HomepageRoute (Id.cryptoHashFromString "123"))
+        (Backend.loginEmailContent Route.HomepageRoute (Id.cryptoHashFromString "123") Nothing)
 
 
 deleteAccountEmail : Element msg

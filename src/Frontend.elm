@@ -269,8 +269,8 @@ initLoadedFrontend cmds navigationKey windowWidth windowHeight route maybeLoginT
     let
         login =
             case maybeLoginToken of
-                Route.LoginToken loginToken ->
-                    LoginWithTokenRequest loginToken
+                Route.LoginToken loginToken maybeJoinEvent ->
+                    LoginWithTokenRequest loginToken maybeJoinEvent
 
                 Route.DeleteUserToken deleteUserToken ->
                     DeleteUserRequest deleteUserToken
@@ -567,7 +567,7 @@ updateLoaded cmds msg model =
                     case Dict.get groupId model.cachedGroups of
                         Just (GroupFound group) ->
                             let
-                                ( newModel, effects ) =
+                                ( newModel, effects, { showLogin } ) =
                                     GroupPage.update
                                         { none = cmds.none
                                         , changeName = ChangeGroupNameRequest groupId >> cmds.sendToBackend
@@ -595,7 +595,18 @@ updateLoaded cmds msg model =
                                         groupPageMsg
                                         (Dict.get groupId model.groupPage |> Maybe.withDefault GroupPage.init)
                             in
-                            ( { model | groupPage = Dict.insert groupId newModel model.groupPage }, effects )
+                            ( { model
+                                | groupPage = Dict.insert groupId newModel model.groupPage
+                                , loginStatus =
+                                    case model.loginStatus of
+                                        NotLoggedIn notLoggedIn ->
+                                            NotLoggedIn { notLoggedIn | showLogin = showLogin }
+
+                                        _ ->
+                                            model.loginStatus
+                              }
+                            , effects
+                            )
 
                         _ ->
                             ( model, cmds.none )

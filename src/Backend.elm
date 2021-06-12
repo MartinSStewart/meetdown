@@ -39,7 +39,13 @@ type alias Effects cmd =
     , none : cmd
     , sendToFrontend : ClientId -> ToFrontend -> cmd
     , sendToFrontends : List ClientId -> ToFrontend -> cmd
-    , sendLoginEmail : (Result SendGrid.Error () -> BackendMsg) -> EmailAddress -> Route -> Id LoginToken -> cmd
+    , sendLoginEmail :
+        (Result SendGrid.Error () -> BackendMsg)
+        -> EmailAddress
+        -> Route
+        -> Id LoginToken
+        -> Maybe ( GroupId, EventId )
+        -> cmd
     , sendDeleteUserEmail : (Result SendGrid.Error () -> BackendMsg) -> EmailAddress -> Id DeleteUserToken -> cmd
     , sendEventReminderEmail :
         (Result SendGrid.Error () -> BackendMsg)
@@ -102,9 +108,9 @@ sendGridApiKey =
     SendGrid.apiKey Env.sendGridApiKey_
 
 
-loginEmailLink : Route -> Id LoginToken -> String
-loginEmailLink route loginToken =
-    Env.domain ++ Route.encodeWithToken route (Route.LoginToken loginToken)
+loginEmailLink : Route -> Id LoginToken -> Maybe ( GroupId, EventId ) -> String
+loginEmailLink route loginToken maybeJoinEvent =
+    Env.domain ++ Route.encodeWithToken route (Route.LoginToken loginToken maybeJoinEvent)
 
 
 allEffects : Effects (Cmd BackendMsg)
@@ -120,12 +126,12 @@ allEffects =
                 |> List.map (\clientId -> Lamdera.sendToFrontend (Id.clientIdToString clientId) toFrontend)
                 |> Cmd.batch
     , sendLoginEmail =
-        \msg emailAddress route loginToken ->
+        \msg emailAddress route loginToken maybeJoinEvent ->
             case EmailAddress.fromString "noreply@meetdown.com" of
                 Just sender ->
                     SendGrid.htmlEmail
                         { subject = loginEmailSubject
-                        , content = loginEmailContent route loginToken
+                        , content = loginEmailContent route loginToken maybeJoinEvent
                         , to = List.Nonempty.fromElement emailAddress
                         , emailAddressOfSender = sender
                         , nameOfSender = "Meetdown"
@@ -173,12 +179,12 @@ loginEmailSubject =
     NonemptyString 'M' "eetdown login link"
 
 
-loginEmailContent : Route -> Id LoginToken -> Email.Html.Html
-loginEmailContent route loginToken =
+loginEmailContent : Route -> Id LoginToken -> Maybe ( GroupId, EventId ) -> Email.Html.Html
+loginEmailContent route loginToken maybeJoinEvent =
     let
         loginLink : String
         loginLink =
-            loginEmailLink route loginToken
+            loginEmailLink route loginToken maybeJoinEvent
 
         --_ =
         --    Debug.log "login" loginLink
@@ -452,7 +458,7 @@ updateFromFrontend cmds sessionId clientId msg model =
         CheckLoginRequest ->
             ( model, checkLogin sessionId model |> CheckLoginResponse |> cmds.sendToFrontend clientId )
 
-        GetLoginTokenRequest route untrustedEmail ->
+        GetLoginTokenRequest route untrustedEmail maybeJoinEvent ->
             case Untrusted.validateEmailAddress untrustedEmail of
                 Just email ->
                     let
@@ -466,7 +472,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                                 { creationTime = model2.time, emailAddress = email }
                                 model2.pendingLoginTokens
                       }
-                    , cmds.sendLoginEmail (SentLoginEmail email) email route loginToken
+                    , cmds.sendLoginEmail (SentLoginEmail email) email route loginToken maybeJoinEvent
                     )
 
                 Nothing ->
@@ -483,8 +489,8 @@ updateFromFrontend cmds sessionId clientId msg model =
                     ( model, cmds.sendToFrontend clientId (GetAdminDataResponse model.logs) )
                 )
 
-        LoginWithTokenRequest loginToken ->
-            getAndRemoveLoginToken (loginWithToken cmds sessionId clientId) loginToken model
+        LoginWithTokenRequest loginToken maybeJoinEvent ->
+            getAndRemoveLoginToken (loginWithToken cmds sessionId clientId maybeJoinEvent) loginToken model
 
         LogoutRequest ->
             ( { model | sessions = BiDict.remove sessionId model.sessions }
@@ -772,25 +778,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                 cmds
                 sessionId
                 model
-                (\( userId, _ ) ->
-                    case getGroup groupId model of
-                        Just group ->
-                            ( { model
-                                | groups =
-                                    Dict.insert groupId (Group.joinEvent userId eventId group) model.groups
-                              }
-                            , cmds.sendToFrontends
-                                (getClientIdsForUser userId model)
-                                (JoinEventResponse groupId eventId (Ok ()))
-                            )
-
-                        Nothing ->
-                            ( model
-                            , cmds.sendToFrontend
-                                clientId
-                                (JoinEventResponse groupId eventId (Err ()))
-                            )
-                )
+                (\( userId, _ ) -> joinEvent cmds clientId userId ( groupId, eventId ) model)
 
         LeaveEventRequest groupId eventId ->
             userAuthorization
@@ -904,8 +892,8 @@ getClientIdsForUser userId model =
             )
 
 
-loginWithToken : Effects cmd -> SessionId -> ClientId -> Maybe LoginTokenData -> BackendModel -> ( BackendModel, cmd )
-loginWithToken cmds sessionId clientId maybeLoginTokenData model =
+loginWithToken : Effects cmd -> SessionId -> ClientId -> Maybe ( GroupId, EventId ) -> Maybe LoginTokenData -> BackendModel -> ( BackendModel, cmd )
+loginWithToken cmds sessionId clientId maybeJoinEvent maybeLoginTokenData model =
     let
         loginResponse : ( Id UserId, BackendUser ) -> cmd
         loginResponse userEntry =
@@ -945,10 +933,21 @@ loginWithToken cmds sessionId clientId maybeLoginTokenData model =
                                 , timezone = Time.utc
                                 , allowEventReminders = True
                                 }
+
+                            ( model3, effects ) =
+                                { model2 | users = Dict.insert userId newUser model2.users }
+                                    |> addSession userId
+                                    |> (\a ->
+                                            case maybeJoinEvent of
+                                                Just joinEvent_ ->
+                                                    joinEvent cmds clientId userId joinEvent_ a
+
+                                                Nothing ->
+                                                    ( a, cmds.none )
+                                       )
                         in
-                        ( { model2 | users = Dict.insert userId newUser model2.users }
-                            |> addSession userId
-                        , loginResponse ( userId, newUser )
+                        ( model3
+                        , cmds.batch [ loginResponse ( userId, newUser ), effects ]
                         )
 
             else
@@ -956,6 +955,24 @@ loginWithToken cmds sessionId clientId maybeLoginTokenData model =
 
         Nothing ->
             ( model, Err () |> LoginWithTokenResponse |> cmds.sendToFrontend clientId )
+
+
+joinEvent : Effects cmd -> ClientId -> Id UserId -> ( GroupId, EventId ) -> BackendModel -> ( BackendModel, cmd )
+joinEvent cmds clientId userId ( groupId, eventId ) model =
+    case getGroup groupId model of
+        Just group ->
+            ( { model | groups = Dict.insert groupId (Group.joinEvent userId eventId group) model.groups }
+            , cmds.sendToFrontends
+                (getClientIdsForUser userId model)
+                (JoinEventResponse groupId eventId (Ok ()))
+            )
+
+        Nothing ->
+            ( model
+            , cmds.sendToFrontend
+                clientId
+                (JoinEventResponse groupId eventId (Err ()))
+            )
 
 
 getAndRemoveLoginToken :

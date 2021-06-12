@@ -1,4 +1,25 @@
-module Group exposing (EditEventError(..), EventId, Group, GroupVisibility(..), addEvent, createdAt, description, editEvent, events, init, joinEvent, leaveEvent, name, ownerId, totalEvents, visibility, withDescription, withName)
+module Group exposing
+    ( EditEventError(..)
+    , EventId
+    , Group
+    , GroupVisibility(..)
+    , addEvent
+    , createdAt
+    , description
+    , editEvent
+    , eventIdFromInt
+    , eventIdToInt
+    , events
+    , init
+    , joinEvent
+    , leaveEvent
+    , name
+    , ownerId
+    , totalEvents
+    , visibility
+    , withDescription
+    , withName
+    )
 
 import AssocList as Dict exposing (Dict)
 import AssocSet as Set exposing (Set)
@@ -74,6 +95,16 @@ visibility (Group a) =
 
 type EventId
     = EventId Int
+
+
+eventIdFromInt : Int -> EventId
+eventIdFromInt =
+    EventId
+
+
+eventIdToInt : EventId -> Int
+eventIdToInt (EventId a) =
+    a
 
 
 addEvent : Event -> Group -> Result (Set EventId) Group

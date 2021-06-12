@@ -75,7 +75,7 @@ type alias State =
 
 
 type EmailType
-    = LoginEmail Route (Id LoginToken)
+    = LoginEmail Route (Id LoginToken) (Maybe ( GroupId, EventId ))
     | DeleteAccountEmail (Id DeleteUserToken)
     | EventReminderEmail GroupId GroupName Event.Event Time.Zone
 
@@ -461,7 +461,7 @@ formatHtmlError description =
             (\( start, end ) text ->
                 String.slice 0 (start + String.length "<style>") text
                     ++ "..."
-                    ++ String.slice end (String.length text - 1) text
+                    ++ String.slice end (String.length text + 999) text
             )
             description
 
@@ -925,7 +925,7 @@ runBackendEffects effect state =
         BackendEffects.None ->
             state
 
-        BackendEffects.SendLoginEmail msg emailAddress route loginToken ->
+        BackendEffects.SendLoginEmail msg emailAddress route loginToken maybeJoinEvent ->
             let
                 ( model, effects ) =
                     backendApp.update (msg (Ok ())) state.backend
@@ -933,7 +933,7 @@ runBackendEffects effect state =
             { state
                 | backend = model
                 , pendingEffects = BackendEffects.Batch [ state.pendingEffects, effects ]
-                , emailInboxes = state.emailInboxes ++ [ ( emailAddress, LoginEmail route loginToken ) ]
+                , emailInboxes = state.emailInboxes ++ [ ( emailAddress, LoginEmail route loginToken maybeJoinEvent ) ]
             }
 
         BackendEffects.SendDeleteUserEmail msg emailAddress deleteToken ->

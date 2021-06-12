@@ -234,7 +234,7 @@ update :
     -> Maybe (Id UserId)
     -> Msg
     -> Model
-    -> ( Model, cmd )
+    -> ( Model, cmd, { showLogin : Bool } )
 update effects config group maybeUserId msg model =
     let
         isOwner =
@@ -245,133 +245,137 @@ update effects config group maybeUserId msg model =
             if isOwner then
                 ( { model | name = Group.name group |> GroupName.toString |> Editting }
                 , effects.none
+                , { showLogin = False }
                 )
 
             else
-                ( model, effects.none )
+                ( model, effects.none, { showLogin = False } )
 
         PressedSaveName ->
             if isOwner then
                 case model.name of
                     Unchanged ->
-                        ( model, effects.none )
+                        ( model, effects.none, { showLogin = False } )
 
                     Editting nameText ->
                         case GroupName.fromString nameText of
                             Ok name ->
                                 ( { model | name = Submitting name }
                                 , Untrusted.untrust name |> effects.changeName
+                                , { showLogin = False }
                                 )
 
                             Err _ ->
-                                ( model, effects.none )
+                                ( model, effects.none, { showLogin = False } )
 
                     Submitting _ ->
-                        ( model, effects.none )
+                        ( model, effects.none, { showLogin = False } )
 
             else
-                ( model, effects.none )
+                ( model, effects.none, { showLogin = False } )
 
         PressedResetName ->
             if isOwner then
-                ( { model | name = Unchanged }, effects.none )
+                ( { model | name = Unchanged }, effects.none, { showLogin = False } )
 
             else
-                ( model, effects.none )
+                ( model, effects.none, { showLogin = False } )
 
         TypedName name ->
             if isOwner then
                 case model.name of
                     Editting _ ->
-                        ( { model | name = Editting name }, effects.none )
+                        ( { model | name = Editting name }, effects.none, { showLogin = False } )
 
                     _ ->
-                        ( model, effects.none )
+                        ( model, effects.none, { showLogin = False } )
 
             else
-                ( model, effects.none )
+                ( model, effects.none, { showLogin = False } )
 
         PressedEditDescription ->
             if isOwner then
                 ( { model | description = Group.description group |> Description.toString |> Editting }
                 , effects.none
+                , { showLogin = False }
                 )
 
             else
-                ( model, effects.none )
+                ( model, effects.none, { showLogin = False } )
 
         PressedSaveDescription ->
             if isOwner then
                 case model.description of
                     Unchanged ->
-                        ( model, effects.none )
+                        ( model, effects.none, { showLogin = False } )
 
                     Editting descriptionText ->
                         case Description.fromString descriptionText of
                             Ok description ->
                                 ( { model | description = Submitting description }
                                 , Untrusted.untrust description |> effects.changeDescription
+                                , { showLogin = False }
                                 )
 
                             Err _ ->
-                                ( model, effects.none )
+                                ( model, effects.none, { showLogin = False } )
 
                     Submitting _ ->
-                        ( model, effects.none )
+                        ( model, effects.none, { showLogin = False } )
 
             else
-                ( model, effects.none )
+                ( model, effects.none, { showLogin = False } )
 
         PressedResetDescription ->
             if isOwner then
-                ( { model | description = Unchanged }, effects.none )
+                ( { model | description = Unchanged }, effects.none, { showLogin = False } )
 
             else
-                ( model, effects.none )
+                ( model, effects.none, { showLogin = False } )
 
         TypedDescription description ->
             if isOwner then
                 case model.description of
                     Editting _ ->
-                        ( { model | description = Editting description }, effects.none )
+                        ( { model | description = Editting description }, effects.none, { showLogin = False } )
 
                     _ ->
-                        ( model, effects.none )
+                        ( model, effects.none, { showLogin = False } )
 
             else
-                ( model, effects.none )
+                ( model, effects.none, { showLogin = False } )
 
         PressedAddEvent ->
             if isOwner && model.eventOverlay == Nothing then
-                ( { model | eventOverlay = Just AddingNewEvent }, effects.none )
+                ( { model | eventOverlay = Just AddingNewEvent }, effects.none, { showLogin = False } )
 
             else
-                ( model, effects.none )
+                ( model, effects.none, { showLogin = False } )
 
         PressedShowAllFutureEvents ->
-            ( { model | showAllFutureEvents = True }, effects.none )
+            ( { model | showAllFutureEvents = True }, effects.none, { showLogin = False } )
 
         PressedShowFirstFutureEvents ->
-            ( { model | showAllFutureEvents = False }, effects.none )
+            ( { model | showAllFutureEvents = False }, effects.none, { showLogin = False } )
 
         ChangedNewEvent newEvent ->
             if isOwner then
-                ( { model | newEvent = newEvent }, effects.none )
+                ( { model | newEvent = newEvent }, effects.none, { showLogin = False } )
 
             else
-                ( model, effects.none )
+                ( model, effects.none, { showLogin = False } )
 
         PressedCancelNewEvent ->
             if isOwner then
                 case model.eventOverlay of
                     Just AddingNewEvent ->
-                        ( { model | eventOverlay = Nothing }, effects.none )
+                        ( { model | eventOverlay = Nothing }, effects.none, { showLogin = False } )
 
                     _ ->
-                        ( model, effects.none )
+                        ( model, effects.none, { showLogin = False } )
 
             else
-                ( model, effects.none )
+                ( model, effects.none, { showLogin = False } )
 
         PressedCreateNewEvent ->
             let
@@ -408,6 +412,7 @@ update effects config group maybeUserId msg model =
                             (Untrusted.untrust eventType)
                             startTime
                             (Untrusted.untrust duration)
+                        , { showLogin = False }
                         )
                     )
                     (EventName.fromString newEvent.eventName |> Result.toMaybe)
@@ -415,30 +420,41 @@ update effects config group maybeUserId msg model =
                     maybeEventType
                     maybeStartTime
                     (validateDuration newEvent.duration |> Result.toMaybe)
-                    |> Maybe.withDefault ( { model | newEvent = pressSubmit model.newEvent }, effects.none )
+                    |> Maybe.withDefault
+                        ( { model | newEvent = pressSubmit model.newEvent }
+                        , effects.none
+                        , { showLogin = False }
+                        )
 
             else
-                ( model, effects.none )
+                ( model, effects.none, { showLogin = False } )
 
         PressedLeaveEvent eventId ->
             case Dict.get eventId model.pendingJoinOrLeave of
                 Just JoinOrLeavePending ->
-                    ( model, effects.none )
+                    ( model, effects.none, { showLogin = False } )
 
                 _ ->
                     ( { model | pendingJoinOrLeave = Dict.insert eventId JoinOrLeavePending model.pendingJoinOrLeave }
                     , effects.leaveEvent eventId
+                    , { showLogin = False }
                     )
 
         PressedJoinEvent eventId ->
-            case Dict.get eventId model.pendingJoinOrLeave of
-                Just JoinOrLeavePending ->
-                    ( model, effects.none )
+            case maybeUserId of
+                Just _ ->
+                    case Dict.get eventId model.pendingJoinOrLeave of
+                        Just JoinOrLeavePending ->
+                            ( model, effects.none, { showLogin = False } )
 
-                _ ->
-                    ( { model | pendingJoinOrLeave = Dict.insert eventId JoinOrLeavePending model.pendingJoinOrLeave }
-                    , effects.joinEvent eventId
-                    )
+                        _ ->
+                            ( { model | pendingJoinOrLeave = Dict.insert eventId JoinOrLeavePending model.pendingJoinOrLeave }
+                            , effects.joinEvent eventId
+                            , { showLogin = False }
+                            )
+
+                Nothing ->
+                    ( model, effects.none, { showLogin = True } )
 
         PressedEditEvent eventId ->
             if isOwner && model.eventOverlay == Nothing then
@@ -490,13 +506,14 @@ update effects config group maybeUserId msg model =
                                     |> Just
                           }
                         , effects.none
+                        , { showLogin = False }
                         )
 
                     Nothing ->
-                        ( model, effects.none )
+                        ( model, effects.none, { showLogin = False } )
 
             else
-                ( model, effects.none )
+                ( model, effects.none, { showLogin = False } )
 
         ChangedEditEvent editEvent ->
             ( { model
@@ -509,13 +526,14 @@ update effects config group maybeUserId msg model =
                             model.eventOverlay
               }
             , effects.none
+            , { showLogin = False }
             )
 
         PressedSubmitEditEvent ->
             case model.eventOverlay of
                 Just (EdittingEvent eventId event) ->
                     if event.submitStatus == IsSubmitting then
-                        ( model, effects.none )
+                        ( model, effects.none, { showLogin = False } )
 
                     else if isOwner then
                         let
@@ -551,6 +569,7 @@ update effects config group maybeUserId msg model =
                                     (Untrusted.untrust eventType)
                                     startTime
                                     (Untrusted.untrust duration)
+                                , { showLogin = False }
                                 )
                             )
                             (EventName.fromString event.eventName |> Result.toMaybe)
@@ -563,21 +582,22 @@ update effects config group maybeUserId msg model =
                                     | eventOverlay = EdittingEvent eventId (pressSubmit event) |> Just
                                   }
                                 , effects.none
+                                , { showLogin = False }
                                 )
 
                     else
-                        ( model, effects.none )
+                        ( model, effects.none, { showLogin = False } )
 
                 _ ->
-                    ( model, effects.none )
+                    ( model, effects.none, { showLogin = False } )
 
         PressedCancelEditEvent ->
             case model.eventOverlay of
                 Just (EdittingEvent _ _) ->
-                    ( { model | eventOverlay = Nothing }, effects.none )
+                    ( { model | eventOverlay = Nothing }, effects.none, { showLogin = False } )
 
                 _ ->
-                    ( model, effects.none )
+                    ( model, effects.none, { showLogin = False } )
 
 
 pressSubmit : { a | submitStatus : SubmitStatus b } -> { a | submitStatus : SubmitStatus b }

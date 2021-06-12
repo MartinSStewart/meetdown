@@ -101,7 +101,7 @@ submitForm cmds route loginForm =
     case validateEmail loginForm.email of
         Ok email ->
             ( { loginForm | emailSent = Just email }
-            , Untrusted.untrust email |> GetLoginTokenRequest route |> cmds.sendToBackend
+            , GetLoginTokenRequest route (Untrusted.untrust email) Nothing |> cmds.sendToBackend
             )
 
         Err _ ->
