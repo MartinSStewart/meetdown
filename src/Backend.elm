@@ -180,8 +180,8 @@ loginEmailContent route loginToken =
         loginLink =
             loginEmailLink route loginToken
 
-        _ =
-            Debug.log "login" loginLink
+        --_ =
+        --    Debug.log "login" loginLink
     in
     Email.Html.div
         []
