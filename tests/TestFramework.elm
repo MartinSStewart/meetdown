@@ -1,6 +1,9 @@
 module TestFramework exposing
     ( EmailType(..)
+    , InProgress
+    , Replay(..)
     , State
+    , andThen
     , checkBackend
     , checkFrontend
     , checkLoadedFrontend
@@ -13,6 +16,8 @@ module TestFramework exposing
     , disconnectFrontend
     , fastForward
     , finishSimulation
+    , frontendApp
+    , inProgressInit
     , init
     , inputDate
     , inputNumber
@@ -25,6 +30,7 @@ module TestFramework exposing
     , simulateStep
     , simulateTime
     , startTime
+    , toReplay
     )
 
 import AssocList as Dict exposing (Dict)
@@ -74,6 +80,44 @@ type alias State =
     }
 
 
+type InProgress
+    = NextStep (State -> State) InProgress
+    | AndThen (State -> InProgress) InProgress
+    | Start State
+
+
+type Replay
+    = NextStep_ (State -> State) Replay
+    | AndThen_ (State -> InProgress) Replay
+    | Done
+
+
+toReplay : InProgress -> ( State, Replay )
+toReplay inProgress =
+    case inProgress of
+        NextStep stepFunc inProgress_ ->
+            toReplayHelper (NextStep_ stepFunc Done) inProgress_
+
+        AndThen andThenFunc inProgress_ ->
+            toReplayHelper (AndThen_ andThenFunc Done) inProgress_
+
+        Start state ->
+            ( state, Done )
+
+
+toReplayHelper : Replay -> InProgress -> ( State, Replay )
+toReplayHelper previous inProgress =
+    case inProgress of
+        NextStep stepFunc inProgress_ ->
+            toReplayHelper (NextStep_ stepFunc previous) inProgress_
+
+        AndThen andThenFunc inProgress_ ->
+            toReplayHelper (AndThen_ andThenFunc previous) inProgress_
+
+        Start state ->
+            ( state, previous )
+
+
 type EmailType
     = LoginEmail Route (Id LoginToken) (Maybe ( GroupId, EventId ))
     | DeleteAccountEmail (Id DeleteUserToken)
@@ -90,70 +134,82 @@ isEventReminderEmail emailType =
             False
 
 
-checkState : (State -> Result String ()) -> State -> State
-checkState checkFunc state =
-    case checkFunc state of
-        Ok () ->
-            state
-
-        Err error ->
-            { state | testErrors = state.testErrors ++ [ error ] }
-
-
-checkBackend : (BackendModel -> Result String ()) -> State -> State
-checkBackend checkFunc state =
-    case checkFunc state.backend of
-        Ok () ->
-            state
-
-        Err error ->
-            { state | testErrors = state.testErrors ++ [ error ] }
-
-
-checkFrontend : ClientId -> (FrontendModel -> Result String ()) -> State -> State
-checkFrontend clientId checkFunc state =
-    case Dict.get clientId state.frontends of
-        Just frontend ->
-            case checkFunc frontend.model of
+checkState : (State -> Result String ()) -> InProgress -> InProgress
+checkState checkFunc =
+    NextStep
+        (\state ->
+            case checkFunc state of
                 Ok () ->
                     state
 
                 Err error ->
                     { state | testErrors = state.testErrors ++ [ error ] }
-
-        Nothing ->
-            { state
-                | testErrors =
-                    state.testErrors ++ [ "ClientId \"" ++ Id.clientIdToString clientId ++ "\" not found." ]
-            }
+        )
 
 
-checkView : ClientId -> (Test.Html.Query.Single FrontendMsg -> Expectation) -> State -> State
-checkView clientId query state =
-    case Dict.get clientId state.frontends of
-        Just frontend ->
-            case
-                frontendApp.view frontend.model
-                    |> .body
-                    |> Html.div []
-                    |> Test.Html.Query.fromHtml
-                    |> query
-                    |> Test.Runner.getFailureReason
-            of
-                Just { description } ->
-                    { state | testErrors = state.testErrors ++ [ description ] }
-
-                Nothing ->
+checkBackend : (BackendModel -> Result String ()) -> InProgress -> InProgress
+checkBackend checkFunc =
+    NextStep
+        (\state ->
+            case checkFunc state.backend of
+                Ok () ->
                     state
 
-        Nothing ->
-            { state
-                | testErrors =
-                    state.testErrors ++ [ "ClientId \"" ++ Id.clientIdToString clientId ++ "\" not found." ]
-            }
+                Err error ->
+                    { state | testErrors = state.testErrors ++ [ error ] }
+        )
 
 
-checkLoadedFrontend : ClientId -> (LoadedFrontend -> Result String ()) -> State -> State
+checkFrontend : ClientId -> (FrontendModel -> Result String ()) -> InProgress -> InProgress
+checkFrontend clientId checkFunc =
+    NextStep
+        (\state ->
+            case Dict.get clientId state.frontends of
+                Just frontend ->
+                    case checkFunc frontend.model of
+                        Ok () ->
+                            state
+
+                        Err error ->
+                            { state | testErrors = state.testErrors ++ [ error ] }
+
+                Nothing ->
+                    { state
+                        | testErrors =
+                            state.testErrors ++ [ "ClientId \"" ++ Id.clientIdToString clientId ++ "\" not found." ]
+                    }
+        )
+
+
+checkView : ClientId -> (Test.Html.Query.Single FrontendMsg -> Expectation) -> InProgress -> InProgress
+checkView clientId query =
+    NextStep
+        (\state ->
+            case Dict.get clientId state.frontends of
+                Just frontend ->
+                    case
+                        frontendApp.view frontend.model
+                            |> .body
+                            |> Html.div []
+                            |> Test.Html.Query.fromHtml
+                            |> query
+                            |> Test.Runner.getFailureReason
+                    of
+                        Just { description } ->
+                            { state | testErrors = state.testErrors ++ [ description ] }
+
+                        Nothing ->
+                            state
+
+                Nothing ->
+                    { state
+                        | testErrors =
+                            state.testErrors ++ [ "ClientId \"" ++ Id.clientIdToString clientId ++ "\" not found." ]
+                    }
+        )
+
+
+checkLoadedFrontend : ClientId -> (LoadedFrontend -> Result String ()) -> InProgress -> InProgress
 checkLoadedFrontend clientId checkFunc state =
     checkFrontend
         clientId
@@ -168,13 +224,30 @@ checkLoadedFrontend clientId checkFunc state =
         state
 
 
-finishSimulation : State -> Expectation
-finishSimulation state =
+finishSimulation : InProgress -> Expectation
+finishSimulation inProgress =
+    let
+        state =
+            finishInProgress inProgress
+    in
     if List.isEmpty state.testErrors then
         Expect.pass
 
     else
         Expect.fail <| String.join "," state.testErrors
+
+
+finishInProgress : InProgress -> State
+finishInProgress inProgress =
+    case inProgress of
+        NextStep stateFunc inProgress_ ->
+            finishInProgress inProgress_ |> stateFunc
+
+        AndThen stateFunc inProgress_ ->
+            finishInProgress inProgress_ |> stateFunc |> finishInProgress
+
+        Start state ->
+            state
 
 
 type alias FrontendState =
@@ -219,22 +292,23 @@ backendApp =
     BackendLogic.createApp BackendEffects.effects BackendSub.subscriptions
 
 
-init : State
+init : InProgress
 init =
     let
         ( backend, effects ) =
             backendApp.init
     in
-    { backend = backend
-    , pendingEffects = effects
-    , frontends = Dict.empty
-    , counter = 0
-    , elapsedTime = Quantity.zero
-    , toBackend = []
-    , timers = getBackendTimers startTime (backendApp.subscriptions backend)
-    , testErrors = []
-    , emailInboxes = []
-    }
+    Start
+        { backend = backend
+        , pendingEffects = effects
+        , frontends = Dict.empty
+        , counter = 0
+        , elapsedTime = Quantity.zero
+        , toBackend = []
+        , timers = getBackendTimers startTime (backendApp.subscriptions backend)
+        , testErrors = []
+        , emailInboxes = []
+        }
 
 
 getFrontendTimers : Time.Posix -> FrontendSub -> Dict Duration { msg : Time.Posix -> FrontendMsg, startTime : Time.Posix }
@@ -289,107 +363,153 @@ getClientConnectSubs backendSub =
             []
 
 
-connectFrontend : SessionId -> Url -> State -> ( State, ClientId )
-connectFrontend sessionId url state =
-    let
-        clientId =
-            "clientId " ++ String.fromInt state.counter |> Id.clientIdFromString
+connectFrontend : SessionId -> Url -> (( InProgress, ClientId ) -> InProgress) -> InProgress -> InProgress
+connectFrontend sessionId url andThenFunc =
+    AndThen
+        (\state ->
+            let
+                clientId =
+                    "clientId " ++ String.fromInt state.counter |> Id.clientIdFromString
 
-        ( frontend, effects ) =
-            frontendApp.init url MockNavigationKey
+                ( frontend, effects ) =
+                    frontendApp.init url MockNavigationKey
 
-        subscriptions =
-            frontendApp.subscriptions frontend
+                subscriptions =
+                    frontendApp.subscriptions frontend
 
-        ( backend, backendEffects ) =
-            getClientConnectSubs (backendApp.subscriptions state.backend)
-                |> List.foldl
-                    (\msg ( newBackend, newEffects ) ->
-                        backendApp.update (msg sessionId clientId) newBackend
-                            |> Tuple.mapSecond (\a -> BackendEffects.Batch [ newEffects, a ])
-                    )
-                    ( state.backend, state.pendingEffects )
-    in
-    ( { state
-        | frontends =
-            Dict.insert
-                clientId
-                { model = frontend
-                , sessionId = sessionId
-                , pendingEffects = effects
-                , toFrontend = []
-                , clipboard = ""
-                , timers = getFrontendTimers (Duration.addTo startTime state.elapsedTime) subscriptions
-                , url = url
+                ( backend, backendEffects ) =
+                    getClientConnectSubs (backendApp.subscriptions state.backend)
+                        |> List.foldl
+                            (\msg ( newBackend, newEffects ) ->
+                                backendApp.update (msg sessionId clientId) newBackend
+                                    |> Tuple.mapSecond (\a -> BackendEffects.Batch [ newEffects, a ])
+                            )
+                            ( state.backend, state.pendingEffects )
+            in
+            ( Start
+                { state
+                    | frontends =
+                        Dict.insert
+                            clientId
+                            { model = frontend
+                            , sessionId = sessionId
+                            , pendingEffects = effects
+                            , toFrontend = []
+                            , clipboard = ""
+                            , timers = getFrontendTimers (Duration.addTo startTime state.elapsedTime) subscriptions
+                            , url = url
+                            }
+                            state.frontends
+                    , counter = state.counter + 1
+                    , backend = backend
+                    , pendingEffects = backendEffects
                 }
-                state.frontends
-        , counter = state.counter + 1
-        , backend = backend
-        , pendingEffects = backendEffects
-      }
-    , clientId
-    )
+            , clientId
+            )
+                |> andThenFunc
+        )
 
 
-keyDownEvent : ClientId -> HtmlId any -> Int -> State -> State
+keyDownEvent : ClientId -> HtmlId any -> Int -> InProgress -> InProgress
 keyDownEvent clientId htmlId keyCode state =
     userEvent clientId htmlId ( "keydown", Json.Encode.object [ ( "keyCode", Json.Encode.int keyCode ) ] ) state
 
 
-clickButton : ClientId -> HtmlId ButtonId -> State -> State
+clickButton : ClientId -> HtmlId ButtonId -> InProgress -> InProgress
 clickButton clientId htmlId state =
     userEvent clientId htmlId Test.Html.Event.click state
 
 
-clickRadioButton : ClientId -> HtmlId RadioButtonId -> State -> State
+clickRadioButton : ClientId -> HtmlId RadioButtonId -> InProgress -> InProgress
 clickRadioButton clientId htmlId state =
     userEvent clientId htmlId Test.Html.Event.click state
 
 
-inputText : ClientId -> HtmlId TextInputId -> String -> State -> State
+inputText : ClientId -> HtmlId TextInputId -> String -> InProgress -> InProgress
 inputText clientId htmlId text state =
     userEvent clientId htmlId (Test.Html.Event.input text) state
 
 
-inputNumber : ClientId -> HtmlId NumberInputId -> String -> State -> State
+inputNumber : ClientId -> HtmlId NumberInputId -> String -> InProgress -> InProgress
 inputNumber clientId htmlId value state =
     userEvent clientId htmlId (Test.Html.Event.input value) state
 
 
-inputDate : ClientId -> HtmlId DateInputId -> Date -> State -> State
+inputDate : ClientId -> HtmlId DateInputId -> Date -> InProgress -> InProgress
 inputDate clientId htmlId date state =
     userEvent clientId htmlId (Test.Html.Event.input (Date.toIsoString date)) state
 
 
-inputTime : ClientId -> HtmlId TimeInputId -> Int -> Int -> State -> State
+inputTime : ClientId -> HtmlId TimeInputId -> Int -> Int -> InProgress -> InProgress
 inputTime clientId htmlId hour minute state =
     userEvent clientId htmlId (Test.Html.Event.input (String.fromInt hour ++ ":" ++ String.fromInt minute)) state
 
 
-clickLink : ClientId -> Route -> State -> State
-clickLink clientId route state =
-    let
-        href : String
-        href =
-            Route.encode route
-    in
-    case Dict.get clientId state.frontends of
-        Just frontend ->
-            case
-                frontendApp.view frontend.model
-                    |> .body
-                    |> Html.div []
-                    |> Test.Html.Query.fromHtml
-                    |> Test.Html.Query.find [ Test.Html.Selector.attribute (Html.Attributes.href href) ]
-                    |> Test.Html.Query.has []
-                    |> Test.Runner.getFailureReason
-            of
+clickLink : ClientId -> Route -> InProgress -> InProgress
+clickLink clientId route =
+    NextStep
+        (\state ->
+            let
+                href : String
+                href =
+                    Route.encode route
+            in
+            case Dict.get clientId state.frontends of
+                Just frontend ->
+                    case
+                        frontendApp.view frontend.model
+                            |> .body
+                            |> Html.div []
+                            |> Test.Html.Query.fromHtml
+                            |> Test.Html.Query.find [ Test.Html.Selector.attribute (Html.Attributes.href href) ]
+                            |> Test.Html.Query.has []
+                            |> Test.Runner.getFailureReason
+                    of
+                        Nothing ->
+                            case Url.fromString (Env.domain ++ href) of
+                                Just url ->
+                                    let
+                                        ( newModel, effects ) =
+                                            frontendApp.update clientId (Types.UrlClicked (Internal url)) frontend.model
+                                    in
+                                    { state
+                                        | frontends =
+                                            Dict.insert
+                                                clientId
+                                                { frontend | model = newModel, pendingEffects = effects }
+                                                state.frontends
+                                    }
+
+                                Nothing ->
+                                    Debug.todo ("Invalid url: " ++ Env.domain ++ href)
+
+                        Just err ->
+                            Debug.todo ("Clicking link failed for " ++ href ++ ": " ++ formatHtmlError err.description)
+
                 Nothing ->
-                    case Url.fromString (Env.domain ++ href) of
-                        Just url ->
+                    Debug.todo "ClientId not found"
+        )
+
+
+userEvent : ClientId -> HtmlId any -> ( String, Json.Encode.Value ) -> InProgress -> InProgress
+userEvent clientId htmlId event =
+    NextStep
+        (\state ->
+            case Dict.get clientId state.frontends of
+                Just frontend ->
+                    let
+                        query =
+                            frontendApp.view frontend.model
+                                |> .body
+                                |> Html.div []
+                                |> Test.Html.Query.fromHtml
+                                |> Test.Html.Query.find [ Test.Html.Selector.id (Id.htmlIdToString htmlId) ]
+                    in
+                    case Test.Html.Event.simulate event query |> Test.Html.Event.toResult of
+                        Ok msg ->
                             let
                                 ( newModel, effects ) =
-                                    frontendApp.update clientId (Types.UrlClicked (Internal url)) frontend.model
+                                    frontendApp.update clientId msg frontend.model
                             in
                             { state
                                 | frontends =
@@ -399,52 +519,17 @@ clickLink clientId route state =
                                         state.frontends
                             }
 
-                        Nothing ->
-                            Debug.todo ("Invalid url: " ++ Env.domain ++ href)
+                        Err err ->
+                            case Test.Runner.getFailureReason (Test.Html.Query.has [] query) of
+                                Just { description } ->
+                                    Debug.todo ("User event failed for " ++ Id.htmlIdToString htmlId ++ ": " ++ formatHtmlError description)
 
-                Just err ->
-                    Debug.todo ("Clicking link failed for " ++ href ++ ": " ++ formatHtmlError err.description)
+                                Nothing ->
+                                    Debug.todo ("User event failed for " ++ Id.htmlIdToString htmlId ++ ": " ++ err)
 
-        Nothing ->
-            Debug.todo "ClientId not found"
-
-
-userEvent : ClientId -> HtmlId any -> ( String, Json.Encode.Value ) -> State -> State
-userEvent clientId htmlId event state =
-    case Dict.get clientId state.frontends of
-        Just frontend ->
-            let
-                query =
-                    frontendApp.view frontend.model
-                        |> .body
-                        |> Html.div []
-                        |> Test.Html.Query.fromHtml
-                        |> Test.Html.Query.find [ Test.Html.Selector.id (Id.htmlIdToString htmlId) ]
-            in
-            case Test.Html.Event.simulate event query |> Test.Html.Event.toResult of
-                Ok msg ->
-                    let
-                        ( newModel, effects ) =
-                            frontendApp.update clientId msg frontend.model
-                    in
-                    { state
-                        | frontends =
-                            Dict.insert
-                                clientId
-                                { frontend | model = newModel, pendingEffects = effects }
-                                state.frontends
-                    }
-
-                Err err ->
-                    case Test.Runner.getFailureReason (Test.Html.Query.has [] query) of
-                        Just { description } ->
-                            Debug.todo ("User event failed for " ++ Id.htmlIdToString htmlId ++ ": " ++ formatHtmlError description)
-
-                        Nothing ->
-                            Debug.todo ("User event failed for " ++ Id.htmlIdToString htmlId ++ ": " ++ err)
-
-        Nothing ->
-            Debug.todo "ClientId not found"
+                Nothing ->
+                    Debug.todo "ClientId not found"
+        )
 
 
 formatHtmlError : String -> String
@@ -581,18 +666,38 @@ simulateStep state =
         |> runEffects
 
 
-simulateTime : Duration -> State -> State
-simulateTime duration state =
+simulateTime : Duration -> InProgress -> InProgress
+simulateTime duration =
+    runInProgress (simulateTimeHelper duration)
+
+
+simulateTimeHelper : Duration -> State -> State
+simulateTimeHelper duration state =
     if duration |> Quantity.lessThan Quantity.zero then
         state
 
     else
-        simulateTime (duration |> Quantity.minus animationFrame) (simulateStep state)
+        simulateTimeHelper (duration |> Quantity.minus animationFrame) (simulateStep state)
 
 
-fastForward : Duration -> State -> State
-fastForward duration state =
-    { state | elapsedTime = Quantity.plus state.elapsedTime duration }
+fastForward : Duration -> InProgress -> InProgress
+fastForward duration =
+    runInProgress (\state -> { state | elapsedTime = Quantity.plus state.elapsedTime duration })
+
+
+runInProgress : (State -> State) -> InProgress -> InProgress
+runInProgress stateFunc inProgress =
+    NextStep stateFunc inProgress
+
+
+andThen : (State -> InProgress) -> InProgress -> InProgress
+andThen andThenFunc inProgress =
+    AndThen andThenFunc inProgress
+
+
+inProgressInit : State -> InProgress
+inProgressInit state =
+    Start state
 
 
 runEffects : State -> State
