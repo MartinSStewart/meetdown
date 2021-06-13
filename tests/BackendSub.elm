@@ -1,6 +1,6 @@
 module BackendSub exposing (BackendSub(..), subscriptions)
 
-import Backend
+import BackendLogic exposing (Subscriptions)
 import Duration exposing (Duration)
 import Id exposing (ClientId, SessionId)
 import Time
@@ -14,7 +14,7 @@ type BackendSub
     | OnDisconnect (SessionId -> ClientId -> BackendMsg)
 
 
-subscriptions : Backend.Subscriptions BackendSub
+subscriptions : Subscriptions BackendSub
 subscriptions =
     { batch = Batch
     , timeEvery = TimeEvery

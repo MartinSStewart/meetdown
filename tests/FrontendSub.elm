@@ -1,7 +1,7 @@
 module FrontendSub exposing (FrontendSub(..), subscriptions)
 
 import Duration exposing (Duration)
-import Frontend exposing (Subscriptions)
+import FrontendLogic exposing (Subscriptions)
 import Pixels exposing (Pixels)
 import Quantity exposing (Quantity)
 import Time

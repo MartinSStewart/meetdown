@@ -2,7 +2,7 @@ module FrontendEffects exposing (FrontendEffect(..), effects)
 
 import Browser.Dom
 import Duration exposing (Duration)
-import Frontend exposing (CropImageData)
+import FrontendLogic exposing (CropImageData, Effects)
 import MockFile
 import Pixels exposing (Pixels)
 import Quantity exposing (Quantity)
@@ -30,7 +30,7 @@ type FrontendEffect
     | GetTimeZone (Result TimeZone.Error ( String, Time.Zone ) -> FrontendMsg)
 
 
-effects : Frontend.Effects FrontendEffect
+effects : Effects FrontendEffect
 effects =
     { batch = Batch
     , none = None

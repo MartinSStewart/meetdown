@@ -32,7 +32,6 @@ module Id exposing
     )
 
 import Env
-import Lamdera
 import Sha256
 import Time
 
@@ -46,11 +45,11 @@ type GroupId
 
 
 type SessionId
-    = SessionId Lamdera.SessionId
+    = SessionId String
 
 
 type ClientId
-    = ClientId Lamdera.ClientId
+    = ClientId String
 
 
 type Id a
@@ -128,17 +127,17 @@ timeInputId =
     (++) "f_" >> HtmlId
 
 
-sessionIdFromString : Lamdera.SessionId -> SessionId
+sessionIdFromString : String -> SessionId
 sessionIdFromString =
     SessionId
 
 
-clientIdFromString : Lamdera.ClientId -> ClientId
+clientIdFromString : String -> ClientId
 clientIdFromString =
     ClientId
 
 
-clientIdToString : ClientId -> Lamdera.ClientId
+clientIdToString : ClientId -> String
 clientIdToString (ClientId clientId) =
     clientId
 

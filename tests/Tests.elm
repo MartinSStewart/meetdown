@@ -1,20 +1,16 @@
-module Tests exposing (suite, unsafeDescription, unsafeEventDuration, unsafeEventName, unsafeGroupName, unsafeLink)
+module Tests exposing (suite)
 
-import Backend
+import BackendLogic
 import CreateGroupForm
 import Date
-import Description exposing (Description)
 import Duration
 import EmailAddress exposing (EmailAddress)
 import Env
-import EventDuration exposing (EventDuration)
-import EventName exposing (EventName)
-import Frontend
+import FrontendLogic
 import Group
 import GroupName exposing (GroupName)
 import GroupPage
 import Id
-import Link exposing (Link)
 import List.Extra as List
 import LoginForm
 import Quantity
@@ -26,7 +22,7 @@ import TestFramework as TF exposing (EmailType(..))
 import Time
 import Types exposing (FrontendModel(..), LoginStatus(..))
 import Ui
-import Url exposing (Url)
+import Unsafe
 
 
 loginFromHomepage :
@@ -38,11 +34,11 @@ loginFromHomepage :
     -> { state : TF.State, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId }
 loginFromHomepage loginWithEnterKey sessionId sessionIdFromEmail emailAddress state =
     state
-        |> TF.connectFrontend sessionId (unsafeUrl Env.domain)
+        |> TF.connectFrontend sessionId (Unsafe.url Env.domain)
         |> (\( state2, clientId ) ->
                 state2
                     |> TF.simulateTime Duration.second
-                    |> TF.clickButton clientId Frontend.signUpOrLoginButtonId
+                    |> TF.clickButton clientId FrontendLogic.signUpOrLoginButtonId
                     |> handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress
            )
 
@@ -72,7 +68,7 @@ handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress state
                         state3
                             |> TF.connectFrontend
                                 sessionIdFromEmail
-                                (unsafeUrl (Backend.loginEmailLink route loginToken maybeJoinEvent))
+                                (Unsafe.url (BackendLogic.loginEmailLink route loginToken maybeJoinEvent))
                             |> (\( state4, clientIdFromEmail ) ->
                                     { state = state4 |> TF.simulateTime Duration.second
                                     , clientId = clientId
@@ -95,7 +91,7 @@ suite =
                         Id.sessionIdFromString "session0"
 
                     emailAddress =
-                        unsafeEmailAddress "a@a.se"
+                        Unsafe.emailAddress "a@a.se"
                 in
                 TF.init
                     |> loginFromHomepage False sessionId sessionId emailAddress
@@ -126,7 +122,7 @@ suite =
                         Id.sessionIdFromString "session0"
 
                     emailAddress =
-                        unsafeEmailAddress "a@a.se"
+                        Unsafe.emailAddress "a@a.se"
                 in
                 TF.init
                     |> loginFromHomepage True sessionId sessionId emailAddress
@@ -157,7 +153,7 @@ suite =
                         Id.sessionIdFromString "session0"
 
                     emailAddress =
-                        unsafeEmailAddress "a@a.se"
+                        Unsafe.emailAddress "a@a.se"
                 in
                 TF.init
                     |> loginFromHomepage True sessionId sessionId emailAddress
@@ -188,7 +184,7 @@ suite =
                         True
                         (Id.sessionIdFromString "session0")
                         (Id.sessionIdFromString "session1")
-                        (unsafeEmailAddress "a@a.se")
+                        (Unsafe.emailAddress "a@a.se")
                     |> (\{ state, clientId, clientIdFromEmail } ->
                             state
                                 |> TF.checkLoadedFrontend
@@ -210,7 +206,7 @@ suite =
             \_ ->
                 let
                     emailAddress =
-                        unsafeEmailAddress "a@a.se"
+                        Unsafe.emailAddress "a@a.se"
 
                     sessionId =
                         Id.sessionIdFromString "session0"
@@ -223,7 +219,7 @@ suite =
                                     state
                                         |> TF.connectFrontend
                                             (Id.sessionIdFromString "session1")
-                                            (unsafeUrl (Backend.loginEmailLink route loginToken maybeJoinEvent))
+                                            (Unsafe.url (BackendLogic.loginEmailLink route loginToken maybeJoinEvent))
                                         |> (\( state2, clientId3 ) ->
                                                 state2
                                                     |> TF.simulateTime Duration.second
@@ -263,14 +259,14 @@ suite =
                         "This is the best group"
                 in
                 TF.init
-                    |> loginFromHomepage False session0 session0 (unsafeEmailAddress "a@a.se")
+                    |> loginFromHomepage False session0 session0 (Unsafe.emailAddress "a@a.se")
                     |> (\{ state, clientId, clientIdFromEmail } ->
                             createGroup clientIdFromEmail groupName groupDescription state
                                 |> TF.checkFrontend clientIdFromEmail
                                     (\model ->
                                         case model of
                                             Loaded loaded ->
-                                                if loaded.route == Route.GroupRoute (Id.groupIdFromInt 0) (unsafeGroupName groupName) then
+                                                if loaded.route == Route.GroupRoute (Id.groupIdFromInt 0) (Unsafe.groupName groupName) then
                                                     Ok ()
 
                                                 else
@@ -295,7 +291,7 @@ suite =
                         Id.sessionIdFromString "session0"
 
                     emailAddress =
-                        unsafeEmailAddress "a@a.se"
+                        Unsafe.emailAddress "a@a.se"
                 in
                 TF.init
                     |> loginFromHomepage False session0 session0 emailAddress
@@ -341,7 +337,7 @@ suite =
                         Id.sessionIdFromString "session0"
 
                     emailAddress =
-                        unsafeEmailAddress "a@a.se"
+                        Unsafe.emailAddress "a@a.se"
                 in
                 TF.init
                     |> loginFromHomepage False session0 session0 emailAddress
@@ -381,13 +377,13 @@ suite =
                         Id.sessionIdFromString "session1"
 
                     emailAddress0 =
-                        unsafeEmailAddress "a@a.se"
+                        Unsafe.emailAddress "a@a.se"
 
                     emailAddress1 =
-                        unsafeEmailAddress "jim@a.com"
+                        Unsafe.emailAddress "jim@a.com"
 
                     groupName =
-                        unsafeGroupName "It's my Group!"
+                        Unsafe.groupName "It's my Group!"
                 in
                 TF.init
                     |> loginFromHomepage False session0 session0 emailAddress0
@@ -408,8 +404,8 @@ suite =
                     |> loginFromHomepage False session1 session1 emailAddress1
                     |> (\{ state, clientId, clientIdFromEmail } ->
                             state
-                                |> TF.inputText clientId Frontend.groupSearchId "my group!"
-                                |> TF.keyDownEvent clientId Frontend.groupSearchId Ui.enterKeyCode
+                                |> TF.inputText clientId FrontendLogic.groupSearchId "my group!"
+                                |> TF.keyDownEvent clientId FrontendLogic.groupSearchId Ui.enterKeyCode
                                 |> TF.simulateTime Duration.second
                                 |> TF.clickLink clientId (Route.GroupRoute (Id.groupIdFromInt 0) groupName)
                                 |> TF.simulateTime Duration.second
@@ -438,13 +434,13 @@ suite =
                         Id.sessionIdFromString "session1"
 
                     emailAddress0 =
-                        unsafeEmailAddress "a@a.se"
+                        Unsafe.emailAddress "a@a.se"
 
                     emailAddress1 =
-                        unsafeEmailAddress "jim@a.com"
+                        Unsafe.emailAddress "jim@a.com"
 
                     groupName =
-                        unsafeGroupName "It's my Group!"
+                        Unsafe.groupName "It's my Group!"
                 in
                 TF.init
                     |> loginFromHomepage False session0 session0 emailAddress0
@@ -462,12 +458,12 @@ suite =
                                 }
                                 state
                        )
-                    |> TF.connectFrontend session1 (Env.domain ++ Route.encode Route.HomepageRoute |> unsafeUrl)
+                    |> TF.connectFrontend session1 (Env.domain ++ Route.encode Route.HomepageRoute |> Unsafe.url)
                     |> (\( state, clientId ) ->
                             state
                                 |> TF.simulateTime Duration.second
-                                |> TF.inputText clientId Frontend.groupSearchId "my group!"
-                                |> TF.keyDownEvent clientId Frontend.groupSearchId Ui.enterKeyCode
+                                |> TF.inputText clientId FrontendLogic.groupSearchId "my group!"
+                                |> TF.keyDownEvent clientId FrontendLogic.groupSearchId Ui.enterKeyCode
                                 |> TF.simulateTime Duration.second
                                 |> TF.clickLink clientId (Route.GroupRoute (Id.groupIdFromInt 0) groupName)
                                 |> TF.simulateTime Duration.second
@@ -531,73 +527,3 @@ createGroupAndEvent loggedInClient { groupName, groupDescription, eventName, eve
         |> TF.inputNumber loggedInClient GroupPage.eventDurationId eventDuration
         |> TF.clickButton loggedInClient GroupPage.createEventSubmitId
         |> TF.simulateTime Duration.second
-
-
-unsafeUrl : String -> Url
-unsafeUrl urlText =
-    case Url.fromString urlText of
-        Just url ->
-            url
-
-        Nothing ->
-            Debug.todo ("Invalid url " ++ urlText)
-
-
-unsafeEmailAddress : String -> EmailAddress
-unsafeEmailAddress text =
-    case EmailAddress.fromString text of
-        Just address ->
-            address
-
-        Nothing ->
-            Debug.todo ("Invalid email address " ++ text)
-
-
-unsafeGroupName : String -> GroupName
-unsafeGroupName name =
-    case GroupName.fromString name of
-        Ok value ->
-            value
-
-        Err _ ->
-            Debug.todo ("Invalid group name " ++ name)
-
-
-unsafeEventName : String -> EventName
-unsafeEventName name =
-    case EventName.fromString name of
-        Ok value ->
-            value
-
-        Err _ ->
-            Debug.todo ("Invalid event name " ++ name)
-
-
-unsafeDescription : String -> Description
-unsafeDescription name =
-    case Description.fromString name of
-        Ok value ->
-            value
-
-        Err _ ->
-            Debug.todo ("Invalid description " ++ name)
-
-
-unsafeLink : String -> Link
-unsafeLink text =
-    case Link.fromString text of
-        Just value ->
-            value
-
-        Nothing ->
-            Debug.todo ("Invalid link " ++ text)
-
-
-unsafeEventDuration : Int -> EventDuration
-unsafeEventDuration minutes =
-    case EventDuration.fromMinutes minutes of
-        Ok duration ->
-            duration
-
-        Err _ ->
-            Debug.todo ("Invalid event duration " ++ String.fromInt minutes)

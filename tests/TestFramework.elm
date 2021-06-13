@@ -28,8 +28,8 @@ module TestFramework exposing
     )
 
 import AssocList as Dict exposing (Dict)
-import Backend
 import BackendEffects exposing (BackendEffect)
+import BackendLogic
 import BackendSub exposing (BackendSub)
 import Basics.Extra as Basics
 import Browser exposing (UrlRequest(..))
@@ -39,8 +39,8 @@ import EmailAddress exposing (EmailAddress)
 import Env
 import Event exposing (EventType)
 import Expect exposing (Expectation)
-import Frontend
 import FrontendEffects exposing (FrontendEffect)
+import FrontendLogic
 import FrontendSub exposing (FrontendSub)
 import Group exposing (EventId)
 import GroupName exposing (GroupName)
@@ -196,7 +196,7 @@ startTime =
 frontendApp =
     let
         app_ =
-            Frontend.createApp FrontendEffects.effects FrontendSub.subscriptions
+            FrontendLogic.createApp FrontendEffects.effects FrontendSub.subscriptions
     in
     { init = app_.init
     , update =
@@ -216,7 +216,7 @@ frontendApp =
 
 
 backendApp =
-    Backend.createApp BackendEffects.effects BackendSub.subscriptions
+    BackendLogic.createApp BackendEffects.effects BackendSub.subscriptions
 
 
 init : State

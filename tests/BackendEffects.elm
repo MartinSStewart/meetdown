@@ -1,6 +1,6 @@
 module BackendEffects exposing (BackendEffect(..), effects)
 
-import Backend
+import BackendLogic exposing (Effects)
 import EmailAddress exposing (EmailAddress)
 import Event exposing (Event)
 import Group exposing (EventId)
@@ -22,7 +22,7 @@ type BackendEffect
     | GetTime (Time.Posix -> BackendMsg)
 
 
-effects : Backend.Effects BackendEffect
+effects : Effects BackendEffect
 effects =
     { batch = Batch
     , none = None
