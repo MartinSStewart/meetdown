@@ -495,7 +495,7 @@ update effects config group maybeUserId msg model =
                                             Event.MeetInPerson Nothing ->
                                                 ""
                                     , startDate = Event.startTime event |> Date.fromPosix config.timezone |> Ui.datestamp
-                                    , startTime = timeToString config.timezone (Event.startTime event)
+                                    , startTime = Ui.timeToString config.timezone (Event.startTime event)
                                     , duration =
                                         Event.duration event
                                             |> EventDuration.toDuration
@@ -1572,7 +1572,7 @@ datetimeToString maybeTimezone datetime =
         ++ " "
         ++ dayToText datetime timezone
         ++ ", "
-        ++ timeToString timezone datetime
+        ++ Ui.timeToString timezone datetime
         ++ (case maybeTimezone of
                 Just _ ->
                     ""
@@ -1580,13 +1580,6 @@ datetimeToString maybeTimezone datetime =
                 Nothing ->
                     " (UTC)"
            )
-
-
-timeToString : Time.Zone -> Time.Posix -> String
-timeToString timezone time =
-    String.fromInt (Time.toHour timezone time)
-        ++ ":"
-        ++ String.padLeft 2 '0' (String.fromInt (Time.toMinute timezone time))
 
 
 dateToString : Maybe Time.Zone -> Time.Posix -> String

@@ -4,7 +4,9 @@ import AssocList as Dict
 import Browser exposing (Document, UrlRequest)
 import Browser.Navigation exposing (Key)
 import Html exposing (Html)
+import Html.Attributes
 import Html.Events
+import Id exposing (ClientId)
 import TestFramework as TF exposing (Replay(..))
 import Tests
 import Url exposing (Url)
@@ -12,7 +14,9 @@ import Url exposing (Url)
 
 type Msg
     = PressedNext
+    | PressedPrevious
     | PressedRestart
+    | PressedClientId ClientId
     | NoOp
     | UrlChanged Url
     | LinkClicked UrlRequest
@@ -21,6 +25,8 @@ type Msg
 type alias Model =
     { inProgress : TF.Replay
     , state : TF.State
+    , previousStates : List ( TF.State, TF.Replay )
+    , clientId : Maybe ClientId
     }
 
 
@@ -34,18 +40,30 @@ init _ _ _ =
         ( state, replay ) =
             test
     in
-    ( { inProgress = replay, state = state }, Cmd.none )
+    ( { inProgress = replay, state = state, previousStates = [], clientId = Nothing }, Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         PressedNext ->
-            ( case model.inProgress of
+            ( case model.inProgress |> Debug.log "" of
                 NextStep_ nextStepFunc replay_ ->
+                    let
+                        newState =
+                            nextStepFunc model.state
+                    in
                     { model
                         | inProgress = replay_
-                        , state = nextStepFunc model.state
+                        , state = newState
+                        , previousStates = ( model.state, model.inProgress ) :: model.previousStates
+                        , clientId =
+                            case model.clientId of
+                                Just _ ->
+                                    model.clientId
+
+                                Nothing ->
+                                    Dict.keys newState.frontends |> List.head
                     }
 
                 AndThen_ andThenFunc replay ->
@@ -54,8 +72,16 @@ update msg model =
                             TF.toReplay (andThenFunc model.state)
                     in
                     { model
-                        | inProgress = replay_
+                        | inProgress = joinReplays replay_ replay
                         , state = state
+                        , previousStates = ( model.state, model.inProgress ) :: model.previousStates
+                        , clientId =
+                            case model.clientId of
+                                Just _ ->
+                                    model.clientId
+
+                                Nothing ->
+                                    Dict.keys state.frontends |> List.sortBy Id.clientIdToString |> List.head
                     }
 
                 Done ->
@@ -63,12 +89,23 @@ update msg model =
             , Cmd.none
             )
 
+        PressedPrevious ->
+            case model.previousStates of
+                ( state, replay ) :: rest ->
+                    ( { model | inProgress = replay, state = state, previousStates = rest }, Cmd.none )
+
+                [] ->
+                    ( model, Cmd.none )
+
         PressedRestart ->
             let
                 ( state, replay ) =
                     test
             in
-            ( { inProgress = replay, state = state }, Cmd.none )
+            ( { model | inProgress = replay, state = state }, Cmd.none )
+
+        PressedClientId clientId ->
+            ( { model | clientId = Just clientId }, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
@@ -80,26 +117,91 @@ update msg model =
             ( model, Cmd.none )
 
 
+joinReplays : Replay -> Replay -> Replay
+joinReplays first second =
+    case first of
+        Done ->
+            second
+
+        NextStep_ mapFunc replay_ ->
+            NextStep_ mapFunc (joinReplays replay_ second)
+
+        AndThen_ andThenFunc replay_ ->
+            AndThen_ andThenFunc (joinReplays replay_ second)
+
+
+viewFrontend model =
+    TF.frontendApp.view model
+        |> .body
+        |> Html.div []
+        |> Html.map (\_ -> NoOp)
+
+
 view : Model -> Document Msg
 view model =
     { title = "Test framework viewer"
     , body =
-        [ case Dict.toList model.state.frontends of
-            ( _, frontend ) :: _ ->
-                TF.frontendApp.view frontend.model
-                    |> .body
-                    |> Html.div []
-                    |> Html.map (\_ -> NoOp)
+        [ Html.div
+            [ Html.Attributes.style "width" "100%"
+            , Html.Attributes.style "padding-bottom" "70px"
+            ]
+            [ case model.state.testErrors of
+                [] ->
+                    case model.clientId of
+                        Just clientId ->
+                            case Dict.get clientId model.state.frontends of
+                                Just frontend ->
+                                    viewFrontend frontend.model
 
-            [] ->
-                Html.text "No frontend found"
-        , if model.inProgress == Done then
-            restartButton
+                                Nothing ->
+                                    Html.div
+                                        [ Html.Attributes.style "padding" "8px" ]
+                                        [ Html.text (Id.clientIdToString clientId ++ " hasn't connected yet") ]
 
-          else
-            nextButton
+                        Nothing ->
+                            Html.div [ Html.Attributes.style "padding" "8px" ] [ Html.text "No frontend found" ]
+
+                errors ->
+                    Html.div
+                        [ Html.Attributes.style "background-color" "#FFF1F1"
+                        ]
+                        (List.map errorView errors)
+            ]
+        , Html.div
+            [ Html.Attributes.style "position" "fixed"
+            , Html.Attributes.style "bottom" "0"
+            , Html.Attributes.style "background-color" "#F1F1F1"
+            , Html.Attributes.style "width" "100%"
+            ]
+            [ Html.div
+                [ Html.Attributes.style "padding" "8px" ]
+                [ nextButton
+                , if List.isEmpty model.previousStates then
+                    Html.text ""
+
+                  else
+                    previousButton
+                , if model.inProgress == Done then
+                    restartButton
+
+                  else
+                    Html.text ""
+                ]
+            , Html.div
+                [ Html.Attributes.style "padding" "8px", Html.Attributes.style "height" "20px" ]
+                (model.state.frontends
+                    |> Dict.keys
+                    |> List.sortBy Id.clientIdToString
+                    |> List.map (clientIdButton model.clientId)
+                )
+            ]
         ]
     }
+
+
+errorView : String -> Html msg
+errorView error =
+    Html.pre [ Html.Attributes.style "padding" "4px" ] [ Html.text error ]
 
 
 restartButton : Html Msg
@@ -114,6 +216,29 @@ nextButton =
     Html.button
         [ Html.Events.onClick PressedNext ]
         [ Html.text "Next" ]
+
+
+previousButton : Html Msg
+previousButton =
+    Html.button
+        [ Html.Events.onClick PressedPrevious ]
+        [ Html.text "Previous" ]
+
+
+clientIdButton : Maybe ClientId -> ClientId -> Html Msg
+clientIdButton currentClientId clientId =
+    Html.button
+        [ Html.Events.onClick (PressedClientId clientId)
+        , Html.Attributes.style "background-color"
+            (if currentClientId == Just clientId then
+                "#FFFFFF"
+
+             else
+                "#DDDDDD"
+            )
+        , Html.Attributes.style "margin-right" "4px"
+        ]
+        [ Html.text (Id.clientIdToString clientId) ]
 
 
 main : Program () Model Msg

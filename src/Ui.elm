@@ -24,6 +24,7 @@ module Ui exposing
     , section
     , submitButton
     , textInput
+    , timeToString
     , title
     , titleFontSize
     )
@@ -422,6 +423,13 @@ timeInput htmlId onChange time =
         []
         |> Element.html
         |> Element.el []
+
+
+timeToString : Time.Zone -> Time.Posix -> String
+timeToString timezone time =
+    String.fromInt (Time.toHour timezone time)
+        ++ ":"
+        ++ String.padLeft 2 '0' (String.fromInt (Time.toMinute timezone time))
 
 
 dateInput : HtmlId DateInputId -> (String -> msg) -> Date -> String -> Element msg

@@ -181,6 +181,11 @@ checkFrontend clientId checkFunc =
         )
 
 
+addTestError : String -> State -> State
+addTestError error state =
+    { state | testErrors = state.testErrors ++ [ error ] }
+
+
 checkView : ClientId -> (Test.Html.Query.Single FrontendMsg -> Expectation) -> InProgress -> InProgress
 checkView clientId query =
     NextStep
@@ -278,8 +283,8 @@ frontendApp =
                 ( newModel, effects ) =
                     app_.update msg model
 
-                _ =
-                    Debug.log "Frontend.update" ( Id.clientIdToString clientId, msg, effects )
+                --_ =
+                --    Debug.log "Frontend.update" ( Id.clientIdToString clientId, msg, effects )
             in
             ( newModel, effects )
     , updateFromBackend = app_.updateFromBackend
@@ -442,7 +447,11 @@ inputDate clientId htmlId date state =
 
 inputTime : ClientId -> HtmlId TimeInputId -> Int -> Int -> InProgress -> InProgress
 inputTime clientId htmlId hour minute state =
-    userEvent clientId htmlId (Test.Html.Event.input (String.fromInt hour ++ ":" ++ String.fromInt minute)) state
+    userEvent
+        clientId
+        htmlId
+        (Test.Html.Event.input (String.fromInt hour ++ ":" ++ String.padLeft 2 '0' (String.fromInt minute)))
+        state
 
 
 clickLink : ClientId -> Route -> InProgress -> InProgress
@@ -481,13 +490,15 @@ clickLink clientId route =
                                     }
 
                                 Nothing ->
-                                    Debug.todo ("Invalid url: " ++ Env.domain ++ href)
+                                    addTestError ("Invalid url: " ++ Env.domain ++ href) state
 
                         Just err ->
-                            Debug.todo ("Clicking link failed for " ++ href ++ ": " ++ formatHtmlError err.description)
+                            addTestError
+                                ("Clicking link failed for " ++ href ++ ": " ++ formatHtmlError err.description)
+                                state
 
                 Nothing ->
-                    Debug.todo "ClientId not found"
+                    addTestError "ClientId not found" state
         )
 
 
@@ -522,13 +533,17 @@ userEvent clientId htmlId event =
                         Err err ->
                             case Test.Runner.getFailureReason (Test.Html.Query.has [] query) of
                                 Just { description } ->
-                                    Debug.todo ("User event failed for " ++ Id.htmlIdToString htmlId ++ ": " ++ formatHtmlError description)
+                                    addTestError
+                                        ("User event failed for " ++ Id.htmlIdToString htmlId ++ ": " ++ formatHtmlError description)
+                                        state
 
                                 Nothing ->
-                                    Debug.todo ("User event failed for " ++ Id.htmlIdToString htmlId ++ ": " ++ err)
+                                    addTestError
+                                        ("User event failed for " ++ Id.htmlIdToString htmlId ++ ": " ++ err)
+                                        state
 
                 Nothing ->
-                    Debug.todo "ClientId not found"
+                    addTestError "ClientId not found" state
         )
 
 
@@ -746,10 +761,10 @@ runNetwork state =
         ( backendModel, effects ) =
             List.foldl
                 (\( sessionId, clientId, toBackendMsg ) ( model, effects2 ) ->
-                    let
-                        _ =
-                            Debug.log "updateFromFrontend" ( clientId, toBackendMsg )
-                    in
+                    --let
+                    --    _ =
+                    --        Debug.log "updateFromFrontend" ( clientId, toBackendMsg )
+                    --in
                     backendApp.updateFromFrontend sessionId clientId toBackendMsg model
                         |> Tuple.mapSecond (\a -> BackendEffects.Batch [ effects2, a ])
                 )
@@ -763,10 +778,10 @@ runNetwork state =
                         ( newModel, newEffects2 ) =
                             List.foldl
                                 (\msg ( model, newEffects ) ->
-                                    let
-                                        _ =
-                                            Debug.log "Frontend.updateFromBackend" ( clientId, msg )
-                                    in
+                                    --let
+                                    --    _ =
+                                    --        Debug.log "Frontend.updateFromBackend" ( clientId, msg )
+                                    --in
                                     frontendApp.updateFromBackend msg model
                                         |> Tuple.mapSecond (\a -> FrontendEffects.Batch [ newEffects, a ])
                                 )
