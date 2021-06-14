@@ -946,7 +946,8 @@ view model =
     { title = "Meetdown"
     , body =
         [ Ui.css
-        , Element.layout
+        , Element.layoutWith
+            { options = [ Element.noStaticStyleSheet ] }
             [ Ui.defaultFontSize ]
             (case model of
                 Loading _ ->

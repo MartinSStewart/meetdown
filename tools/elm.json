@@ -24,15 +24,16 @@
             "elm/url": "1.0.0",
             "elm-community/basics-extra": "4.1.0",
             "elm-community/list-extra": "8.3.0",
+            "elm-explorations/test": "1.2.2",
             "erlandsona/assoc-set": "1.1.0",
+            "f0i/debug-to-json": "1.0.6",
             "ianmackenzie/elm-units": "2.9.0",
             "justinmimbs/date": "3.2.1",
             "justinmimbs/time-extra": "1.1.0",
             "justinmimbs/timezone-data": "4.0.2",
             "mdgriffith/elm-ui": "1.1.8",
             "mgold/elm-nonempty-list": "4.2.0",
-            "pzp1997/assoc-list": "1.0.0",
-            "elm-explorations/test": "1.2.2"
+            "pzp1997/assoc-list": "1.0.0"
         },
         "indirect": {
             "danfishgold/base64-bytes": "1.1.0",
@@ -45,8 +46,7 @@
         }
     },
     "test-dependencies": {
-        "direct": {
-        },
+        "direct": {},
         "indirect": {}
     }
 }

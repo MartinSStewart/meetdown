@@ -3,10 +3,18 @@ module TestViewer exposing (..)
 import AssocList as Dict
 import Browser exposing (Document, UrlRequest)
 import Browser.Navigation exposing (Key)
+import DebugToJson
+import Dict as RegularDict
+import Element exposing (Element)
+import Element.Background
+import Element.Border
+import Element.Font
+import Element.Input
 import Html exposing (Html)
 import Html.Attributes
-import Html.Events
 import Id exposing (ClientId)
+import Json.Decode
+import Json.Encode
 import TestFramework as TF exposing (Replay(..))
 import Tests
 import Url exposing (Url)
@@ -141,43 +149,62 @@ view : Model -> Document Msg
 view model =
     { title = "Test framework viewer"
     , body =
-        [ Html.div
-            [ Html.Attributes.style "width" "100%"
-            , Html.Attributes.style "padding-bottom" "70px"
-            ]
-            [ case model.state.testErrors of
-                [] ->
-                    case model.clientId of
-                        Just clientId ->
-                            case Dict.get clientId model.state.frontends of
-                                Just frontend ->
-                                    viewFrontend frontend.model
+        [ Element.layout
+            [ Element.Font.size 16 ]
+            (Element.column
+                [ Element.width Element.fill, Element.height Element.fill ]
+                [ controlsView model
+                , case model.state.testErrors of
+                    [] ->
+                        case model.clientId of
+                            Just clientId ->
+                                case Dict.get clientId model.state.frontends of
+                                    Just frontend ->
+                                        viewFrontend frontend.model
+                                            |> Element.html
+                                            |> Element.el
+                                                [ Element.width Element.fill
+                                                , Element.height Element.fill
+                                                , Element.scrollbars
+                                                ]
 
-                                Nothing ->
-                                    Html.div
-                                        [ Html.Attributes.style "padding" "8px" ]
-                                        [ Html.text (Id.clientIdToString clientId ++ " hasn't connected yet") ]
+                                    Nothing ->
+                                        Element.el
+                                            [ Element.padding 8 ]
+                                            (Element.text (Id.clientIdToString clientId ++ " hasn't connected yet"))
 
-                        Nothing ->
-                            Html.div [ Html.Attributes.style "padding" "8px" ] [ Html.text "No frontend found" ]
+                            Nothing ->
+                                Element.el
+                                    [ Element.padding 8 ]
+                                    (Element.text "No frontend found")
 
-                errors ->
-                    Html.div
-                        [ Html.Attributes.style "background-color" "#FFF1F1"
-                        ]
-                        (List.map errorView errors)
+                    errors ->
+                        Element.column
+                            [ Element.Background.color <| Element.rgb255 255 218 218 ]
+                            (List.map errorView errors)
+                ]
+            )
+        ]
+    }
+
+
+controlsView : Model -> Element Msg
+controlsView model =
+    Element.row
+        [ Element.Background.color <| Element.rgb 0.9 0.9 0.9
+        , Element.width Element.fill
+        ]
+        [ Element.column
+            [ Element.spacing 16
+            , Element.padding 8
+            , Element.width Element.fill
+            , Element.alignTop
             ]
-        , Html.div
-            [ Html.Attributes.style "position" "fixed"
-            , Html.Attributes.style "bottom" "0"
-            , Html.Attributes.style "background-color" "#F1F1F1"
-            , Html.Attributes.style "width" "100%"
-            ]
-            [ Html.div
-                [ Html.Attributes.style "padding" "8px" ]
+            [ Element.row
+                [ Element.spacing 8, Element.width Element.fill ]
                 [ nextButton
                 , if List.isEmpty model.previousStates then
-                    Html.text ""
+                    Element.none
 
                   else
                     previousButton
@@ -185,60 +212,107 @@ view model =
                     restartButton
 
                   else
-                    Html.text ""
+                    Element.none
                 ]
-            , Html.div
-                [ Html.Attributes.style "padding" "8px", Html.Attributes.style "height" "20px" ]
-                (model.state.frontends
-                    |> Dict.keys
-                    |> List.sortBy Id.clientIdToString
-                    |> List.map (clientIdButton model.clientId)
-                )
+            , model.state.frontends
+                |> Dict.keys
+                |> List.sortBy Id.clientIdToString
+                |> List.map (clientIdButton model.clientId)
+                |> Element.row [ Element.spacing 8 ]
             ]
+
+        --, model.state.backend
+        --    |> Debug.toString
+        --    |> Debug.log ""
+        --    |> DebugToJson.toJson
+        --    |> Debug.log ""
+        --    |> Result.withDefault (Json.Encode.object [])
+        --    |> Json.Decode.decodeValue (prettyPrintDecoder 0)
+        --    |> Result.withDefault ""
+        --    |> Html.text
+        --    |> List.singleton
+        --    |> Html.div [ Html.Attributes.style "white-space" "pre-wrap" ]
+        --    |> Element.html
+        --    |> Element.el [ Element.width Element.fill ]
         ]
-    }
 
 
-errorView : String -> Html msg
+prettyPrintDecoder : Int -> Json.Decode.Decoder String
+prettyPrintDecoder depth =
+    Json.Decode.oneOf
+        [ Json.Decode.int |> Json.Decode.map String.fromInt
+        , Json.Decode.float |> Json.Decode.map String.fromFloat
+        , Json.Decode.string |> Json.Decode.map (\a -> "\"" ++ a ++ "\"")
+        , Json.Decode.dict (Json.Decode.lazy (\() -> prettyPrintDecoder (depth + 1)))
+            |> Json.Decode.map
+                (\dict ->
+                    let
+                        offset =
+                            String.repeat (4 * depth) " "
+                    in
+                    RegularDict.toList dict
+                        |> List.map (\( field, value ) -> field ++ " : " ++ value)
+                        |> String.join ("\n" ++ offset ++ ", ")
+                        |> (\a -> "\n" ++ offset ++ "{ " ++ a ++ "\n" ++ offset ++ "}")
+                )
+        , Json.Decode.list (Json.Decode.lazy (\() -> prettyPrintDecoder (depth + 1)))
+            |> Json.Decode.map (\list -> "[" ++ String.join "," list ++ "]")
+        ]
+
+
+errorView : String -> Element msg
 errorView error =
-    Html.pre [ Html.Attributes.style "padding" "4px" ] [ Html.text error ]
+    Element.paragraph
+        []
+        [ Element.text error ]
 
 
-restartButton : Html Msg
+buttonStyle =
+    [ Element.Background.color <| Element.rgb 0.8 0.8 0.8
+    , Element.padding 8
+    , Element.Border.rounded 4
+    ]
+
+
+restartButton : Element Msg
 restartButton =
-    Html.button
-        [ Html.Events.onClick PressedRestart ]
-        [ Html.text "Restart" ]
+    Element.Input.button
+        buttonStyle
+        { onPress = Just PressedRestart, label = Element.text "Restart" }
 
 
-nextButton : Html Msg
+nextButton : Element Msg
 nextButton =
-    Html.button
-        [ Html.Events.onClick PressedNext ]
-        [ Html.text "Next" ]
+    Element.Input.button
+        buttonStyle
+        { onPress = Just PressedNext
+        , label = Element.text "Next"
+        }
 
 
-previousButton : Html Msg
+previousButton : Element Msg
 previousButton =
-    Html.button
-        [ Html.Events.onClick PressedPrevious ]
-        [ Html.text "Previous" ]
+    Element.Input.button
+        buttonStyle
+        { onPress = Just PressedPrevious, label = Element.text "Previous" }
 
 
-clientIdButton : Maybe ClientId -> ClientId -> Html Msg
+clientIdButton : Maybe ClientId -> ClientId -> Element Msg
 clientIdButton currentClientId clientId =
-    Html.button
-        [ Html.Events.onClick (PressedClientId clientId)
-        , Html.Attributes.style "background-color"
+    Element.Input.button
+        [ Element.Background.color
             (if currentClientId == Just clientId then
-                "#FFFFFF"
+                Element.rgb 1 1 1
 
              else
-                "#DDDDDD"
+                Element.rgb 0.8 0.8 0.8
             )
-        , Html.Attributes.style "margin-right" "4px"
+        , Element.padding 8
+        , Element.Border.rounded 4
         ]
-        [ Html.text (Id.clientIdToString clientId) ]
+        { onPress = Just (PressedClientId clientId)
+        , label = Element.text (Id.clientIdToString clientId)
+        }
 
 
 main : Program () Model Msg

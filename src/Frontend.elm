@@ -4,6 +4,7 @@ import Browser.Dom
 import Browser.Events
 import Browser.Navigation
 import Duration exposing (Duration)
+import Element
 import File
 import File.Select
 import FrontendLogic exposing (Effects, Subscriptions)
@@ -132,5 +133,11 @@ app =
         , update = app_.update
         , updateFromBackend = app_.updateFromBackend
         , subscriptions = app_.subscriptions
-        , view = app_.view
+        , view =
+            \model ->
+                let
+                    document =
+                        app_.view model
+                in
+                { document | body = Element.layout [] Element.none :: document.body }
         }
