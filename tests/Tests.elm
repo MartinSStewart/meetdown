@@ -30,9 +30,9 @@ loginFromHomepage :
     -> Id.SessionId
     -> Id.SessionId
     -> EmailAddress.EmailAddress
-    -> ({ inProgress : TF.InProgress, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId } -> TF.InProgress)
-    -> TF.InProgress
-    -> TF.InProgress
+    -> ({ inProgress : TF.Instructions, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId } -> TF.Instructions)
+    -> TF.Instructions
+    -> TF.Instructions
 loginFromHomepage loginWithEnterKey sessionId sessionIdFromEmail emailAddress stateFunc =
     TF.connectFrontend sessionId
         (Unsafe.url Env.domain)
@@ -49,9 +49,9 @@ handleLoginForm :
     -> Id.ClientId
     -> Id.SessionId
     -> EmailAddress
-    -> ({ inProgress : TF.InProgress, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId } -> TF.InProgress)
-    -> TF.InProgress
-    -> TF.InProgress
+    -> ({ inProgress : TF.Instructions, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId } -> TF.Instructions)
+    -> TF.Instructions
+    -> TF.Instructions
 handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress andThenFunc state =
     state
         |> TF.simulateTime Duration.second
@@ -68,7 +68,7 @@ handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress andTh
             (\state3 ->
                 case List.filter (Tuple.first >> (==) emailAddress) state3.emailInboxes of
                     [ ( _, LoginEmail route loginToken maybeJoinEvent ) ] ->
-                        TF.inProgressInit state3
+                        TF.continueWith state3
                             |> TF.connectFrontend
                                 sessionIdFromEmail
                                 (Unsafe.url (BackendLogic.loginEmailLink route loginToken maybeJoinEvent))
@@ -121,7 +121,7 @@ suite =
                                                 Err "Failed to log in"
                                     )
                         )
-                    |> TF.finishSimulation
+                    |> TF.toExpectation
         , test "Login from homepage and submit with enter key" <|
             \_ ->
                 let
@@ -156,7 +156,7 @@ suite =
                                                 Err "Failed to log in"
                                     )
                         )
-                    |> TF.finishSimulation
+                    |> TF.toExpectation
         , test "Login from homepage and check that original clientId also got logged in since it's on the same session" <|
             \_ ->
                 let
@@ -191,7 +191,7 @@ suite =
                                                 Err "Failed to log in"
                                     )
                         )
-                    |> TF.finishSimulation
+                    |> TF.toExpectation
         , test "Login from homepage and check that original clientId did not get logged since it has a different sessionId" <|
             \_ ->
                 TF.init
@@ -216,7 +216,7 @@ suite =
                                                 Err "Failed to check login"
                                     )
                         )
-                    |> TF.finishSimulation
+                    |> TF.toExpectation
         , test "Login from homepage and check it's not possible to use the same login token twice" <|
             \_ ->
                 let
@@ -237,7 +237,7 @@ suite =
                                     (\state ->
                                         case List.filter (Tuple.first >> (==) emailAddress) state.emailInboxes of
                                             [ ( _, LoginEmail route loginToken maybeJoinEvent ) ] ->
-                                                TF.inProgressInit state
+                                                TF.continueWith state
                                                     |> TF.connectFrontend
                                                         (Id.sessionIdFromString "session1")
                                                         (Unsafe.url (BackendLogic.loginEmailLink route loginToken maybeJoinEvent))
@@ -267,7 +267,7 @@ suite =
                                                 Debug.todo "Didn't find login email"
                                     )
                         )
-                    |> TF.finishSimulation
+                    |> TF.toExpectation
         , test "Creating a group redirects to newly created group page" <|
             \_ ->
                 let
@@ -308,7 +308,7 @@ suite =
                                         ]
                                     )
                         )
-                    |> TF.finishSimulation
+                    |> TF.toExpectation
         , test "Create an event and get an email a day before it occurs" <|
             \_ ->
                 let
@@ -357,7 +357,7 @@ suite =
                                                 Err "Should have gotten an event notification"
                                     )
                         )
-                    |> TF.finishSimulation
+                    |> TF.toExpectation
         , test "Create an event and but don't get a notification if it's occurring within 24 hours" <|
             \_ ->
                 let
@@ -397,7 +397,7 @@ suite =
                                                 Ok ()
                                     )
                         )
-                    |> TF.finishSimulation
+                    |> TF.toExpectation
         , test "Create an event and another user joins it and gets an event reminder" <|
             \_ ->
                 let
@@ -460,14 +460,14 @@ suite =
                                                 Err "Should have gotten an event notification"
                                     )
                         )
-                    |> TF.finishSimulation
+                    |> TF.toExpectation
         , test "Create an event and another user (who isn't logged in) joins it" <|
             \_ ->
-                TF.finishSimulation createEventAndAnotherUserNotLoggedInJoinsIt
+                TF.toExpectation createEventAndAnotherUserNotLoggedInJoinsIt
         ]
 
 
-createEventAndAnotherUserNotLoggedInJoinsIt : TF.InProgress
+createEventAndAnotherUserNotLoggedInJoinsIt : TF.Instructions
 createEventAndAnotherUserNotLoggedInJoinsIt =
     let
         session0 =
@@ -539,7 +539,7 @@ gotReminder emailAddress model =
         model.emailInboxes
 
 
-createGroup : Id.ClientId -> String -> String -> TF.InProgress -> TF.InProgress
+createGroup : Id.ClientId -> String -> String -> TF.Instructions -> TF.Instructions
 createGroup loggedInClient groupName groupDescription state =
     state
         |> TF.clickLink loggedInClient Route.CreateGroupRoute
@@ -563,8 +563,8 @@ createGroupAndEvent :
         , eventMinute : Int
         , eventDuration : String
         }
-    -> TF.InProgress
-    -> TF.InProgress
+    -> TF.Instructions
+    -> TF.Instructions
 createGroupAndEvent loggedInClient { groupName, groupDescription, eventName, eventDescription, eventDate, eventHour, eventMinute, eventDuration } state =
     createGroup loggedInClient groupName groupDescription state
         |> TF.clickButton loggedInClient GroupPage.createNewEventId

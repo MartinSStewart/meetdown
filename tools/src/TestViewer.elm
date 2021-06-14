@@ -31,7 +31,7 @@ type Msg
 
 
 type alias Model =
-    { inProgress : TF.Replay
+    { replay : TF.Replay
     , state : TF.State
     , previousStates : List ( TF.State, TF.Replay )
     , clientId : Maybe ClientId
@@ -48,23 +48,23 @@ init _ _ _ =
         ( state, replay ) =
             test
     in
-    ( { inProgress = replay, state = state, previousStates = [], clientId = Nothing }, Cmd.none )
+    ( { replay = replay, state = state, previousStates = [], clientId = Nothing }, Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         PressedNext ->
-            ( case model.inProgress |> Debug.log "" of
-                NextStep_ nextStepFunc replay_ ->
+            ( case model.replay of
+                NextStep_ _ nextStepFunc replay_ ->
                     let
                         newState =
                             nextStepFunc model.state
                     in
                     { model
-                        | inProgress = replay_
+                        | replay = replay_
                         , state = newState
-                        , previousStates = ( model.state, model.inProgress ) :: model.previousStates
+                        , previousStates = ( model.state, model.replay ) :: model.previousStates
                         , clientId =
                             case model.clientId of
                                 Just _ ->
@@ -77,12 +77,12 @@ update msg model =
                 AndThen_ andThenFunc replay ->
                     let
                         ( state, replay_ ) =
-                            TF.toReplay (andThenFunc model.state)
+                            TF.toReplay (andThenFunc model.state) |> Debug.log "test"
                     in
                     { model
-                        | inProgress = joinReplays replay_ replay
+                        | replay = joinReplays replay_ replay
                         , state = state
-                        , previousStates = ( model.state, model.inProgress ) :: model.previousStates
+                        , previousStates = ( model.state, model.replay ) :: model.previousStates
                         , clientId =
                             case model.clientId of
                                 Just _ ->
@@ -93,14 +93,14 @@ update msg model =
                     }
 
                 Done ->
-                    { model | inProgress = Done }
+                    { model | replay = Done }
             , Cmd.none
             )
 
         PressedPrevious ->
             case model.previousStates of
                 ( state, replay ) :: rest ->
-                    ( { model | inProgress = replay, state = state, previousStates = rest }, Cmd.none )
+                    ( { model | replay = replay, state = state, previousStates = rest }, Cmd.none )
 
                 [] ->
                     ( model, Cmd.none )
@@ -110,7 +110,7 @@ update msg model =
                 ( state, replay ) =
                     test
             in
-            ( { model | inProgress = replay, state = state }, Cmd.none )
+            ( { model | replay = replay, state = state }, Cmd.none )
 
         PressedClientId clientId ->
             ( { model | clientId = Just clientId }, Cmd.none )
@@ -131,8 +131,8 @@ joinReplays first second =
         Done ->
             second
 
-        NextStep_ mapFunc replay_ ->
-            NextStep_ mapFunc (joinReplays replay_ second)
+        NextStep_ name mapFunc replay_ ->
+            NextStep_ name mapFunc (joinReplays replay_ second)
 
         AndThen_ andThenFunc replay_ ->
             AndThen_ andThenFunc (joinReplays replay_ second)
@@ -154,6 +154,12 @@ view model =
             (Element.column
                 [ Element.width Element.fill, Element.height Element.fill ]
                 [ controlsView model
+                , Element.el
+                    [ Element.width Element.fill
+                    , Element.height (Element.px 1)
+                    , Element.Background.color <| Element.rgb 0.2 0.2 0.2
+                    ]
+                    Element.none
                 , case model.state.testErrors of
                     [] ->
                         case model.clientId of
@@ -188,6 +194,28 @@ view model =
     }
 
 
+getNextName : Replay -> TF.State -> Maybe String
+getNextName replay state =
+    case replay of
+        NextStep_ name _ _ ->
+            Just name
+
+        AndThen_ andThenFunc replay_ ->
+            let
+                ( state_, replay2 ) =
+                    andThenFunc state |> TF.toReplay
+            in
+            case getNextName replay2 state_ of
+                Just name ->
+                    Just name
+
+                Nothing ->
+                    getNextName replay_ state
+
+        Done ->
+            Nothing
+
+
 controlsView : Model -> Element Msg
 controlsView model =
     Element.row
@@ -202,13 +230,13 @@ controlsView model =
             ]
             [ Element.row
                 [ Element.spacing 8, Element.width Element.fill ]
-                [ nextButton
+                [ nextButton (getNextName model.replay model.state |> Maybe.withDefault "No steps remaining")
                 , if List.isEmpty model.previousStates then
                     Element.none
 
                   else
                     previousButton
-                , if model.inProgress == Done then
+                , if model.replay == Done then
                     restartButton
 
                   else
@@ -281,12 +309,12 @@ restartButton =
         { onPress = Just PressedRestart, label = Element.text "Restart" }
 
 
-nextButton : Element Msg
-nextButton =
+nextButton : String -> Element Msg
+nextButton nextName =
     Element.Input.button
         buttonStyle
         { onPress = Just PressedNext
-        , label = Element.text "Next"
+        , label = Element.text nextName
         }
 
 

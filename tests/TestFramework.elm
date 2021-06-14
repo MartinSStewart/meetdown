@@ -1,6 +1,6 @@
 module TestFramework exposing
     ( EmailType(..)
-    , InProgress
+    , Instructions
     , Replay(..)
     , State
     , andThen
@@ -13,11 +13,10 @@ module TestFramework exposing
     , clickLink
     , clickRadioButton
     , connectFrontend
+    , continueWith
     , disconnectFrontend
     , fastForward
-    , finishSimulation
     , frontendApp
-    , inProgressInit
     , init
     , inputDate
     , inputNumber
@@ -30,6 +29,7 @@ module TestFramework exposing
     , simulateStep
     , simulateTime
     , startTime
+    , toExpectation
     , toReplay
     )
 
@@ -64,6 +64,7 @@ import Test.Html.Selector
 import Test.Runner
 import Time
 import Types exposing (BackendModel, BackendMsg, FrontendModel(..), FrontendMsg, LoadedFrontend, NavigationKey(..), ToBackend, ToFrontend)
+import Ui
 import Url exposing (Url)
 
 
@@ -80,23 +81,23 @@ type alias State =
     }
 
 
-type InProgress
-    = NextStep (State -> State) InProgress
-    | AndThen (State -> InProgress) InProgress
+type Instructions
+    = NextStep String (State -> State) Instructions
+    | AndThen (State -> Instructions) Instructions
     | Start State
 
 
 type Replay
-    = NextStep_ (State -> State) Replay
-    | AndThen_ (State -> InProgress) Replay
+    = NextStep_ String (State -> State) Replay
+    | AndThen_ (State -> Instructions) Replay
     | Done
 
 
-toReplay : InProgress -> ( State, Replay )
+toReplay : Instructions -> ( State, Replay )
 toReplay inProgress =
     case inProgress of
-        NextStep stepFunc inProgress_ ->
-            toReplayHelper (NextStep_ stepFunc Done) inProgress_
+        NextStep name stepFunc inProgress_ ->
+            toReplayHelper (NextStep_ name stepFunc Done) inProgress_
 
         AndThen andThenFunc inProgress_ ->
             toReplayHelper (AndThen_ andThenFunc Done) inProgress_
@@ -105,11 +106,11 @@ toReplay inProgress =
             ( state, Done )
 
 
-toReplayHelper : Replay -> InProgress -> ( State, Replay )
+toReplayHelper : Replay -> Instructions -> ( State, Replay )
 toReplayHelper previous inProgress =
     case inProgress of
-        NextStep stepFunc inProgress_ ->
-            toReplayHelper (NextStep_ stepFunc previous) inProgress_
+        NextStep name stepFunc inProgress_ ->
+            toReplayHelper (NextStep_ name stepFunc previous) inProgress_
 
         AndThen andThenFunc inProgress_ ->
             toReplayHelper (AndThen_ andThenFunc previous) inProgress_
@@ -134,9 +135,10 @@ isEventReminderEmail emailType =
             False
 
 
-checkState : (State -> Result String ()) -> InProgress -> InProgress
+checkState : (State -> Result String ()) -> Instructions -> Instructions
 checkState checkFunc =
     NextStep
+        "Check state"
         (\state ->
             case checkFunc state of
                 Ok () ->
@@ -147,9 +149,10 @@ checkState checkFunc =
         )
 
 
-checkBackend : (BackendModel -> Result String ()) -> InProgress -> InProgress
+checkBackend : (BackendModel -> Result String ()) -> Instructions -> Instructions
 checkBackend checkFunc =
     NextStep
+        "Check backend"
         (\state ->
             case checkFunc state.backend of
                 Ok () ->
@@ -160,9 +163,10 @@ checkBackend checkFunc =
         )
 
 
-checkFrontend : ClientId -> (FrontendModel -> Result String ()) -> InProgress -> InProgress
+checkFrontend : ClientId -> (FrontendModel -> Result String ()) -> Instructions -> Instructions
 checkFrontend clientId checkFunc =
     NextStep
+        "Check frontend"
         (\state ->
             case Dict.get clientId state.frontends of
                 Just frontend ->
@@ -186,9 +190,10 @@ addTestError error state =
     { state | testErrors = state.testErrors ++ [ error ] }
 
 
-checkView : ClientId -> (Test.Html.Query.Single FrontendMsg -> Expectation) -> InProgress -> InProgress
+checkView : ClientId -> (Test.Html.Query.Single FrontendMsg -> Expectation) -> Instructions -> Instructions
 checkView clientId query =
     NextStep
+        "Check view"
         (\state ->
             case Dict.get clientId state.frontends of
                 Just frontend ->
@@ -214,7 +219,7 @@ checkView clientId query =
         )
 
 
-checkLoadedFrontend : ClientId -> (LoadedFrontend -> Result String ()) -> InProgress -> InProgress
+checkLoadedFrontend : ClientId -> (LoadedFrontend -> Result String ()) -> Instructions -> Instructions
 checkLoadedFrontend clientId checkFunc state =
     checkFrontend
         clientId
@@ -229,11 +234,11 @@ checkLoadedFrontend clientId checkFunc state =
         state
 
 
-finishSimulation : InProgress -> Expectation
-finishSimulation inProgress =
+toExpectation : Instructions -> Expectation
+toExpectation inProgress =
     let
         state =
-            finishInProgress inProgress
+            instructionsToState inProgress
     in
     if List.isEmpty state.testErrors then
         Expect.pass
@@ -242,14 +247,14 @@ finishSimulation inProgress =
         Expect.fail <| String.join "," state.testErrors
 
 
-finishInProgress : InProgress -> State
-finishInProgress inProgress =
+instructionsToState : Instructions -> State
+instructionsToState inProgress =
     case inProgress of
-        NextStep stateFunc inProgress_ ->
-            finishInProgress inProgress_ |> stateFunc
+        NextStep _ stateFunc inProgress_ ->
+            instructionsToState inProgress_ |> stateFunc
 
         AndThen stateFunc inProgress_ ->
-            finishInProgress inProgress_ |> stateFunc |> finishInProgress
+            instructionsToState inProgress_ |> stateFunc |> instructionsToState
 
         Start state ->
             state
@@ -297,7 +302,7 @@ backendApp =
     BackendLogic.createApp BackendEffects.effects BackendSub.subscriptions
 
 
-init : InProgress
+init : Instructions
 init =
     let
         ( backend, effects ) =
@@ -368,7 +373,7 @@ getClientConnectSubs backendSub =
             []
 
 
-connectFrontend : SessionId -> Url -> (( InProgress, ClientId ) -> InProgress) -> InProgress -> InProgress
+connectFrontend : SessionId -> Url -> (( Instructions, ClientId ) -> Instructions) -> Instructions -> Instructions
 connectFrontend sessionId url andThenFunc =
     AndThen
         (\state ->
@@ -390,79 +395,94 @@ connectFrontend sessionId url andThenFunc =
                                     |> Tuple.mapSecond (\a -> BackendEffects.Batch [ newEffects, a ])
                             )
                             ( state.backend, state.pendingEffects )
+
+                state2 : State
+                state2 =
+                    { state
+                        | frontends =
+                            Dict.insert
+                                clientId
+                                { model = frontend
+                                , sessionId = sessionId
+                                , pendingEffects = effects
+                                , toFrontend = []
+                                , clipboard = ""
+                                , timers = getFrontendTimers (Duration.addTo startTime state.elapsedTime) subscriptions
+                                , url = url
+                                }
+                                state.frontends
+                        , counter = state.counter + 1
+                        , backend = backend
+                        , pendingEffects = backendEffects
+                    }
             in
-            ( Start
-                { state
-                    | frontends =
-                        Dict.insert
-                            clientId
-                            { model = frontend
-                            , sessionId = sessionId
-                            , pendingEffects = effects
-                            , toFrontend = []
-                            , clipboard = ""
-                            , timers = getFrontendTimers (Duration.addTo startTime state.elapsedTime) subscriptions
-                            , url = url
-                            }
-                            state.frontends
-                    , counter = state.counter + 1
-                    , backend = backend
-                    , pendingEffects = backendEffects
-                }
-            , clientId
-            )
-                |> andThenFunc
+            andThenFunc
+                ( Start state2 |> NextStep "Connect new frontend" identity
+                , clientId
+                )
         )
 
 
-keyDownEvent : ClientId -> HtmlId any -> Int -> InProgress -> InProgress
+keyDownEvent : ClientId -> HtmlId any -> Int -> Instructions -> Instructions
 keyDownEvent clientId htmlId keyCode state =
-    userEvent clientId htmlId ( "keydown", Json.Encode.object [ ( "keyCode", Json.Encode.int keyCode ) ] ) state
+    userEvent
+        ("Key down " ++ String.fromInt keyCode)
+        clientId
+        htmlId
+        ( "keydown", Json.Encode.object [ ( "keyCode", Json.Encode.int keyCode ) ] )
+        state
 
 
-clickButton : ClientId -> HtmlId ButtonId -> InProgress -> InProgress
+clickButton : ClientId -> HtmlId ButtonId -> Instructions -> Instructions
 clickButton clientId htmlId state =
-    userEvent clientId htmlId Test.Html.Event.click state
+    userEvent "Click button" clientId htmlId Test.Html.Event.click state
 
 
-clickRadioButton : ClientId -> HtmlId RadioButtonId -> InProgress -> InProgress
+clickRadioButton : ClientId -> HtmlId RadioButtonId -> Instructions -> Instructions
 clickRadioButton clientId htmlId state =
-    userEvent clientId htmlId Test.Html.Event.click state
+    userEvent "Click radio button" clientId htmlId Test.Html.Event.click state
 
 
-inputText : ClientId -> HtmlId TextInputId -> String -> InProgress -> InProgress
+inputText : ClientId -> HtmlId TextInputId -> String -> Instructions -> Instructions
 inputText clientId htmlId text state =
-    userEvent clientId htmlId (Test.Html.Event.input text) state
+    userEvent ("Input text \"" ++ text ++ "\"") clientId htmlId (Test.Html.Event.input text) state
 
 
-inputNumber : ClientId -> HtmlId NumberInputId -> String -> InProgress -> InProgress
+inputNumber : ClientId -> HtmlId NumberInputId -> String -> Instructions -> Instructions
 inputNumber clientId htmlId value state =
-    userEvent clientId htmlId (Test.Html.Event.input value) state
+    userEvent ("Input number " ++ value) clientId htmlId (Test.Html.Event.input value) state
 
 
-inputDate : ClientId -> HtmlId DateInputId -> Date -> InProgress -> InProgress
+inputDate : ClientId -> HtmlId DateInputId -> Date -> Instructions -> Instructions
 inputDate clientId htmlId date state =
-    userEvent clientId htmlId (Test.Html.Event.input (Date.toIsoString date)) state
+    userEvent
+        ("Input date " ++ Ui.datestamp date)
+        clientId
+        htmlId
+        (Test.Html.Event.input (Date.toIsoString date))
+        state
 
 
-inputTime : ClientId -> HtmlId TimeInputId -> Int -> Int -> InProgress -> InProgress
+inputTime : ClientId -> HtmlId TimeInputId -> Int -> Int -> Instructions -> Instructions
 inputTime clientId htmlId hour minute state =
     userEvent
+        ("Input time " ++ String.fromInt hour ++ ":" ++ String.padLeft 2 '0' (String.fromInt minute))
         clientId
         htmlId
         (Test.Html.Event.input (String.fromInt hour ++ ":" ++ String.padLeft 2 '0' (String.fromInt minute)))
         state
 
 
-clickLink : ClientId -> Route -> InProgress -> InProgress
+clickLink : ClientId -> Route -> Instructions -> Instructions
 clickLink clientId route =
+    let
+        href : String
+        href =
+            Route.encode route
+    in
     NextStep
+        ("Click link " ++ href)
         (\state ->
-            let
-                href : String
-                href =
-                    Route.encode route
-            in
             case Dict.get clientId state.frontends of
                 Just frontend ->
                     case
@@ -502,9 +522,10 @@ clickLink clientId route =
         )
 
 
-userEvent : ClientId -> HtmlId any -> ( String, Json.Encode.Value ) -> InProgress -> InProgress
-userEvent clientId htmlId event =
+userEvent : String -> ClientId -> HtmlId any -> ( String, Json.Encode.Value ) -> Instructions -> Instructions
+userEvent name clientId htmlId event =
     NextStep
+        (Id.clientIdToString clientId ++ ": " ++ name ++ " for " ++ Id.htmlIdToString htmlId)
         (\state ->
             case Dict.get clientId state.frontends of
                 Just frontend ->
@@ -681,9 +702,9 @@ simulateStep state =
         |> runEffects
 
 
-simulateTime : Duration -> InProgress -> InProgress
+simulateTime : Duration -> Instructions -> Instructions
 simulateTime duration =
-    runInProgress (simulateTimeHelper duration)
+    NextStep ("Simulate time " ++ String.fromFloat (Duration.inSeconds duration) ++ "s") (simulateTimeHelper duration)
 
 
 simulateTimeHelper : Duration -> State -> State
@@ -695,23 +716,20 @@ simulateTimeHelper duration state =
         simulateTimeHelper (duration |> Quantity.minus animationFrame) (simulateStep state)
 
 
-fastForward : Duration -> InProgress -> InProgress
+fastForward : Duration -> Instructions -> Instructions
 fastForward duration =
-    runInProgress (\state -> { state | elapsedTime = Quantity.plus state.elapsedTime duration })
+    NextStep
+        ("Fast forward " ++ String.fromFloat (Duration.inSeconds duration) ++ "s")
+        (\state -> { state | elapsedTime = Quantity.plus state.elapsedTime duration })
 
 
-runInProgress : (State -> State) -> InProgress -> InProgress
-runInProgress stateFunc inProgress =
-    NextStep stateFunc inProgress
+andThen : (State -> Instructions) -> Instructions -> Instructions
+andThen =
+    AndThen
 
 
-andThen : (State -> InProgress) -> InProgress -> InProgress
-andThen andThenFunc inProgress =
-    AndThen andThenFunc inProgress
-
-
-inProgressInit : State -> InProgress
-inProgressInit state =
+continueWith : State -> Instructions
+continueWith state =
     Start state
 
 
