@@ -33,7 +33,8 @@
             "justinmimbs/timezone-data": "4.0.2",
             "mdgriffith/elm-ui": "1.1.8",
             "mgold/elm-nonempty-list": "4.2.0",
-            "pzp1997/assoc-list": "1.0.0"
+            "pzp1997/assoc-list": "1.0.0",
+            "wernerdegroot/listzipper": "4.0.0"
         },
         "indirect": {
             "danfishgold/base64-bytes": "1.1.0",

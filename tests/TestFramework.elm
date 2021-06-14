@@ -1,7 +1,6 @@
 module TestFramework exposing
     ( EmailType(..)
     , Instructions
-    , Replay(..)
     , State
     , andThen
     , checkBackend
@@ -16,6 +15,7 @@ module TestFramework exposing
     , continueWith
     , disconnectFrontend
     , fastForward
+    , flatten
     , frontendApp
     , init
     , inputDate
@@ -30,9 +30,9 @@ module TestFramework exposing
     , simulateTime
     , startTime
     , toExpectation
-    , toReplay
     )
 
+import Array exposing (Array)
 import AssocList as Dict exposing (Dict)
 import BackendEffects exposing (BackendEffect)
 import BackendLogic
@@ -54,6 +54,7 @@ import Html exposing (Html)
 import Html.Attributes
 import Id exposing (ButtonId(..), ClientId, DateInputId, DeleteUserToken, GroupId, HtmlId, Id, LoginToken, NumberInputId, RadioButtonId, SessionId, TextInputId, TimeInputId)
 import Json.Encode
+import List.Nonempty exposing (Nonempty)
 import MockFile exposing (File(..))
 import Pixels
 import Quantity
@@ -85,38 +86,6 @@ type Instructions
     = NextStep String (State -> State) Instructions
     | AndThen (State -> Instructions) Instructions
     | Start State
-
-
-type Replay
-    = NextStep_ String (State -> State) Replay
-    | AndThen_ (State -> Instructions) Replay
-    | Done
-
-
-toReplay : Instructions -> ( State, Replay )
-toReplay inProgress =
-    case inProgress of
-        NextStep name stepFunc inProgress_ ->
-            toReplayHelper (NextStep_ name stepFunc Done) inProgress_
-
-        AndThen andThenFunc inProgress_ ->
-            toReplayHelper (AndThen_ andThenFunc Done) inProgress_
-
-        Start state ->
-            ( state, Done )
-
-
-toReplayHelper : Replay -> Instructions -> ( State, Replay )
-toReplayHelper previous inProgress =
-    case inProgress of
-        NextStep name stepFunc inProgress_ ->
-            toReplayHelper (NextStep_ name stepFunc previous) inProgress_
-
-        AndThen andThenFunc inProgress_ ->
-            toReplayHelper (AndThen_ andThenFunc previous) inProgress_
-
-        Start state ->
-            ( state, previous )
 
 
 type EmailType
@@ -245,6 +214,33 @@ toExpectation inProgress =
 
     else
         Expect.fail <| String.join "," state.testErrors
+
+
+flatten : Instructions -> Nonempty ( String, State )
+flatten inProgress =
+    case inProgress of
+        NextStep name stepFunc inProgress_ ->
+            let
+                list =
+                    flatten inProgress_
+
+                previousState =
+                    List.Nonempty.head list |> Tuple.second
+            in
+            List.Nonempty.cons ( name, stepFunc previousState ) list
+
+        AndThen andThenFunc inProgress_ ->
+            let
+                list =
+                    flatten inProgress_
+
+                previousState =
+                    List.Nonempty.head list |> Tuple.second
+            in
+            List.Nonempty.append (flatten (andThenFunc previousState)) list
+
+        Start state ->
+            List.Nonempty.fromElement ( "Start", state )
 
 
 instructionsToState : Instructions -> State

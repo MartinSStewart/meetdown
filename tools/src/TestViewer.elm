@@ -3,7 +3,6 @@ module TestViewer exposing (..)
 import AssocList as Dict
 import Browser exposing (Document, UrlRequest)
 import Browser.Navigation exposing (Key)
-import DebugToJson
 import Dict as RegularDict
 import Element exposing (Element)
 import Element.Background
@@ -11,11 +10,11 @@ import Element.Border
 import Element.Font
 import Element.Input
 import Html exposing (Html)
-import Html.Attributes
 import Id exposing (ClientId)
 import Json.Decode
-import Json.Encode
-import TestFramework as TF exposing (Replay(..))
+import List.Nonempty exposing (Nonempty(..))
+import List.Zipper exposing (Zipper)
+import TestFramework as TF exposing (Instructions)
 import Tests
 import Url exposing (Url)
 
@@ -31,86 +30,56 @@ type Msg
 
 
 type alias Model =
-    { replay : TF.Replay
-    , state : TF.State
-    , previousStates : List ( TF.State, TF.Replay )
+    { steps : Zipper ( String, TF.State )
     , clientId : Maybe ClientId
     }
-
-
-test =
-    TF.toReplay Tests.createEventAndAnotherUserNotLoggedInJoinsIt
 
 
 init : flags -> Url -> Key -> ( Model, Cmd Msg )
 init _ _ _ =
     let
-        ( state, replay ) =
-            test
+        (Nonempty head rest) =
+            TF.flatten Tests.createEventAndAnotherUserNotLoggedInJoinsIt |> List.Nonempty.reverse
     in
-    ( { replay = replay, state = state, previousStates = [], clientId = Nothing }, Cmd.none )
+    ( { steps = List.Zipper.from [] head rest
+      , clientId = Nothing
+      }
+    , Cmd.none
+    )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         PressedNext ->
-            ( case model.replay of
-                NextStep_ _ nextStepFunc replay_ ->
-                    let
-                        newState =
-                            nextStepFunc model.state
-                    in
-                    { model
-                        | replay = replay_
-                        , state = newState
-                        , previousStates = ( model.state, model.replay ) :: model.previousStates
+            case List.Zipper.next model.steps of
+                Just newSteps ->
+                    ( { model
+                        | steps = newSteps
                         , clientId =
                             case model.clientId of
                                 Just _ ->
                                     model.clientId
 
                                 Nothing ->
-                                    Dict.keys newState.frontends |> List.head
-                    }
+                                    List.Zipper.current newSteps
+                                        |> Tuple.second
+                                        |> .frontends
+                                        |> Dict.keys
+                                        |> List.sortBy Id.clientIdToString
+                                        |> List.head
+                      }
+                    , Cmd.none
+                    )
 
-                AndThen_ andThenFunc replay ->
-                    let
-                        ( state, replay_ ) =
-                            TF.toReplay (andThenFunc model.state) |> Debug.log "test"
-                    in
-                    { model
-                        | replay = joinReplays replay_ replay
-                        , state = state
-                        , previousStates = ( model.state, model.replay ) :: model.previousStates
-                        , clientId =
-                            case model.clientId of
-                                Just _ ->
-                                    model.clientId
-
-                                Nothing ->
-                                    Dict.keys state.frontends |> List.sortBy Id.clientIdToString |> List.head
-                    }
-
-                Done ->
-                    { model | replay = Done }
-            , Cmd.none
-            )
-
-        PressedPrevious ->
-            case model.previousStates of
-                ( state, replay ) :: rest ->
-                    ( { model | replay = replay, state = state, previousStates = rest }, Cmd.none )
-
-                [] ->
+                Nothing ->
                     ( model, Cmd.none )
 
+        PressedPrevious ->
+            ( { model | steps = List.Zipper.previous model.steps |> Maybe.withDefault model.steps }, Cmd.none )
+
         PressedRestart ->
-            let
-                ( state, replay ) =
-                    test
-            in
-            ( { model | replay = replay, state = state }, Cmd.none )
+            ( { model | steps = List.Zipper.first model.steps }, Cmd.none )
 
         PressedClientId clientId ->
             ( { model | clientId = Just clientId }, Cmd.none )
@@ -125,19 +94,6 @@ update msg model =
             ( model, Cmd.none )
 
 
-joinReplays : Replay -> Replay -> Replay
-joinReplays first second =
-    case first of
-        Done ->
-            second
-
-        NextStep_ name mapFunc replay_ ->
-            NextStep_ name mapFunc (joinReplays replay_ second)
-
-        AndThen_ andThenFunc replay_ ->
-            AndThen_ andThenFunc (joinReplays replay_ second)
-
-
 viewFrontend model =
     TF.frontendApp.view model
         |> .body
@@ -147,6 +103,10 @@ viewFrontend model =
 
 view : Model -> Document Msg
 view model =
+    let
+        currentStep =
+            List.Zipper.current model.steps |> Tuple.second
+    in
     { title = "Test framework viewer"
     , body =
         [ Element.layout
@@ -160,11 +120,11 @@ view model =
                     , Element.Background.color <| Element.rgb 0.2 0.2 0.2
                     ]
                     Element.none
-                , case model.state.testErrors of
+                , case currentStep.testErrors of
                     [] ->
                         case model.clientId of
                             Just clientId ->
-                                case Dict.get clientId model.state.frontends of
+                                case Dict.get clientId currentStep.frontends of
                                     Just frontend ->
                                         viewFrontend frontend.model
                                             |> Element.html
@@ -194,30 +154,15 @@ view model =
     }
 
 
-getNextName : Replay -> TF.State -> Maybe String
-getNextName replay state =
-    case replay of
-        NextStep_ name _ _ ->
-            Just name
-
-        AndThen_ andThenFunc replay_ ->
-            let
-                ( state_, replay2 ) =
-                    andThenFunc state |> TF.toReplay
-            in
-            case getNextName replay2 state_ of
-                Just name ->
-                    Just name
-
-                Nothing ->
-                    getNextName replay_ state
-
-        Done ->
-            Nothing
-
-
 controlsView : Model -> Element Msg
 controlsView model =
+    let
+        currentStep =
+            List.Zipper.current model.steps |> Tuple.second
+
+        nextStepName =
+            List.Zipper.next model.steps |> Maybe.map (List.Zipper.current >> Tuple.first)
+    in
     Element.row
         [ Element.Background.color <| Element.rgb 0.9 0.9 0.9
         , Element.width Element.fill
@@ -230,19 +175,15 @@ controlsView model =
             ]
             [ Element.row
                 [ Element.spacing 8, Element.width Element.fill ]
-                [ nextButton (getNextName model.replay model.state |> Maybe.withDefault "No steps remaining")
-                , if List.isEmpty model.previousStates then
-                    Element.none
-
-                  else
-                    previousButton
-                , if model.replay == Done then
-                    restartButton
-
-                  else
-                    Element.none
+                [ (List.Zipper.before model.steps |> List.length |> String.fromInt)
+                    ++ "/"
+                    ++ (List.Zipper.toList model.steps |> List.length |> String.fromInt)
+                    |> Element.text
+                , nextButton (nextStepName |> Maybe.withDefault "No steps remaining")
+                , previousButton
+                , restartButton
                 ]
-            , model.state.frontends
+            , currentStep.frontends
                 |> Dict.keys
                 |> List.sortBy Id.clientIdToString
                 |> List.map (clientIdButton model.clientId)
@@ -290,9 +231,11 @@ prettyPrintDecoder depth =
 
 errorView : String -> Element msg
 errorView error =
-    Element.paragraph
+    Html.pre
         []
-        [ Element.text error ]
+        [ Html.text error ]
+        |> Element.html
+        |> Element.el []
 
 
 buttonStyle =
