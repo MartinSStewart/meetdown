@@ -8,6 +8,7 @@ import Element
 import File
 import File.Select
 import FrontendLogic exposing (Effects, Subscriptions)
+import Html
 import Lamdera
 import MockFile
 import Pixels exposing (Pixels)
@@ -139,5 +140,5 @@ app =
                     document =
                         app_.view model
                 in
-                { document | body = Element.layout [] Element.none :: document.body }
+                { document | body = Html.div [] [ Element.layout [] Element.none ] :: document.body }
         }
