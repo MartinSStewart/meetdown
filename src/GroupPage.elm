@@ -511,7 +511,7 @@ update effects config group maybeUserId msg model =
                                         Event.duration event
                                             |> EventDuration.toDuration
                                             |> Duration.inHours
-                                            |> String.fromFloat
+                                            |> EventDuration.removeTrailing0s
                                             |> String.left 4
                                     }
                                     |> Just
@@ -712,7 +712,7 @@ groupView currentTime timezone owner group model maybeUserId =
                         in
                         [ Element.el
                             [ Ui.titleFontSize, Element.width <| Element.maximum 800 Element.fill ]
-                            (textInput TypedName name "Group name")
+                            (groupNameTextInput TypedName name "Group name")
                         , Maybe.map Ui.error error |> Maybe.withDefault Element.none
                         , Element.row
                             [ Element.spacing 16, Element.paddingXY 8 0 ]
@@ -724,7 +724,7 @@ groupView currentTime timezone owner group model maybeUserId =
                     Submitting name ->
                         [ Element.el
                             [ Ui.titleFontSize, Element.width <| Element.maximum 800 Element.fill ]
-                            (textInput TypedName (GroupName.toString name) "Group name")
+                            (groupNameTextInput TypedName (GroupName.toString name) "Group name")
                         , Element.row
                             [ Element.spacing 16, Element.paddingXY 8 0 ]
                             [ smallButton resetGroupNameId PressedResetName "Reset"
@@ -981,7 +981,7 @@ timeDifference start end =
         String.fromInt hours ++ " hours" ++ suffix
 
     else if hours > 1 then
-        (String.fromFloat (Duration.inHours difference) |> String.left 3) ++ " hours" ++ suffix
+        (EventDuration.removeTrailing0s (Duration.inHours difference) |> String.left 3) ++ " hours" ++ suffix
 
     else if hours == 1 then
         "1 hour" ++ suffix
@@ -1179,7 +1179,17 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
                     joinOrLeaveButton
 
                 Just ( Event.EventCancelled, cancelTime ) ->
-                    Ui.error ("This event was cancelled " ++ timeDifference currentTime cancelTime)
+                    Ui.error
+                        ("This event was cancelled "
+                            ++ timeDifference
+                                (if Duration.from currentTime cancelTime |> Quantity.lessThanZero then
+                                    currentTime
+
+                                 else
+                                    cancelTime
+                                )
+                                cancelTime
+                        )
 
                 Nothing ->
                     joinOrLeaveButton
@@ -1877,10 +1887,17 @@ multiline onChange text labelText =
         }
 
 
-textInput : (String -> msg) -> String -> String -> Element msg
-textInput onChange text labelText =
+groupNameInputId =
+    Id.textInputId "groupPageGroupName"
+
+
+groupNameTextInput : (String -> msg) -> String -> String -> Element msg
+groupNameTextInput onChange text labelText =
     Element.Input.text
-        [ Element.width Element.fill, Element.paddingXY 8 4 ]
+        [ Element.width Element.fill
+        , Element.paddingXY 8 4
+        , Id.htmlIdToString groupNameInputId |> Html.Attributes.id |> Element.htmlAttribute
+        ]
         { text = text
         , onChange = onChange
         , placeholder = Nothing
