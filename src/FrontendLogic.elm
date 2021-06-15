@@ -307,7 +307,7 @@ updateLoaded cmds msg model =
                                 |> Maybe.map Tuple.first
                                 |> Maybe.withDefault HomepageRoute
                     in
-                    ( { model | route = route }
+                    ( { model | route = route } |> closeLoginForm
                     , cmds.navigationPushUrl model.navigationKey (Route.encode route)
                     )
 
@@ -338,16 +338,24 @@ updateLoaded cmds msg model =
                     ( model, cmds.none )
 
         PressedLogout ->
-            ( { model | loginStatus = NotLoggedIn { showLogin = False } }
+            ( { model | loginStatus = NotLoggedIn { showLogin = False, joiningEvent = Nothing } }
             , cmds.sendToBackend LogoutRequest
             )
 
         TypedEmail text ->
             ( { model | loginForm = LoginForm.typedEmail text model.loginForm }, cmds.none )
 
-        PressedSubmitEmail ->
-            LoginForm.submitForm cmds model.route model.loginForm
-                |> Tuple.mapFirst (\a -> { model | loginForm = a })
+        PressedSubmitLogin ->
+            case model.loginStatus of
+                NotLoggedIn { joiningEvent } ->
+                    LoginForm.submitForm cmds model.route joiningEvent model.loginForm
+                        |> Tuple.mapFirst (\a -> { model | loginForm = a })
+
+                LoginStatusPending ->
+                    ( model, cmds.none )
+
+                LoggedIn _ ->
+                    ( model, cmds.none )
 
         PressedCreateGroup ->
             ( model, cmds.navigationPushRoute model.navigationKey CreateGroupRoute )
@@ -435,7 +443,7 @@ updateLoaded cmds msg model =
             ( { model | searchBox = searchText }, cmds.none )
 
         SubmittedSearchBox ->
-            ( model, cmds.navigationPushRoute model.navigationKey (SearchGroupsRoute model.searchBox) )
+            ( closeLoginForm model, cmds.navigationPushRoute model.navigationKey (SearchGroupsRoute model.searchBox) )
 
         GroupPageMsg groupPageMsg ->
             case model.route of
@@ -443,7 +451,7 @@ updateLoaded cmds msg model =
                     case Dict.get groupId model.cachedGroups of
                         Just (GroupFound group) ->
                             let
-                                ( newModel, effects, { showLogin } ) =
+                                ( newModel, effects, { joinEvent } ) =
                                     GroupPage.update
                                         { none = cmds.none
                                         , changeName = ChangeGroupNameRequest groupId >> cmds.sendToBackend
@@ -476,7 +484,12 @@ updateLoaded cmds msg model =
                                 , loginStatus =
                                     case model.loginStatus of
                                         NotLoggedIn notLoggedIn ->
-                                            NotLoggedIn { notLoggedIn | showLogin = showLogin }
+                                            case joinEvent of
+                                                Just eventId ->
+                                                    NotLoggedIn { notLoggedIn | showLogin = True, joiningEvent = Just ( groupId, eventId ) }
+
+                                                Nothing ->
+                                                    model.loginStatus
 
                                         _ ->
                                             model.loginStatus
@@ -495,6 +508,25 @@ updateLoaded cmds msg model =
 
         GotTimeZone _ ->
             ( model, cmds.none )
+
+        PressedCancelLogin ->
+            ( closeLoginForm model, cmds.none )
+
+
+closeLoginForm : LoadedFrontend -> LoadedFrontend
+closeLoginForm model =
+    { model
+        | loginStatus =
+            case model.loginStatus of
+                NotLoggedIn notLoggedIn ->
+                    NotLoggedIn { notLoggedIn | showLogin = False, joiningEvent = Nothing }
+
+                LoginStatusPending ->
+                    LoginStatusPending
+
+                LoggedIn loggedIn_ ->
+                    LoggedIn loggedIn_
+    }
 
 
 updateFromBackend : Effects cmd -> ToFrontend -> FrontendModel -> ( FrontendModel, cmd )
@@ -575,7 +607,12 @@ updateLoadedFromBackend cmds msg model =
                     )
 
                 Err () ->
-                    ( { model | hasLoginTokenError = True, loginStatus = NotLoggedIn { showLogin = True } }, cmds.none )
+                    ( { model
+                        | hasLoginTokenError = True
+                        , loginStatus = NotLoggedIn { showLogin = True, joiningEvent = Nothing }
+                      }
+                    , cmds.none
+                    )
 
         CheckLoginResponse loginStatus ->
             case loginStatus of
@@ -595,7 +632,7 @@ updateLoadedFromBackend cmds msg model =
                     )
 
                 Nothing ->
-                    ( { model | loginStatus = NotLoggedIn { showLogin = False } }
+                    ( { model | loginStatus = NotLoggedIn { showLogin = False, joiningEvent = Nothing } }
                     , cmds.none
                     )
 
@@ -629,7 +666,7 @@ updateLoadedFromBackend cmds msg model =
                     ( model, cmds.none )
 
         LogoutResponse ->
-            ( { model | loginStatus = NotLoggedIn { showLogin = False } }, cmds.none )
+            ( { model | loginStatus = NotLoggedIn { showLogin = False, joiningEvent = Nothing } }, cmds.none )
 
         ChangeNameResponse name ->
             case model.loginStatus of
@@ -686,7 +723,7 @@ updateLoadedFromBackend cmds msg model =
             case result of
                 Ok () ->
                     ( { model
-                        | loginStatus = NotLoggedIn { showLogin = False }
+                        | loginStatus = NotLoggedIn { showLogin = False, joiningEvent = Nothing }
                         , accountDeletedResult = Just result
                       }
                     , cmds.none
@@ -988,9 +1025,9 @@ viewLoaded model =
         , Element.el
             [ Element.Region.mainContent, Element.width Element.fill, Element.height Element.fill ]
             (case model.loginStatus of
-                NotLoggedIn { showLogin } ->
+                NotLoggedIn { showLogin, joiningEvent } ->
                     if showLogin then
-                        LoginForm.view model.loginForm
+                        LoginForm.view joiningEvent model.cachedGroups model.loginForm
 
                     else
                         viewPage model
@@ -1010,8 +1047,8 @@ loginRequiredPage model pageView =
         LoggedIn loggedIn ->
             pageView loggedIn
 
-        NotLoggedIn _ ->
-            LoginForm.view model.loginForm
+        NotLoggedIn { joiningEvent } ->
+            LoginForm.view joiningEvent model.cachedGroups model.loginForm
 
         LoginStatusPending ->
             Element.none

@@ -1,13 +1,16 @@
-module LoginForm exposing (emailAddressInputId, submitButtonId, submitForm, typedEmail, view)
+module LoginForm exposing (cancelButtonId, emailAddressInputId, submitButtonId, submitForm, typedEmail, view)
 
+import AssocList as Dict exposing (Dict)
 import Element exposing (Element)
 import Element.Border
 import Element.Input
 import EmailAddress exposing (EmailAddress)
+import Group exposing (EventId)
+import GroupName
 import Html.Attributes
-import Id exposing (ButtonId(..), HtmlId, TextInputId)
+import Id exposing (ButtonId(..), GroupId, HtmlId, TextInputId)
 import Route exposing (Route)
-import Types exposing (FrontendMsg(..), LoginForm, ToBackend(..))
+import Types exposing (FrontendMsg(..), GroupCache(..), LoginForm, ToBackend(..))
 import Ui
 import Untrusted
 
@@ -37,8 +40,8 @@ emailInput id onSubmit onChange text labelText maybeError =
         ]
 
 
-view : LoginForm -> Element FrontendMsg
-view { email, pressedSubmitEmail, emailSent } =
+view : Maybe ( GroupId, EventId ) -> Dict GroupId GroupCache -> LoginForm -> Element FrontendMsg
+view joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent } =
     Element.el
         [ Element.width Element.fill, Element.height Element.fill ]
         (Element.column
@@ -64,9 +67,27 @@ view { email, pressedSubmitEmail, emailSent } =
                         Element.none
                 )
             ]
-            [ emailInput
+            [ case joiningEvent of
+                Just ( groupId, _ ) ->
+                    case Dict.get groupId cachedGroups of
+                        Just (GroupFound group) ->
+                            Element.paragraph []
+                                [ "Sign in and we'll get you signed up for the "
+                                    ++ GroupName.toString (Group.name group)
+                                    ++ " event"
+                                    |> Element.text
+                                ]
+
+                        _ ->
+                            Element.paragraph
+                                []
+                                [ Element.text "Sign in and we'll get you signed up for that event" ]
+
+                Nothing ->
+                    Element.none
+            , emailInput
                 emailAddressInputId
-                PressedSubmitEmail
+                PressedSubmitLogin
                 TypedEmail
                 email
                 "Enter your email address"
@@ -77,7 +98,11 @@ view { email, pressedSubmitEmail, emailSent } =
                     _ ->
                         Nothing
                 )
-            , Ui.submitButton submitButtonId False { onPress = PressedSubmitEmail, label = "Sign up/Login" }
+            , Element.row
+                [ Element.spacing 16 ]
+                [ Ui.submitButton submitButtonId False { onPress = PressedSubmitLogin, label = "Sign up/Login" }
+                , Ui.button cancelButtonId { onPress = PressedCancelLogin, label = "Cancel" }
+                ]
             ]
         )
 
@@ -96,12 +121,12 @@ validateEmail text =
                 Err "Invalid email address"
 
 
-submitForm : { a | none : cmd, sendToBackend : ToBackend -> cmd } -> Route -> LoginForm -> ( LoginForm, cmd )
-submitForm cmds route loginForm =
+submitForm : { a | none : cmd, sendToBackend : ToBackend -> cmd } -> Route -> Maybe ( GroupId, EventId ) -> LoginForm -> ( LoginForm, cmd )
+submitForm cmds route maybeJoinEvent loginForm =
     case validateEmail loginForm.email of
         Ok email ->
             ( { loginForm | emailSent = Just email }
-            , GetLoginTokenRequest route (Untrusted.untrust email) Nothing |> cmds.sendToBackend
+            , GetLoginTokenRequest route (Untrusted.untrust email) maybeJoinEvent |> cmds.sendToBackend
             )
 
         Err _ ->
@@ -121,3 +146,8 @@ emailAddressInputId =
 submitButtonId : HtmlId ButtonId
 submitButtonId =
     Id.buttonId "loginSubmit"
+
+
+cancelButtonId : HtmlId ButtonId
+cancelButtonId =
+    Id.buttonId "loginCancel"

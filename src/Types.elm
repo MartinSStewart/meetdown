@@ -114,7 +114,7 @@ type alias LoginForm =
 type LoginStatus
     = LoginStatusPending
     | LoggedIn LoggedIn_
-    | NotLoggedIn { showLogin : Bool }
+    | NotLoggedIn { showLogin : Bool, joiningEvent : Maybe ( GroupId, EventId ) }
 
 
 type alias LoggedIn_ =
@@ -294,7 +294,8 @@ type FrontendMsg
     | PressedLogin
     | PressedLogout
     | TypedEmail String
-    | PressedSubmitEmail
+    | PressedSubmitLogin
+    | PressedCancelLogin
     | PressedCreateGroup
     | GroupFormMsg CreateGroupForm.Msg
     | ProfileFormMsg ProfileForm.Msg
