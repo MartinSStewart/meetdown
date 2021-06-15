@@ -4,6 +4,7 @@ module Ui exposing
     , dangerButton
     , dateTimeInput
     , datestamp
+    , defaultFont
     , defaultFontSize
     , emailAddressText
     , enterKeyCode
@@ -52,12 +53,15 @@ css =
     Html.node "style"
         []
         [ Html.text """
+          @import url('https://rsms.me/inter/inter.css');
+          html { font-family: 'Inter', sans-serif; }
+          @supports (font-variation-settings: normal) {
+            html { font-family: 'Inter var', sans-serif; }
+          }
 
-
-.linkFocus:focus {
-    outline: solid #9bcbff !important;
-}
-        
+          .linkFocus:focus {
+              outline: solid #9bcbff !important;
+          }
         """
         ]
 
@@ -216,6 +220,11 @@ filler length =
 titleFontSize : Element.Attr decorative msg
 titleFontSize =
     Element.Font.size 28
+
+
+defaultFont : Element.Attribute msg
+defaultFont =
+    Element.Font.family [ Element.Font.typeface "Inter" ]
 
 
 defaultFontSize : Element.Attr decorative msg

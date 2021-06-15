@@ -9,6 +9,7 @@
             "Janiczek/elm-bidict": "2.0.1",
             "MartinSStewart/elm-nonempty-string": "2.0.0",
             "MartinSStewart/send-grid": "4.1.0",
+            "avh4/elm-color": "1.0.0",
             "bburdette/toop": "1.0.1",
             "billstclair/elm-sha256": "1.0.9",
             "elm/browser": "1.0.2",
@@ -31,6 +32,7 @@
             "lamdera/core": "1.0.0",
             "mdgriffith/elm-ui": "1.1.8",
             "mgold/elm-nonempty-list": "4.2.0",
+            "noahzgordon/elm-color-extra": "1.0.2",
             "pzp1997/assoc-list": "1.0.0"
         },
         "indirect": {
@@ -40,6 +42,7 @@
             "elm/regex": "1.0.0",
             "elm/virtual-dom": "1.0.2",
             "elm-community/dict-extra": "2.4.0",
+            "fredcy/elm-parseint": "2.0.1",
             "skyqrose/assoc-list-extra": "1.0.0"
         }
     },
