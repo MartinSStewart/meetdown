@@ -15,6 +15,7 @@ import Element.Border
 import Element.Font
 import Element.Input
 import Element.Region
+import Event
 import FrontendUser exposing (FrontendUser)
 import Group exposing (Group)
 import GroupName exposing (GroupName)
@@ -463,6 +464,8 @@ updateLoaded cmds msg model =
                                         , joinEvent = \eventId -> JoinEventRequest groupId eventId |> cmds.sendToBackend
                                         , editEvent =
                                             \a b c d e f -> EditEventRequest groupId a b c d e f |> cmds.sendToBackend
+                                        , changeCancellationStatus =
+                                            \a b -> ChangeEventCancellationStatusRequest groupId a b |> cmds.sendToBackend
                                         }
                                         model
                                         group
@@ -974,6 +977,44 @@ updateLoadedFromBackend cmds msg model =
                             model.cachedGroups
                 , groupPage =
                     Dict.updateJust groupId (GroupPage.editEventResponse result) model.groupPage
+              }
+            , cmds.none
+            )
+
+        ChangeEventCancellationStatusResponse groupId eventId result backendTime ->
+            ( { model
+                | cachedGroups =
+                    case result of
+                        Ok cancellationStatus ->
+                            Dict.updateJust groupId
+                                (\a ->
+                                    case a of
+                                        GroupFound group ->
+                                            case
+                                                Group.editCancellationStatus
+                                                    backendTime
+                                                    eventId
+                                                    cancellationStatus
+                                                    group
+                                            of
+                                                Ok newGroup ->
+                                                    GroupFound newGroup
+
+                                                Err _ ->
+                                                    a
+
+                                        GroupNotFound ->
+                                            a
+
+                                        GroupRequestPending ->
+                                            a
+                                )
+                                model.cachedGroups
+
+                        Err _ ->
+                            model.cachedGroups
+                , groupPage =
+                    Dict.updateJust groupId (GroupPage.editCancellationStatusResponse eventId result) model.groupPage
               }
             , cmds.none
             )

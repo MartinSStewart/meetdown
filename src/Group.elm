@@ -1,15 +1,18 @@
 module Group exposing
-    ( EditEventError(..)
+    ( EditCancellationStatusError(..)
+    , EditEventError(..)
     , EventId
     , Group
     , GroupVisibility(..)
     , addEvent
     , createdAt
     , description
+    , editCancellationStatus
     , editEvent
     , eventIdFromInt
     , eventIdToInt
     , events
+    , getEvent
     , init
     , joinEvent
     , leaveEvent
@@ -25,7 +28,7 @@ import AssocList as Dict exposing (Dict)
 import AssocSet as Set exposing (Set)
 import Description exposing (Description)
 import Duration
-import Event exposing (Event)
+import Event exposing (CancellationStatus, Event)
 import GroupName exposing (GroupName)
 import Id exposing (Id, UserId)
 import List.Extra as List
@@ -122,6 +125,40 @@ addEvent event (Group a) =
                 |> Ok
 
 
+type PastOngoingOrFuture
+    = IsPastEvent
+    | IsOngoingEvent
+    | IsFutureEvent
+
+
+getEvent : Time.Posix -> EventId -> Group -> Maybe ( Event, PastOngoingOrFuture )
+getEvent currentTime eventId group =
+    let
+        { pastEvents, ongoingEvent, futureEvents } =
+            events currentTime group
+    in
+    case List.find (Tuple.first >> (==) eventId) futureEvents of
+        Just ( _, futureEvent ) ->
+            Just ( futureEvent, IsFutureEvent )
+
+        Nothing ->
+            case List.find (Tuple.first >> (==) eventId) pastEvents of
+                Just ( _, pastEvent ) ->
+                    Just ( pastEvent, IsPastEvent )
+
+                Nothing ->
+                    case ongoingEvent of
+                        Just ( eventId_, event_ ) ->
+                            if eventId == eventId_ then
+                                Just ( event_, IsOngoingEvent )
+
+                            else
+                                Nothing
+
+                        Nothing ->
+                            Nothing
+
+
 type EditEventError
     = EditEventStartsInThePast
     | EditEventOverlapsOtherEvents (Set EventId)
@@ -130,58 +167,77 @@ type EditEventError
     | EditEventNotFound
 
 
-editEvent : Time.Posix -> EventId -> (Event -> Event) -> Group -> Result EditEventError ( Event, Group )
-editEvent currentTime eventId editEventFunc group =
-    let
-        { pastEvents, ongoingEvent, futureEvents } =
-            events currentTime group
-    in
-    case List.find (Tuple.first >> (==) eventId) pastEvents of
-        Just _ ->
-            Err CantEditPastEvent
+type EditCancellationStatusError
+    = CancellationStatusCantBeAfterEventStart
+    | CantChangeCancellationStatusOfOngoingEvent
+    | CantChangeCancellationStatusOfPastEvent
+    | EditEventNotFound_
+
+
+editCancellationStatus : Time.Posix -> EventId -> CancellationStatus -> Group -> Result EditCancellationStatusError Group
+editCancellationStatus currentTime eventId cancellationStatus group =
+    case getEvent currentTime eventId group of
+        Just ( _, IsPastEvent ) ->
+            Err CantChangeCancellationStatusOfPastEvent
+
+        Just ( _, IsOngoingEvent ) ->
+            Err CantChangeCancellationStatusOfOngoingEvent
+
+        Just ( futureEvent, IsFutureEvent ) ->
+            if Duration.from (Event.startTime futureEvent) currentTime |> Quantity.greaterThanZero then
+                Err CancellationStatusCantBeAfterEventStart
+
+            else
+                editEventHelper
+                    eventId
+                    (Event.withCancellationStatus currentTime cancellationStatus futureEvent)
+                    group
+                    |> Ok
 
         Nothing ->
-            case List.find (Tuple.first >> (==) eventId) futureEvents of
-                Just ( _, event ) ->
-                    let
-                        edittedEvent =
-                            editEventFunc event
-                    in
-                    if Duration.from currentTime (Event.startTime edittedEvent) |> Quantity.lessThanZero then
-                        Err EditEventStartsInThePast
+            Err EditEventNotFound_
 
-                    else
-                        case
-                            allEvents group
-                                |> Dict.remove eventId
-                                |> Dict.toList
-                                |> List.filter (Tuple.second >> Event.overlaps edittedEvent)
-                        of
-                            head :: rest ->
-                                List.map Tuple.first (head :: rest) |> Set.fromList |> EditEventOverlapsOtherEvents |> Err
 
-                            [] ->
-                                ( edittedEvent, editEventHelper eventId edittedEvent group ) |> Ok
+editEvent : Time.Posix -> EventId -> (Event -> Event) -> Group -> Result EditEventError ( Event, Group )
+editEvent currentTime eventId editEventFunc group =
+    case getEvent currentTime eventId group of
+        Just ( _, IsPastEvent ) ->
+            Err CantEditPastEvent
 
-                Nothing ->
-                    case ongoingEvent of
-                        Just ( eventId_, event_ ) ->
-                            let
-                                edittedEvent =
-                                    editEventFunc event_
-                            in
-                            if eventId == eventId_ then
-                                if Event.startTime edittedEvent == Event.startTime event_ then
-                                    ( edittedEvent, editEventHelper eventId edittedEvent group ) |> Ok
+        Just ( futureEvent, IsFutureEvent ) ->
+            let
+                edittedEvent =
+                    editEventFunc futureEvent
+            in
+            if Duration.from currentTime (Event.startTime edittedEvent) |> Quantity.lessThanZero then
+                Err EditEventStartsInThePast
 
-                                else
-                                    Err CantChangeStartTimeOfOngoingEvent
+            else
+                case
+                    allEvents group
+                        |> Dict.remove eventId
+                        |> Dict.toList
+                        |> List.filter (Tuple.second >> Event.overlaps edittedEvent)
+                of
+                    head :: rest ->
+                        List.map Tuple.first (head :: rest) |> Set.fromList |> EditEventOverlapsOtherEvents |> Err
 
-                            else
-                                Err EditEventNotFound
+                    [] ->
+                        ( edittedEvent, editEventHelper eventId edittedEvent group ) |> Ok
 
-                        _ ->
-                            Err EditEventNotFound
+        Just ( ongoingEvent, IsOngoingEvent ) ->
+            let
+                edittedEvent =
+                    editEventFunc ongoingEvent
+            in
+            if Event.startTime edittedEvent == Event.startTime ongoingEvent then
+                ( edittedEvent, editEventHelper eventId edittedEvent group ) |> Ok
+
+            else
+                Err CantChangeStartTimeOfOngoingEvent
+
+        Nothing ->
+            Err EditEventNotFound
 
 
 editEventHelper : EventId -> Event -> Group -> Group

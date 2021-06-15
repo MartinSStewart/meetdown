@@ -649,6 +649,34 @@ updateFromFrontend cmds sessionId clientId msg model =
                     , cmds.none
                     )
 
+        ChangeEventCancellationStatusRequest groupId eventId cancellationStatus ->
+            userWithGroupAuthorization
+                cmds
+                sessionId
+                groupId
+                model
+                (\( userId, _, group ) ->
+                    case Group.editCancellationStatus model.time eventId cancellationStatus group of
+                        Ok newGroup ->
+                            ( { model | groups = Dict.insert groupId newGroup model.groups }
+                            , cmds.sendToFrontends
+                                (getClientIdsForUser userId model)
+                                (ChangeEventCancellationStatusResponse
+                                    groupId
+                                    eventId
+                                    (Ok cancellationStatus)
+                                    model.time
+                                )
+                            )
+
+                        Err error ->
+                            ( model
+                            , cmds.sendToFrontend
+                                clientId
+                                (ChangeEventCancellationStatusResponse groupId eventId (Err error) model.time)
+                            )
+                )
+
 
 handleDeleteUserRequest : Effects cmd -> ClientId -> Maybe DeleteUserTokenData -> BackendModel -> ( BackendModel, cmd )
 handleDeleteUserRequest cmds clientId maybeDeleteUserTokenData model =

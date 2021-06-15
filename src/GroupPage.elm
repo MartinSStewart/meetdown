@@ -1,4 +1,4 @@
-module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, addedNewEvent, createEventCancelId, createEventStartDateId, createEventStartTimeId, createEventSubmitId, createNewEventId, editDescriptionId, editEventResponse, editGroupNameId, eventDescriptionInputId, eventDurationId, eventMeetingInPersonInputId, eventMeetingOnlineInputId, eventMeetingTypeId, eventNameInputId, init, joinEventButtonId, joinOrLeaveResponse, leaveEventButtonId, resetDescriptionId, resetGroupNameId, saveDescriptionId, saveGroupNameId, savedDescription, savedName, update, view)
+module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, addedNewEvent, createEventCancelId, createEventStartDateId, createEventStartTimeId, createEventSubmitId, createNewEventId, editCancellationStatusResponse, editDescriptionId, editEventResponse, editGroupNameId, eventDescriptionInputId, eventDurationId, eventMeetingInPersonInputId, eventMeetingOnlineInputId, eventMeetingTypeId, eventNameInputId, init, joinEventButtonId, joinOrLeaveResponse, leaveEventButtonId, resetDescriptionId, resetGroupNameId, saveDescriptionId, saveGroupNameId, savedDescription, savedName, update, view)
 
 import Address exposing (Address, Error(..))
 import AssocList as Dict exposing (Dict)
@@ -38,6 +38,7 @@ type alias Model =
     , newEvent : NewEvent
     , pendingJoinOrLeave : Dict EventId EventJoinOrLeaveStatus
     , showAllFutureEvents : Bool
+    , pendingEventCancelOrUncancel : Set EventId
     }
 
 
@@ -71,6 +72,9 @@ type Msg
     | PressedJoinEvent EventId
     | PressedEditEvent EventId
     | ChangedEditEvent EditEvent
+    | PressedCancelEvent EventId
+    | PressedRecancelEvent EventId
+    | PressedUncancelEvent EventId
     | PressedSubmitEditEvent
     | PressedCancelEditEvent
 
@@ -96,6 +100,7 @@ type alias Effects cmd =
         -> cmd
     , joinEvent : EventId -> cmd
     , leaveEvent : EventId -> cmd
+    , changeCancellationStatus : EventId -> Event.CancellationStatus -> cmd
     }
 
 
@@ -139,6 +144,7 @@ init =
     , newEvent = initNewEvent
     , pendingJoinOrLeave = Dict.empty
     , showAllFutureEvents = False
+    , pendingEventCancelOrUncancel = Set.empty
     }
 
 
@@ -225,6 +231,11 @@ editEventResponse result model =
 
         _ ->
             model
+
+
+editCancellationStatusResponse : EventId -> Result Group.EditCancellationStatusError Event.CancellationStatus -> Model -> Model
+editCancellationStatusResponse eventId _ model =
+    { model | pendingEventCancelOrUncancel = Set.remove eventId model.pendingEventCancelOrUncancel }
 
 
 update :
@@ -598,6 +609,24 @@ update effects config group maybeUserId msg model =
 
                 _ ->
                     ( model, effects.none, { joinEvent = Nothing } )
+
+        PressedCancelEvent eventId ->
+            ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
+            , effects.changeCancellationStatus eventId Event.EventCancelled
+            , { joinEvent = Nothing }
+            )
+
+        PressedUncancelEvent eventId ->
+            ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
+            , effects.changeCancellationStatus eventId Event.EventUncancelled
+            , { joinEvent = Nothing }
+            )
+
+        PressedRecancelEvent eventId ->
+            ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
+            , effects.changeCancellationStatus eventId Event.EventCancelled
+            , { joinEvent = Nothing }
+            )
 
 
 pressSubmit : { a | submitStatus : SubmitStatus b } -> { a | submitStatus : SubmitStatus b }
@@ -1083,6 +1112,19 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
 
         attendeeCount =
             Event.attendees event |> Set.size
+
+        joinOrLeaveButton =
+            if isAttending then
+                Ui.submitButton
+                    leaveEventButtonId
+                    (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
+                    { onPress = PressedLeaveEvent eventId, label = "Leave event" }
+
+            else
+                Ui.submitButton
+                    joinEventButtonId
+                    (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
+                    { onPress = PressedJoinEvent eventId, label = "Join event" }
     in
     Element.column
         [ Element.width Element.fill, Element.spacing 8, Element.paddingXY 16 0 ]
@@ -1131,17 +1173,30 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
                             ""
                        )
                     |> Element.text
-        , if isAttending then
-            Ui.submitButton
-                leaveEventButtonId
-                (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
-                { onPress = PressedLeaveEvent eventId, label = "Leave event" }
+        , Element.row [ Element.spacing 16 ]
+            [ case Event.cancellationStatus event of
+                Just ( Event.EventUncancelled, _ ) ->
+                    joinOrLeaveButton
 
-          else
-            Ui.submitButton
-                joinEventButtonId
-                (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
-                { onPress = PressedJoinEvent eventId, label = "Join event" }
+                Just ( Event.EventCancelled, cancelTime ) ->
+                    Ui.error ("This event was cancelled " ++ timeDifference currentTime cancelTime)
+
+                Nothing ->
+                    joinOrLeaveButton
+            , if isOwner then
+                case Event.cancellationStatus event of
+                    Just ( Event.EventCancelled, _ ) ->
+                        Ui.dangerButton uncancelEventId { onPress = PressedUncancelEvent eventId, label = "Uncancel event" }
+
+                    Just ( Event.EventUncancelled, _ ) ->
+                        Ui.dangerButton recancelEventId { onPress = PressedCancelEvent eventId, label = "Recancel event" }
+
+                    Nothing ->
+                        Ui.dangerButton cancelEventId { onPress = PressedCancelEvent eventId, label = "Cancel event" }
+
+              else
+                Element.none
+            ]
         , case maybeJoinOrLeaveStatus of
             Just JoinOrLeaveFailure ->
                 if isAttending then
@@ -1153,6 +1208,18 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
             _ ->
                 Element.none
         ]
+
+
+cancelEventId =
+    Id.buttonId "groupCancelEvent"
+
+
+uncancelEventId =
+    Id.buttonId "groupUncancelEvent"
+
+
+recancelEventId =
+    Id.buttonId "groupRecancelEvent"
 
 
 editEventId =
