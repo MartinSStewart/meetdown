@@ -951,8 +951,8 @@ loginEmailContent route loginToken maybeJoinEvent =
         loginLink =
             loginEmailLink route loginToken maybeJoinEvent
 
-        _ =
-            Debug.log "login" loginLink
+        --_ =
+        --    Debug.log "login" loginLink
     in
     Email.Html.div
         []
