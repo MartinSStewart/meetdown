@@ -1070,7 +1070,7 @@ viewPage model =
         HomepageRoute ->
             Element.paragraph
                 [ Element.padding 8 ]
-                [ Element.text "A place to find people with shared interests. We don't sell your data, we don't show ads, we don't charge money, and it's all open source." ]
+                [ Element.text "A place to find people with shared interests. We don't sell your data, we don't show ads, and it's free." ]
 
         GroupRoute groupId _ ->
             case Dict.get groupId model.cachedGroups of
