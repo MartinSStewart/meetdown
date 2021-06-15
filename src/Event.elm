@@ -1,4 +1,4 @@
-module Event exposing (Event, EventType(..), addAttendee, attendees, cancel, description, duration, endTime, eventType, isCancelled, isOngoing, name, newEvent, overlaps, removeAttendee, startTime, withDescription, withDuration, withEventType, withName, withStartTime)
+module Event exposing (CancellationStatus(..), Event, EventType(..), addAttendee, attendees, cancellationStatus, description, duration, endTime, eventType, isOngoing, name, newEvent, overlaps, removeAttendee, startTime, withCancellationStatus, withDescription, withDuration, withEventType, withName, withStartTime)
 
 import Address exposing (Address)
 import AssocSet as Set exposing (Set)
@@ -19,9 +19,14 @@ type Event
         , attendees : Set (Id UserId)
         , startTime : Time.Posix
         , duration : EventDuration
-        , isCancelled : Maybe Time.Posix
+        , cancellationStatus : Maybe ( CancellationStatus, Time.Posix )
         , createdAt : Time.Posix
         }
+
+
+type CancellationStatus
+    = EventCancelled
+    | EventUncancelled
 
 
 newEvent : EventName -> Description -> EventType -> Time.Posix -> EventDuration -> Time.Posix -> Event
@@ -32,7 +37,7 @@ newEvent eventName description_ eventType_ startTime_ duration_ createdAt =
     , attendees = Set.empty
     , startTime = startTime_
     , duration = duration_
-    , isCancelled = Nothing
+    , cancellationStatus = Nothing
     , createdAt = createdAt
     }
         |> Event
@@ -83,14 +88,14 @@ duration (Event event) =
     event.duration
 
 
-isCancelled : Event -> Bool
-isCancelled (Event event) =
-    event.isCancelled /= Nothing
+cancellationStatus : Event -> Maybe ( CancellationStatus, Time.Posix )
+cancellationStatus (Event event) =
+    event.cancellationStatus
 
 
-cancel : Time.Posix -> Event -> Event
-cancel currentTime (Event event) =
-    Event { event | isCancelled = Just currentTime }
+withCancellationStatus : Time.Posix -> CancellationStatus -> Event -> Event
+withCancellationStatus time status (Event event) =
+    Event { event | cancellationStatus = Just ( status, time ) }
 
 
 endTime : Event -> Time.Posix

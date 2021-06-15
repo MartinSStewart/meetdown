@@ -9,7 +9,7 @@ import Browser.Navigation
 import CreateGroupForm exposing (CreateGroupError, GroupFormValidated)
 import Description exposing (Description)
 import EmailAddress exposing (EmailAddress)
-import Event exposing (Event, EventType)
+import Event exposing (CancellationStatus, Event, EventType)
 import EventDuration exposing (EventDuration)
 import EventName exposing (EventName)
 import FrontendUser exposing (FrontendUser)
@@ -330,6 +330,7 @@ type ToBackend
     | EditEventRequest GroupId EventId (Untrusted EventName) (Untrusted Description) (Untrusted EventType) Time.Posix (Untrusted EventDuration)
     | JoinEventRequest GroupId EventId
     | LeaveEventRequest GroupId EventId
+    | ChangeEventCancellationStatusRequest GroupId EventId CancellationStatus
 
 
 type BackendMsg
@@ -362,3 +363,4 @@ type ToFrontend
     | EditEventResponse GroupId EventId (Result Group.EditEventError Event) Time.Posix
     | JoinEventResponse GroupId EventId (Result () ())
     | LeaveEventResponse GroupId EventId (Result () ())
+    | ChangeEventCancellationStatusResponse GroupId EventId (Result Group.EditCancellationStatusError CancellationStatus) Time.Posix
