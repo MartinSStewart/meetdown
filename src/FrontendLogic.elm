@@ -4,6 +4,7 @@ import AssocList as Dict
 import AssocSet as Set
 import Browser exposing (UrlRequest(..))
 import Browser.Dom
+import Colors
 import CreateGroupForm
 import Description
 import DictExtra as Dict
@@ -948,7 +949,7 @@ view model =
         [ Ui.css
         , Element.layoutWith
             { options = [ Element.noStaticStyleSheet ] }
-            [ Ui.defaultFontSize ]
+            [ Ui.defaultFontSize, Ui.defaultFont ]
             (case model of
                 Loading _ ->
                     Element.none
@@ -1269,52 +1270,58 @@ isLoggedIn model =
 
 header : Bool -> Route -> String -> Element FrontendMsg
 header isLoggedIn_ route searchText =
-    Element.row
-        [ Element.width Element.fill
-        , Element.Background.color <| Element.rgb 0.8 0.8 0.8
-        , Element.paddingEach { left = 4, right = 0, top = 0, bottom = 0 }
-        , Element.Region.navigation
-        ]
-        [ Element.Input.text
-            [ Element.width <| Element.maximum 400 Element.fill
-            , Element.paddingEach { left = 24, right = 8, top = 4, bottom = 4 }
-            , Ui.onEnter SubmittedSearchBox
-            , Id.htmlIdToString groupSearchId |> Html.Attributes.id |> Element.htmlAttribute
-            , Element.inFront
-                (Element.el
-                    [ Element.Font.size 12
-                    , Element.moveDown 6
-                    , Element.moveRight 4
-                    , Element.alpha 0.8
-                    , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
+    Element.column [ Element.width Element.fill, Element.spacing 10, Element.padding 10 ]
+        [ Element.row
+            [ Element.width Element.fill
+            , Element.paddingEach { left = 4, right = 0, top = 0, bottom = 0 }
+            , Element.Region.navigation
+            ]
+            [ Element.text "Meetdown"
+            , Element.Input.text
+                [ Element.width <| Element.maximum 400 Element.fill
+                , Element.alignRight
+                , Element.Border.rounded 5
+                , Element.Border.color Colors.grey
+                , Element.paddingEach { left = 24, right = 8, top = 4, bottom = 4 }
+                , Ui.onEnter SubmittedSearchBox
+                , Id.htmlIdToString groupSearchId |> Html.Attributes.id |> Element.htmlAttribute
+                , Element.inFront
+                    (Element.el
+                        [ Element.Font.size 12
+                        , Element.moveDown 6
+                        , Element.moveRight 4
+                        , Element.alpha 0.8
+                        , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
+                        ]
+                        (Element.text "🔍")
+                    )
+                ]
+                { text = searchText
+                , onChange = TypedSearchText
+                , placeholder = Nothing
+                , label = Element.Input.labelHidden "Search for groups"
+                }
+            , Element.row
+                [ Element.alignRight ]
+                (if isLoggedIn_ then
+                    headerButtons route
+                        ++ [ Ui.headerButton
+                                logOutButtonId
+                                { onPress = PressedLogout
+                                , label = "Log out"
+                                }
+                           ]
+
+                 else
+                    [ Ui.headerButton
+                        signUpOrLoginButtonId
+                        { onPress = PressedLogin
+                        , label = "Sign up / Login"
+                        }
                     ]
-                    (Element.text "🔍")
                 )
             ]
-            { text = searchText
-            , onChange = TypedSearchText
-            , placeholder = Nothing
-            , label = Element.Input.labelHidden "Search for groups"
-            }
-        , Element.row
-            [ Element.alignRight ]
-            (if isLoggedIn_ then
-                headerButtons route
-                    ++ [ Ui.headerButton
-                            logOutButtonId
-                            { onPress = PressedLogout
-                            , label = "Log out"
-                            }
-                       ]
-
-             else
-                [ Ui.headerButton
-                    signUpOrLoginButtonId
-                    { onPress = PressedLogin
-                    , label = "Sign up/Login"
-                    }
-                ]
-            )
+        , Element.row [ Element.Background.color Colors.grey, Element.width Element.fill, Element.height (Element.px 2) ] []
         ]
 
 
