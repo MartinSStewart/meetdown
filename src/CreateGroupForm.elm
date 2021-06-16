@@ -164,8 +164,7 @@ formView : Maybe String -> Bool -> Form -> Element Msg
 formView maybeSubmitError isSubmitting form =
     Element.column
         [ Element.width Element.fill
-        , Element.spacing 8
-        , Element.padding 8
+        , Element.spacing 20
         ]
         [ Ui.title "Create group"
         , Ui.textInput
