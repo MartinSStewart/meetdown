@@ -1027,7 +1027,7 @@ view model =
         [ Ui.css
         , Element.layoutWith
             { options = [ Element.noStaticStyleSheet ] }
-            [ Ui.defaultFontSize, Ui.defaultFont ]
+            [ Ui.defaultFontSize, Ui.defaultFont, Ui.defaultFontColor ]
             (case model of
                 Loading _ ->
                     Element.none
@@ -1064,7 +1064,7 @@ viewLoaded model =
             _ ->
                 header (isLoggedIn model) model.route model.searchBox
         , Element.el
-            [ Element.Region.mainContent, Element.width Element.fill, Element.height Element.fill ]
+            [ Element.Region.mainContent, Element.width Element.fill, Element.height Element.fill, Element.paddingXY 5 20 ]
             (case model.loginStatus of
                 NotLoggedIn { showLogin, joiningEvent } ->
                     if showLogin then
@@ -1109,9 +1109,12 @@ viewPage : LoadedFrontend -> Element FrontendMsg
 viewPage model =
     case model.route of
         HomepageRoute ->
-            Element.paragraph
-                [ Element.padding 8 ]
-                [ Element.text "A place to find people with shared interests. We don't sell your data, we don't show ads, and it's free." ]
+            Element.column
+                [ Element.padding 8, Element.width Element.fill, Element.spacing 30 ]
+                [ Element.image [ Element.centerX, Element.width <| (Element.fill |> Element.maximum 500) ] { src = "/homepage-hero.png", description = "Two people on a video conference" }
+                , Element.paragraph [ Element.Font.center ] [ Element.text "A place to find people with shared interests." ]
+                , Element.paragraph [ Element.Font.center ] [ Element.text " We don't sell your data, we don't show ads, and it's free." ]
+                ]
 
         GroupRoute groupId _ ->
             case Dict.get groupId model.cachedGroups of
@@ -1292,7 +1295,7 @@ myGroupsView model loggedIn =
                     []
             in
             Element.column
-                [ Element.padding 8, Element.width Element.fill, Element.spacing 8 ]
+                [ Element.padding 8, Element.width Element.fill, Element.spacing 20 ]
                 [ Ui.title "My groups"
                 , if List.isEmpty myGroupsList && List.isEmpty mySubscriptionsList then
                     Element.paragraph
@@ -1353,8 +1356,16 @@ header isLoggedIn_ route searchText =
             [ Element.width Element.fill
             , Element.paddingEach { left = 4, right = 0, top = 0, bottom = 0 }
             , Element.Region.navigation
+            , Element.spacing 10
             ]
-            [ Element.text "Meetdown"
+            [ Element.link []
+                { url = "/"
+                , label =
+                    Element.row [ Element.spacing 10 ]
+                        [ Element.image [ Element.width <| Element.px 30 ] { src = "/meetdown-logo.png", description = "meetdown logo" }
+                        , Element.text "Meetdown"
+                        ]
+                }
             , Element.Input.text
                 [ Element.width <| Element.maximum 400 Element.fill
                 , Element.alignRight

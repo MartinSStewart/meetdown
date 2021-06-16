@@ -3,6 +3,7 @@ module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, adde
 import Address exposing (Address, Error(..))
 import AssocList as Dict exposing (Dict)
 import AssocSet as Set exposing (Set)
+import Colors exposing (..)
 import Date
 import Description exposing (Description)
 import Duration exposing (Duration)
@@ -1494,7 +1495,7 @@ newEventView currentTime timezone event =
                     False
     in
     Element.column
-        [ Element.spacing 8, Element.padding 8, Element.width Element.fill ]
+        [ Element.spacing 20, Element.padding 8, Element.width Element.fill ]
         [ Ui.title "New event"
         , Ui.textInput
             eventNameInputId
@@ -1837,9 +1838,8 @@ section hasError title headerExtra content =
 smallButton : HtmlId ButtonId -> msg -> String -> Element msg
 smallButton htmlId onPress label =
     Element.Input.button
-        [ Element.Background.color <| Element.rgb 0.9 0.9 0.9
-        , Element.Border.width 2
-        , Element.Border.color <| Element.rgb 0.3 0.3 0.3
+        [ Element.Border.width 2
+        , Element.Border.color <| grey
         , Element.paddingXY 8 2
         , Element.Border.rounded 4
         , Element.Font.center

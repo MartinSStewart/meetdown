@@ -1,6 +1,8 @@
 module ProfileImage exposing (ProfileImage, customImage, defaultImage, getCustomImageUrl, image, size, smallImage)
 
+import Colors exposing (..)
 import Element exposing (Element)
+import Element.Background
 import Element.Border
 import Pixels exposing (Pixels)
 import Quantity exposing (Quantity)
@@ -76,7 +78,7 @@ smallImage profileImage =
         , Element.height (Element.px <| Pixels.inPixels size // 2)
         , Element.Border.rounded 9999
         , Element.clip
-        , Ui.inputBackground False
+        , Element.Background.color grey
         ]
         { src =
             case profileImage of

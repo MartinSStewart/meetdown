@@ -1,6 +1,7 @@
 module ProfileForm exposing (CurrentValues, Effects, Form, Model, Msg, cancelImageButtonId, cropImageResponse, deleteAccountButtonId, init, update, uploadImageButtonId, view)
 
 import Browser.Dom
+import Colors exposing (..)
 import Description exposing (Description, Error(..))
 import Duration exposing (Duration)
 import Element exposing (Element)
@@ -645,61 +646,63 @@ view windowSize currentValues ({ form } as model) =
 
         _ ->
             Element.column
-                [ Element.spacing 8, Element.padding 8, Element.width Element.fill ]
+                [ Element.spacing 20, Element.padding 8, Element.width Element.fill ]
                 [ Element.wrappedRow [ Element.width Element.fill ]
                     [ Element.el [ Element.alignTop ] (Ui.title "Profile")
                     , Element.Input.button
                         [ Element.alignRight
                         , Element.Border.rounded 9999
                         , Element.clip
+                        , Element.Background.color grey
                         ]
                         { onPress = Just PressedProfileImage
                         , label = ProfileImage.image currentValues.profileImage
                         }
                     ]
-                , editableTextInput
-                    (\a -> FormChanged { form | name = a })
-                    Name.toString
-                    (\a ->
-                        case Name.fromString a of
-                            Ok name ->
-                                Ok name
+                , Ui.columnCard
+                    [ editableTextInput
+                        (\a -> FormChanged { form | name = a })
+                        Name.toString
+                        (\a ->
+                            case Name.fromString a of
+                                Ok name ->
+                                    Ok name
 
-                            Err Name.NameTooShort ->
-                                Err "Your name can't be empty"
+                                Err Name.NameTooShort ->
+                                    Err "Your name can't be empty"
 
-                            Err Name.NameTooLong ->
-                                "Keep it below " ++ String.fromInt (Name.maxLength + 1) ++ " characters" |> Err
-                    )
-                    currentValues.name
-                    form.name
-                    "Your name"
-                , editableMultiline
-                    (\a -> FormChanged { form | description = a })
-                    Description.toString
-                    (\a ->
-                        case Description.fromString a of
-                            Ok name ->
-                                Ok name
+                                Err Name.NameTooLong ->
+                                    "Keep it below " ++ String.fromInt (Name.maxLength + 1) ++ " characters" |> Err
+                        )
+                        currentValues.name
+                        form.name
+                        "Your name"
+                    , editableMultiline
+                        (\a -> FormChanged { form | description = a })
+                        Description.toString
+                        (\a ->
+                            case Description.fromString a of
+                                Ok name ->
+                                    Ok name
 
-                            Err DescriptionTooLong ->
-                                "Less than "
-                                    ++ String.fromInt Description.maxLength
-                                    ++ " characters please"
-                                    |> Err
-                    )
-                    currentValues.description
-                    form.description
-                    "What do you want people to know about you?"
-                , editableEmailInput
-                    (\_ -> FormChanged form)
-                    --(\a -> FormChanged { form | emailAddress = a })
-                    EmailAddress.toString
-                    (EmailAddress.fromString >> Result.fromMaybe "Invalid email")
-                    currentValues.emailAddress
-                    form.emailAddress
-                    "Your email address"
-                , Ui.filler (Element.px 8)
+                                Err DescriptionTooLong ->
+                                    "Less than "
+                                        ++ String.fromInt Description.maxLength
+                                        ++ " characters please"
+                                        |> Err
+                        )
+                        currentValues.description
+                        form.description
+                        "What do you want people to know about you?"
+                    , editableEmailInput
+                        (\_ -> FormChanged form)
+                        --(\a -> FormChanged { form | emailAddress = a })
+                        EmailAddress.toString
+                        (EmailAddress.fromString >> Result.fromMaybe "Invalid email")
+                        currentValues.emailAddress
+                        form.emailAddress
+                        "Your email address"
+                    ]
                 , Ui.dangerButton deleteAccountButtonId { onPress = PressedDeleteAccount, label = "Delete account" }
                 , if model.pressedDeleteAccount then
                     Element.column
@@ -749,12 +752,13 @@ editableTextInput onChange toString validate currentValue text labelText =
     in
     Element.column
         [ Element.width Element.fill
-        , Ui.inputBackground (maybeError /= Nothing)
-        , Element.padding 8
-        , Element.Border.rounded 4
         ]
         [ Element.Input.text
-            [ Element.width Element.fill ]
+            [ Element.width Element.fill
+            , Element.Border.rounded 4
+            , Ui.inputBorder (maybeError /= Nothing)
+            , Ui.inputBorderWidth (maybeError /= Nothing)
+            ]
             { text =
                 case text of
                     Unchanged ->
@@ -764,10 +768,7 @@ editableTextInput onChange toString validate currentValue text labelText =
                         value
             , onChange = Editting >> onChange
             , placeholder = Nothing
-            , label =
-                Element.Input.labelAbove
-                    [ Element.paddingXY 4 0 ]
-                    (Element.paragraph [] [ Element.text labelText ])
+            , label = Ui.formLabelAbove labelText
             }
         , case maybeError of
             Just error ->
@@ -778,11 +779,7 @@ editableTextInput onChange toString validate currentValue text labelText =
                     Element.none
 
                 else
-                    Element.el
-                        [ Element.paddingEach { left = 4, right = 4, top = 4, bottom = 0 }
-                        , Element.Font.size 16
-                        ]
-                        (Element.text "Saving...")
+                    savingText
         ]
 
 
@@ -815,11 +812,12 @@ editableEmailInput onChange toString validate currentValue text labelText =
     Element.column
         [ Element.width Element.fill
         , Ui.inputBackground (maybeError /= Nothing)
-        , Element.padding 8
         , Element.Border.rounded 4
         ]
         [ Element.Input.email
-            [ Element.width Element.fill ]
+            [ Element.width Element.fill
+            , Element.Border.color grey
+            ]
             { text =
                 case text of
                     Unchanged ->
@@ -829,10 +827,7 @@ editableEmailInput onChange toString validate currentValue text labelText =
                         value
             , onChange = Editting >> onChange
             , placeholder = Nothing
-            , label =
-                Element.Input.labelAbove
-                    [ Element.paddingXY 4 0 ]
-                    (Element.paragraph [] [ Element.text labelText ])
+            , label = Ui.formLabelAbove labelText
             }
         , case maybeError of
             Just error ->
@@ -843,11 +838,7 @@ editableEmailInput onChange toString validate currentValue text labelText =
                     Element.none
 
                 else
-                    Element.el
-                        [ Element.paddingEach { left = 4, right = 4, top = 4, bottom = 0 }
-                        , Element.Font.size 16
-                        ]
-                        (Element.text "Saving...")
+                    savingText
         ]
 
 
@@ -872,12 +863,14 @@ editableMultiline onChange toString validate currentValue text labelText =
     in
     Element.column
         [ Element.width Element.fill
-        , Ui.inputBackground (maybeError /= Nothing)
-        , Element.padding 8
         , Element.Border.rounded 4
         ]
         [ Element.Input.multiline
-            [ Element.width Element.fill, Element.height (Element.px 200) ]
+            [ Element.width Element.fill
+            , Element.height (Element.px 200)
+            , Ui.inputBorder (maybeError /= Nothing)
+            , Ui.inputBorderWidth (maybeError /= Nothing)
+            ]
             { text =
                 case text of
                     Unchanged ->
@@ -887,10 +880,7 @@ editableMultiline onChange toString validate currentValue text labelText =
                         value
             , onChange = Editting >> onChange
             , placeholder = Nothing
-            , label =
-                Element.Input.labelAbove
-                    [ Element.paddingXY 4 0 ]
-                    (Element.paragraph [] [ Element.text labelText ])
+            , label = Ui.formLabelAbove labelText
             , spellcheck = True
             }
         , case maybeError of
@@ -902,9 +892,13 @@ editableMultiline onChange toString validate currentValue text labelText =
                     Element.none
 
                 else
-                    Element.el
-                        [ Element.paddingEach { left = 4, right = 4, top = 4, bottom = 0 }
-                        , Element.Font.size 16
-                        ]
-                        (Element.text "Saving...")
+                    savingText
         ]
+
+
+savingText =
+    Element.el
+        [ Element.paddingEach { left = 0, right = 0, top = 10, bottom = 0 }
+        , Element.Font.size 12
+        ]
+        (Element.text "Saving...")

@@ -1,20 +1,25 @@
 module Ui exposing
     ( button
+    , columnCard
     , css
     , dangerButton
     , dateTimeInput
     , datestamp
     , defaultFont
+    , defaultFontColor
     , defaultFontSize
     , emailAddressText
     , enterKeyCode
     , error
     , filler
     , formError
+    , formLabelAbove
     , headerButton
     , headerLink
     , hr
     , inputBackground
+    , inputBorder
+    , inputBorderWidth
     , inputFocusClass
     , linkColor
     , multiline
@@ -30,6 +35,7 @@ module Ui exposing
     , titleFontSize
     )
 
+import Colors exposing (..)
 import Date exposing (Date)
 import Element exposing (Element)
 import Element.Background
@@ -153,12 +159,12 @@ section sectionTitle content =
 button : HtmlId ButtonId -> { onPress : msg, label : String } -> Element msg
 button htmlId { onPress, label } =
     Element.Input.button
-        [ Element.Background.color <| Element.rgb 0.9 0.9 0.9
-        , Element.Border.width 2
-        , Element.Border.color <| Element.rgb 0.3 0.3 0.3
+        [ Element.Border.width 2
+        , Element.Border.color grey
         , Element.padding 8
         , Element.Border.rounded 4
         , Element.Font.center
+        , Element.Font.color readingMuted
         , Element.width (Element.minimum 150 Element.shrink)
         , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         ]
@@ -227,6 +233,11 @@ defaultFont =
     Element.Font.family [ Element.Font.typeface "Inter" ]
 
 
+defaultFontColor : Element.Attr decorative msg
+defaultFontColor =
+    Element.Font.color readingBlack
+
+
 defaultFontSize : Element.Attr decorative msg
 defaultFontSize =
     Element.Font.size 16
@@ -255,7 +266,8 @@ error errorMessage =
     Element.paragraph
         [ Element.paddingEach { left = 4, right = 4, top = 4, bottom = 0 }
         , Element.Font.color <| Element.rgb 0.9 0.2 0.2
-        , Element.Font.size 16
+        , Element.Font.size 14
+        , Element.Font.medium
         ]
         [ Element.text errorMessage ]
 
@@ -310,31 +322,47 @@ inputBackground : Bool -> Element.Attr decorative msg
 inputBackground hasError =
     Element.Background.color <|
         if hasError then
-            Element.rgb 1 0.9059 0.9059
+            redLight
 
         else
-            Element.rgb 0.94 0.94 0.94
+            transparent
+
+
+inputBorder : Bool -> Element.Attr decorative msg
+inputBorder hasError =
+    Element.Border.color <|
+        if hasError then
+            red
+
+        else
+            grey
+
+
+inputBorderWidth : Bool -> Element.Attribute msg
+inputBorderWidth hasError =
+    Element.Border.width <|
+        if hasError then
+            2
+
+        else
+            1
 
 
 textInput : HtmlId TextInputId -> (String -> msg) -> String -> String -> Maybe String -> Element msg
 textInput htmlId onChange text labelText maybeError =
     Element.column
         [ Element.width Element.fill
-        , inputBackground (maybeError /= Nothing)
-        , Element.padding 8
         , Element.Border.rounded 4
         ]
         [ Element.Input.text
             [ Element.width Element.fill
             , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
+            , inputBorder (maybeError /= Nothing)
             ]
             { text = text
             , onChange = onChange
             , placeholder = Nothing
-            , label =
-                Element.Input.labelAbove
-                    [ Element.paddingXY 4 0 ]
-                    (Element.paragraph [] [ Element.text labelText ])
+            , label = formLabelAbove labelText
             }
         , Maybe.map error maybeError |> Maybe.withDefault Element.none
         ]
@@ -344,22 +372,19 @@ multiline : HtmlId TextInputId -> (String -> msg) -> String -> String -> Maybe S
 multiline htmlId onChange text labelText maybeError =
     Element.column
         [ Element.width Element.fill
-        , inputBackground (maybeError /= Nothing)
-        , Element.padding 8
         , Element.Border.rounded 4
         ]
         [ Element.Input.multiline
             [ Element.width Element.fill
             , Element.height (Element.px 200)
             , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
+            , inputBorder (maybeError /= Nothing)
+            , inputBorderWidth (maybeError /= Nothing)
             ]
             { text = text
             , onChange = onChange
             , placeholder = Nothing
-            , label =
-                Element.Input.labelAbove
-                    [ Element.paddingXY 4 0 ]
-                    (Element.paragraph [] [ Element.text labelText ])
+            , label = formLabelAbove labelText
             , spellcheck = True
             }
         , Maybe.map error maybeError |> Maybe.withDefault Element.none
@@ -463,3 +488,26 @@ datestamp date =
         ++ String.padLeft 2 '0' (String.fromInt (Date.monthNumber date))
         ++ "-"
         ++ String.padLeft 2 '0' (String.fromInt (Date.day date))
+
+
+formLabelAbove labelText =
+    Element.Input.labelAbove
+        [ Element.paddingEach { top = 0, right = 0, bottom = 5, left = 0 }
+        , Element.Font.medium
+        , Element.Font.size 13
+        , Element.Font.color blueGrey
+        ]
+        (Element.paragraph [] [ Element.text labelText ])
+
+
+columnCard children =
+    Element.column
+        [ Element.width Element.fill
+        , Element.Border.rounded 4
+        , Element.padding 15
+        , Element.Border.width 1
+        , Element.Border.color grey
+        , Element.Border.shadow { offset = ( 0, 3 ), size = -1, blur = 3, color = grey }
+        , Element.spacing 30
+        ]
+        children
