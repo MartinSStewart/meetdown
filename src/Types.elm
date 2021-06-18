@@ -13,11 +13,12 @@ import Event exposing (CancellationStatus, Event, EventType)
 import EventDuration exposing (EventDuration)
 import EventName exposing (EventName)
 import FrontendUser exposing (FrontendUser)
-import Group exposing (EventId, Group, GroupVisibility)
+import Group exposing (EventId, Group, GroupVisibility, JoinEventError)
 import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError)
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
 import List.Nonempty exposing (Nonempty)
+import MaxAttendees exposing (MaxAttendees)
 import Name exposing (Name)
 import Pixels exposing (Pixels)
 import ProfileForm
@@ -326,8 +327,8 @@ type ToBackend
     | SearchGroupsRequest String
     | ChangeGroupNameRequest GroupId (Untrusted GroupName)
     | ChangeGroupDescriptionRequest GroupId (Untrusted Description)
-    | CreateEventRequest GroupId (Untrusted EventName) (Untrusted Description) (Untrusted EventType) Time.Posix (Untrusted EventDuration)
-    | EditEventRequest GroupId EventId (Untrusted EventName) (Untrusted Description) (Untrusted EventType) Time.Posix (Untrusted EventDuration)
+    | CreateEventRequest GroupId (Untrusted EventName) (Untrusted Description) (Untrusted EventType) Time.Posix (Untrusted EventDuration) (Untrusted MaxAttendees)
+    | EditEventRequest GroupId EventId (Untrusted EventName) (Untrusted Description) (Untrusted EventType) Time.Posix (Untrusted EventDuration) (Untrusted MaxAttendees)
     | JoinEventRequest GroupId EventId
     | LeaveEventRequest GroupId EventId
     | ChangeEventCancellationStatusRequest GroupId EventId CancellationStatus
@@ -361,6 +362,6 @@ type ToFrontend
     | ChangeGroupDescriptionResponse GroupId Description
     | CreateEventResponse GroupId (Result CreateEventError Event)
     | EditEventResponse GroupId EventId (Result Group.EditEventError Event) Time.Posix
-    | JoinEventResponse GroupId EventId (Result () ())
+    | JoinEventResponse GroupId EventId (Result JoinEventError ())
     | LeaveEventResponse GroupId EventId (Result () ())
     | ChangeEventCancellationStatusResponse GroupId EventId (Result Group.EditCancellationStatusError CancellationStatus) Time.Posix

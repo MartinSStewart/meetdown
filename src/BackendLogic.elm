@@ -516,15 +516,16 @@ updateFromFrontend cmds sessionId clientId msg model =
                     , cmds.none
                     )
 
-        CreateEventRequest groupId eventName_ description_ eventType_ startTime eventDuration_ ->
+        CreateEventRequest groupId eventName_ description_ eventType_ startTime eventDuration_ maxAttendees_ ->
             case
-                T4
+                T5
                     (Untrusted.eventName eventName_)
                     (Untrusted.description description_)
                     (Untrusted.eventType eventType_)
                     (Untrusted.eventDuration eventDuration_)
+                    (Untrusted.maxAttendees maxAttendees_)
             of
-                T4 (Just eventName) (Just description) (Just eventType) (Just eventDuration) ->
+                T5 (Just eventName) (Just description) (Just eventType) (Just eventDuration) (Just maxAttendees) ->
                     userWithGroupAuthorization
                         cmds
                         sessionId
@@ -547,8 +548,15 @@ updateFromFrontend cmds sessionId clientId msg model =
                                 let
                                     newEvent : Event
                                     newEvent =
-                                        Event.newEvent eventName description eventType startTime eventDuration model.time
-                                            |> Event.addAttendee userId
+                                        Event.newEvent
+                                            userId
+                                            eventName
+                                            description
+                                            eventType
+                                            startTime
+                                            eventDuration
+                                            model.time
+                                            maxAttendees
                                 in
                                 case Group.addEvent newEvent group of
                                     Ok newGroup ->
@@ -603,15 +611,16 @@ updateFromFrontend cmds sessionId clientId msg model =
                             )
                 )
 
-        EditEventRequest groupId eventId eventName_ description_ eventType_ startTime eventDuration_ ->
+        EditEventRequest groupId eventId eventName_ description_ eventType_ startTime eventDuration_ maxAttendees_ ->
             case
-                T4
+                T5
                     (Untrusted.eventName eventName_)
                     (Untrusted.description description_)
                     (Untrusted.eventType eventType_)
                     (Untrusted.eventDuration eventDuration_)
+                    (Untrusted.maxAttendees maxAttendees_)
             of
-                T4 (Just eventName) (Just description) (Just eventType) (Just eventDuration) ->
+                T5 (Just eventName) (Just description) (Just eventType) (Just eventDuration) (Just maxAttendees) ->
                     userWithGroupAuthorization
                         cmds
                         sessionId
@@ -626,6 +635,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                                         >> Event.withEventType eventType
                                         >> Event.withDuration eventDuration
                                         >> Event.withStartTime startTime
+                                        >> Event.withMaxAttendees maxAttendees
                                     )
                                     group
                             of
@@ -787,18 +797,21 @@ joinEvent : Effects cmd -> ClientId -> Id UserId -> ( GroupId, EventId ) -> Back
 joinEvent cmds clientId userId ( groupId, eventId ) model =
     case getGroup groupId model of
         Just group ->
-            ( { model | groups = Dict.insert groupId (Group.joinEvent userId eventId group) model.groups }
-            , cmds.sendToFrontends
-                (getClientIdsForUser userId model)
-                (JoinEventResponse groupId eventId (Ok ()))
-            )
+            case Group.joinEvent userId eventId group of
+                Ok newGroup ->
+                    ( { model | groups = Dict.insert groupId newGroup model.groups }
+                    , cmds.sendToFrontends
+                        (getClientIdsForUser userId model)
+                        (JoinEventResponse groupId eventId (Ok ()))
+                    )
+
+                Err error ->
+                    ( model
+                    , cmds.sendToFrontend clientId (JoinEventResponse groupId eventId (Err error))
+                    )
 
         Nothing ->
-            ( model
-            , cmds.sendToFrontend
-                clientId
-                (JoinEventResponse groupId eventId (Err ()))
-            )
+            ( model, cmds.none )
 
 
 getAndRemoveLoginToken :
@@ -951,8 +964,8 @@ loginEmailContent route loginToken maybeJoinEvent =
         loginLink =
             loginEmailLink route loginToken maybeJoinEvent
 
-        --_ =
-        --    Debug.log "login" loginLink
+        _ =
+            Debug.log "login" loginLink
     in
     Email.Html.div
         []

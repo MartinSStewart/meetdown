@@ -4,6 +4,7 @@ module Untrusted exposing
     , eventDuration
     , eventName
     , eventType
+    , maxAttendees
     , untrust
     , validateEmailAddress
     , validateGroupName
@@ -19,11 +20,16 @@ import EventDuration exposing (EventDuration)
 import EventName exposing (EventName)
 import GroupName exposing (GroupName)
 import Link
+import MaxAttendees exposing (MaxAttendees)
 import Name exposing (Name)
 import ProfileImage exposing (ProfileImage)
-import Url
 
 
+{-| We can't be sure a value we got from the frontend hasn't been tampered with.
+In cases where an opaque type uses code to give some kind of guarantee (for example
+MaxAttendees makes sure the max number of attendees is at least 2) we wrap the value in Unstrusted to
+make sure we don't forget to valid the value on the backend.
+-}
 type Untrusted a
     = Untrusted a
 
@@ -82,6 +88,16 @@ validateProfileImage (Untrusted profileImage) =
 
         Nothing ->
             Just ProfileImage.defaultImage
+
+
+maxAttendees : Untrusted MaxAttendees -> Maybe MaxAttendees
+maxAttendees (Untrusted a) =
+    case MaxAttendees.toMaybe a of
+        Just maxAttendees_ ->
+            MaxAttendees.maxAttendees maxAttendees_ |> Result.toMaybe
+
+        Nothing ->
+            Just MaxAttendees.noLimit
 
 
 untrust : a -> Untrusted a
