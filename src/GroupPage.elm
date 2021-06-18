@@ -1,4 +1,4 @@
-module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, addedNewEvent, createEventCancelId, createEventStartDateId, createEventStartTimeId, createEventSubmitId, createNewEventId, editCancellationStatusResponse, editDescriptionId, editEventResponse, editGroupNameId, eventDescriptionInputId, eventDurationId, eventMeetingInPersonInputId, eventMeetingOnlineInputId, eventMeetingTypeId, eventNameInputId, init, joinEventButtonId, joinOrLeaveResponse, leaveEventButtonId, resetDescriptionId, resetGroupNameId, saveDescriptionId, saveGroupNameId, savedDescription, savedName, update, view)
+module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, addedNewEvent, createEventCancelId, createEventStartDateId, createEventStartTimeId, createEventSubmitId, createNewEventId, editCancellationStatusResponse, editDescriptionId, editEventResponse, editGroupNameId, eventDescriptionInputId, eventDurationId, eventMeetingInPersonInputId, eventMeetingOnlineInputId, eventMeetingTypeId, eventNameInputId, init, joinEventButtonId, joinEventResponse, leaveEventButtonId, leaveEventResponse, resetDescriptionId, resetGroupNameId, saveDescriptionId, saveGroupNameId, savedDescription, savedName, update, view)
 
 import Address exposing (Address, Error(..))
 import AssocList as Dict exposing (Dict)
@@ -23,6 +23,7 @@ import Id exposing (ButtonId(..), HtmlId, Id, UserId)
 import Link exposing (Link)
 import List.Extra as List
 import List.Nonempty exposing (Nonempty(..))
+import MaxAttendees exposing (Error(..))
 import Name
 import ProfileImage
 import Quantity exposing (Quantity)
@@ -45,7 +46,8 @@ type alias Model =
 
 type EventJoinOrLeaveStatus
     = JoinOrLeavePending
-    | JoinOrLeaveFailure
+    | LeaveFailure
+    | JoinFailure Group.JoinEventError
 
 
 type Editable validated
@@ -90,6 +92,7 @@ type alias Effects cmd =
         -> Untrusted Event.EventType
         -> Time.Posix
         -> Untrusted EventDuration
+        -> Untrusted MaxAttendees.MaxAttendees
         -> cmd
     , editEvent :
         EventId
@@ -98,6 +101,7 @@ type alias Effects cmd =
         -> Untrusted Event.EventType
         -> Time.Posix
         -> Untrusted EventDuration
+        -> Untrusted MaxAttendees.MaxAttendees
         -> cmd
     , joinEvent : EventId -> cmd
     , leaveEvent : EventId -> cmd
@@ -121,6 +125,7 @@ type alias NewEvent =
     , startDate : String
     , startTime : String
     , duration : String
+    , maxAttendees : String
     }
 
 
@@ -134,6 +139,7 @@ type alias EditEvent =
     , startDate : String
     , startTime : String
     , duration : String
+    , maxAttendees : String
     }
 
 
@@ -165,6 +171,7 @@ initNewEvent =
     , startDate = ""
     , startTime = ""
     , duration = ""
+    , maxAttendees = ""
     }
 
 
@@ -416,7 +423,7 @@ update effects config group maybeUserId msg model =
             in
             if isOwner then
                 Maybe.map5
-                    (\name description eventType startTime duration ->
+                    (\name description eventType startTime ( duration, maxAttendees ) ->
                         ( { model | newEvent = { newEvent | submitStatus = IsSubmitting } }
                         , effects.createEvent
                             (Untrusted.untrust name)
@@ -424,6 +431,7 @@ update effects config group maybeUserId msg model =
                             (Untrusted.untrust eventType)
                             startTime
                             (Untrusted.untrust duration)
+                            (Untrusted.untrust maxAttendees)
                         , { joinEvent = Nothing }
                         )
                     )
@@ -431,7 +439,10 @@ update effects config group maybeUserId msg model =
                     (Description.fromString newEvent.description |> Result.toMaybe)
                     maybeEventType
                     maybeStartTime
-                    (validateDuration newEvent.duration |> Result.toMaybe)
+                    (Maybe.map2 Tuple.pair
+                        (validateDuration newEvent.duration |> Result.toMaybe)
+                        (validateMaxAttendees newEvent.maxAttendees |> Result.toMaybe)
+                    )
                     |> Maybe.withDefault
                         ( { model | newEvent = pressSubmit model.newEvent }
                         , effects.none
@@ -514,6 +525,13 @@ update effects config group maybeUserId msg model =
                                             |> Duration.inHours
                                             |> EventDuration.removeTrailing0s
                                             |> String.left 4
+                                    , maxAttendees =
+                                        case Event.maxAttendees event |> MaxAttendees.toMaybe of
+                                            Just value ->
+                                                String.fromInt value
+
+                                            Nothing ->
+                                                ""
                                     }
                                     |> Just
                           }
@@ -567,7 +585,7 @@ update effects config group maybeUserId msg model =
                                     |> Result.toMaybe
                         in
                         Maybe.map5
-                            (\name description eventType startTime duration ->
+                            (\name description eventType startTime ( duration, maxAttendees ) ->
                                 ( { model
                                     | eventOverlay =
                                         EdittingEvent eventId
@@ -581,6 +599,7 @@ update effects config group maybeUserId msg model =
                                     (Untrusted.untrust eventType)
                                     startTime
                                     (Untrusted.untrust duration)
+                                    (Untrusted.untrust maxAttendees)
                                 , { joinEvent = Nothing }
                                 )
                             )
@@ -588,7 +607,10 @@ update effects config group maybeUserId msg model =
                             (Description.fromString event.description |> Result.toMaybe)
                             maybeEventType
                             maybeStartTime
-                            (validateDuration event.duration |> Result.toMaybe)
+                            (Maybe.map2 Tuple.pair
+                                (validateDuration event.duration |> Result.toMaybe)
+                                (validateMaxAttendees event.maxAttendees |> Result.toMaybe)
+                            )
                             |> Maybe.withDefault
                                 ( { model
                                     | eventOverlay = EdittingEvent eventId (pressSubmit event) |> Just
@@ -646,8 +668,48 @@ pressSubmit event =
     }
 
 
-joinOrLeaveResponse : EventId -> Result () () -> Model -> Model
-joinOrLeaveResponse eventId result model =
+type MaxAttendees
+    = MaxAttendees
+    | NoLimit
+
+
+validateMaxAttendees : String -> Result String MaxAttendees.MaxAttendees
+validateMaxAttendees text =
+    let
+        trimmed =
+            String.trim text
+    in
+    case ( trimmed, String.toInt trimmed ) of
+        ( "", _ ) ->
+            Ok MaxAttendees.noLimit
+
+        ( _, Just value ) ->
+            case MaxAttendees.maxAttendees value of
+                Ok ok ->
+                    Ok ok
+
+                Err MaxAttendeesMustBe2OrGreater ->
+                    Err "You need to allow at least 2 people to join the event"
+
+        ( _, Nothing ) ->
+            Err "Invalid value. Choose an integer like 5 or 30"
+
+
+joinEventResponse : EventId -> Result Group.JoinEventError () -> Model -> Model
+joinEventResponse eventId result model =
+    { model
+        | pendingJoinOrLeave =
+            case result of
+                Ok () ->
+                    Dict.remove eventId model.pendingJoinOrLeave
+
+                Err error ->
+                    Dict.insert eventId (JoinFailure error) model.pendingJoinOrLeave
+    }
+
+
+leaveEventResponse : EventId -> Result () () -> Model -> Model
+leaveEventResponse eventId result model =
     { model
         | pendingJoinOrLeave =
             case result of
@@ -655,7 +717,7 @@ joinOrLeaveResponse eventId result model =
                     Dict.remove eventId model.pendingJoinOrLeave
 
                 Err () ->
-                    Dict.insert eventId JoinOrLeaveFailure model.pendingJoinOrLeave
+                    Dict.insert eventId LeaveFailure model.pendingJoinOrLeave
     }
 
 
@@ -1122,10 +1184,33 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
                     { onPress = PressedLeaveEvent eventId, label = "Leave event" }
 
             else
-                Ui.submitButton
-                    joinEventButtonId
-                    (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
-                    { onPress = PressedJoinEvent eventId, label = "Join event" }
+                case Event.maxAttendees event |> MaxAttendees.toMaybe of
+                    Just value ->
+                        let
+                            spotsLeft : Int
+                            spotsLeft =
+                                value - attendeeCount
+                        in
+                        if spotsLeft == 1 then
+                            Ui.submitButton
+                                joinEventButtonId
+                                (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
+                                { onPress = PressedJoinEvent eventId, label = "Join event (1 spot left)" }
+
+                        else if spotsLeft > 0 then
+                            Ui.submitButton
+                                joinEventButtonId
+                                (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
+                                { onPress = PressedJoinEvent eventId, label = "Join event (" ++ String.fromInt spotsLeft ++ " spots left)" }
+
+                        else
+                            Ui.error "No spots left"
+
+                    Nothing ->
+                        Ui.submitButton
+                            joinEventButtonId
+                            (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
+                            { onPress = PressedJoinEvent eventId, label = "Join event" }
     in
     Element.column
         [ Element.width Element.fill, Element.spacing 8, Element.paddingXY 16 0 ]
@@ -1174,6 +1259,17 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
                             ""
                        )
                     |> Element.text
+        , case Event.maxAttendees event |> MaxAttendees.toMaybe of
+            Just value ->
+                "At most "
+                    ++ String.fromInt value
+                    ++ " people can attend this event"
+                    |> Element.text
+                    |> List.singleton
+                    |> Element.paragraph []
+
+            Nothing ->
+                Element.none
         , Element.row [ Element.spacing 16 ]
             [ case Event.cancellationStatus event of
                 Just ( Event.EventUncancelled, _ ) ->
@@ -1209,14 +1305,19 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
                 Element.none
             ]
         , case maybeJoinOrLeaveStatus of
-            Just JoinOrLeaveFailure ->
-                if isAttending then
-                    Ui.error "Failed to leave event"
+            Just LeaveFailure ->
+                Ui.error "Failed to leave event"
 
-                else
-                    Ui.error "Failed to join event"
+            Just (JoinFailure Group.EventNotFound) ->
+                Ui.error "Failed to join, this event doesn't exist (try refreshing the page?)"
 
-            _ ->
+            Just (JoinFailure Group.NoSpotsLeftInEvent) ->
+                Ui.error "Failed to join event, there aren't any spots left."
+
+            Just JoinOrLeavePending ->
+                Element.none
+
+            Nothing ->
                 Element.none
         ]
 
@@ -1443,6 +1544,18 @@ editEventView currentTime timezone event =
                 _ ->
                     Nothing
             )
+        , Ui.numberInput
+            eventMaxAttendeesId
+            (\text -> ChangedEditEvent { event | maxAttendees = text })
+            event.maxAttendees
+            "How many people can join (leave this empty if there's no limit)"
+            (case ( pressedSubmit, validateMaxAttendees event.maxAttendees ) of
+                ( True, Err error ) ->
+                    Just error
+
+                _ ->
+                    Nothing
+            )
         , Element.row
             [ Element.spacing 8 ]
             [ Ui.submitButton createEventSubmitId isSubmitting { onPress = PressedSubmitEditEvent, label = "Update event" }
@@ -1602,6 +1715,18 @@ newEventView currentTime timezone event =
                 _ ->
                     Nothing
             )
+        , Ui.numberInput
+            eventMaxAttendeesId
+            (\text -> ChangedNewEvent { event | maxAttendees = text })
+            event.maxAttendees
+            "How many people can join (leave this empty if there's no limit)"
+            (case ( pressedSubmit, validateMaxAttendees event.maxAttendees ) of
+                ( True, Err error ) ->
+                    Just error
+
+                _ ->
+                    Nothing
+            )
         , Element.row
             [ Element.spacing 8 ]
             [ Ui.submitButton
@@ -1626,6 +1751,10 @@ newEventView currentTime timezone event =
             IsSubmitting ->
                 Element.none
         ]
+
+
+eventMaxAttendeesId =
+    Id.numberInputId "groupPageEditMaxAttendeesId"
 
 
 eventDurationId =

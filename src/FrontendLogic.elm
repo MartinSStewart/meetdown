@@ -459,11 +459,11 @@ updateLoaded cmds msg model =
                                         , changeDescription =
                                             ChangeGroupDescriptionRequest groupId >> cmds.sendToBackend
                                         , createEvent =
-                                            \a b c d e -> CreateEventRequest groupId a b c d e |> cmds.sendToBackend
+                                            \a b c d e f -> CreateEventRequest groupId a b c d e f |> cmds.sendToBackend
                                         , leaveEvent = \eventId -> LeaveEventRequest groupId eventId |> cmds.sendToBackend
                                         , joinEvent = \eventId -> JoinEventRequest groupId eventId |> cmds.sendToBackend
                                         , editEvent =
-                                            \a b c d e f -> EditEventRequest groupId a b c d e f |> cmds.sendToBackend
+                                            \a b c d e f g -> EditEventRequest groupId a b c d e f g |> cmds.sendToBackend
                                         , changeCancellationStatus =
                                             \a b -> ChangeEventCancellationStatusRequest groupId a b |> cmds.sendToBackend
                                         }
@@ -872,7 +872,12 @@ updateLoadedFromBackend cmds msg model =
                                         (\a ->
                                             case a of
                                                 GroupFound group ->
-                                                    Group.joinEvent loggedIn.userId eventId group |> GroupFound
+                                                    case Group.joinEvent loggedIn.userId eventId group of
+                                                        Ok newGroup ->
+                                                            GroupFound newGroup
+
+                                                        Err _ ->
+                                                            a
 
                                                 GroupNotFound ->
                                                     GroupNotFound
@@ -884,16 +889,16 @@ updateLoadedFromBackend cmds msg model =
                                 , groupPage =
                                     Dict.updateJust
                                         groupId
-                                        (GroupPage.joinOrLeaveResponse eventId result)
+                                        (GroupPage.joinEventResponse eventId result)
                                         model.groupPage
                             }
 
-                        Err () ->
+                        Err _ ->
                             { model
                                 | groupPage =
                                     Dict.updateJust
                                         groupId
-                                        (GroupPage.joinOrLeaveResponse eventId result)
+                                        (GroupPage.joinEventResponse eventId result)
                                         model.groupPage
                             }
 
@@ -928,7 +933,7 @@ updateLoadedFromBackend cmds msg model =
                                 , groupPage =
                                     Dict.updateJust
                                         groupId
-                                        (GroupPage.joinOrLeaveResponse eventId result)
+                                        (GroupPage.leaveEventResponse eventId result)
                                         model.groupPage
                             }
 
@@ -937,7 +942,7 @@ updateLoadedFromBackend cmds msg model =
                                 | groupPage =
                                     Dict.updateJust
                                         groupId
-                                        (GroupPage.joinOrLeaveResponse eventId result)
+                                        (GroupPage.leaveEventResponse eventId result)
                                         model.groupPage
                             }
 

@@ -4,6 +4,7 @@ module Group exposing
     , EventId
     , Group
     , GroupVisibility(..)
+    , JoinEventError(..)
     , addEvent
     , createdAt
     , description
@@ -245,9 +246,24 @@ editEventHelper eventId event (Group group) =
     Group { group | events = Dict.insert eventId event group.events }
 
 
-joinEvent : Id UserId -> EventId -> Group -> Group
+type JoinEventError
+    = NoSpotsLeftInEvent
+    | EventNotFound
+
+
+joinEvent : Id UserId -> EventId -> Group -> Result JoinEventError Group
 joinEvent userId eventId (Group group) =
-    Group { group | events = Dict.update eventId (Maybe.map (Event.addAttendee userId)) group.events }
+    case Dict.get eventId group.events of
+        Just event ->
+            case Event.addAttendee userId event of
+                Ok newEvent ->
+                    Group { group | events = Dict.insert eventId newEvent group.events } |> Ok
+
+                Err () ->
+                    Err NoSpotsLeftInEvent
+
+        Nothing ->
+            Err EventNotFound
 
 
 leaveEvent : Id UserId -> EventId -> Group -> Group
