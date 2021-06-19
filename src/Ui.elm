@@ -450,29 +450,31 @@ dateTimeInput :
     , timezone : Time.Zone
     , dateText : String
     , timeText : String
+    , isDisabled : Bool
     , maybeError : Maybe String
     }
     -> Element msg
-dateTimeInput { dateInputId, timeInputId, dateChanged, timeChanged, labelText, minTime, timezone, dateText, timeText, maybeError } =
+dateTimeInput { dateInputId, timeInputId, dateChanged, timeChanged, labelText, minTime, timezone, dateText, timeText, isDisabled, maybeError } =
     Element.column
         [ Element.spacing 4 ]
         [ formLabelAboveEl labelText
         , Element.wrappedRow [ Element.spacing 8 ]
-            [ dateInput dateInputId dateChanged (Date.fromPosix timezone minTime) dateText
-            , timeInput timeInputId timeChanged timeText
+            [ dateInput dateInputId dateChanged (Date.fromPosix timezone minTime) dateText isDisabled
+            , timeInput timeInputId timeChanged timeText isDisabled
             ]
         , maybeError |> Maybe.map error |> Maybe.withDefault Element.none
         ]
 
 
-timeInput : HtmlId TimeInputId -> (String -> msg) -> String -> Element msg
-timeInput htmlId onChange time =
+timeInput : HtmlId TimeInputId -> (String -> msg) -> String -> Bool -> Element msg
+timeInput htmlId onChange time isDisabled =
     Html.input
         [ Html.Attributes.type_ "time"
         , Html.Events.onInput onChange
         , Html.Attributes.value time
         , Html.Attributes.style "padding" "0"
         , Id.htmlIdToString htmlId |> Html.Attributes.id
+        , Html.Attributes.disabled isDisabled
         ]
         []
         |> Element.html
@@ -486,8 +488,8 @@ timeToString timezone time =
         ++ String.padLeft 2 '0' (String.fromInt (Time.toMinute timezone time))
 
 
-dateInput : HtmlId DateInputId -> (String -> msg) -> Date -> String -> Element msg
-dateInput htmlId onChange minDateTime date =
+dateInput : HtmlId DateInputId -> (String -> msg) -> Date -> String -> Bool -> Element msg
+dateInput htmlId onChange minDateTime date isDisabled =
     Html.input
         [ Html.Attributes.type_ "date"
         , Html.Attributes.min (datestamp minDateTime)
@@ -495,6 +497,7 @@ dateInput htmlId onChange minDateTime date =
         , Html.Attributes.value date
         , Html.Attributes.style "padding" "0"
         , Id.htmlIdToString htmlId |> Html.Attributes.id
+        , Html.Attributes.disabled isDisabled
         ]
         []
         |> Element.html

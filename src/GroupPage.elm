@@ -16,7 +16,7 @@ import Event exposing (Event, EventType)
 import EventDuration exposing (EventDuration)
 import EventName exposing (EventName)
 import FrontendUser exposing (FrontendUser)
-import Group exposing (EditEventError(..), EventId, Group)
+import Group exposing (EditEventError(..), EventId, Group, PastOngoingOrFuture(..))
 import GroupName exposing (GroupName)
 import Html.Attributes
 import Id exposing (ButtonId(..), HtmlId, Id, UserId)
@@ -29,6 +29,7 @@ import ProfileImage
 import Quantity exposing (Quantity)
 import Time
 import Time.Extra as Time
+import TimeExtra as Time
 import Ui
 import Untrusted exposing (Untrusted)
 
@@ -481,8 +482,14 @@ update effects config group maybeUserId msg model =
 
         PressedEditEvent eventId ->
             if isOwner && model.eventOverlay == Nothing then
-                case Group.events config.time group |> .futureEvents |> List.find (Tuple.first >> (==) eventId) of
-                    Just ( _, event ) ->
+                case Group.getEvent config.time eventId group of
+                    Just ( _, IsPastEvent ) ->
+                        ( model, effects.none, { joinEvent = Nothing } )
+
+                    Nothing ->
+                        ( model, effects.none, { joinEvent = Nothing } )
+
+                    Just ( event, _ ) ->
                         ( { model
                             | eventOverlay =
                                 EdittingEvent
@@ -523,7 +530,7 @@ update effects config group maybeUserId msg model =
                                         Event.duration event
                                             |> EventDuration.toDuration
                                             |> Duration.inHours
-                                            |> EventDuration.removeTrailing0s
+                                            |> Time.removeTrailing0s
                                             |> String.left 4
                                     , maxAttendees =
                                         case Event.maxAttendees event |> MaxAttendees.toMaybe of
@@ -538,9 +545,6 @@ update effects config group maybeUserId msg model =
                         , effects.none
                         , { joinEvent = Nothing }
                         )
-
-                    Nothing ->
-                        ( model, effects.none, { joinEvent = Nothing } )
 
             else
                 ( model, effects.none, { joinEvent = Nothing } )
@@ -561,66 +565,76 @@ update effects config group maybeUserId msg model =
 
         PressedSubmitEditEvent ->
             case model.eventOverlay of
-                Just (EdittingEvent eventId event) ->
-                    if event.submitStatus == IsSubmitting then
-                        ( model, effects.none, { joinEvent = Nothing } )
+                Just (EdittingEvent eventId editEvent) ->
+                    case Group.getEvent config.time eventId group of
+                        Just ( event, eventStatus ) ->
+                            if editEvent.submitStatus == IsSubmitting then
+                                ( model, effects.none, { joinEvent = Nothing } )
 
-                    else if isOwner then
-                        let
-                            maybeEventType : Maybe Event.EventType
-                            maybeEventType =
-                                case event.meetingType of
-                                    MeetOnline ->
-                                        validateLink event.meetOnlineLink
-                                            |> Result.toMaybe
-                                            |> Maybe.map Event.MeetOnline
+                            else if isOwner then
+                                let
+                                    maybeEventType : Maybe Event.EventType
+                                    maybeEventType =
+                                        case editEvent.meetingType of
+                                            MeetOnline ->
+                                                validateLink editEvent.meetOnlineLink
+                                                    |> Result.toMaybe
+                                                    |> Maybe.map Event.MeetOnline
 
-                                    MeetInPerson ->
-                                        validateAddress event.meetInPersonAddress
-                                            |> Result.toMaybe
-                                            |> Maybe.map Event.MeetInPerson
+                                            MeetInPerson ->
+                                                validateAddress editEvent.meetInPersonAddress
+                                                    |> Result.toMaybe
+                                                    |> Maybe.map Event.MeetInPerson
 
-                            maybeStartTime =
-                                validateDateTime config.time config.timezone event.startDate event.startTime
-                                    |> Result.toMaybe
-                        in
-                        Maybe.map5
-                            (\name description eventType startTime ( duration, maxAttendees ) ->
-                                ( { model
-                                    | eventOverlay =
-                                        EdittingEvent eventId
-                                            { event | submitStatus = IsSubmitting }
-                                            |> Just
-                                  }
-                                , effects.editEvent
-                                    eventId
-                                    (Untrusted.untrust name)
-                                    (Untrusted.untrust description)
-                                    (Untrusted.untrust eventType)
-                                    startTime
-                                    (Untrusted.untrust duration)
-                                    (Untrusted.untrust maxAttendees)
-                                , { joinEvent = Nothing }
-                                )
-                            )
-                            (EventName.fromString event.eventName |> Result.toMaybe)
-                            (Description.fromString event.description |> Result.toMaybe)
-                            maybeEventType
-                            maybeStartTime
-                            (Maybe.map2 Tuple.pair
-                                (validateDuration event.duration |> Result.toMaybe)
-                                (validateMaxAttendees event.maxAttendees |> Result.toMaybe)
-                            )
-                            |> Maybe.withDefault
-                                ( { model
-                                    | eventOverlay = EdittingEvent eventId (pressSubmit event) |> Just
-                                  }
-                                , effects.none
-                                , { joinEvent = Nothing }
-                                )
+                                    maybeStartTime =
+                                        case eventStatus of
+                                            IsFutureEvent ->
+                                                validateDateTime config.time config.timezone editEvent.startDate editEvent.startTime
+                                                    |> Result.toMaybe
 
-                    else
-                        ( model, effects.none, { joinEvent = Nothing } )
+                                            _ ->
+                                                Event.startTime event |> Just
+                                in
+                                Maybe.map5
+                                    (\name description eventType startTime ( duration, maxAttendees ) ->
+                                        ( { model
+                                            | eventOverlay =
+                                                EdittingEvent eventId
+                                                    { editEvent | submitStatus = IsSubmitting }
+                                                    |> Just
+                                          }
+                                        , effects.editEvent
+                                            eventId
+                                            (Untrusted.untrust name)
+                                            (Untrusted.untrust description)
+                                            (Untrusted.untrust eventType)
+                                            startTime
+                                            (Untrusted.untrust duration)
+                                            (Untrusted.untrust maxAttendees)
+                                        , { joinEvent = Nothing }
+                                        )
+                                    )
+                                    (EventName.fromString editEvent.eventName |> Result.toMaybe)
+                                    (Description.fromString editEvent.description |> Result.toMaybe)
+                                    maybeEventType
+                                    maybeStartTime
+                                    (Maybe.map2 Tuple.pair
+                                        (validateDuration editEvent.duration |> Result.toMaybe)
+                                        (validateMaxAttendees editEvent.maxAttendees |> Result.toMaybe)
+                                    )
+                                    |> Maybe.withDefault
+                                        ( { model
+                                            | eventOverlay = EdittingEvent eventId (pressSubmit editEvent) |> Just
+                                          }
+                                        , effects.none
+                                        , { joinEvent = Nothing }
+                                        )
+
+                            else
+                                ( model, effects.none, { joinEvent = Nothing } )
+
+                        Nothing ->
+                            ( model, effects.none, { joinEvent = Nothing } )
 
                 _ ->
                     ( model, effects.none, { joinEvent = Nothing } )
@@ -722,8 +736,13 @@ view currentTime timezone owner group model maybeUserId =
         Just AddingNewEvent ->
             newEventView currentTime timezone model.newEvent
 
-        Just (EdittingEvent _ event) ->
-            editEventView currentTime timezone event
+        Just (EdittingEvent eventId editEvent) ->
+            case Group.getEvent currentTime eventId group of
+                Just ( _, eventStatus ) ->
+                    editEventView currentTime timezone eventStatus editEvent
+
+                Nothing ->
+                    Element.text "This event doesn't exist"
 
         Nothing ->
             groupView currentTime timezone owner group model maybeUserId
@@ -863,12 +882,12 @@ groupView currentTime timezone owner group model maybeUserId =
                     )
                     (Description.toParagraph (Group.description group))
         , case ongoingEvent of
-            Just ( _, ongoing ) ->
+            Just event ->
                 section
                     False
                     "Ongoing event"
                     Element.none
-                    (ongoingEventView currentTime maybeUserId ongoing)
+                    (ongoingEventView currentTime isOwner maybeUserId event)
 
             Nothing ->
                 Element.none
@@ -983,72 +1002,8 @@ createNewEventId =
     Id.buttonId "groupPageCreateNewEvent"
 
 
-timeDifference : Time.Posix -> Time.Posix -> String
-timeDifference start end =
-    let
-        difference : Duration
-        difference =
-            Duration.from start end |> Quantity.abs
-
-        months =
-            Duration.inDays difference / 30 |> floor
-
-        weeks =
-            Duration.inWeeks difference |> floor
-
-        days =
-            Duration.inDays difference |> floor
-
-        hours =
-            Duration.inHours difference |> floor
-
-        minutes =
-            Duration.inMinutes difference |> round
-
-        suffix =
-            if Time.posixToMillis start <= Time.posixToMillis end then
-                ""
-
-            else
-                " ago"
-    in
-    if months >= 2 then
-        String.fromInt months ++ " months" ++ suffix
-
-    else if weeks >= 2 then
-        String.fromInt weeks ++ " weeks" ++ suffix
-
-    else if days > 1 then
-        String.fromInt days ++ " days" ++ suffix
-
-    else if days == 1 then
-        if Time.posixToMillis start <= Time.posixToMillis end then
-            "tomorrow"
-
-        else
-            "yesterday"
-
-    else if hours > 6 then
-        String.fromInt hours ++ " hours" ++ suffix
-
-    else if hours > 1 then
-        (EventDuration.removeTrailing0s (Duration.inHours difference) |> String.left 3) ++ " hours" ++ suffix
-
-    else if hours == 1 then
-        "1 hour" ++ suffix
-
-    else if minutes > 1 then
-        String.fromInt minutes ++ " minutes" ++ suffix
-
-    else if minutes == 1 then
-        "1 minute" ++ suffix
-
-    else
-        "now"
-
-
-ongoingEventView : Time.Posix -> Maybe (Id UserId) -> Event -> Element Msg
-ongoingEventView currentTime maybeUserId event =
+ongoingEventView : Time.Posix -> Bool -> Maybe (Id UserId) -> ( EventId, Event ) -> Element Msg
+ongoingEventView currentTime isOwner maybeUserId ( eventId, event ) =
     let
         isAttending =
             maybeUserId |> Maybe.map (\userId -> Set.member userId (Event.attendees event)) |> Maybe.withDefault False
@@ -1056,21 +1011,23 @@ ongoingEventView currentTime maybeUserId event =
         attendeeCount =
             Event.attendees event |> Set.size
     in
-    Element.column
-        [ Element.width Element.fill, Element.spacing 8, Element.paddingXY 16 0 ]
-        [ Event.name event |> EventName.toString |> Element.text |> List.singleton |> Element.paragraph [ Element.Font.bold ]
+    eventCard
+        [ Element.row
+            [ Element.spacing 16 ]
+            [ eventTitle event
+            , if isOwner then
+                smallButton editEventId (PressedEditEvent eventId) "Edit event"
+
+              else
+                Element.none
+            ]
         , Event.description event |> Description.toParagraph
         , "Ends in "
-            ++ timeDifference currentTime (Event.endTime event)
+            ++ Time.diffToString currentTime (Event.endTime event)
             |> Element.text
             |> List.singleton
             |> Element.paragraph []
-        , case Event.eventType event of
-            Event.MeetInPerson _ ->
-                Element.paragraph [] [ Element.text "This is an in person event 🤝" ]
-
-            Event.MeetOnline _ ->
-                Element.paragraph [] [ Element.text "This is an online event 💻" ]
+        , eventTypeView event
         , case attendeeCount of
             0 ->
                 Element.text "No one plans on attending"
@@ -1086,12 +1043,23 @@ ongoingEventView currentTime maybeUserId event =
                 String.fromInt attendeeCount
                     ++ " people are attending"
                     ++ (if isAttending then
-                            "(including you)"
+                            " (including you)"
 
                         else
                             ""
                        )
                     |> Element.text
+        , case Event.eventType event of
+            Event.MeetOnline (Just link) ->
+                Element.paragraph []
+                    [ Element.text "The event is taking place now at "
+                    , Element.link
+                        [ Element.Font.color Ui.linkColor ]
+                        { url = Link.toString link, label = Element.text (Link.toString link) }
+                    ]
+
+            _ ->
+                Element.none
         ]
 
 
@@ -1104,22 +1072,16 @@ pastEventView currentTime maybeUserId event =
         attendeeCount =
             Event.attendees event |> Set.size
     in
-    Element.column
-        [ Element.width Element.fill, Element.spacing 8, Element.paddingXY 16 0 ]
-        [ Event.name event |> EventName.toString |> Element.text |> List.singleton |> Element.paragraph [ Element.Font.bold ]
+    eventCard
+        [ eventTitle event
         , Event.description event |> Description.toParagraph
         , "Ended "
-            ++ timeDifference currentTime (Event.endTime event)
+            ++ Time.diffToString currentTime (Event.endTime event)
             |> Element.text
             |> List.singleton
             |> Element.paragraph []
         , EventDuration.toString (Event.duration event) ++ " long" |> Element.text
-        , case Event.eventType event of
-            Event.MeetInPerson _ ->
-                Element.paragraph [] [ Element.text "This is an in person event 🤝" ]
-
-            Event.MeetOnline _ ->
-                Element.paragraph [] [ Element.text "This is an online event 💻" ]
+        , eventTypeView event
         , case attendeeCount of
             0 ->
                 Element.text "No one attended 💔"
@@ -1200,13 +1162,12 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
                             (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
                             { onPress = PressedJoinEvent eventId, label = "Join event" }
     in
-    Element.column
-        [ Element.width Element.fill, Element.spacing 8, Element.paddingXY 16 0 ]
+    eventCard
         [ Element.row
             [ Element.spacing 16 ]
-            [ Event.name event |> EventName.toString |> Element.text |> List.singleton |> Element.paragraph [ Element.Font.bold ]
+            [ eventTitle event
             , if isOwner then
-                smallButton editEventId (PressedEditEvent eventId) "Edit"
+                smallButton editEventId (PressedEditEvent eventId) "Edit event"
 
               else
                 Element.none
@@ -1214,18 +1175,13 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
         , Event.description event |> Description.toParagraph
         , datetimeToString (Just timezone) (Event.startTime event)
             ++ " (Starts in "
-            ++ timeDifference currentTime (Event.startTime event)
+            ++ Time.diffToString currentTime (Event.startTime event)
             ++ ")"
             |> Element.text
             |> List.singleton
             |> Element.paragraph []
         , EventDuration.toString (Event.duration event) ++ " long" |> Element.text
-        , case Event.eventType event of
-            Event.MeetInPerson _ ->
-                Element.paragraph [] [ Element.text "This is an in person event 🤝" ]
-
-            Event.MeetOnline _ ->
-                Element.paragraph [] [ Element.text "This is an online event 💻" ]
+        , eventTypeView event
         , case attendeeCount of
             0 ->
                 Element.text "No one plans on attending"
@@ -1241,7 +1197,7 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
                 String.fromInt attendeeCount
                     ++ " people plan on attending"
                     ++ (if isAttending then
-                            "(including you)"
+                            " (including you)"
 
                         else
                             ""
@@ -1266,7 +1222,7 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
                 Just ( Event.EventCancelled, cancelTime ) ->
                     Ui.error
                         ("This event was cancelled "
-                            ++ timeDifference
+                            ++ Time.diffToString
                                 (if Duration.from currentTime cancelTime |> Quantity.lessThanZero then
                                     currentTime
 
@@ -1308,6 +1264,42 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
             Nothing ->
                 Element.none
         ]
+
+
+eventTitle event =
+    Event.name event |> EventName.toString |> Element.text |> List.singleton |> Element.paragraph [ Element.Font.bold ]
+
+
+eventCard =
+    Element.column
+        [ Element.width Element.fill
+        , Element.spacing 16
+        , Element.Border.rounded 4
+        , Element.padding 15
+        , Element.Border.width 1
+        , Element.Border.color grey
+        , Element.Border.shadow { offset = ( 0, 3 ), size = -1, blur = 3, color = grey }
+        ]
+
+
+eventTypeView : Event -> Element msg
+eventTypeView event =
+    case Event.eventType event of
+        Event.MeetInPerson maybeAddress ->
+            Element.paragraph []
+                [ Element.text "This is an in person event 🤝"
+                , case maybeAddress of
+                    Just address ->
+                        Element.text (". It's taking place at " ++ Address.toString address)
+
+                    Nothing ->
+                        Element.none
+                ]
+
+        Event.MeetOnline _ ->
+            Element.paragraph
+                []
+                [ Element.text "This is an online event 💻" ]
 
 
 cancelEventId =
@@ -1411,8 +1403,8 @@ eventMeetingInPersonInputId =
     Id.textInputId "groupEventMeetingInPerson"
 
 
-editEventView : Time.Posix -> Time.Zone -> EditEvent -> Element Msg
-editEventView currentTime timezone event =
+editEventView : Time.Posix -> Time.Zone -> Group.PastOngoingOrFuture -> EditEvent -> Element Msg
+editEventView currentTime timezone eventStatus event =
     let
         pressedSubmit =
             case event.submitStatus of
@@ -1434,142 +1426,162 @@ editEventView currentTime timezone event =
                     False
     in
     Element.column
-        [ Element.spacing 8, Element.padding 8, Ui.contentWidth, Element.centerX ]
+        [ Element.spacing 20, Element.padding 8, Ui.contentWidth, Element.centerX ]
         [ Ui.title "Edit event"
-        , Ui.textInput
-            eventNameInputId
-            (\text -> ChangedEditEvent { event | eventName = text })
-            event.eventName
-            "Event name"
-            (case ( pressedSubmit, EventName.fromString event.eventName ) of
-                ( True, Err error ) ->
-                    EventName.errorToString event.eventName error |> Just
+        , Ui.columnCard
+            [ Ui.textInput
+                eventNameInputId
+                (\text -> ChangedEditEvent { event | eventName = text })
+                event.eventName
+                "Event name"
+                (case ( pressedSubmit, EventName.fromString event.eventName ) of
+                    ( True, Err error ) ->
+                        EventName.errorToString event.eventName error |> Just
 
-                _ ->
-                    Nothing
-            )
-        , Ui.multiline
-            eventDescriptionInputId
-            (\text -> ChangedEditEvent { event | description = text })
-            event.description
-            "Event description"
-            (case ( pressedSubmit, Description.fromString event.description ) of
-                ( True, Err error ) ->
-                    Description.errorToString event.description error |> Just
+                    _ ->
+                        Nothing
+                )
+            , Ui.multiline
+                eventDescriptionInputId
+                (\text -> ChangedEditEvent { event | description = text })
+                event.description
+                "Event description (optional)"
+                (case ( pressedSubmit, Description.fromString event.description ) of
+                    ( True, Err error ) ->
+                        Description.errorToString event.description error |> Just
 
-                _ ->
-                    Nothing
-            )
-        , Ui.radioGroup
-            eventMeetingTypeId
-            (\meetingType -> ChangedEditEvent { event | meetingType = meetingType })
-            (Nonempty MeetOnline [ MeetInPerson ])
-            (Just event.meetingType)
-            (\a ->
-                case a of
-                    MeetOnline ->
-                        "This event will be online"
+                    _ ->
+                        Nothing
+                )
+            , Ui.radioGroup
+                eventMeetingTypeId
+                (\meetingType -> ChangedEditEvent { event | meetingType = meetingType })
+                (Nonempty MeetOnline [ MeetInPerson ])
+                (Just event.meetingType)
+                (\a ->
+                    case a of
+                        MeetOnline ->
+                            "This event will be online"
 
-                    MeetInPerson ->
-                        "This event will be in person"
-            )
-            Nothing
-        , case event.meetingType of
-            MeetOnline ->
-                Ui.textInput
-                    eventMeetingOnlineInputId
-                    (\text -> ChangedEditEvent { event | meetOnlineLink = text })
-                    event.meetOnlineLink
-                    "Meeting url (you can add this later)"
-                    (case ( pressedSubmit, validateLink event.meetOnlineLink ) of
-                        ( True, Err error ) ->
-                            Just error
+                        MeetInPerson ->
+                            "This event will be in person"
+                )
+                Nothing
+            , case event.meetingType of
+                MeetOnline ->
+                    Ui.textInput
+                        eventMeetingOnlineInputId
+                        (\text -> ChangedEditEvent { event | meetOnlineLink = text })
+                        event.meetOnlineLink
+                        "Link that will be shown when the event starts (optional)"
+                        (case ( pressedSubmit, validateLink event.meetOnlineLink ) of
+                            ( True, Err error ) ->
+                                Just error
 
-                        _ ->
-                            Nothing
-                    )
+                            _ ->
+                                Nothing
+                        )
 
-            MeetInPerson ->
-                Ui.textInput
-                    eventMeetingInPersonInputId
-                    (\text -> ChangedEditEvent { event | meetInPersonAddress = text })
-                    event.meetInPersonAddress
-                    "Meeting address (you can add this later)"
-                    (case ( pressedSubmit, validateAddress event.meetInPersonAddress ) of
-                        ( True, Err error ) ->
-                            Just error
+                MeetInPerson ->
+                    Ui.textInput
+                        eventMeetingInPersonInputId
+                        (\text -> ChangedEditEvent { event | meetInPersonAddress = text })
+                        event.meetInPersonAddress
+                        "Meeting address (optional)"
+                        (case ( pressedSubmit, validateAddress event.meetInPersonAddress ) of
+                            ( True, Err error ) ->
+                                Just error
 
-                        _ ->
-                            Nothing
-                    )
-        , Ui.dateTimeInput
-            { dateInputId = createEventStartDateId
-            , timeInputId = createEventStartTimeId
-            , dateChanged = \text -> ChangedEditEvent { event | startDate = text }
-            , timeChanged = \text -> ChangedEditEvent { event | startTime = text }
-            , labelText = "When does it start?"
-            , minTime = currentTime
-            , timezone = timezone
-            , dateText = event.startDate
-            , timeText = event.startTime
-            , maybeError =
-                case ( pressedSubmit, validateDateTime currentTime timezone event.startDate event.startTime ) of
+                            _ ->
+                                Nothing
+                        )
+            , Element.column
+                [ Element.width Element.fill, Element.spacing 8 ]
+                [ Ui.dateTimeInput
+                    { dateInputId = createEventStartDateId
+                    , timeInputId = createEventStartTimeId
+                    , dateChanged = \text -> ChangedEditEvent { event | startDate = text }
+                    , timeChanged = \text -> ChangedEditEvent { event | startTime = text }
+                    , labelText = "When does it start?"
+                    , minTime = currentTime
+                    , timezone = timezone
+                    , dateText = event.startDate
+                    , timeText = event.startTime
+                    , isDisabled =
+                        case eventStatus of
+                            IsFutureEvent ->
+                                False
+
+                            _ ->
+                                True
+                    , maybeError =
+                        case ( eventStatus, pressedSubmit, validateDateTime currentTime timezone event.startDate event.startTime ) of
+                            ( IsFutureEvent, True, Err error ) ->
+                                Just error
+
+                            _ ->
+                                Nothing
+                    }
+                , case eventStatus of
+                    IsFutureEvent ->
+                        Element.none
+
+                    _ ->
+                        Element.paragraph
+                            []
+                            [ Element.text "The start time can't be changed since the event has already started." ]
+                ]
+            , Ui.numberInput
+                eventDurationId
+                (\text -> ChangedEditEvent { event | duration = text })
+                event.duration
+                "How many hours long is it?"
+                (case ( pressedSubmit, validateDuration event.duration ) of
                     ( True, Err error ) ->
                         Just error
 
                     _ ->
                         Nothing
-            }
-        , Ui.numberInput
-            eventDurationId
-            (\text -> ChangedEditEvent { event | duration = text })
-            event.duration
-            "How many hours long is it?"
-            (case ( pressedSubmit, validateDuration event.duration ) of
-                ( True, Err error ) ->
-                    Just error
+                )
+            , Ui.numberInput
+                eventMaxAttendeesId
+                (\text -> ChangedEditEvent { event | maxAttendees = text })
+                event.maxAttendees
+                "How many people can join (leave this empty if there's no limit)"
+                (case ( pressedSubmit, validateMaxAttendees event.maxAttendees ) of
+                    ( True, Err error ) ->
+                        Just error
 
-                _ ->
-                    Nothing
-            )
-        , Ui.numberInput
-            eventMaxAttendeesId
-            (\text -> ChangedEditEvent { event | maxAttendees = text })
-            event.maxAttendees
-            "How many people can join (leave this empty if there's no limit)"
-            (case ( pressedSubmit, validateMaxAttendees event.maxAttendees ) of
-                ( True, Err error ) ->
-                    Just error
+                    _ ->
+                        Nothing
+                )
+            , Element.row
+                [ Element.spacing 8 ]
+                [ Ui.submitButton createEventSubmitId isSubmitting { onPress = PressedSubmitEditEvent, label = "Update event" }
+                , Ui.button createEventCancelId { onPress = PressedCancelEditEvent, label = "Cancel" }
+                ]
+            , case event.submitStatus of
+                Failed EditEventStartsInThePast ->
+                    Ui.error "Event can't start in the past"
 
-                _ ->
-                    Nothing
-            )
-        , Element.row
-            [ Element.spacing 8 ]
-            [ Ui.submitButton createEventSubmitId isSubmitting { onPress = PressedSubmitEditEvent, label = "Update event" }
-            , Ui.button createEventCancelId { onPress = PressedCancelEditEvent, label = "Cancel" }
+                Failed (EditEventOverlapsOtherEvents _) ->
+                    Ui.error "Event overlaps other events"
+
+                Failed CantEditPastEvent ->
+                    Ui.error "You can't edit events that have already happened"
+
+                Failed CantChangeStartTimeOfOngoingEvent ->
+                    Ui.error "You can't edit the start time of an event that is ongoing"
+
+                Failed EditEventNotFound ->
+                    Ui.error "This event somehow doesn't exist. Try refreshing the page?"
+
+                NotSubmitted _ ->
+                    Element.none
+
+                IsSubmitting ->
+                    Element.none
             ]
-        , case event.submitStatus of
-            Failed EditEventStartsInThePast ->
-                Ui.error "Event can't start in the past"
-
-            Failed (EditEventOverlapsOtherEvents _) ->
-                Ui.error "Event overlaps other events"
-
-            Failed CantEditPastEvent ->
-                Ui.error "You can't edit events that have already happened"
-
-            Failed CantChangeStartTimeOfOngoingEvent ->
-                Ui.error "You can't edit the start time of an event that is ongoing"
-
-            Failed EditEventNotFound ->
-                Ui.error "This event somehow doesn't exist. Try refreshing the page?"
-
-            NotSubmitted _ ->
-                Element.none
-
-            IsSubmitting ->
-                Element.none
         ]
 
 
@@ -1615,7 +1627,7 @@ newEventView currentTime timezone event =
                 eventDescriptionInputId
                 (\text -> ChangedNewEvent { event | description = text })
                 event.description
-                "Event description"
+                "Event description (optional)"
                 (case ( pressedSubmit, Description.fromString event.description ) of
                     ( True, Err error ) ->
                         Description.errorToString event.description error |> Just
@@ -1624,7 +1636,7 @@ newEventView currentTime timezone event =
                         Nothing
                 )
             , Element.column
-                [ Element.spacing 8 ]
+                [ Element.spacing 8, Element.width Element.fill ]
                 [ Ui.radioGroup
                     eventMeetingTypeId
                     (\meetingType -> ChangedNewEvent { event | meetingType = Just meetingType })
@@ -1651,7 +1663,7 @@ newEventView currentTime timezone event =
                             eventMeetingOnlineInputId
                             (\text -> ChangedNewEvent { event | meetOnlineLink = text })
                             event.meetOnlineLink
-                            "Meeting url (you can add this later)"
+                            "Link that will be shown when the event starts (optional)"
                             (case ( pressedSubmit, validateLink event.meetOnlineLink ) of
                                 ( True, Err error ) ->
                                     Just error
@@ -1665,7 +1677,7 @@ newEventView currentTime timezone event =
                             eventMeetingInPersonInputId
                             (\text -> ChangedNewEvent { event | meetInPersonAddress = text })
                             event.meetInPersonAddress
-                            "Meeting address (you can add this later)"
+                            "Meeting address (optional)"
                             (case ( pressedSubmit, validateAddress event.meetInPersonAddress ) of
                                 ( True, Err error ) ->
                                     Just error
@@ -1687,6 +1699,7 @@ newEventView currentTime timezone event =
                 , timezone = timezone
                 , dateText = event.startDate
                 , timeText = event.startTime
+                , isDisabled = False
                 , maybeError =
                     case ( pressedSubmit, validateDateTime currentTime timezone event.startDate event.startTime ) of
                         ( True, Err error ) ->

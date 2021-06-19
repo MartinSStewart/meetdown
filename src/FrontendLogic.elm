@@ -1295,8 +1295,7 @@ isLoggedIn model =
 searchInput : String -> Element FrontendMsg
 searchInput searchText =
     Element.Input.text
-        [ Element.width Element.fill
-        , Element.alignRight
+        [ Element.width (Element.maximum 400 Element.fill)
         , Element.Border.rounded 5
         , Element.Border.color Colors.darkGrey
         , Element.paddingEach { left = 24, right = 8, top = 4, bottom = 4 }
@@ -1331,7 +1330,7 @@ searchInputLarge searchText =
             , Element.Border.color Colors.darkGrey
             , Element.paddingEach { left = 30, right = 8, top = 8, bottom = 8 }
             , Ui.onEnter SubmittedSearchBox
-            , Id.htmlIdToString groupSearchId |> Html.Attributes.id |> Element.htmlAttribute
+            , Id.htmlIdToString groupSearchLargeId |> Html.Attributes.id |> Element.htmlAttribute
             , Element.inFront
                 (Element.el
                     [ Element.Font.size 14
@@ -1384,7 +1383,7 @@ header isMobile_ isLoggedIn_ route searchText =
                             , Element.text "Meetdown"
                             ]
                     }
-            , Element.el [ Element.width (Element.maximum 400 Element.fill) ] (searchInput searchText)
+            , searchInput searchText
             , Element.row
                 [ Element.alignRight ]
                 (if isLoggedIn_ then
@@ -1435,6 +1434,10 @@ headerButtons isMobile_ route =
 
 groupSearchId =
     Id.textInputId "headerGroupSearch"
+
+
+groupSearchLargeId =
+    Id.textInputId "headerGroupSearchLarge"
 
 
 logOutButtonId =

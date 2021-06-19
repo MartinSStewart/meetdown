@@ -1,6 +1,7 @@
-module EventDuration exposing (Error(..), EventDuration, errorToString, fromMinutes, maxLength, removeTrailing0s, toDuration, toMinutes, toString)
+module EventDuration exposing (Error(..), EventDuration, errorToString, fromMinutes, maxLength, toDuration, toMinutes, toString)
 
 import Duration exposing (Duration)
+import TimeExtra
 
 
 type EventDuration
@@ -59,7 +60,7 @@ toString eventDuration =
             toFloat minutes / 60
     in
     if minutes >= 60 then
-        removeTrailing0s hours
+        TimeExtra.removeTrailing0s hours
             |> String.left 4
             |> (\a ->
                     if a == "1" then
@@ -74,17 +75,3 @@ toString eventDuration =
 
     else
         String.fromInt minutes ++ " minutes"
-
-
-removeTrailing0s : Float -> String
-removeTrailing0s =
-    String.fromFloat
-        >> String.foldr
-            (\char newText ->
-                if newText == "" && (char == '0' || char == '.') then
-                    newText
-
-                else
-                    newText ++ String.fromChar char
-            )
-            ""

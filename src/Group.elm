@@ -5,6 +5,7 @@ module Group exposing
     , Group
     , GroupVisibility(..)
     , JoinEventError(..)
+    , PastOngoingOrFuture(..)
     , addEvent
     , createdAt
     , description
