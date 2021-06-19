@@ -816,7 +816,7 @@ editableEmailInput onChange toString validate currentValue text labelText =
         ]
         [ Element.Input.email
             [ Element.width Element.fill
-            , Element.Border.color grey
+            , Element.Border.color darkGrey
             ]
             { text =
                 case text of

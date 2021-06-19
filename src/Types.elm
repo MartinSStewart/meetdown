@@ -67,7 +67,7 @@ type alias LoadedFrontend =
     , groupForm : CreateGroupForm.Model
     , groupCreated : Bool
     , accountDeletedResult : Maybe (Result () ())
-    , searchBox : String
+    , searchText : String
     , searchList : List GroupId
     , windowWidth : Quantity Int Pixels
     , windowHeight : Quantity Int Pixels

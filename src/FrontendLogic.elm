@@ -176,7 +176,7 @@ initLoadedFrontend cmds navigationKey windowWidth windowHeight route maybeLoginT
             , groupForm = CreateGroupForm.init
             , groupCreated = False
             , accountDeletedResult = Nothing
-            , searchBox = ""
+            , searchText = ""
             , searchList = []
             , windowWidth = windowWidth
             , windowHeight = windowHeight
@@ -442,10 +442,10 @@ updateLoaded cmds msg model =
                     ( model, cmds.none )
 
         TypedSearchText searchText ->
-            ( { model | searchBox = searchText }, cmds.none )
+            ( { model | searchText = searchText }, cmds.none )
 
         SubmittedSearchBox ->
-            ( closeLoginForm model, cmds.navigationPushRoute model.navigationKey (SearchGroupsRoute model.searchBox) )
+            ( closeLoginForm model, cmds.navigationPushRoute model.navigationKey (SearchGroupsRoute model.searchText) )
 
         GroupPageMsg groupPageMsg ->
             case model.route of
@@ -1068,7 +1068,7 @@ viewLoaded model =
                 Element.none
 
             _ ->
-                header (isLoggedIn model) model.route model.searchBox
+                header (isLoggedIn model) model.route model.searchText
         , Element.el
             [ Element.Region.mainContent, Element.width Element.fill, Element.height Element.fill, Element.paddingXY 5 20 ]
             (case model.loginStatus of
@@ -1120,6 +1120,7 @@ viewPage model =
                 [ Element.image [ Element.centerX, Element.width <| (Element.fill |> Element.maximum 500) ] { src = "/homepage-hero.png", description = "Two people on a video conference" }
                 , Element.paragraph [ Element.Font.center ] [ Element.text "A place to find people with shared interests." ]
                 , Element.paragraph [ Element.Font.center ] [ Element.text " We don't sell your data, we don't show ads, and it's free." ]
+                , searchInputLarge model.searchText
                 ]
 
         GroupRoute groupId _ ->
@@ -1286,6 +1287,75 @@ isLoggedIn model =
             False
 
 
+searchInput : String -> Element FrontendMsg
+searchInput searchText =
+    Element.Input.text
+        [ Element.width <| Element.maximum 400 Element.fill
+        , Element.alignRight
+        , Element.Border.rounded 5
+        , Element.Border.color Colors.darkGrey
+        , Element.paddingEach { left = 24, right = 8, top = 4, bottom = 4 }
+        , Ui.onEnter SubmittedSearchBox
+        , Id.htmlIdToString groupSearchId |> Html.Attributes.id |> Element.htmlAttribute
+        , Element.inFront
+            (Element.el
+                [ Element.Font.size 12
+                , Element.moveDown 6
+                , Element.moveRight 4
+                , Element.alpha 0.8
+                , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
+                ]
+                (Element.text "🔍")
+            )
+        ]
+        { text = searchText
+        , onChange = TypedSearchText
+        , placeholder = Nothing
+        , label = Element.Input.labelHidden "Search for groups"
+        }
+
+
+searchInputLarge : String -> Element FrontendMsg
+searchInputLarge searchText =
+    Element.row
+        [ Element.width <| Element.maximum 400 Element.fill
+        , Element.centerX
+        ]
+        [ Element.Input.text
+            [ Element.Border.roundEach { topLeft = 5, bottomLeft = 5, bottomRight = 0, topRight = 0 }
+            , Element.Border.color Colors.darkGrey
+            , Element.paddingEach { left = 30, right = 8, top = 8, bottom = 8 }
+            , Ui.onEnter SubmittedSearchBox
+            , Id.htmlIdToString groupSearchId |> Html.Attributes.id |> Element.htmlAttribute
+            , Element.inFront
+                (Element.el
+                    [ Element.Font.size 14
+                    , Element.moveDown 10
+                    , Element.moveRight 6
+                    , Element.alpha 0.8
+                    , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
+                    ]
+                    (Element.text "🔍")
+                )
+            ]
+            { text = searchText
+            , onChange = TypedSearchText
+            , placeholder = Nothing
+            , label = Element.Input.labelHidden "Search for groups"
+            }
+        , Element.Input.button
+            [ Element.Background.color Ui.submitColor
+            , Element.Border.roundEach { topLeft = 0, bottomLeft = 0, bottomRight = 5, topRight = 5 }
+            , Element.height Element.fill
+            , Element.Font.color <| Element.rgb 1 1 1
+            , Element.paddingXY 16 0
+            ]
+            { onPress = Just SubmittedSearchBox
+            , label = Element.text "Search"
+            }
+        ]
+
+
 header : Bool -> Route -> String -> Element FrontendMsg
 header isLoggedIn_ route searchText =
     Element.column [ Element.width Element.fill, Element.spacing 10, Element.padding 10 ]
@@ -1303,30 +1373,7 @@ header isLoggedIn_ route searchText =
                         , Element.text "Meetdown"
                         ]
                 }
-            , Element.Input.text
-                [ Element.width <| Element.maximum 400 Element.fill
-                , Element.alignRight
-                , Element.Border.rounded 5
-                , Element.Border.color Colors.grey
-                , Element.paddingEach { left = 24, right = 8, top = 4, bottom = 4 }
-                , Ui.onEnter SubmittedSearchBox
-                , Id.htmlIdToString groupSearchId |> Html.Attributes.id |> Element.htmlAttribute
-                , Element.inFront
-                    (Element.el
-                        [ Element.Font.size 12
-                        , Element.moveDown 6
-                        , Element.moveRight 4
-                        , Element.alpha 0.8
-                        , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
-                        ]
-                        (Element.text "🔍")
-                    )
-                ]
-                { text = searchText
-                , onChange = TypedSearchText
-                , placeholder = Nothing
-                , label = Element.Input.labelHidden "Search for groups"
-                }
+            , searchInput searchText
             , Element.row
                 [ Element.alignRight ]
                 (if isLoggedIn_ then

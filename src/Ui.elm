@@ -31,6 +31,7 @@ module Ui exposing
     , routeLink
     , section
     , submitButton
+    , submitColor
     , textInput
     , timeToString
     , title
@@ -180,10 +181,15 @@ linkColor =
     Element.rgb 0.2 0.2 1
 
 
+submitColor : Element.Color
+submitColor =
+    Element.rgb 0.1 0.6 0.25
+
+
 submitButton : HtmlId ButtonId -> Bool -> { onPress : msg, label : String } -> Element msg
 submitButton htmlId isSubmitting { onPress, label } =
     Element.Input.button
-        [ Element.Background.color <| Element.rgb 0.1 0.6 0.25
+        [ Element.Background.color submitColor
         , Element.padding 10
         , Element.Border.rounded 4
         , Element.Font.center
@@ -342,7 +348,7 @@ inputBorder hasError =
             red
 
         else
-            grey
+            darkGrey
 
 
 inputBorderWidth : Bool -> Element.Attribute msg

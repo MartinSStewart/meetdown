@@ -1,6 +1,7 @@
 module SearchPage exposing (getGroupsFromIds, view)
 
 import AssocList as Dict
+import Colors
 import Description
 import Element exposing (Element)
 import Element.Border
@@ -65,6 +66,7 @@ groupView groupId group =
         (Element.width Element.fill
             :: Ui.inputFocusClass
             :: Ui.cardAttributes
+            ++ [ Element.Border.color Colors.darkGrey ]
         )
         { url = Route.encode (GroupRoute groupId (Group.name group))
         , label =
