@@ -861,14 +861,7 @@ groupView currentTime timezone owner group model maybeUserId =
                      else
                         Element.none
                     )
-                    (Element.paragraph
-                        []
-                        [ group
-                            |> Group.description
-                            |> Description.toString
-                            |> Element.text
-                        ]
-                    )
+                    (Description.toParagraph (Group.description group))
         , case ongoingEvent of
             Just ( _, ongoing ) ->
                 section
@@ -1066,7 +1059,7 @@ ongoingEventView currentTime maybeUserId event =
     Element.column
         [ Element.width Element.fill, Element.spacing 8, Element.paddingXY 16 0 ]
         [ Event.name event |> EventName.toString |> Element.text |> List.singleton |> Element.paragraph [ Element.Font.bold ]
-        , Event.description event |> Description.toString |> Element.text |> List.singleton |> Element.paragraph []
+        , Event.description event |> Description.toParagraph
         , "Ends in "
             ++ timeDifference currentTime (Event.endTime event)
             |> Element.text
@@ -1114,7 +1107,7 @@ pastEventView currentTime maybeUserId event =
     Element.column
         [ Element.width Element.fill, Element.spacing 8, Element.paddingXY 16 0 ]
         [ Event.name event |> EventName.toString |> Element.text |> List.singleton |> Element.paragraph [ Element.Font.bold ]
-        , Event.description event |> Description.toString |> Element.text |> List.singleton |> Element.paragraph []
+        , Event.description event |> Description.toParagraph
         , "Ended "
             ++ timeDifference currentTime (Event.endTime event)
             |> Element.text
@@ -1218,7 +1211,7 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
               else
                 Element.none
             ]
-        , Event.description event |> Description.toString |> Element.text |> List.singleton |> Element.paragraph []
+        , Event.description event |> Description.toParagraph
         , datetimeToString (Just timezone) (Event.startTime event)
             ++ " (Starts in "
             ++ timeDifference currentTime (Event.startTime event)

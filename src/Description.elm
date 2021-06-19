@@ -1,4 +1,7 @@
-module Description exposing (Description, Error(..), empty, errorToString, fromString, maxLength, toString)
+module Description exposing (Description, Error(..), empty, errorToString, fromString, maxLength, toParagraph, toString)
+
+import Element exposing (Element)
+import Element.Font
 
 
 type Description
@@ -45,6 +48,15 @@ fromString text =
 toString : Description -> String
 toString (Description description) =
     description
+
+
+toParagraph : Description -> Element msg
+toParagraph description =
+    if toString description == "" then
+        Element.paragraph [ Element.Font.italic ] [ Element.text "No description" ]
+
+    else
+        Element.paragraph [] [ Element.text (toString description) ]
 
 
 empty : Description

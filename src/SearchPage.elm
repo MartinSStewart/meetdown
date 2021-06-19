@@ -58,10 +58,6 @@ view searchText model =
 
 groupView : GroupId -> Group -> Element msg
 groupView groupId group =
-    let
-        description =
-            Group.description group |> Description.toString
-    in
     Element.link
         (Element.width Element.fill
             :: Ui.inputFocusClass
@@ -77,12 +73,6 @@ groupView groupId group =
                     |> Element.text
                     |> List.singleton
                     |> Element.paragraph [ Element.Font.bold ]
-                , if description == "" then
-                    Element.paragraph [ Element.Font.italic ] [ Element.text "No description" ]
-
-                  else
-                    Element.text description
-                        |> List.singleton
-                        |> Element.paragraph []
+                , Group.description group |> Description.toParagraph
                 ]
         }
