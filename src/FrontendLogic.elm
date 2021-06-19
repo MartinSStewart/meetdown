@@ -1045,6 +1045,11 @@ view model =
     }
 
 
+isMobile : { a | windowWidth : Quantity Int Pixels } -> Bool
+isMobile { windowWidth } =
+    windowWidth |> Quantity.lessThan (Pixels.pixels 600)
+
+
 viewLoaded : LoadedFrontend -> Element FrontendMsg
 viewLoaded model =
     Element.column
@@ -1068,7 +1073,7 @@ viewLoaded model =
                 Element.none
 
             _ ->
-                header (isLoggedIn model) model.route model.searchText
+                header (isMobile model) (isLoggedIn model) model.route model.searchText
         , Element.el
             [ Element.Region.mainContent, Element.width Element.fill, Element.height Element.fill, Element.paddingXY 5 20 ]
             (case model.loginStatus of
@@ -1147,7 +1152,7 @@ viewPage model =
                                 |> Element.map GroupPageMsg
 
                         Nothing ->
-                            Element.text "Error loading group owner"
+                            Element.none
 
                 Just GroupNotFound ->
                     Element.text "Group not found"
@@ -1290,7 +1295,7 @@ isLoggedIn model =
 searchInput : String -> Element FrontendMsg
 searchInput searchText =
     Element.Input.text
-        [ Element.width <| Element.maximum 400 Element.fill
+        [ Element.width Element.fill
         , Element.alignRight
         , Element.Border.rounded 5
         , Element.Border.color Colors.darkGrey
@@ -1356,8 +1361,8 @@ searchInputLarge searchText =
         ]
 
 
-header : Bool -> Route -> String -> Element FrontendMsg
-header isLoggedIn_ route searchText =
+header : Bool -> Bool -> Route -> String -> Element FrontendMsg
+header isMobile_ isLoggedIn_ route searchText =
     Element.column [ Element.width Element.fill, Element.spacing 10, Element.padding 10 ]
         [ Element.row
             [ Element.width Element.fill
@@ -1365,19 +1370,25 @@ header isLoggedIn_ route searchText =
             , Element.Region.navigation
             , Element.spacing 10
             ]
-            [ Element.link []
-                { url = "/"
-                , label =
-                    Element.row [ Element.spacing 10 ]
-                        [ Element.image [ Element.width <| Element.px 30 ] { src = "/meetdown-logo.png", description = "meetdown logo" }
-                        , Element.text "Meetdown"
-                        ]
-                }
-            , searchInput searchText
+            [ if isMobile_ then
+                Element.none
+
+              else
+                Element.link []
+                    { url = "/"
+                    , label =
+                        Element.row [ Element.spacing 10 ]
+                            [ Element.image
+                                [ Element.width <| Element.px 30 ]
+                                { src = "/meetdown-logo.png", description = "Meetdown logo" }
+                            , Element.text "Meetdown"
+                            ]
+                    }
+            , Element.el [ Element.width (Element.maximum 400 Element.fill) ] (searchInput searchText)
             , Element.row
                 [ Element.alignRight ]
                 (if isLoggedIn_ then
-                    headerButtons route
+                    headerButtons isMobile_ route
                         ++ [ Ui.headerButton
                                 logOutButtonId
                                 { onPress = PressedLogout
@@ -1398,12 +1409,17 @@ header isLoggedIn_ route searchText =
         ]
 
 
-headerButtons route =
-    [ Ui.headerLink
-        (route == CreateGroupRoute)
-        { route = CreateGroupRoute
-        , label = "Create group"
-        }
+headerButtons : Bool -> Route -> List (Element msg)
+headerButtons isMobile_ route =
+    [ if isMobile_ then
+        Element.none
+
+      else
+        Ui.headerLink
+            (route == CreateGroupRoute)
+            { route = CreateGroupRoute
+            , label = "Create group"
+            }
     , Ui.headerLink
         (route == MyGroupsRoute)
         { route = MyGroupsRoute

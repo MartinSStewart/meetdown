@@ -291,27 +291,45 @@ formError errorMessage =
 radioGroup : (a -> HtmlId RadioButtonId) -> (a -> msg) -> Nonempty a -> Maybe a -> (a -> String) -> Maybe String -> Element msg
 radioGroup htmlId onSelect options selected optionToLabel maybeError =
     let
+        checkbox isChecked =
+            Element.el
+                [ Element.width (Element.px 19)
+                , Element.height (Element.px 19)
+                , Element.Border.width 2
+                , Element.moveUp 1
+                , if isChecked then
+                    Element.Border.color (Element.rgb 0 0 0)
+
+                  else
+                    Element.Border.color Colors.darkGrey
+                , Element.Border.rounded 4
+                , Element.inFront <|
+                    if isChecked then
+                        Element.el [ Element.moveRight 1 ] (Element.text "✔")
+
+                    else
+                        Element.none
+                ]
+                Element.none
+
         optionsView =
             List.Nonempty.map
                 (\value ->
                     Element.Input.button
                         [ Element.width Element.fill
-                        , Element.paddingEach { left = 32, right = 8, top = 8, bottom = 8 }
+                        , Element.paddingXY 0 6
                         , htmlId value |> Id.htmlIdToString |> Html.Attributes.id |> Element.htmlAttribute
                         ]
                         { onPress = Just (onSelect value)
                         , label =
-                            optionToLabel value
-                                |> Element.text
-                                |> List.singleton
-                                |> Element.paragraph
-                                    [ if Just value == selected then
-                                        Element.onLeft <| Element.text "✅"
-
-                                      else
-                                        Element.onLeft <| Element.text "☐"
-                                    , Element.paddingXY 8 0
-                                    ]
+                            Element.row
+                                []
+                                [ checkbox (Just value == selected)
+                                , optionToLabel value
+                                    |> Element.text
+                                    |> List.singleton
+                                    |> Element.paragraph [ Element.paddingXY 8 0 ]
+                                ]
                         }
                 )
                 options
@@ -319,11 +337,7 @@ radioGroup htmlId onSelect options selected optionToLabel maybeError =
     in
     optionsView
         ++ [ Maybe.map error maybeError |> Maybe.withDefault Element.none ]
-        |> Element.column
-            [ inputBackground (maybeError /= Nothing)
-            , Element.Border.rounded 4
-            , Element.padding 8
-            ]
+        |> Element.column []
 
 
 inputBackground : Bool -> Element.Attr decorative msg
@@ -407,19 +421,17 @@ multiline htmlId onChange text labelText maybeError =
 numberInput : HtmlId NumberInputId -> (String -> msg) -> String -> String -> Maybe String -> Element msg
 numberInput htmlId onChange value labelText maybeError =
     Element.column
-        [ inputBackground (maybeError /= Nothing)
-        , Element.padding 8
-        , Element.Border.rounded 4
+        [ Element.spacing 4
         ]
-        [ Element.paragraph
-            [ Element.paddingEach { left = 4, right = 4, top = 0, bottom = 4 } ]
-            [ Element.text labelText ]
+        [ formLabelAboveEl labelText
         , Html.input
             [ Html.Attributes.type_ "number"
             , Html.Events.onInput onChange
             , Id.htmlIdToString htmlId |> Html.Attributes.id
             , Html.Attributes.value value
             , Html.Attributes.style "line-height" "38px"
+            , Html.Attributes.style "text-align" "right"
+            , Html.Attributes.style "padding-right" "4px"
             ]
             []
             |> Element.html
@@ -443,14 +455,9 @@ dateTimeInput :
     -> Element msg
 dateTimeInput { dateInputId, timeInputId, dateChanged, timeChanged, labelText, minTime, timezone, dateText, timeText, maybeError } =
     Element.column
-        [ inputBackground (maybeError /= Nothing)
-        , Element.padding 8
-        , Element.Border.rounded 4
-        ]
-        [ Element.paragraph
-            [ Element.paddingEach { left = 4, right = 4, top = 0, bottom = 4 } ]
-            [ Element.text labelText ]
-        , Element.row [ Element.spacing 8 ]
+        [ Element.spacing 4 ]
+        [ formLabelAboveEl labelText
+        , Element.wrappedRow [ Element.spacing 8 ]
             [ dateInput dateInputId dateChanged (Date.fromPosix timezone minTime) dateText
             , timeInput timeInputId timeChanged timeText
             ]
@@ -506,6 +513,17 @@ datestamp date =
 formLabelAbove : String -> Element.Input.Label msg
 formLabelAbove labelText =
     Element.Input.labelAbove
+        [ Element.paddingEach { top = 0, right = 0, bottom = 5, left = 0 }
+        , Element.Font.medium
+        , Element.Font.size 13
+        , Element.Font.color blueGrey
+        ]
+        (Element.paragraph [] [ Element.text labelText ])
+
+
+formLabelAboveEl : String -> Element msg
+formLabelAboveEl labelText =
+    Element.el
         [ Element.paddingEach { top = 0, right = 0, bottom = 5, left = 0 }
         , Element.Font.medium
         , Element.Font.size 13

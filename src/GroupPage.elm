@@ -1605,146 +1605,151 @@ newEventView currentTime timezone event =
     Element.column
         [ Element.spacing 20, Element.padding 8, Ui.contentWidth, Element.centerX ]
         [ Ui.title "New event"
-        , Ui.textInput
-            eventNameInputId
-            (\text -> ChangedNewEvent { event | eventName = text })
-            event.eventName
-            "Event name"
-            (case ( pressedSubmit, EventName.fromString event.eventName ) of
-                ( True, Err error ) ->
-                    EventName.errorToString event.eventName error |> Just
+        , Ui.columnCard
+            [ Ui.textInput
+                eventNameInputId
+                (\text -> ChangedNewEvent { event | eventName = text })
+                event.eventName
+                "Event name"
+                (case ( pressedSubmit, EventName.fromString event.eventName ) of
+                    ( True, Err error ) ->
+                        EventName.errorToString event.eventName error |> Just
 
-                _ ->
-                    Nothing
-            )
-        , Ui.multiline
-            eventDescriptionInputId
-            (\text -> ChangedNewEvent { event | description = text })
-            event.description
-            "Event description"
-            (case ( pressedSubmit, Description.fromString event.description ) of
-                ( True, Err error ) ->
-                    Description.errorToString event.description error |> Just
+                    _ ->
+                        Nothing
+                )
+            , Ui.multiline
+                eventDescriptionInputId
+                (\text -> ChangedNewEvent { event | description = text })
+                event.description
+                "Event description"
+                (case ( pressedSubmit, Description.fromString event.description ) of
+                    ( True, Err error ) ->
+                        Description.errorToString event.description error |> Just
 
-                _ ->
-                    Nothing
-            )
-        , Ui.radioGroup
-            eventMeetingTypeId
-            (\meetingType -> ChangedNewEvent { event | meetingType = Just meetingType })
-            (Nonempty MeetOnline [ MeetInPerson ])
-            event.meetingType
-            (\a ->
-                case a of
-                    MeetOnline ->
-                        "This event will be online"
+                    _ ->
+                        Nothing
+                )
+            , Element.column
+                [ Element.spacing 8 ]
+                [ Ui.radioGroup
+                    eventMeetingTypeId
+                    (\meetingType -> ChangedNewEvent { event | meetingType = Just meetingType })
+                    (Nonempty MeetOnline [ MeetInPerson ])
+                    event.meetingType
+                    (\a ->
+                        case a of
+                            MeetOnline ->
+                                "This event will be online"
 
-                    MeetInPerson ->
-                        "This event will be in person"
-            )
-            (case ( pressedSubmit, event.meetingType ) of
-                ( True, Nothing ) ->
-                    Just "Choose what type of event this is"
+                            MeetInPerson ->
+                                "This event will be in person"
+                    )
+                    (case ( pressedSubmit, event.meetingType ) of
+                        ( True, Nothing ) ->
+                            Just "Choose what type of event this is"
 
-                _ ->
-                    Nothing
-            )
-        , case event.meetingType of
-            Just MeetOnline ->
-                Ui.textInput
-                    eventMeetingOnlineInputId
-                    (\text -> ChangedNewEvent { event | meetOnlineLink = text })
-                    event.meetOnlineLink
-                    "Meeting url (you can add this later)"
-                    (case ( pressedSubmit, validateLink event.meetOnlineLink ) of
+                        _ ->
+                            Nothing
+                    )
+                , case event.meetingType of
+                    Just MeetOnline ->
+                        Ui.textInput
+                            eventMeetingOnlineInputId
+                            (\text -> ChangedNewEvent { event | meetOnlineLink = text })
+                            event.meetOnlineLink
+                            "Meeting url (you can add this later)"
+                            (case ( pressedSubmit, validateLink event.meetOnlineLink ) of
+                                ( True, Err error ) ->
+                                    Just error
+
+                                _ ->
+                                    Nothing
+                            )
+
+                    Just MeetInPerson ->
+                        Ui.textInput
+                            eventMeetingInPersonInputId
+                            (\text -> ChangedNewEvent { event | meetInPersonAddress = text })
+                            event.meetInPersonAddress
+                            "Meeting address (you can add this later)"
+                            (case ( pressedSubmit, validateAddress event.meetInPersonAddress ) of
+                                ( True, Err error ) ->
+                                    Just error
+
+                                _ ->
+                                    Nothing
+                            )
+
+                    Nothing ->
+                        Element.none
+                ]
+            , Ui.dateTimeInput
+                { dateInputId = createEventStartDateId
+                , timeInputId = createEventStartTimeId
+                , dateChanged = \text -> ChangedNewEvent { event | startDate = text }
+                , timeChanged = \text -> ChangedNewEvent { event | startTime = text }
+                , labelText = "When does it start?"
+                , minTime = currentTime
+                , timezone = timezone
+                , dateText = event.startDate
+                , timeText = event.startTime
+                , maybeError =
+                    case ( pressedSubmit, validateDateTime currentTime timezone event.startDate event.startTime ) of
                         ( True, Err error ) ->
                             Just error
 
                         _ ->
                             Nothing
-                    )
-
-            Just MeetInPerson ->
-                Ui.textInput
-                    eventMeetingInPersonInputId
-                    (\text -> ChangedNewEvent { event | meetInPersonAddress = text })
-                    event.meetInPersonAddress
-                    "Meeting address (you can add this later)"
-                    (case ( pressedSubmit, validateAddress event.meetInPersonAddress ) of
-                        ( True, Err error ) ->
-                            Just error
-
-                        _ ->
-                            Nothing
-                    )
-
-            Nothing ->
-                Element.none
-        , Ui.dateTimeInput
-            { dateInputId = createEventStartDateId
-            , timeInputId = createEventStartTimeId
-            , dateChanged = \text -> ChangedNewEvent { event | startDate = text }
-            , timeChanged = \text -> ChangedNewEvent { event | startTime = text }
-            , labelText = "When does it start?"
-            , minTime = currentTime
-            , timezone = timezone
-            , dateText = event.startDate
-            , timeText = event.startTime
-            , maybeError =
-                case ( pressedSubmit, validateDateTime currentTime timezone event.startDate event.startTime ) of
+                }
+            , Ui.numberInput
+                eventDurationId
+                (\text -> ChangedNewEvent { event | duration = text })
+                event.duration
+                "How many hours long is it?"
+                (case ( pressedSubmit, validateDuration event.duration ) of
                     ( True, Err error ) ->
                         Just error
 
                     _ ->
                         Nothing
-            }
-        , Ui.numberInput
-            eventDurationId
-            (\text -> ChangedNewEvent { event | duration = text })
-            event.duration
-            "How many hours long is it?"
-            (case ( pressedSubmit, validateDuration event.duration ) of
-                ( True, Err error ) ->
-                    Just error
+                )
+            , Ui.numberInput
+                eventMaxAttendeesId
+                (\text -> ChangedNewEvent { event | maxAttendees = text })
+                event.maxAttendees
+                "How many people can join (leave this empty if there's no limit)"
+                (case ( pressedSubmit, validateMaxAttendees event.maxAttendees ) of
+                    ( True, Err error ) ->
+                        Just error
 
-                _ ->
-                    Nothing
-            )
-        , Ui.numberInput
-            eventMaxAttendeesId
-            (\text -> ChangedNewEvent { event | maxAttendees = text })
-            event.maxAttendees
-            "How many people can join (leave this empty if there's no limit)"
-            (case ( pressedSubmit, validateMaxAttendees event.maxAttendees ) of
-                ( True, Err error ) ->
-                    Just error
+                    _ ->
+                        Nothing
+                )
+            , Element.wrappedRow
+                [ Element.spacing 8 ]
+                [ Ui.submitButton
+                    createEventSubmitId
+                    isSubmitting
+                    { onPress = PressedCreateNewEvent, label = "Create event" }
+                , Ui.button createEventCancelId { onPress = PressedCancelNewEvent, label = "Cancel" }
+                ]
+            , case event.submitStatus of
+                Failed EventStartsInThePast ->
+                    Ui.error "Events can't start in the past"
 
-                _ ->
-                    Nothing
-            )
-        , Element.row
-            [ Element.spacing 8 ]
-            [ Ui.submitButton
-                createEventSubmitId
-                isSubmitting
-                { onPress = PressedCreateNewEvent, label = "Create event" }
-            , Ui.button createEventCancelId { onPress = PressedCancelNewEvent, label = "Cancel" }
+                Failed (EventOverlapsOtherEvents _) ->
+                    Ui.error "Event overlaps with another event"
+
+                Failed TooManyEvents ->
+                    Ui.error "This group has too many events"
+
+                NotSubmitted _ ->
+                    Element.none
+
+                IsSubmitting ->
+                    Element.none
             ]
-        , case event.submitStatus of
-            Failed EventStartsInThePast ->
-                Ui.error "Events can't start in the past"
-
-            Failed (EventOverlapsOtherEvents _) ->
-                Ui.error "Event overlaps with another event"
-
-            Failed TooManyEvents ->
-                Ui.error "This group has too many events"
-
-            NotSubmitted _ ->
-                Element.none
-
-            IsSubmitting ->
-                Element.none
         ]
 
 
