@@ -46,6 +46,7 @@ type Group
         , visibility : GroupVisibility
         , eventCounter : Int
         , createdAt : Time.Posix
+        , pendingReview : Bool
         }
 
 
@@ -64,6 +65,7 @@ init ownerId_ groupName description_ groupVisibility_ createdAt_ =
         , visibility = groupVisibility_
         , eventCounter = 0
         , createdAt = createdAt_
+        , pendingReview = True
         }
 
 

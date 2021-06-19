@@ -25,10 +25,11 @@ import Id exposing (ButtonId(..), GroupId, Id, UserId)
 import LoginForm
 import MockFile
 import Pixels exposing (Pixels)
-import ProfileForm
 import ProfileImage
+import ProfilePage
 import Quantity exposing (Quantity)
 import Route exposing (Route(..))
+import SearchPage
 import Time
 import TimeZone
 import Types exposing (..)
@@ -385,7 +386,7 @@ updateLoaded cmds msg model =
                 LoggedIn loggedIn ->
                     let
                         ( newModel, effects ) =
-                            ProfileForm.update
+                            ProfilePage.update
                                 model
                                 { wait = \duration waitMsg -> cmds.wait duration (ProfileFormMsg waitMsg)
                                 , none = cmds.none
@@ -423,7 +424,7 @@ updateLoaded cmds msg model =
                         Ok profileImage ->
                             let
                                 newModel =
-                                    ProfileForm.cropImageResponse imageData loggedIn.profileForm
+                                    ProfilePage.cropImageResponse imageData loggedIn.profileForm
                             in
                             ( { model | loginStatus = LoggedIn { loggedIn | profileForm = newModel } }
                             , Untrusted.untrust profileImage
@@ -600,7 +601,7 @@ updateLoadedFromBackend cmds msg model =
                             LoggedIn
                                 { userId = userId
                                 , emailAddress = user.emailAddress
-                                , profileForm = ProfileForm.init
+                                , profileForm = ProfilePage.init
                                 , myGroups = Nothing
                                 , adminState = Nothing
                                 }
@@ -625,7 +626,7 @@ updateLoadedFromBackend cmds msg model =
                             LoggedIn
                                 { userId = userId
                                 , emailAddress = user.emailAddress
-                                , profileForm = ProfileForm.init
+                                , profileForm = ProfilePage.init
                                 , myGroups = Nothing
                                 , adminState = Nothing
                                 }
@@ -1167,7 +1168,7 @@ viewPage model =
                 (\_ ->
                     CreateGroupForm.view model.groupForm
                         |> Element.el
-                            [ Element.width <| Element.maximum 800 Element.fill
+                            [ Ui.contentWidth
                             , Element.centerX
                             ]
                         |> Element.map GroupFormMsg
@@ -1182,7 +1183,7 @@ viewPage model =
                 (\loggedIn ->
                     case Dict.get loggedIn.userId model.cachedUsers of
                         Just (UserFound user) ->
-                            ProfileForm.view
+                            ProfilePage.view
                                 model
                                 { name = user.name
                                 , description = user.description
@@ -1191,7 +1192,7 @@ viewPage model =
                                 }
                                 loggedIn.profileForm
                                 |> Element.el
-                                    [ Element.width <| Element.maximum 800 Element.fill
+                                    [ Ui.contentWidth
                                     , Element.centerX
                                     ]
                                 |> Element.map ProfileFormMsg
@@ -1207,76 +1208,7 @@ viewPage model =
                 )
 
         SearchGroupsRoute searchText ->
-            searchGroupsView searchText model
-
-
-searchGroupsView : String -> LoadedFrontend -> Element FrontendMsg
-searchGroupsView searchText model =
-    Element.column
-        [ Element.padding 8
-        , Element.width <| Element.maximum 800 Element.fill
-        , Element.centerX
-        , Element.spacing 8
-        ]
-        [ if searchText == "" then
-            Element.none
-
-          else
-            Element.paragraph [] [ Element.text <| "Search results for \"" ++ searchText ++ "\"" ]
-        , Element.column
-            [ Element.width Element.fill, Element.spacing 8 ]
-            (getGroupsFromIds model.searchList model
-                |> List.map
-                    (\( groupId, group ) ->
-                        Element.link
-                            [ Ui.inputBackground False
-                            , Element.Border.rounded 4
-                            , Element.Border.width 2
-                            , Element.Border.color Ui.linkColor
-                            , Element.padding 8
-                            , Element.width Element.fill
-                            , Ui.inputFocusClass
-                            ]
-                            { url = Route.encode (GroupRoute groupId (Group.name group))
-                            , label =
-                                Element.column
-                                    [ Element.width Element.fill, Element.spacing 8 ]
-                                    [ Group.name group
-                                        |> GroupName.toString
-                                        |> Element.text
-                                        |> List.singleton
-                                        |> Element.paragraph [ Element.Font.bold ]
-                                    , Group.description group
-                                        |> Description.toString
-                                        |> Element.text
-                                        |> List.singleton
-                                        |> Element.paragraph []
-                                    ]
-                            }
-                    )
-            )
-        ]
-
-
-getGroupsFromIds : List GroupId -> LoadedFrontend -> List ( GroupId, Group )
-getGroupsFromIds groups model =
-    List.filterMap
-        (\groupId ->
-            Dict.get groupId model.cachedGroups
-                |> Maybe.andThen
-                    (\group ->
-                        case group of
-                            GroupFound groupFound ->
-                                Just ( groupId, groupFound )
-
-                            GroupNotFound ->
-                                Nothing
-
-                            GroupRequestPending ->
-                                Nothing
-                    )
-        )
-        groups
+            SearchPage.view searchText model
 
 
 myGroupsView : LoadedFrontend -> LoggedIn_ -> Element FrontendMsg
@@ -1285,7 +1217,7 @@ myGroupsView model loggedIn =
         Just myGroups ->
             let
                 myGroupsList =
-                    getGroupsFromIds (Set.toList myGroups) model
+                    SearchPage.getGroupsFromIds (Set.toList myGroups) model
                         |> List.map
                             (\( groupId, group ) ->
                                 Element.row

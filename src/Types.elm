@@ -21,8 +21,8 @@ import List.Nonempty exposing (Nonempty)
 import MaxAttendees exposing (MaxAttendees)
 import Name exposing (Name)
 import Pixels exposing (Pixels)
-import ProfileForm
 import ProfileImage exposing (ProfileImage)
+import ProfilePage
 import Quantity exposing (Quantity)
 import Route exposing (Route)
 import SendGrid exposing (Email)
@@ -121,7 +121,7 @@ type LoginStatus
 type alias LoggedIn_ =
     { userId : Id UserId
     , emailAddress : EmailAddress
-    , profileForm : ProfileForm.Model
+    , profileForm : ProfilePage.Model
     , myGroups : Maybe (Set GroupId)
     , adminState : Maybe AdminModel
     }
@@ -299,7 +299,7 @@ type FrontendMsg
     | PressedCancelLogin
     | PressedCreateGroup
     | GroupFormMsg CreateGroupForm.Msg
-    | ProfileFormMsg ProfileForm.Msg
+    | ProfileFormMsg ProfilePage.Msg
     | CroppedImage { requestId : Int, croppedImageUrl : String }
     | TypedSearchText String
     | SubmittedSearchBox

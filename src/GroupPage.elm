@@ -668,11 +668,6 @@ pressSubmit event =
     }
 
 
-type MaxAttendees
-    = MaxAttendees
-    | NoLimit
-
-
 validateMaxAttendees : String -> Result String MaxAttendees.MaxAttendees
 validateMaxAttendees text =
     let
@@ -692,7 +687,7 @@ validateMaxAttendees text =
                     Err "You need to allow at least 2 people to join the event"
 
         ( _, Nothing ) ->
-            Err "Invalid value. Choose an integer like 5 or 30"
+            Err "Invalid value. Choose an integer like 5 or 30 or leave it blank"
 
 
 joinEventResponse : EventId -> Result Group.JoinEventError () -> Model -> Model
@@ -748,7 +743,7 @@ groupView currentTime timezone owner group model maybeUserId =
                     False
     in
     Element.column
-        [ Element.spacing 8, Element.padding 8, Element.width Element.fill ]
+        [ Element.spacing 8, Element.padding 8, Ui.contentWidth, Element.centerX ]
         [ Element.row
             [ Element.width Element.fill, Element.spacing 8 ]
             [ Element.column [ Element.alignTop, Element.width Element.fill, Element.spacing 4 ]
@@ -774,7 +769,7 @@ groupView currentTime timezone owner group model maybeUserId =
                                             |> Just
                         in
                         [ Element.el
-                            [ Ui.titleFontSize, Element.width <| Element.maximum 800 Element.fill ]
+                            [ Ui.titleFontSize, Ui.contentWidth ]
                             (groupNameTextInput TypedName name "Group name")
                         , Maybe.map Ui.error error |> Maybe.withDefault Element.none
                         , Element.row
@@ -786,7 +781,7 @@ groupView currentTime timezone owner group model maybeUserId =
 
                     Submitting name ->
                         [ Element.el
-                            [ Ui.titleFontSize, Element.width <| Element.maximum 800 Element.fill ]
+                            [ Ui.titleFontSize, Ui.contentWidth ]
                             (groupNameTextInput TypedName (GroupName.toString name) "Group name")
                         , Element.row
                             [ Element.spacing 16, Element.paddingXY 8 0 ]
@@ -1446,7 +1441,7 @@ editEventView currentTime timezone event =
                     False
     in
     Element.column
-        [ Element.spacing 8, Element.padding 8, Element.width Element.fill ]
+        [ Element.spacing 8, Element.padding 8, Ui.contentWidth, Element.centerX ]
         [ Ui.title "Edit event"
         , Ui.textInput
             eventNameInputId
@@ -1608,7 +1603,7 @@ newEventView currentTime timezone event =
                     False
     in
     Element.column
-        [ Element.spacing 20, Element.padding 8, Element.width Element.fill ]
+        [ Element.spacing 20, Element.padding 8, Ui.contentWidth, Element.centerX ]
         [ Ui.title "New event"
         , Ui.textInput
             eventNameInputId

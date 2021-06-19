@@ -1,6 +1,8 @@
 module Ui exposing
     ( button
+    , cardAttributes
     , columnCard
+    , contentWidth
     , css
     , dangerButton
     , dateTimeInput
@@ -328,6 +330,11 @@ inputBackground hasError =
             transparent
 
 
+contentWidth : Element.Attribute msg
+contentWidth =
+    Element.width (Element.maximum 800 Element.fill)
+
+
 inputBorder : Bool -> Element.Attr decorative msg
 inputBorder hasError =
     Element.Border.color <|
@@ -490,6 +497,7 @@ datestamp date =
         ++ String.padLeft 2 '0' (String.fromInt (Date.day date))
 
 
+formLabelAbove : String -> Element.Input.Label msg
 formLabelAbove labelText =
     Element.Input.labelAbove
         [ Element.paddingEach { top = 0, right = 0, bottom = 5, left = 0 }
@@ -500,14 +508,21 @@ formLabelAbove labelText =
         (Element.paragraph [] [ Element.text labelText ])
 
 
+columnCard : List (Element msg) -> Element msg
 columnCard children =
     Element.column
-        [ Element.width Element.fill
-        , Element.Border.rounded 4
-        , Element.padding 15
-        , Element.Border.width 1
-        , Element.Border.color grey
-        , Element.Border.shadow { offset = ( 0, 3 ), size = -1, blur = 3, color = grey }
-        , Element.spacing 30
-        ]
+        (Element.width Element.fill
+            :: Element.spacing 30
+            :: cardAttributes
+        )
         children
+
+
+cardAttributes : List (Element.Attribute msg)
+cardAttributes =
+    [ Element.Border.rounded 4
+    , Element.padding 15
+    , Element.Border.width 1
+    , Element.Border.color grey
+    , Element.Border.shadow { offset = ( 0, 3 ), size = -1, blur = 3, color = grey }
+    ]

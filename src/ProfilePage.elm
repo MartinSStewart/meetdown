@@ -1,4 +1,4 @@
-module ProfileForm exposing (CurrentValues, Effects, Form, Model, Msg, cancelImageButtonId, cropImageResponse, deleteAccountButtonId, init, update, uploadImageButtonId, view)
+module ProfilePage exposing (CurrentValues, Effects, Form, Model, Msg, cancelImageButtonId, cropImageResponse, deleteAccountButtonId, init, update, uploadImageButtonId, view)
 
 import Browser.Dom
 import Colors exposing (..)
