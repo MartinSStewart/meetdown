@@ -430,21 +430,35 @@ updateFromFrontend cmds sessionId clientId msg model =
                 model
                 (\( userId, user ) ->
                     let
+                        rateLimited =
+                            Dict.toList model.pendingDeleteUserTokens
+                                |> List.filter (Tuple.second >> .userId >> (==) userId)
+                                |> List.maximumBy (Tuple.second >> .creationTime >> Time.posixToMillis)
+                                |> Maybe.map
+                                    (\( _, { creationTime } ) ->
+                                        Duration.from creationTime model.time |> Quantity.lessThan Duration.minute
+                                    )
+                                |> Maybe.withDefault False
+
                         ( model2, deleteUserToken ) =
                             Id.getUniqueId model
                     in
-                    ( { model2
-                        | pendingDeleteUserTokens =
-                            Dict.insert
-                                deleteUserToken
-                                { creationTime = model.time, userId = userId }
-                                model2.pendingDeleteUserTokens
-                      }
-                    , cmds.sendDeleteUserEmail
-                        (SentDeleteUserEmail userId)
-                        user.emailAddress
-                        deleteUserToken
-                    )
+                    if rateLimited then
+                        ( model, cmds.none )
+
+                    else
+                        ( { model2
+                            | pendingDeleteUserTokens =
+                                Dict.insert
+                                    deleteUserToken
+                                    { creationTime = model.time, userId = userId }
+                                    model2.pendingDeleteUserTokens
+                          }
+                        , cmds.sendDeleteUserEmail
+                            (SentDeleteUserEmail userId)
+                            user.emailAddress
+                            deleteUserToken
+                        )
                 )
 
         DeleteUserRequest deleteUserToken ->

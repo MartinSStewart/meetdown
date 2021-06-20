@@ -616,6 +616,7 @@ suite =
                                                 ++ " instead"
                                                 |> Err
                                     )
+                                |> TF.simulateTime (Duration.minutes 1.5)
                                 |> TF.clickButton clientId ProfilePage.deleteAccountButtonId
                                 |> TF.simulateTime Duration.second
                                 |> TF.checkState
