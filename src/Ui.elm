@@ -54,6 +54,8 @@ import Id exposing (ButtonId(..), DateInputId(..), HtmlId, NumberInputId(..), Ra
 import Json.Decode
 import List.Nonempty exposing (Nonempty)
 import Route exposing (Route)
+import Svg
+import Svg.Attributes
 import Time
 
 
@@ -288,30 +290,47 @@ formError errorMessage =
         [ Element.text errorMessage ]
 
 
+checkboxChecked =
+    Svg.svg
+        [ Svg.Attributes.width "60.768"
+        , Svg.Attributes.height "60.768"
+        , Svg.Attributes.viewBox "0 0 190 190"
+        , Svg.Attributes.width "20px"
+        , Svg.Attributes.height "20px"
+        ]
+        [ Svg.path
+            [ Svg.Attributes.fill "current-color"
+            , Svg.Attributes.stroke "#000"
+            , Svg.Attributes.d "M34.22 112.47c3.31-3.31 12-11.78 16.37-15.78.91.78 18.79 18.07 19.03 18.31.38-.31 70.16-68.97 70.41-69.09.35.12 16.56 15.31 16.44 15.37-.17.25-86.73 86.78-86.8 86.9l-35.45-35.71zM25.91.06L69 .15h93C181.59.03 189.97 8.41 190 28v134c-.03 19.59-8.41 27.97-28 28H28c-19.59-.03-27.97-8.41-28-28V26C.17 12.01 7.61.09 25.91.06zM169 19H19v150h150V19z"
+            ]
+            []
+        ]
+        |> Element.html
+        |> Element.el []
+
+
+checkboxEmpty =
+    Svg.svg
+        [ Svg.Attributes.width "60.768"
+        , Svg.Attributes.height "60.768"
+        , Svg.Attributes.viewBox "0 0 190 190"
+        , Svg.Attributes.width "20px"
+        , Svg.Attributes.height "20px"
+        ]
+        [ Svg.path
+            [ Svg.Attributes.fill "current-color"
+            , Svg.Attributes.stroke "#000"
+            , Svg.Attributes.d "M25.91.06L69 .15h93C181.59.03 189.97 8.41 190 28v134c-.03 19.59-8.41 27.97-28 28H28c-19.59-.03-27.97-8.41-28-28V26C.17 12.01 7.61.09 25.91.06zM169 19H19v150h150V19z"
+            ]
+            []
+        ]
+        |> Element.html
+        |> Element.el []
+
+
 radioGroup : (a -> HtmlId RadioButtonId) -> (a -> msg) -> Nonempty a -> Maybe a -> (a -> String) -> Maybe String -> Element msg
 radioGroup htmlId onSelect options selected optionToLabel maybeError =
     let
-        checkbox isChecked =
-            Element.el
-                [ Element.width (Element.px 19)
-                , Element.height (Element.px 19)
-                , Element.Border.width 2
-                , Element.moveUp 1
-                , if isChecked then
-                    Element.Border.color (Element.rgb 0 0 0)
-
-                  else
-                    Element.Border.color Colors.darkGrey
-                , Element.Border.rounded 4
-                , Element.inFront <|
-                    if isChecked then
-                        Element.el [ Element.moveRight 1 ] (Element.text "✔")
-
-                    else
-                        Element.none
-                ]
-                Element.none
-
         optionsView =
             List.Nonempty.map
                 (\value ->
@@ -324,7 +343,11 @@ radioGroup htmlId onSelect options selected optionToLabel maybeError =
                         , label =
                             Element.row
                                 []
-                                [ checkbox (Just value == selected)
+                                [ if Just value == selected then
+                                    checkboxChecked
+
+                                  else
+                                    checkboxEmpty
                                 , optionToLabel value
                                     |> Element.text
                                     |> List.singleton
