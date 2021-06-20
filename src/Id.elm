@@ -10,10 +10,12 @@ module Id exposing
     , NumberInputId
     , RadioButtonId
     , SessionId
+    , SessionIdLast4Chars
     , TextInputId
     , TimeInputId
     , UserId
     , adminUserId
+    , anonymizeSessionId
     , buttonId
     , clientIdFromString
     , clientIdToString
@@ -27,6 +29,7 @@ module Id exposing
     , numberInputId
     , radioButtonId
     , sessionIdFromString
+    , sessionIdLast4CharsToString
     , textInputId
     , timeInputId
     )
@@ -46,6 +49,20 @@ type GroupId
 
 type SessionId
     = SessionId String
+
+
+type SessionIdLast4Chars
+    = SessionIdLast4Chars String
+
+
+anonymizeSessionId : SessionId -> SessionIdLast4Chars
+anonymizeSessionId (SessionId sessionId) =
+    String.right 4 sessionId |> SessionIdLast4Chars
+
+
+sessionIdLast4CharsToString : SessionIdLast4Chars -> String
+sessionIdLast4CharsToString (SessionIdLast4Chars a) =
+    a
 
 
 type ClientId

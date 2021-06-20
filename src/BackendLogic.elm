@@ -20,6 +20,7 @@ import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionI
 import Link
 import List.Extra as List
 import List.Nonempty
+import MultiDict.Assoc as MultiDict
 import Name
 import ProfileImage
 import Quantity
@@ -98,6 +99,7 @@ init effects =
       , groups = Dict.empty
       , groupIdCounter = 0
       , sessions = BiDict.empty
+      , loginAttempts = Dict.empty
       , connections = Dict.empty
       , logs = Array.empty
       , time = Time.millisToPosix 0
@@ -171,7 +173,22 @@ update cmds msg model =
             ( addLog (LogLoginEmail model.time result userId) model, cmds.none )
 
         BackendGotTime time ->
-            ( { model | time = time }, handleNotifications cmds model.time time model )
+            ( { model
+                | time = time
+                , loginAttempts =
+                    Dict.toList model.loginAttempts
+                        |> List.filterMap
+                            (\( sessionId, logins ) ->
+                                List.Nonempty.toList logins
+                                    |> List.filter
+                                        (\loginTime -> Duration.from loginTime time |> Quantity.lessThan (Duration.seconds 30))
+                                    |> List.Nonempty.fromList
+                                    |> Maybe.map (Tuple.pair sessionId)
+                            )
+                        |> Dict.fromList
+              }
+            , handleNotifications cmds model.time time model
+            )
 
         Connected sessionId clientId ->
             ( { model
@@ -263,18 +280,38 @@ updateFromFrontend cmds sessionId clientId msg model =
                         ( model2, loginToken ) =
                             Id.getUniqueId model
                     in
-                    ( { model2
-                        | pendingLoginTokens =
-                            Dict.insert
-                                loginToken
-                                { creationTime = model2.time, emailAddress = email }
-                                model2.pendingLoginTokens
-                      }
-                    , cmds.sendLoginEmail (SentLoginEmail email) email route loginToken maybeJoinEvent
-                    )
+                    if loginIsRateLimited sessionId email model then
+                        ( addLog
+                            (LogLoginTokenRequestRateLimited model.time email (Id.anonymizeSessionId sessionId))
+                            model
+                        , cmds.none
+                        )
+
+                    else
+                        ( { model2
+                            | pendingLoginTokens =
+                                Dict.insert
+                                    loginToken
+                                    { creationTime = model2.time, emailAddress = email }
+                                    model2.pendingLoginTokens
+                            , loginAttempts =
+                                Dict.update
+                                    sessionId
+                                    (\maybeAttempts ->
+                                        case maybeAttempts of
+                                            Just attempts ->
+                                                List.Nonempty.cons model.time attempts |> Just
+
+                                            Nothing ->
+                                                List.Nonempty.fromElement model.time |> Just
+                                    )
+                                    model.loginAttempts
+                          }
+                        , cmds.sendLoginEmail (SentLoginEmail email) email route loginToken maybeJoinEvent
+                        )
 
                 Nothing ->
-                    ( addLog (LogUntrustedCheckFailed model.time msg) model
+                    ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
                     , cmds.none
                     )
 
@@ -315,7 +352,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                             addGroup cmds clientId userId groupName description visibility model
 
                         _ ->
-                            ( addLog (LogUntrustedCheckFailed model.time msg) model
+                            ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
                             , cmds.none
                             )
                 )
@@ -336,7 +373,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 Nothing ->
-                    ( addLog (LogUntrustedCheckFailed model.time msg) model
+                    ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
                     , cmds.none
                     )
 
@@ -356,7 +393,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 Nothing ->
-                    ( addLog (LogUntrustedCheckFailed model.time msg) model
+                    ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
                     , cmds.none
                     )
 
@@ -382,7 +419,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 Nothing ->
-                    ( addLog (LogUntrustedCheckFailed model.time msg) model
+                    ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
                     , cmds.none
                     )
 
@@ -436,7 +473,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                             )
 
                         Nothing ->
-                            ( addLog (LogUntrustedCheckFailed model.time msg) model
+                            ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
                             , cmds.none
                             )
                 )
@@ -488,7 +525,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 Nothing ->
-                    ( addLog (LogUntrustedCheckFailed model.time msg) model
+                    ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
                     , cmds.none
                     )
 
@@ -512,7 +549,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 Nothing ->
-                    ( addLog (LogUntrustedCheckFailed model.time msg) model
+                    ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
                     , cmds.none
                     )
 
@@ -575,7 +612,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 _ ->
-                    ( addLog (LogUntrustedCheckFailed model.time msg) model
+                    ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
                     , cmds.none
                     )
 
@@ -655,7 +692,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 _ ->
-                    ( addLog (LogUntrustedCheckFailed model.time msg) model
+                    ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
                     , cmds.none
                     )
 
@@ -686,6 +723,31 @@ updateFromFrontend cmds sessionId clientId msg model =
                                 (ChangeEventCancellationStatusResponse groupId eventId (Err error) model.time)
                             )
                 )
+
+
+loginIsRateLimited : SessionId -> EmailAddress -> BackendModel -> Bool
+loginIsRateLimited sessionId emailAddress model =
+    if
+        Dict.get sessionId model.loginAttempts
+            |> Maybe.map List.Nonempty.toList
+            |> Maybe.withDefault []
+            |> List.filter (\time -> Duration.from time model.time |> Quantity.lessThan (Duration.seconds 30))
+            |> List.length
+            |> (\a -> a > 0)
+    then
+        True
+
+    else
+        case Dict.values model.pendingLoginTokens |> List.find (.emailAddress >> (==) emailAddress) of
+            Just { creationTime } ->
+                if Duration.from creationTime model.time |> Quantity.lessThan Duration.minute then
+                    True
+
+                else
+                    False
+
+            Nothing ->
+                False
 
 
 handleDeleteUserRequest : Effects cmd -> ClientId -> Maybe DeleteUserTokenData -> BackendModel -> ( BackendModel, cmd )
@@ -964,9 +1026,8 @@ loginEmailContent route loginToken maybeJoinEvent =
         loginLink =
             loginEmailLink route loginToken maybeJoinEvent
 
-        --
-        --_ =
-        --    Debug.log "login" loginLink
+        _ =
+            Debug.log "login" loginLink
     in
     Email.Html.div
         []

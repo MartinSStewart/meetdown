@@ -464,6 +464,111 @@ suite =
         , test "Create an event and another user (who isn't logged in) joins it" <|
             \_ ->
                 TF.toExpectation createEventAndAnotherUserNotLoggedInJoinsIt
+        , test "Rate limit login for a given email address" <|
+            \_ ->
+                let
+                    connectAndLogin count =
+                        TF.connectFrontend
+                            (Id.sessionIdFromString <| "session " ++ String.fromInt count)
+                            (Unsafe.url Env.domain)
+                            (\( state, clientId ) ->
+                                state
+                                    |> TF.simulateTime Duration.second
+                                    |> TF.clickButton clientId FrontendLogic.signUpOrLoginButtonId
+                                    |> TF.inputText clientId LoginForm.emailAddressInputId "my+good@email.eu"
+                                    |> TF.clickButton clientId LoginForm.submitButtonId
+                                    |> TF.simulateTime Duration.second
+                            )
+                in
+                TF.init
+                    |> connectAndLogin 1
+                    |> connectAndLogin 2
+                    |> connectAndLogin 3
+                    |> connectAndLogin 4
+                    |> TF.checkState
+                        (\state2 ->
+                            if List.length state2.emailInboxes == 1 then
+                                Ok ()
+
+                            else
+                                Err "Only one email should have been sent"
+                        )
+                    |> TF.simulateTime (Duration.minutes 2)
+                    |> connectAndLogin 5
+                    |> TF.checkState
+                        (\state2 ->
+                            if List.length state2.emailInboxes == 2 then
+                                Ok ()
+
+                            else
+                                Err "Two emails should have been sent"
+                        )
+                    |> TF.toExpectation
+        , test "Rate limit login for a given session" <|
+            \_ ->
+                let
+                    session0 =
+                        Id.sessionIdFromString "session0"
+                in
+                TF.init
+                    |> TF.connectFrontend
+                        session0
+                        (Unsafe.url Env.domain)
+                        (\( state, clientId ) ->
+                            state
+                                |> TF.simulateTime Duration.second
+                                |> TF.clickButton clientId FrontendLogic.signUpOrLoginButtonId
+                                |> TF.inputText clientId LoginForm.emailAddressInputId "a@email.eu"
+                                |> TF.clickButton clientId LoginForm.submitButtonId
+                                |> TF.simulateTime Duration.second
+                                |> TF.inputText clientId LoginForm.emailAddressInputId "b@email.eu"
+                                |> TF.clickButton clientId LoginForm.submitButtonId
+                                |> TF.simulateTime Duration.second
+                                |> TF.inputText clientId LoginForm.emailAddressInputId "c@email.eu"
+                                |> TF.clickButton clientId LoginForm.submitButtonId
+                                |> TF.simulateTime Duration.second
+                                |> TF.inputText clientId LoginForm.emailAddressInputId "d@email.eu"
+                                |> TF.clickButton clientId LoginForm.submitButtonId
+                                |> TF.simulateTime Duration.second
+                                |> TF.inputText clientId LoginForm.emailAddressInputId "e@email.eu"
+                                |> TF.clickButton clientId LoginForm.submitButtonId
+                                |> TF.simulateTime Duration.second
+                                |> TF.checkState
+                                    (\state2 ->
+                                        let
+                                            count =
+                                                List.length state2.emailInboxes
+                                        in
+                                        if count == 1 then
+                                            Ok ()
+
+                                        else
+                                            "Only one email should have been sent, got "
+                                                ++ String.fromInt count
+                                                ++ " instead"
+                                                |> Err
+                                    )
+                                |> TF.simulateTime Duration.minute
+                                |> TF.inputText clientId LoginForm.emailAddressInputId "e@email.eu"
+                                |> TF.clickButton clientId LoginForm.submitButtonId
+                                |> TF.simulateTime Duration.second
+                                |> TF.checkState
+                                    (\state2 ->
+                                        let
+                                            count =
+                                                List.length state2.emailInboxes
+                                        in
+                                        if count == 2 then
+                                            Ok ()
+
+                                        else
+                                            "Two emails should have been sent, got "
+                                                ++ String.fromInt count
+                                                ++ " instead"
+                                                |> Err
+                                    )
+                        )
+                    |> TF.toExpectation
         ]
 
 

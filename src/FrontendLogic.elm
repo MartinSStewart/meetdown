@@ -1122,9 +1122,15 @@ viewPage model =
         HomepageRoute ->
             Element.column
                 [ Element.padding 8, Element.width Element.fill, Element.spacing 30 ]
-                [ Element.image [ Element.centerX, Element.width <| (Element.fill |> Element.maximum 500) ] { src = "/homepage-hero.png", description = "Two people on a video conference" }
-                , Element.paragraph [ Element.Font.center ] [ Element.text "A place to find people with shared interests." ]
-                , Element.paragraph [ Element.Font.center ] [ Element.text " We don't sell your data, we don't show ads, and it's free." ]
+                [ Element.image
+                    [ Element.centerX, Element.width <| (Element.fill |> Element.maximum 500) ]
+                    { src = "/homepage-hero.png", description = "Two people on a video conference" }
+                , Element.paragraph
+                    [ Element.Font.center ]
+                    [ Element.text "A place to join groups of people with shared interests." ]
+                , Element.paragraph
+                    [ Element.Font.center ]
+                    [ Element.text " We don't sell your data, we don't show ads, and it's free." ]
                 , searchInputLarge model.searchText
                 ]
 

@@ -16,9 +16,10 @@ import FrontendUser exposing (FrontendUser)
 import Group exposing (EventId, Group, GroupVisibility, JoinEventError)
 import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError)
-import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
+import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, SessionIdLast4Chars, UserId)
 import List.Nonempty exposing (Nonempty)
 import MaxAttendees exposing (MaxAttendees)
+import MultiDict.Assoc exposing (MultiDict)
 import Name exposing (Name)
 import Pixels exposing (Pixels)
 import ProfileImage exposing (ProfileImage)
@@ -138,6 +139,7 @@ type alias BackendModel =
     , groups : Dict GroupId Group
     , groupIdCounter : Int
     , sessions : BiDict SessionId (Id UserId)
+    , loginAttempts : Dict SessionId (Nonempty Time.Posix)
     , connections : Dict SessionId (Nonempty ClientId)
     , logs : Array Log
     , time : Time.Posix
@@ -156,10 +158,11 @@ type alias DeleteUserTokenData =
 
 
 type Log
-    = LogUntrustedCheckFailed Time.Posix ToBackend
+    = LogUntrustedCheckFailed Time.Posix ToBackend SessionIdLast4Chars
     | LogLoginEmail Time.Posix (Result SendGrid.Error ()) EmailAddress
     | LogDeleteAccountEmail Time.Posix (Result SendGrid.Error ()) (Id UserId)
     | LogEventReminderEmail Time.Posix (Result SendGrid.Error ()) (Id UserId) GroupId EventId
+    | LogLoginTokenRequestRateLimited Time.Posix EmailAddress SessionIdLast4Chars
 
 
 logData : AdminModel -> Log -> { time : Time.Posix, isError : Bool, message : String }
@@ -212,7 +215,7 @@ logData model log =
                    )
     in
     case log of
-        LogUntrustedCheckFailed time _ ->
+        LogUntrustedCheckFailed time _ _ ->
             { time = time, isError = True, message = "Trust check failed: TODO" }
 
         LogLoginEmail time result emailAddress ->
@@ -267,6 +270,16 @@ logData model log =
 
                     Err error ->
                         emailErrorToString (getEmailAddress userId) error
+            }
+
+        LogLoginTokenRequestRateLimited time emailAddress sessionId ->
+            { time = time
+            , isError = True
+            , message =
+                "Login request to "
+                    ++ EmailAddress.toString emailAddress
+                    ++ " was not sent due to rate limiting. Last 4 chars of sessionId: "
+                    ++ Id.sessionIdLast4CharsToString sessionId
             }
 
 
