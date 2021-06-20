@@ -33,6 +33,7 @@
             "lamdera/core": "1.0.0",
             "mdgriffith/elm-ui": "1.1.8",
             "mgold/elm-nonempty-list": "4.2.0",
+            "mpizenberg/elm-pointer-events": "4.0.2",
             "noahzgordon/elm-color-extra": "1.0.2",
             "pzp1997/assoc-list": "1.0.0"
         },

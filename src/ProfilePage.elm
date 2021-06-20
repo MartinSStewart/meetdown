@@ -1,4 +1,4 @@
-module ProfilePage exposing (CurrentValues, Effects, Form, Model, Msg, cancelImageButtonId, cropImageResponse, deleteAccountButtonId, init, update, uploadImageButtonId, view)
+module ProfilePage exposing (CurrentValues, Effects, Form, Model, Msg, cancelImageButtonId, cropImageResponse, deleteAccountButtonId, imageEditorIsActive, init, update, uploadImageButtonId, view)
 
 import Browser.Dom
 import Colors exposing (..)
@@ -13,6 +13,7 @@ import EmailAddress exposing (EmailAddress)
 import Html
 import Html.Attributes
 import Html.Events
+import Html.Events.Extra.Touch
 import Id exposing (ButtonId(..))
 import Json.Decode
 import List.Extra as List
@@ -35,6 +36,7 @@ type Msg
     | MouseDownImageEditor Float Float
     | MouseUpImageEditor Float Float
     | MovedImageEditor Float Float
+    | TouchEndImageEditor
     | PressedConfirmImage
     | PressedCancelImage
     | GotImageSize (Result Browser.Dom.Error Browser.Dom.Element)
@@ -271,6 +273,21 @@ update windowSize effects msg model =
                 _ ->
                     ( model, effects.none )
 
+        TouchEndImageEditor ->
+            case model.profileImage of
+                Editting (Just imageData) ->
+                    let
+                        newImageData =
+                            getActualImageState imageData
+                                |> (\a -> { a | dragState = Nothing })
+                    in
+                    ( { model | profileImage = Editting (Just newImageData) }
+                    , effects.none
+                    )
+
+                _ ->
+                    ( model, effects.none )
+
         PressedConfirmImage ->
             case model.profileImage of
                 Editting (Just imageData) ->
@@ -472,6 +489,16 @@ profileImagePlaceholderId =
     "profile-image-placeholder-id"
 
 
+imageEditorIsActive : Model -> Bool
+imageEditorIsActive model =
+    case model.profileImage of
+        Editting (Just _) ->
+            True
+
+        _ ->
+            False
+
+
 imageEditorView :
     { a | windowWidth : Quantity Int Pixels, windowHeight : Quantity Int Pixels }
     -> ImageEdit
@@ -578,6 +605,32 @@ imageEditorView windowSize imageEdit =
                     (Json.Decode.field "offsetY" Json.Decode.float)
                     |> Html.Events.preventDefaultOn "mousemove"
                     |> Element.htmlAttribute
+            , Html.Events.Extra.Touch.onStart
+                (\event ->
+                    case List.reverse event.touches |> List.head of
+                        Just last ->
+                            MouseDownImageEditor (Tuple.first last.clientPos) (Tuple.second last.clientPos)
+
+                        Nothing ->
+                            MouseDownImageEditor 0 0
+                )
+                |> Element.htmlAttribute
+            , Html.Events.Extra.Touch.onEnd (\_ -> TouchEndImageEditor) |> Element.htmlAttribute
+            , if dragState == Nothing then
+                Html.Events.on "" (Json.Decode.succeed (MovedImageEditor 0 0))
+                    |> Element.htmlAttribute
+
+              else
+                Html.Events.Extra.Touch.onMove
+                    (\event ->
+                        case List.reverse event.touches |> List.head of
+                            Just last ->
+                                MovedImageEditor (Tuple.first last.clientPos) (Tuple.second last.clientPos)
+
+                            Nothing ->
+                                MovedImageEditor 0 0
+                    )
+                    |> Element.htmlAttribute
             , Element.inFront
                 (Element.el
                     [ Element.height (Element.px <| round (size * toFloat imageEditorWidth_))
@@ -646,7 +699,11 @@ view windowSize currentValues ({ form } as model) =
 
         _ ->
             Element.column
-                [ Element.spacing 20, Element.padding 8, Element.width Element.fill ]
+                [ Element.spacing 20
+                , Element.padding 8
+                , Ui.contentWidth
+                , Element.centerX
+                ]
                 [ Element.wrappedRow [ Element.width Element.fill ]
                     [ Element.el [ Element.alignTop ] (Ui.title "Profile")
                     , Element.Input.button

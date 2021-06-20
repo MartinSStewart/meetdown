@@ -1072,10 +1072,20 @@ viewLoaded model =
             LoginStatusPending ->
                 Element.none
 
-            _ ->
-                header (isMobile model) (isLoggedIn model) model.route model.searchText
+            LoggedIn loggedIn ->
+                if ProfilePage.imageEditorIsActive loggedIn.profileForm then
+                    Element.none
+
+                else
+                    header (isMobile model) True model.route model.searchText
+
+            NotLoggedIn _ ->
+                header (isMobile model) False model.route model.searchText
         , Element.el
-            [ Element.Region.mainContent, Element.width Element.fill, Element.height Element.fill, Element.paddingXY 5 20 ]
+            [ Element.Region.mainContent
+            , Element.width Element.fill
+            , Element.height Element.fill
+            ]
             (case model.loginStatus of
                 NotLoggedIn { showLogin, joiningEvent } ->
                     if showLogin then
@@ -1203,10 +1213,6 @@ viewPage model =
                                 , profileImage = user.profileImage
                                 }
                                 loggedIn.profileForm
-                                |> Element.el
-                                    [ Ui.contentWidth
-                                    , Element.centerX
-                                    ]
                                 |> Element.map ProfileFormMsg
 
                         Just UserRequestPending ->
@@ -1283,19 +1289,6 @@ myGroupsView model loggedIn =
 
         Nothing ->
             Element.paragraph [] [ Element.text "Loading..." ]
-
-
-isLoggedIn : LoadedFrontend -> Bool
-isLoggedIn model =
-    case model.loginStatus of
-        LoggedIn _ ->
-            True
-
-        NotLoggedIn _ ->
-            False
-
-        LoginStatusPending ->
-            False
 
 
 searchInput : String -> Element FrontendMsg
