@@ -720,6 +720,7 @@ view windowSize currentValues ({ form } as model) =
                 ]
 
 
+deleteAccountButtonId : Id.HtmlId ButtonId
 deleteAccountButtonId =
     Id.buttonId "profileDeleteAccount"
 

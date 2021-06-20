@@ -13,6 +13,7 @@ import GroupPage
 import Id
 import List.Extra as List
 import LoginForm
+import ProfilePage
 import Quantity
 import Route
 import Test exposing (..)
@@ -563,6 +564,76 @@ suite =
 
                                         else
                                             "Two emails should have been sent, got "
+                                                ++ String.fromInt count
+                                                ++ " instead"
+                                                |> Err
+                                    )
+                        )
+                    |> TF.toExpectation
+        , test "Rate limit delete account email" <|
+            \_ ->
+                let
+                    session0 =
+                        Id.sessionIdFromString "session0"
+
+                    emailAddress =
+                        Unsafe.emailAddress "a@email.eu"
+                in
+                TF.init
+                    |> loginFromHomepage
+                        True
+                        session0
+                        session0
+                        emailAddress
+                        (\{ inProgress, clientId, clientIdFromEmail } ->
+                            inProgress
+                                |> TF.simulateTime Duration.second
+                                |> TF.clickLink clientId Route.MyProfileRoute
+                                |> TF.clickButton clientId ProfilePage.deleteAccountButtonId
+                                |> TF.simulateTime Duration.second
+                                |> TF.clickButton clientId ProfilePage.deleteAccountButtonId
+                                |> TF.simulateTime Duration.second
+                                |> TF.clickButton clientId ProfilePage.deleteAccountButtonId
+                                |> TF.simulateTime Duration.second
+                                |> TF.clickButton clientId ProfilePage.deleteAccountButtonId
+                                |> TF.simulateTime Duration.second
+                                |> TF.checkState
+                                    (\state2 ->
+                                        let
+                                            count =
+                                                List.count
+                                                    (\( address, email ) ->
+                                                        address == emailAddress && TF.isDeleteAccountEmail email
+                                                    )
+                                                    state2.emailInboxes
+                                        in
+                                        if count == 1 then
+                                            Ok ()
+
+                                        else
+                                            "Only one account deletion email should have been sent, got "
+                                                ++ String.fromInt count
+                                                ++ " instead"
+                                                |> Err
+                                    )
+                                |> TF.simulateTime (Duration.minutes 1.5)
+                                |> TF.clickButton clientId ProfilePage.deleteAccountButtonId
+                                |> TF.simulateTime Duration.second
+                                |> TF.checkState
+                                    (\state2 ->
+                                        let
+                                            count =
+                                                List.count
+                                                    (\( address, email ) ->
+                                                        address == emailAddress && TF.isDeleteAccountEmail email
+                                                    )
+                                                    state2.emailInboxes
+                                        in
+                                        if count == 2 then
+                                            Ok ()
+
+                                        else
+                                            "Two account deletion emails should have been sent, got "
                                                 ++ String.fromInt count
                                                 ++ " instead"
                                                 |> Err

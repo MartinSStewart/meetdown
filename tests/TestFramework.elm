@@ -22,6 +22,7 @@ module TestFramework exposing
     , inputNumber
     , inputText
     , inputTime
+    , isDeleteAccountEmail
     , isEventReminderEmail
     , keyDownEvent
     , reconnectFrontend
@@ -98,6 +99,16 @@ isEventReminderEmail : EmailType -> Bool
 isEventReminderEmail emailType =
     case emailType of
         EventReminderEmail _ _ _ _ ->
+            True
+
+        _ ->
+            False
+
+
+isDeleteAccountEmail : EmailType -> Bool
+isDeleteAccountEmail emailType =
+    case emailType of
+        DeleteAccountEmail _ ->
             True
 
         _ ->
