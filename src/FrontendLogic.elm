@@ -1135,9 +1135,10 @@ viewPage model =
         HomepageRoute ->
             Element.column
                 [ Element.padding 8, Element.width Element.fill, Element.spacing 30 ]
-                [ Element.image
-                    [ Element.centerX, Element.width <| (Element.fill |> Element.maximum 500) ]
-                    { src = "/homepage-hero.png", description = "Two people on a video conference" }
+                [ Element.el [ Element.paddingEach { top = 40, right = 0, bottom = 20, left = 0 }, Element.centerX ] <|
+                    Element.image
+                        [ Element.width <| (Element.fill |> Element.maximum 650) ]
+                        { src = "/homepage-hero.jpg", description = "Two people on a video conference" }
                 , Element.paragraph
                     [ Element.Font.center ]
                     [ Element.text "A place to join groups of people with shared interests." ]
@@ -1352,7 +1353,7 @@ searchInputLarge searchText =
             [ Element.Background.color Ui.submitColor
             , Element.Border.roundEach { topLeft = 0, bottomLeft = 0, bottomRight = 5, topRight = 5 }
             , Element.height Element.fill
-            , Element.Font.color <| Element.rgb 1 1 1
+            , Element.Font.color Colors.white
             , Element.paddingXY 16 0
             ]
             { onPress = Just SubmittedSearchBox

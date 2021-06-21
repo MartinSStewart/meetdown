@@ -63,7 +63,7 @@ image profileImage =
         { src =
             case profileImage of
                 DefaultImage ->
-                    "/default-profile.png"
+                    "/anonymous.png"
 
                 CustomImage dataUrl ->
                     dataUrl
@@ -83,7 +83,7 @@ smallImage profileImage =
         { src =
             case profileImage of
                 DefaultImage ->
-                    "/default-profile.png"
+                    "/anonymous.png"
 
                 CustomImage dataUrl ->
                     dataUrl

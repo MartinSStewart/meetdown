@@ -243,12 +243,12 @@ linkButton { route, label } =
 
 linkColor : Element.Color
 linkColor =
-    Element.rgb 0.2 0.2 1
+    Colors.blue
 
 
 submitColor : Element.Color
 submitColor =
-    Element.rgb 0.1 0.6 0.25
+    Colors.green
 
 
 submitButton : HtmlId ButtonId -> Bool -> { onPress : msg, label : String } -> Element msg
@@ -258,7 +258,7 @@ submitButton htmlId isSubmitting { onPress, label } =
         , Element.padding 10
         , Element.Border.rounded 4
         , Element.Font.center
-        , Element.Font.color <| Element.rgb 1 1 1
+        , Element.Font.color white
         , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         , Element.width Element.fill
         ]
@@ -280,11 +280,11 @@ submitButton htmlId isSubmitting { onPress, label } =
 dangerButton : HtmlId ButtonId -> { onPress : msg, label : String } -> Element msg
 dangerButton htmlId { onPress, label } =
     Element.Input.button
-        [ Element.Background.color <| Element.rgb 0.9 0 0
+        [ Element.Background.color Colors.red
         , Element.padding 10
         , Element.Border.rounded 4
         , Element.Font.center
-        , Element.Font.color <| Element.rgb 1 1 1
+        , Element.Font.color white
         , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         ]
         { onPress = Just onPress
@@ -335,7 +335,7 @@ error errorMessage =
 
 errorColor : Element.Color
 errorColor =
-    Element.rgb 0.9 0.2 0.2
+    Colors.red
 
 
 formError : String -> Element msg

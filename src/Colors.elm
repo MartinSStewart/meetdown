@@ -17,6 +17,14 @@ red =
     fromHex "#FF8589"
 
 
+green =
+    fromHex "#9ED7CB"
+
+
+blue =
+    fromHex "#509CDB"
+
+
 redLight =
     Element.rgb 1 0.9059 0.9059
 
@@ -30,11 +38,15 @@ blueGrey =
 
 
 darkGrey =
-    fromHex "#999"
+    fromHex "#AEB7C4"
 
 
 black =
     fromHex "#000"
+
+
+white =
+    fromHex "#FFF"
 
 
 transparent =
