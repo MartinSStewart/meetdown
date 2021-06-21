@@ -64,14 +64,14 @@ toString eventDuration =
             |> String.left 4
             |> (\a ->
                     if a == "1" then
-                        "1 hour"
+                        "1\u{00A0}hour"
 
                     else
-                        a ++ " hours"
+                        a ++ "\u{00A0}hours"
                )
 
     else if minutes == 1 then
-        "1 minute"
+        "1\u{00A0}minute"
 
     else
-        String.fromInt minutes ++ " minutes"
+        String.fromInt minutes ++ "\u{00A0}minutes"

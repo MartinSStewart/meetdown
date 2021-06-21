@@ -19,12 +19,14 @@ module Ui exposing
     , headerButton
     , headerLink
     , horizontalLine
-    , hr
     , inputBackground
     , inputBorder
     , inputBorderWidth
     , inputFocusClass
+    , linkButton
     , linkColor
+    , loadingError
+    , loadingView
     , multiline
     , numberInput
     , onEnter
@@ -74,6 +76,12 @@ css =
 
           .linkFocus:focus {
               outline: solid #9bcbff !important;
+          }
+
+          @keyframes fade-in {
+            0% {opacity: 0;}
+            50% {opacity: 0;}
+            100% {opacity: 1;}
           }
         """
         ]
@@ -217,6 +225,22 @@ button htmlId { onPress, label } =
         }
 
 
+linkButton : { route : Route, label : String } -> Element msg
+linkButton { route, label } =
+    Element.link
+        [ Element.Border.width 2
+        , Element.Border.color grey
+        , Element.padding 8
+        , Element.Border.rounded 4
+        , Element.Font.center
+        , Element.Font.color readingMuted
+        , Element.width (Element.minimum 150 Element.fill)
+        ]
+        { url = Route.encode route
+        , label = Element.text label
+        }
+
+
 linkColor : Element.Color
 linkColor =
     Element.rgb 0.2 0.2 1
@@ -298,35 +322,26 @@ title text =
     Element.paragraph [ titleFontSize, Element.Region.heading 1 ] [ Element.text text ]
 
 
-hr : Element msg
-hr =
-    Element.el
-        [ Element.padding 8, Element.width Element.fill ]
-        (Element.el
-            [ Element.width Element.fill
-            , Element.height (Element.px 2)
-            , Element.Background.color <| Element.rgb 0.4 0.4 0.4
-            ]
-            Element.none
-        )
-
-
 error : String -> Element msg
 error errorMessage =
     Element.paragraph
         [ Element.paddingEach { left = 4, right = 4, top = 4, bottom = 0 }
-        , Element.Font.color <| Element.rgb 0.9 0.2 0.2
+        , Element.Font.color errorColor
         , Element.Font.size 14
         , Element.Font.medium
         ]
         [ Element.text errorMessage ]
 
 
+errorColor : Element.Color
+errorColor =
+    Element.rgb 0.9 0.2 0.2
+
+
 formError : String -> Element msg
 formError errorMessage =
     Element.paragraph
-        [ Element.Font.color <| Element.rgb 0.9 0.2 0.2
-        ]
+        [ Element.Font.color errorColor ]
         [ Element.text errorMessage ]
 
 
@@ -616,3 +631,26 @@ cardAttributes =
     , Element.Border.color grey
     , Element.Border.shadow { offset = ( 0, 3 ), size = -1, blur = 3, color = grey }
     ]
+
+
+loadingView : Element msg
+loadingView =
+    Element.el
+        [ Element.Font.size 20
+        , Element.centerX
+        , Element.centerY
+        , Element.htmlAttribute (Html.Attributes.style "animation-name" "fade-in")
+        , Element.htmlAttribute (Html.Attributes.style "animation-duration" "1s")
+        ]
+        (Element.text "Loading")
+
+
+loadingError : String -> Element msg
+loadingError text =
+    Element.el
+        [ Element.Font.size 20
+        , Element.centerX
+        , Element.centerY
+        , Element.Font.color errorColor
+        ]
+        (Element.text (text ++ ". Try refreshing the page?"))

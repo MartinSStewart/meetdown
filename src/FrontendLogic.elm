@@ -309,7 +309,7 @@ updateLoaded cmds msg model =
                                 |> Maybe.map Tuple.first
                                 |> Maybe.withDefault HomepageRoute
                     in
-                    ( { model | route = route } |> closeLoginForm
+                    ( { model | route = route, hasLoginTokenError = False } |> closeLoginForm
                     , cmds.navigationPushUrl model.navigationKey (Route.encode route)
                     )
 
@@ -334,7 +334,12 @@ updateLoaded cmds msg model =
                     ( model, cmds.none )
 
                 NotLoggedIn notLoggedIn ->
-                    ( { model | loginStatus = NotLoggedIn { notLoggedIn | showLogin = True } }, cmds.none )
+                    ( { model
+                        | loginStatus = NotLoggedIn { notLoggedIn | showLogin = True }
+                        , hasLoginTokenError = False
+                      }
+                    , cmds.none
+                    )
 
                 LoggedIn _ ->
                     ( model, cmds.none )
@@ -1055,18 +1060,6 @@ viewLoaded model =
     Element.column
         [ Element.width Element.fill
         , Element.height Element.fill
-        , Element.inFront
-            (if model.hasLoginTokenError then
-                Element.el
-                    [ Element.width Element.fill
-                    , Element.height Element.fill
-                    , Element.Background.color <| Element.rgb 1 1 1
-                    ]
-                    (Element.text "Sorry, the link you used is either invalid or has expired.")
-
-             else
-                Element.none
-            )
         ]
         [ case model.loginStatus of
             LoginStatusPending ->
@@ -1086,19 +1079,31 @@ viewLoaded model =
             , Element.width Element.fill
             , Element.height Element.fill
             ]
-            (case model.loginStatus of
-                NotLoggedIn { showLogin, joiningEvent } ->
-                    if showLogin then
-                        LoginForm.view joiningEvent model.cachedGroups model.loginForm
+            (if model.hasLoginTokenError then
+                Element.column
+                    (Element.spacing 16 :: Element.centerY :: Ui.pageContentAttributes)
+                    [ Element.el
+                        [ Element.centerX ]
+                        (Element.text "The link you used is either invalid or has expired.")
+                    , Element.el
+                        [ Element.centerX ]
+                        (Ui.linkButton { route = Route.HomepageRoute, label = "Go to homepage" })
+                    ]
 
-                    else
+             else
+                case model.loginStatus of
+                    NotLoggedIn { showLogin, joiningEvent } ->
+                        if showLogin then
+                            LoginForm.view joiningEvent model.cachedGroups model.loginForm
+
+                        else
+                            viewPage model
+
+                    LoggedIn _ ->
                         viewPage model
 
-                LoggedIn _ ->
-                    viewPage model
-
-                LoginStatusPending ->
-                    Element.none
+                    LoginStatusPending ->
+                        Element.none
             )
         ]
 
@@ -1168,13 +1173,13 @@ viewPage model =
                                 |> Element.map GroupPageMsg
 
                         Nothing ->
-                            Element.none
+                            Ui.loadingView
 
                 Just GroupNotFound ->
-                    Element.text "Group not found"
+                    Ui.loadingError "Group not found"
 
                 Just GroupRequestPending ->
-                    Element.text "Loading group"
+                    Ui.loadingView
 
                 Nothing ->
                     Element.none
@@ -1212,13 +1217,13 @@ viewPage model =
                                 |> Element.map ProfileFormMsg
 
                         Just UserRequestPending ->
-                            Element.text "Loading user"
+                            Ui.loadingView
 
                         Just UserNotFound ->
-                            Element.text "Failed to find user"
+                            Ui.loadingError "User not found"
 
                         Nothing ->
-                            Element.text "Failed to find user"
+                            Ui.loadingError "User not found"
                 )
 
         SearchGroupsRoute searchText ->
@@ -1270,10 +1275,10 @@ myGroupsView model loggedIn =
                              else
                                 Element.column [ Element.spacing 8 ] myGroupsList
                             )
-                        , Ui.section "Groups I've joined"
+                        , Ui.section "Events I've joined"
                             (if List.isEmpty mySubscriptionsList then
                                 Element.paragraph []
-                                    [ Element.text "You haven't joined any groups. "
+                                    [ Element.text "You haven't joined any events. "
                                     , Ui.routeLink (SearchGroupsRoute "") "You can do that here."
                                     ]
 
@@ -1284,7 +1289,7 @@ myGroupsView model loggedIn =
                 ]
 
         Nothing ->
-            Element.paragraph [] [ Element.text "Loading..." ]
+            Ui.loadingView
 
 
 searchInput : String -> Element FrontendMsg

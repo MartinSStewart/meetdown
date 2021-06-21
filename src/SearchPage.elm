@@ -44,7 +44,7 @@ view searchText model =
         , Element.spacing 8
         ]
         [ if searchText == "" then
-            Element.none
+            Element.paragraph [] [ Element.text <| "Search results for \" \"" ]
 
           else
             Element.paragraph [] [ Element.text <| "Search results for \"" ++ searchText ++ "\"" ]

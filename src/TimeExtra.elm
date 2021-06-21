@@ -35,13 +35,13 @@ diffToString start end =
                 " ago"
     in
     if months >= 2 then
-        String.fromInt months ++ " months" ++ suffix
+        String.fromInt months ++ "\u{00A0}months" ++ suffix
 
     else if weeks >= 2 then
-        String.fromInt weeks ++ " weeks" ++ suffix
+        String.fromInt weeks ++ "\u{00A0}weeks" ++ suffix
 
     else if days > 1 then
-        String.fromInt days ++ " days" ++ suffix
+        String.fromInt days ++ "\u{00A0}days" ++ suffix
 
     else if days == 1 then
         if Time.posixToMillis start <= Time.posixToMillis end then
@@ -51,19 +51,16 @@ diffToString start end =
             "yesterday"
 
     else if hours > 6 then
-        String.fromInt hours ++ " hours" ++ suffix
+        String.fromInt hours ++ "\u{00A0}hours" ++ suffix
 
-    else if hours > 1 then
-        (removeTrailing0s (Duration.inHours difference) |> String.left 3) ++ " hours" ++ suffix
-
-    else if hours == 1 then
-        "1 hour" ++ suffix
+    else if Duration.inHours difference >= 1.2 then
+        (removeTrailing0s (Duration.inHours difference) |> String.left 3) ++ "\u{00A0}hours" ++ suffix
 
     else if minutes > 1 then
-        String.fromInt minutes ++ " minutes" ++ suffix
+        String.fromInt minutes ++ "\u{00A0}minutes" ++ suffix
 
     else if minutes == 1 then
-        "1 minute" ++ suffix
+        "1\u{00A0}minute" ++ suffix
 
     else
         "now"
