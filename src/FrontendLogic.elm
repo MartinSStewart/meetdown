@@ -1336,7 +1336,7 @@ searchInputLarge searchText =
             , Element.inFront
                 (Element.el
                     [ Element.Font.size 14
-                    , Element.moveDown 10
+                    , Element.moveDown 9
                     , Element.moveRight 6
                     , Element.alpha 0.8
                     , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
