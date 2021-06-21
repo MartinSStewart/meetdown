@@ -669,12 +669,10 @@ imageEditorView windowSize imageEdit =
             { src = imageUrl
             , description = "Image editor"
             }
-        , Element.row
-            [ Element.width Element.fill ]
+        , Element.wrappedRow
+            [ Element.width Element.fill, Element.spacingXY 16 8, Element.paddingXY 8 0 ]
             [ Ui.submitButton uploadImageButtonId False { onPress = PressedConfirmImage, label = "Upload image" }
-            , Element.el
-                [ Element.alignRight ]
-                (Ui.button cancelImageButtonId { onPress = PressedCancelImage, label = "Cancel" })
+            , Ui.button cancelImageButtonId { onPress = PressedCancelImage, label = "Cancel" }
             ]
         ]
 
