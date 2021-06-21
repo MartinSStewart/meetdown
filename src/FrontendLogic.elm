@@ -6,7 +6,6 @@ import Browser exposing (UrlRequest(..))
 import Browser.Dom
 import Colors
 import CreateGroupPage
-import Description
 import DictExtra as Dict
 import Duration exposing (Duration)
 import Element exposing (Element)
@@ -15,7 +14,6 @@ import Element.Border
 import Element.Font
 import Element.Input
 import Element.Region
-import Event
 import FrontendUser exposing (FrontendUser)
 import Group exposing (Group)
 import GroupName exposing (GroupName)
@@ -1082,9 +1080,9 @@ viewLoaded model =
             (if model.hasLoginTokenError then
                 Element.column
                     (Element.spacing 16 :: Element.centerY :: Ui.pageContentAttributes)
-                    [ Element.el
-                        [ Element.centerX ]
-                        (Element.text "The link you used is either invalid or has expired.")
+                    [ Element.paragraph
+                        [ Element.Font.center ]
+                        [ Element.text "The link you used is either invalid or has expired." ]
                     , Element.el
                         [ Element.centerX ]
                         (Ui.linkButton { route = Route.HomepageRoute, label = "Go to homepage" })
