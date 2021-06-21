@@ -1,7 +1,7 @@
 module Tests exposing (createEventAndAnotherUserNotLoggedInJoinsIt, suite)
 
 import BackendLogic
-import CreateGroupForm
+import CreateGroupPage
 import Date
 import Duration
 import EmailAddress exposing (EmailAddress)
@@ -720,10 +720,10 @@ createGroup loggedInClient groupName groupDescription state =
     state
         |> TF.clickLink loggedInClient Route.CreateGroupRoute
         |> TF.simulateTime Duration.second
-        |> TF.inputText loggedInClient CreateGroupForm.nameInputId groupName
-        |> TF.inputText loggedInClient CreateGroupForm.descriptionInputId groupDescription
-        |> TF.clickRadioButton loggedInClient (CreateGroupForm.groupVisibilityId Group.PublicGroup)
-        |> TF.clickButton loggedInClient CreateGroupForm.submitButtonId
+        |> TF.inputText loggedInClient CreateGroupPage.nameInputId groupName
+        |> TF.inputText loggedInClient CreateGroupPage.descriptionInputId groupDescription
+        |> TF.clickRadioButton loggedInClient (CreateGroupPage.groupVisibilityId Group.PublicGroup)
+        |> TF.clickButton loggedInClient CreateGroupPage.submitButtonId
         |> TF.simulateTime Duration.second
 
 

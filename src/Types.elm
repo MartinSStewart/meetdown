@@ -6,7 +6,7 @@ import AssocSet exposing (Set)
 import BiDict.Assoc exposing (BiDict)
 import Browser exposing (UrlRequest)
 import Browser.Navigation
-import CreateGroupForm exposing (CreateGroupError, GroupFormValidated)
+import CreateGroupPage exposing (CreateGroupError, GroupFormValidated)
 import Description exposing (Description)
 import EmailAddress exposing (EmailAddress)
 import Event exposing (CancellationStatus, Event, EventType)
@@ -65,7 +65,7 @@ type alias LoadedFrontend =
     , loginForm : LoginForm
     , logs : Maybe (Array Log)
     , hasLoginTokenError : Bool
-    , groupForm : CreateGroupForm.Model
+    , groupForm : CreateGroupPage.Model
     , groupCreated : Bool
     , accountDeletedResult : Maybe (Result () ())
     , searchText : String
@@ -311,7 +311,7 @@ type FrontendMsg
     | PressedSubmitLogin
     | PressedCancelLogin
     | PressedCreateGroup
-    | GroupFormMsg CreateGroupForm.Msg
+    | GroupFormMsg CreateGroupPage.Msg
     | ProfileFormMsg ProfilePage.Msg
     | CroppedImage { requestId : Int, croppedImageUrl : String }
     | TypedSearchText String

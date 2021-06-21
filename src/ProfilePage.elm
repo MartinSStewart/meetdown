@@ -699,11 +699,7 @@ view windowSize currentValues ({ form } as model) =
 
         _ ->
             Element.column
-                [ Element.spacing 20
-                , Element.padding 8
-                , Ui.contentWidth
-                , Element.centerX
-                ]
+                (Element.spacing 20 :: Ui.pageContentAttributes)
                 [ Element.wrappedRow [ Element.width Element.fill ]
                     [ Element.el [ Element.alignTop ] (Ui.title "Profile")
                     , Element.Input.button

@@ -18,6 +18,7 @@ module Ui exposing
     , formLabelAbove
     , headerButton
     , headerLink
+    , horizontalLine
     , hr
     , inputBackground
     , inputBorder
@@ -27,6 +28,7 @@ module Ui exposing
     , multiline
     , numberInput
     , onEnter
+    , pageContentAttributes
     , radioGroup
     , routeLink
     , section
@@ -97,27 +99,54 @@ enterKeyCode =
     13
 
 
+pageContentAttributes : List (Element.Attribute msg)
+pageContentAttributes =
+    [ Element.padding 8
+    , Element.centerX
+    , Element.width (Element.maximum 800 Element.fill)
+    ]
+
+
 inputFocusClass : Element.Attribute msg
 inputFocusClass =
     Element.htmlAttribute <| Html.Attributes.class "linkFocus"
 
 
-headerButton : HtmlId ButtonId -> { onPress : msg, label : String } -> Element msg
-headerButton htmlId { onPress, label } =
+horizontalLine : Element msg
+horizontalLine =
+    Element.el
+        [ Element.width Element.fill
+        , Element.height (Element.px 1)
+        , Element.Background.color <| Element.rgb 0.2 0.2 0.2
+        ]
+        Element.none
+
+
+headerButton : Bool -> HtmlId ButtonId -> { onPress : msg, label : String } -> Element msg
+headerButton isMobile_ htmlId { onPress, label } =
     Element.Input.button
         [ Element.mouseOver [ Element.Background.color <| Element.rgba 1 1 1 0.5 ]
-        , Element.paddingXY 8 8
+        , if isMobile_ then
+            Element.padding 6
+
+          else
+            Element.padding 8
         , Element.Font.center
         , inputFocusClass
         , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
+        , if isMobile_ then
+            Element.Font.size 13
+
+          else
+            Element.Font.size 16
         ]
         { onPress = Just onPress
         , label = Element.text label
         }
 
 
-headerLink : Bool -> { route : Route, label : String } -> Element msg
-headerLink isSelected { route, label } =
+headerLink : Bool -> Bool -> { route : Route, label : String } -> Element msg
+headerLink isMobile_ isSelected { route, label } =
     Element.link
         [ Element.mouseOver [ Element.Background.color <| Element.rgba 1 1 1 0.5 ]
         , if isSelected then
@@ -125,8 +154,17 @@ headerLink isSelected { route, label } =
 
           else
             Element.Background.color <| Element.rgba 1 1 1 0
-        , Element.paddingXY 8 8
+        , if isMobile_ then
+            Element.padding 6
+
+          else
+            Element.padding 8
         , Element.Font.center
+        , if isMobile_ then
+            Element.Font.size 13
+
+          else
+            Element.Font.size 16
         , inputFocusClass
         ]
         { url = Route.encode route
@@ -155,6 +193,7 @@ section sectionTitle content =
         , Element.padding 8
         , Element.Border.rounded 4
         , inputBackground False
+        , Element.alignTop
         ]
         [ Element.paragraph [ Element.Font.bold ] [ Element.text sectionTitle ]
         , content
@@ -170,7 +209,7 @@ button htmlId { onPress, label } =
         , Element.Border.rounded 4
         , Element.Font.center
         , Element.Font.color readingMuted
-        , Element.width (Element.minimum 150 Element.shrink)
+        , Element.width (Element.minimum 150 Element.fill)
         , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         ]
         { onPress = Just onPress
@@ -197,6 +236,7 @@ submitButton htmlId isSubmitting { onPress, label } =
         , Element.Font.center
         , Element.Font.color <| Element.rgb 1 1 1
         , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
+        , Element.width Element.fill
         ]
         { onPress = Just onPress
         , label =
@@ -306,7 +346,7 @@ checkboxChecked =
             []
         ]
         |> Element.html
-        |> Element.el []
+        |> Element.el [ Element.alignTop ]
 
 
 checkboxEmpty =
@@ -325,7 +365,7 @@ checkboxEmpty =
             []
         ]
         |> Element.html
-        |> Element.el []
+        |> Element.el [ Element.alignTop ]
 
 
 radioGroup : (a -> HtmlId RadioButtonId) -> (a -> msg) -> Nonempty a -> Maybe a -> (a -> String) -> Maybe String -> Element msg

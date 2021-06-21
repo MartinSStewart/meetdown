@@ -18,14 +18,11 @@ import Untrusted
 emailInput : HtmlId TextInputId -> msg -> (String -> msg) -> String -> String -> Maybe String -> Element msg
 emailInput id onSubmit onChange text labelText maybeError =
     Element.column
-        [ Element.width Element.fill
-        , Ui.inputBackground (maybeError /= Nothing)
-        , Element.paddingEach { left = 8, right = 8, top = 8, bottom = 8 }
-        , Element.Border.rounded 4
-        ]
+        [ Element.width Element.fill ]
         [ Element.Input.email
             [ Element.width Element.fill
             , Ui.onEnter onSubmit
+            , Ui.inputBorder (maybeError /= Nothing)
             , Id.htmlIdToString id |> Html.Attributes.id |> Element.htmlAttribute
             ]
             { text = text
@@ -33,7 +30,7 @@ emailInput id onSubmit onChange text labelText maybeError =
             , placeholder = Nothing
             , label =
                 Element.Input.labelAbove
-                    [ Element.paddingXY 4 0 ]
+                    []
                     (Element.paragraph [] [ Element.text labelText ])
             }
         , Maybe.map Ui.error maybeError |> Maybe.withDefault Element.none
@@ -42,69 +39,67 @@ emailInput id onSubmit onChange text labelText maybeError =
 
 view : Maybe ( GroupId, EventId ) -> Dict GroupId GroupCache -> LoginForm -> Element FrontendMsg
 view joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent } =
-    Element.el
-        [ Element.width Element.fill, Element.height Element.fill ]
-        (Element.column
-            [ Element.centerX
-            , Element.centerY
-            , Element.spacing 16
-            , Element.width <| Element.minimum 400 Element.shrink
-            , Element.below
-                (case emailSent of
-                    Just emailAddress ->
-                        Element.column
-                            [ Element.spacing 4, Element.padding 8 ]
-                            [ Element.paragraph
-                                []
-                                [ Element.text "A login email has been sent to "
-                                , Ui.emailAddressText emailAddress
-                                , Element.text "."
-                                ]
-                            , Element.paragraph [] [ Element.text "Check your spam folder if you don't see it." ]
+    Element.column
+        [ Element.centerX
+        , Element.centerY
+        , Element.padding 8
+        , Element.spacing 16
+        , Element.width <| Element.maximum 400 Element.shrink
+        , Element.below
+            (case emailSent of
+                Just emailAddress ->
+                    Element.column
+                        [ Element.spacing 4, Element.padding 8 ]
+                        [ Element.paragraph
+                            []
+                            [ Element.text "A login email has been sent to "
+                            , Ui.emailAddressText emailAddress
+                            , Element.text "."
                             ]
-
-                    Nothing ->
-                        Element.none
-                )
-            ]
-            [ case joiningEvent of
-                Just ( groupId, _ ) ->
-                    case Dict.get groupId cachedGroups of
-                        Just (GroupFound group) ->
-                            Element.paragraph []
-                                [ "Sign in and we'll get you signed up for the "
-                                    ++ GroupName.toString (Group.name group)
-                                    ++ " event"
-                                    |> Element.text
-                                ]
-
-                        _ ->
-                            Element.paragraph
-                                []
-                                [ Element.text "Sign in and we'll get you signed up for that event" ]
+                        , Element.paragraph [] [ Element.text "Check your spam folder if you don't see it." ]
+                        ]
 
                 Nothing ->
                     Element.none
-            , emailInput
-                emailAddressInputId
-                PressedSubmitLogin
-                TypedEmail
-                email
-                "Enter your email address"
-                (case ( pressedSubmitEmail, validateEmail email ) of
-                    ( True, Err error ) ->
-                        Just error
+            )
+        ]
+        [ case joiningEvent of
+            Just ( groupId, _ ) ->
+                case Dict.get groupId cachedGroups of
+                    Just (GroupFound group) ->
+                        Element.paragraph []
+                            [ "Sign in and we'll get you signed up for the "
+                                ++ GroupName.toString (Group.name group)
+                                ++ " event"
+                                |> Element.text
+                            ]
 
                     _ ->
-                        Nothing
-                )
-            , Element.row
-                [ Element.spacing 16 ]
-                [ Ui.submitButton submitButtonId False { onPress = PressedSubmitLogin, label = "Sign up/Login" }
-                , Ui.button cancelButtonId { onPress = PressedCancelLogin, label = "Cancel" }
-                ]
+                        Element.paragraph
+                            []
+                            [ Element.text "Sign in and we'll get you signed up for that event" ]
+
+            Nothing ->
+                Element.none
+        , emailInput
+            emailAddressInputId
+            PressedSubmitLogin
+            TypedEmail
+            email
+            "Enter your email address"
+            (case ( pressedSubmitEmail, validateEmail email ) of
+                ( True, Err error ) ->
+                    Just error
+
+                _ ->
+                    Nothing
+            )
+        , Element.wrappedRow
+            [ Element.spacingXY 16 8, Element.width Element.fill ]
+            [ Ui.submitButton submitButtonId False { onPress = PressedSubmitLogin, label = "Sign up/Login" }
+            , Ui.button cancelButtonId { onPress = PressedCancelLogin, label = "Cancel" }
             ]
-        )
+        ]
 
 
 validateEmail : String -> Result String EmailAddress

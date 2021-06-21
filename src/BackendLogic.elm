@@ -5,7 +5,7 @@ import Array
 import AssocList as Dict exposing (Dict)
 import AssocSet as Set
 import BiDict.Assoc as BiDict
-import CreateGroupForm exposing (CreateGroupError(..))
+import CreateGroupPage exposing (CreateGroupError(..))
 import Description exposing (Description)
 import Duration exposing (Duration)
 import Email.Html
@@ -1040,8 +1040,8 @@ loginEmailContent route loginToken maybeJoinEvent =
         loginLink =
             loginEmailLink route loginToken maybeJoinEvent
 
-        _ =
-            Debug.log "login" loginLink
+        --_ =
+        --    Debug.log "login" loginLink
     in
     Email.Html.div
         []

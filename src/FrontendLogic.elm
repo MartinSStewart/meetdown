@@ -5,7 +5,7 @@ import AssocSet as Set
 import Browser exposing (UrlRequest(..))
 import Browser.Dom
 import Colors
-import CreateGroupForm
+import CreateGroupPage
 import Description
 import DictExtra as Dict
 import Duration exposing (Duration)
@@ -173,7 +173,7 @@ initLoadedFrontend cmds navigationKey windowWidth windowHeight route maybeLoginT
                 }
             , logs = Nothing
             , hasLoginTokenError = False
-            , groupForm = CreateGroupForm.init
+            , groupForm = CreateGroupPage.init
             , groupCreated = False
             , accountDeletedResult = Nothing
             , searchText = ""
@@ -365,11 +365,11 @@ updateLoaded cmds msg model =
         GroupFormMsg groupFormMsg ->
             let
                 ( newModel, outMsg ) =
-                    CreateGroupForm.update groupFormMsg model.groupForm
+                    CreateGroupPage.update groupFormMsg model.groupForm
                         |> Tuple.mapFirst (\a -> { model | groupForm = a })
             in
             case outMsg of
-                CreateGroupForm.Submitted submitted ->
+                CreateGroupPage.Submitted submitted ->
                     ( newModel
                     , CreateGroupRequest
                         (Untrusted.untrust submitted.name)
@@ -378,7 +378,7 @@ updateLoaded cmds msg model =
                         |> cmds.sendToBackend
                     )
 
-                CreateGroupForm.NoChange ->
+                CreateGroupPage.NoChange ->
                     ( newModel, cmds.none )
 
         ProfileFormMsg profileFormMsg ->
@@ -651,7 +651,7 @@ updateLoadedFromBackend cmds msg model =
                             ( { model
                                 | cachedGroups =
                                     Dict.insert groupId (GroupFound groupData) model.cachedGroups
-                                , groupForm = CreateGroupForm.init
+                                , groupForm = CreateGroupPage.init
                               }
                             , cmds.navigationReplaceRoute
                                 model.navigationKey
@@ -659,7 +659,7 @@ updateLoadedFromBackend cmds msg model =
                             )
 
                         Err error ->
-                            ( { model | groupForm = CreateGroupForm.submitFailed error model.groupForm }
+                            ( { model | groupForm = CreateGroupPage.submitFailed error model.groupForm }
                             , cmds.none
                             )
 
@@ -1188,11 +1188,7 @@ viewPage model =
             loginRequiredPage
                 model
                 (\_ ->
-                    CreateGroupForm.view model.groupForm
-                        |> Element.el
-                            [ Ui.contentWidth
-                            , Element.centerX
-                            ]
+                    CreateGroupPage.view model.groupForm
                         |> Element.map GroupFormMsg
                 )
 
@@ -1387,7 +1383,7 @@ header isMobile_ isLoggedIn_ route searchText =
                 [ Element.alignRight ]
                 (if isLoggedIn_ then
                     headerButtons isMobile_ route
-                        ++ [ Ui.headerButton
+                        ++ [ Ui.headerButton isMobile_
                                 logOutButtonId
                                 { onPress = PressedLogout
                                 , label = "Log out"
@@ -1396,6 +1392,7 @@ header isMobile_ isLoggedIn_ route searchText =
 
                  else
                     [ Ui.headerButton
+                        isMobile_
                         signUpOrLoginButtonId
                         { onPress = PressedLogin
                         , label = "Sign up / Login"
@@ -1409,21 +1406,17 @@ header isMobile_ isLoggedIn_ route searchText =
 
 headerButtons : Bool -> Route -> List (Element msg)
 headerButtons isMobile_ route =
-    [ if isMobile_ then
-        Element.none
-
-      else
-        Ui.headerLink
-            (route == CreateGroupRoute)
-            { route = CreateGroupRoute
-            , label = "Create group"
-            }
-    , Ui.headerLink
+    [ Ui.headerLink isMobile_
+        (route == CreateGroupRoute)
+        { route = CreateGroupRoute
+        , label = "Create group"
+        }
+    , Ui.headerLink isMobile_
         (route == MyGroupsRoute)
         { route = MyGroupsRoute
         , label = "My groups"
         }
-    , Ui.headerLink
+    , Ui.headerLink isMobile_
         (route == MyProfileRoute)
         { route = MyProfileRoute
         , label = "Profile"

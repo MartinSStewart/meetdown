@@ -76,9 +76,9 @@ type Msg
     | PressedJoinEvent EventId
     | PressedEditEvent EventId
     | ChangedEditEvent EditEvent
-    | PressedCancelEvent EventId
-    | PressedRecancelEvent EventId
-    | PressedUncancelEvent EventId
+    | PressedCancelEvent
+    | PressedRecancelEvent
+    | PressedUncancelEvent
     | PressedSubmitEditEvent
     | PressedCancelEditEvent
 
@@ -647,23 +647,38 @@ update effects config group maybeUserId msg model =
                 _ ->
                     ( model, effects.none, { joinEvent = Nothing } )
 
-        PressedCancelEvent eventId ->
-            ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
-            , effects.changeCancellationStatus eventId Event.EventCancelled
-            , { joinEvent = Nothing }
-            )
+        PressedCancelEvent ->
+            case model.eventOverlay of
+                Just (EdittingEvent eventId _) ->
+                    ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
+                    , effects.changeCancellationStatus eventId Event.EventCancelled
+                    , { joinEvent = Nothing }
+                    )
 
-        PressedUncancelEvent eventId ->
-            ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
-            , effects.changeCancellationStatus eventId Event.EventUncancelled
-            , { joinEvent = Nothing }
-            )
+                _ ->
+                    ( model, effects.none, { joinEvent = Nothing } )
 
-        PressedRecancelEvent eventId ->
-            ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
-            , effects.changeCancellationStatus eventId Event.EventCancelled
-            , { joinEvent = Nothing }
-            )
+        PressedUncancelEvent ->
+            case model.eventOverlay of
+                Just (EdittingEvent eventId _) ->
+                    ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
+                    , effects.changeCancellationStatus eventId Event.EventUncancelled
+                    , { joinEvent = Nothing }
+                    )
+
+                _ ->
+                    ( model, effects.none, { joinEvent = Nothing } )
+
+        PressedRecancelEvent ->
+            case model.eventOverlay of
+                Just (EdittingEvent eventId _) ->
+                    ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
+                    , effects.changeCancellationStatus eventId Event.EventCancelled
+                    , { joinEvent = Nothing }
+                    )
+
+                _ ->
+                    ( model, effects.none, { joinEvent = Nothing } )
 
 
 pressSubmit : { a | submitStatus : SubmitStatus b } -> { a | submitStatus : SubmitStatus b }
@@ -732,22 +747,26 @@ leaveEventResponse eventId result model =
 
 view : Time.Posix -> Time.Zone -> FrontendUser -> Group -> Model -> Maybe (Id UserId) -> Element Msg
 view currentTime timezone owner group model maybeUserId =
-    case model.eventOverlay of
-        Just AddingNewEvent ->
-            newEventView currentTime timezone model.newEvent
+    Element.el
+        Ui.pageContentAttributes
+        (case model.eventOverlay of
+            Just AddingNewEvent ->
+                newEventView currentTime timezone model.newEvent
 
-        Just (EdittingEvent eventId editEvent) ->
-            case Group.getEvent currentTime eventId group of
-                Just ( _, eventStatus ) ->
-                    editEventView currentTime timezone eventStatus editEvent
+            Just (EdittingEvent eventId editEvent) ->
+                case Group.getEvent currentTime eventId group of
+                    Just ( event, eventStatus ) ->
+                        editEventView currentTime timezone (Event.cancellationStatus event) eventStatus editEvent
 
-                Nothing ->
-                    Element.text "This event doesn't exist"
+                    Nothing ->
+                        Element.text "This event doesn't exist"
 
-        Nothing ->
-            groupView currentTime timezone owner group model maybeUserId
+            Nothing ->
+                groupView currentTime timezone owner group model maybeUserId
+        )
 
 
+groupView : Time.Posix -> Time.Zone -> FrontendUser -> Group -> Model -> Maybe (Id UserId) -> Element Msg
 groupView currentTime timezone owner group model maybeUserId =
     let
         { pastEvents, ongoingEvent, futureEvents } =
@@ -763,7 +782,7 @@ groupView currentTime timezone owner group model maybeUserId =
     in
     Element.column
         [ Element.spacing 8, Element.padding 8, Ui.contentWidth, Element.centerX ]
-        [ Element.row
+        [ Element.wrappedRow
             [ Element.width Element.fill, Element.spacing 8 ]
             [ Element.column [ Element.alignTop, Element.width Element.fill, Element.spacing 4 ]
                 (case model.name of
@@ -1028,27 +1047,30 @@ ongoingEventView currentTime isOwner maybeUserId ( eventId, event ) =
             |> List.singleton
             |> Element.paragraph []
         , eventTypeView event
-        , case attendeeCount of
-            0 ->
-                Element.text "No one plans on attending"
+        , Element.paragraph
+            []
+            [ case attendeeCount of
+                0 ->
+                    Element.text "No one plans on attending"
 
-            1 ->
-                if isAttending then
-                    Element.text "One person is attending (it's you)"
+                1 ->
+                    if isAttending then
+                        Element.text "One person is attending (it's you)"
 
-                else
-                    Element.text "One person is attending"
+                    else
+                        Element.text "One person is attending"
 
-            _ ->
-                String.fromInt attendeeCount
-                    ++ " people are attending"
-                    ++ (if isAttending then
-                            " (including you)"
+                _ ->
+                    String.fromInt attendeeCount
+                        ++ " people are attending"
+                        ++ (if isAttending then
+                                " (including you)"
 
-                        else
-                            ""
-                       )
-                    |> Element.text
+                            else
+                                ""
+                           )
+                        |> Element.text
+            ]
         , case Event.eventType event of
             Event.MeetOnline (Just link) ->
                 Element.paragraph []
@@ -1082,27 +1104,30 @@ pastEventView currentTime maybeUserId event =
             |> Element.paragraph []
         , EventDuration.toString (Event.duration event) ++ " long" |> Element.text
         , eventTypeView event
-        , case attendeeCount of
-            0 ->
-                Element.text "No one attended 💔"
+        , Element.paragraph
+            []
+            [ case attendeeCount of
+                0 ->
+                    Element.text "No one attended 💔"
 
-            1 ->
-                if isAttending then
-                    Element.text "One person attended (it was you)"
+                1 ->
+                    if isAttending then
+                        Element.text "One person attended (it was you)"
 
-                else
-                    Element.text "One person attended"
+                    else
+                        Element.text "One person attended"
 
-            _ ->
-                String.fromInt attendeeCount
-                    ++ " people attended"
-                    ++ (if isAttending then
-                            "(you included)"
+                _ ->
+                    String.fromInt attendeeCount
+                        ++ " people attended"
+                        ++ (if isAttending then
+                                "(you included)"
 
-                        else
-                            ""
-                       )
-                    |> Element.text
+                            else
+                                ""
+                           )
+                        |> Element.text
+            ]
         ]
 
 
@@ -1166,11 +1191,6 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
         [ Element.row
             [ Element.spacing 16 ]
             [ eventTitle event
-            , if isOwner then
-                smallButton editEventId (PressedEditEvent eventId) "Edit event"
-
-              else
-                Element.none
             ]
         , Event.description event |> Description.toParagraph
         , datetimeToString (Just timezone) (Event.startTime event)
@@ -1182,27 +1202,30 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
             |> Element.paragraph []
         , EventDuration.toString (Event.duration event) ++ " long" |> Element.text
         , eventTypeView event
-        , case attendeeCount of
-            0 ->
-                Element.text "No one plans on attending"
+        , Element.paragraph
+            []
+            [ case attendeeCount of
+                0 ->
+                    Element.text "No one plans on attending"
 
-            1 ->
-                if isAttending then
-                    Element.text "One person plans on attending (it's you)"
+                1 ->
+                    if isAttending then
+                        Element.text "One person plans on attending (it's you)"
 
-                else
-                    Element.text "One person plans on attending"
+                    else
+                        Element.text "One person plans on attending"
 
-            _ ->
-                String.fromInt attendeeCount
-                    ++ " people plan on attending"
-                    ++ (if isAttending then
-                            " (including you)"
+                _ ->
+                    String.fromInt attendeeCount
+                        ++ " people plan on attending"
+                        ++ (if isAttending then
+                                " (including you)"
 
-                        else
-                            ""
-                       )
-                    |> Element.text
+                            else
+                                ""
+                           )
+                        |> Element.text
+            ]
         , case Event.maxAttendees event |> MaxAttendees.toMaybe of
             Just value ->
                 "At most "
@@ -1214,7 +1237,8 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
 
             Nothing ->
                 Element.none
-        , Element.row [ Element.spacing 16 ]
+        , Element.wrappedRow
+            [ Element.spacingXY 16 8 ]
             [ case Event.cancellationStatus event of
                 Just ( Event.EventUncancelled, _ ) ->
                     joinOrLeaveButton
@@ -1235,15 +1259,7 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
                 Nothing ->
                     joinOrLeaveButton
             , if isOwner then
-                case Event.cancellationStatus event of
-                    Just ( Event.EventCancelled, _ ) ->
-                        Ui.dangerButton uncancelEventId { onPress = PressedUncancelEvent eventId, label = "Uncancel event" }
-
-                    Just ( Event.EventUncancelled, _ ) ->
-                        Ui.dangerButton recancelEventId { onPress = PressedCancelEvent eventId, label = "Recancel event" }
-
-                    Nothing ->
-                        Ui.dangerButton cancelEventId { onPress = PressedCancelEvent eventId, label = "Cancel event" }
+                Ui.button editEventId { onPress = PressedEditEvent eventId, label = "Edit event" }
 
               else
                 Element.none
@@ -1403,8 +1419,8 @@ eventMeetingInPersonInputId =
     Id.textInputId "groupEventMeetingInPerson"
 
 
-editEventView : Time.Posix -> Time.Zone -> Group.PastOngoingOrFuture -> EditEvent -> Element Msg
-editEventView currentTime timezone eventStatus event =
+editEventView : Time.Posix -> Time.Zone -> Maybe ( Event.CancellationStatus, Time.Posix ) -> Group.PastOngoingOrFuture -> EditEvent -> Element Msg
+editEventView currentTime timezone maybeCancellationStatus eventStatus event =
     let
         pressedSubmit =
             case event.submitStatus of
@@ -1555,10 +1571,10 @@ editEventView currentTime timezone eventStatus event =
                     _ ->
                         Nothing
                 )
-            , Element.row
-                [ Element.spacing 8 ]
-                [ Ui.submitButton createEventSubmitId isSubmitting { onPress = PressedSubmitEditEvent, label = "Update event" }
-                , Ui.button createEventCancelId { onPress = PressedCancelEditEvent, label = "Cancel" }
+            , Element.wrappedRow
+                [ Element.spacing 8, Element.width Element.fill ]
+                [ Ui.submitButton createEventSubmitId isSubmitting { onPress = PressedSubmitEditEvent, label = "Save changes" }
+                , Ui.button createEventCancelId { onPress = PressedCancelEditEvent, label = "Cancel changes" }
                 ]
             , case event.submitStatus of
                 Failed EditEventStartsInThePast ->
@@ -1581,6 +1597,19 @@ editEventView currentTime timezone eventStatus event =
 
                 IsSubmitting ->
                     Element.none
+            , Ui.horizontalLine
+            , Element.el
+                [ Element.alignRight ]
+                (case maybeCancellationStatus of
+                    Just ( Event.EventCancelled, _ ) ->
+                        Ui.dangerButton uncancelEventId { onPress = PressedUncancelEvent, label = "Uncancel event" }
+
+                    Just ( Event.EventUncancelled, _ ) ->
+                        Ui.dangerButton recancelEventId { onPress = PressedCancelEvent, label = "Recancel event" }
+
+                    Nothing ->
+                        Ui.dangerButton cancelEventId { onPress = PressedCancelEvent, label = "Cancel event" }
+                )
             ]
         ]
 
