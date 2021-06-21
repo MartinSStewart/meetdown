@@ -14,11 +14,11 @@ readingMuted =
 
 
 red =
-    fromHex "#FF8589"
+    fromHex "#F8777B"
 
 
 green =
-    fromHex "#9ED7CB"
+    fromHex "#55CCB6"
 
 
 blue =
