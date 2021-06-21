@@ -16,6 +16,7 @@ import List.Nonempty exposing (Nonempty(..))
 import List.Zipper exposing (Zipper)
 import TestFramework as TF exposing (Instructions)
 import Tests
+import Ui
 import Url exposing (Url)
 
 
@@ -114,12 +115,7 @@ view model =
             (Element.column
                 [ Element.width Element.fill, Element.height Element.fill ]
                 [ controlsView model
-                , Element.el
-                    [ Element.width Element.fill
-                    , Element.height (Element.px 1)
-                    , Element.Background.color <| Element.rgb 0.2 0.2 0.2
-                    ]
-                    Element.none
+                , Ui.horizontalLine
                 , case currentStep.testErrors of
                     [] ->
                         case model.clientId of

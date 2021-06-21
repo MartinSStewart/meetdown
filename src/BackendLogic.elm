@@ -5,7 +5,7 @@ import Array
 import AssocList as Dict exposing (Dict)
 import AssocSet as Set
 import BiDict.Assoc as BiDict
-import CreateGroupForm exposing (CreateGroupError(..))
+import CreateGroupPage exposing (CreateGroupError(..))
 import Description exposing (Description)
 import Duration exposing (Duration)
 import Email.Html

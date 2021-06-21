@@ -1,4 +1,4 @@
-module CreateGroupForm exposing
+module CreateGroupPage exposing
     ( CreateGroupError(..)
     , GroupFormValidated
     , Model
@@ -163,9 +163,10 @@ submitFailed error model =
 formView : Maybe String -> Bool -> Form -> Element Msg
 formView maybeSubmitError isSubmitting form =
     Element.column
-        [ Element.width Element.fill
-        , Element.spacing 20
-        ]
+        (Element.width Element.fill
+            :: Element.spacing 20
+            :: Ui.pageContentAttributes
+        )
         [ Ui.title "Create group"
         , Ui.textInput
             nameInputId
