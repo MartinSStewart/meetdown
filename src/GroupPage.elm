@@ -1030,7 +1030,7 @@ ongoingEventView currentTime timezone isOwner maybeUserId ( eventId, event ) =
     eventCard
         [ eventCardHeader currentTime timezone IsOngoingEvent event
         , Event.description event |> Description.toParagraph
-        , eventTypeView event
+        , eventTypeView False event
         , Element.paragraph
             []
             [ case attendeeCount of
@@ -1088,7 +1088,7 @@ pastEventView currentTime timezone maybeUserId event =
     eventCard
         [ eventCardHeader currentTime timezone IsPastEvent event
         , Event.description event |> Description.toParagraph
-        , eventTypeView event
+        , eventTypeView True event
         , Element.paragraph
             []
             [ case attendeeCount of
@@ -1140,8 +1140,6 @@ eventCardHeader currentTime timezone eventStatus event =
                     "Ended "
                         ++ Time.diffToString currentTime (Event.endTime event)
                         |> Element.text
-                        |> List.singleton
-                        |> Element.paragraph []
             ]
         ]
 
@@ -1205,7 +1203,7 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
     eventCard
         [ eventCardHeader currentTime timezone IsFutureEvent event
         , Event.description event |> Description.toParagraph
-        , eventTypeView event
+        , eventTypeView False event
         , Element.paragraph
             []
             [ case attendeeCount of
@@ -1312,19 +1310,33 @@ eventCard =
         ]
 
 
-eventTypeView : Event -> Element msg
-eventTypeView event =
+eventTypeView : Bool -> Event -> Element msg
+eventTypeView isPastEvent event =
     let
         duration =
             Event.duration event |> EventDuration.toString
+
+        thisIsA =
+            if isPastEvent then
+                "• This was a "
+
+            else
+                "• This is a "
+
+        itsTakingPlaceAt =
+            if isPastEvent then
+                ". It took place at "
+
+            else
+                ". It's taking place at "
     in
     case Event.eventType event of
         Event.MeetInPerson maybeAddress ->
             Element.paragraph []
-                (Element.text ("• This is a " ++ duration ++ " long in-person event 🤝")
+                (Element.text (thisIsA ++ duration ++ " long in-person event 🤝")
                     :: (case maybeAddress of
                             Just address ->
-                                [ Element.text ". It's taking place at "
+                                [ Element.text itsTakingPlaceAt
                                 , Element.el [ Element.Font.bold ] (Element.text (Address.toString address))
                                 , Element.text "."
                                 ]
@@ -1337,7 +1349,7 @@ eventTypeView event =
         Event.MeetOnline _ ->
             Element.paragraph
                 []
-                [ Element.text ("• This is a " ++ duration ++ " long online event 💻") ]
+                [ Element.text (thisIsA ++ duration ++ " long online event 💻") ]
 
 
 cancelEventId =

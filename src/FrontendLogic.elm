@@ -1249,15 +1249,17 @@ myGroupsView model loggedIn =
                     []
             in
             Element.column
-                [ Element.padding 8, Element.width Element.fill, Element.spacing 20 ]
+                (Element.spacing 16 :: Ui.pageContentAttributes)
                 [ Ui.title "My groups"
                 , if List.isEmpty myGroupsList && List.isEmpty mySubscriptionsList then
                     Element.paragraph
                         []
                         [ Element.text "You don't have any groups. Get started by "
                         , Ui.routeLink CreateGroupRoute "creating one"
-                        , Element.text " or "
-                        , Ui.routeLink (SearchGroupsRoute "") "joining one."
+                        , Element.text "."
+
+                        --, Element.text " or "
+                        --, Ui.routeLink (SearchGroupsRoute "") "joining one."
                         ]
 
                   else
@@ -1273,16 +1275,17 @@ myGroupsView model loggedIn =
                              else
                                 Element.column [ Element.spacing 8 ] myGroupsList
                             )
-                        , Ui.section "Events I've joined"
-                            (if List.isEmpty mySubscriptionsList then
-                                Element.paragraph []
-                                    [ Element.text "You haven't joined any events. "
-                                    , Ui.routeLink (SearchGroupsRoute "") "You can do that here."
-                                    ]
 
-                             else
-                                Element.column [ Element.spacing 8 ] []
-                            )
+                        --, Ui.section "Events I've joined"
+                        --    (if List.isEmpty mySubscriptionsList then
+                        --        Element.paragraph []
+                        --            [ Element.text "You haven't joined any events. "
+                        --            , Ui.routeLink (SearchGroupsRoute "") "You can do that here."
+                        --            ]
+                        --
+                        --     else
+                        --        Element.column [ Element.spacing 8 ] []
+                        --    )
                         ]
                 ]
 
