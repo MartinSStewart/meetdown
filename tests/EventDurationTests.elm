@@ -11,5 +11,5 @@ tests =
         [ test "toString" <|
             \_ ->
                 EventDuration.toString (Unsafe.eventDuration (5 * 60))
-                    |> Expect.equal "5 hours"
+                    |> Expect.equal "5\u{00A0}hours"
         ]

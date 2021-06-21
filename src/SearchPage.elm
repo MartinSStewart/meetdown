@@ -10,7 +10,7 @@ import Group exposing (Group)
 import GroupName
 import Id exposing (GroupId)
 import Route exposing (Route(..))
-import Types exposing (FrontendMsg, GroupCache(..), LoadedFrontend)
+import Types exposing (Cache(..), FrontendMsg, LoadedFrontend)
 import Ui
 
 
@@ -22,13 +22,13 @@ getGroupsFromIds groups model =
                 |> Maybe.andThen
                     (\group ->
                         case group of
-                            GroupFound groupFound ->
+                            ItemCached groupFound ->
                                 Just ( groupId, groupFound )
 
-                            GroupNotFound ->
+                            ItemDoesNotExist ->
                                 Nothing
 
-                            GroupRequestPending ->
+                            ItemRequestPending ->
                                 Nothing
                     )
         )

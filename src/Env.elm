@@ -6,9 +6,9 @@ sendGridApiKey_ =
     ""
 
 
-adminUserId_ : String
-adminUserId_ =
-    "0"
+adminEmailAddress : String
+adminEmailAddress =
+    "a@a.se"
 
 
 secretKey : String

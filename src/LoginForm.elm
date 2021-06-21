@@ -2,15 +2,14 @@ module LoginForm exposing (cancelButtonId, emailAddressInputId, submitButtonId, 
 
 import AssocList as Dict exposing (Dict)
 import Element exposing (Element)
-import Element.Border
 import Element.Input
 import EmailAddress exposing (EmailAddress)
-import Group exposing (EventId)
+import Group exposing (EventId, Group)
 import GroupName
 import Html.Attributes
 import Id exposing (ButtonId(..), GroupId, HtmlId, TextInputId)
 import Route exposing (Route)
-import Types exposing (FrontendMsg(..), GroupCache(..), LoginForm, ToBackend(..))
+import Types exposing (Cache(..), FrontendMsg(..), LoginForm, ToBackend(..))
 import Ui
 import Untrusted
 
@@ -37,7 +36,7 @@ emailInput id onSubmit onChange text labelText maybeError =
         ]
 
 
-view : Maybe ( GroupId, EventId ) -> Dict GroupId GroupCache -> LoginForm -> Element FrontendMsg
+view : Maybe ( GroupId, EventId ) -> Dict GroupId (Cache Group) -> LoginForm -> Element FrontendMsg
 view joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent } =
     Element.column
         [ Element.centerX
@@ -66,7 +65,7 @@ view joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent } =
         [ case joiningEvent of
             Just ( groupId, _ ) ->
                 case Dict.get groupId cachedGroups of
-                    Just (GroupFound group) ->
+                    Just (ItemCached group) ->
                         Element.paragraph []
                             [ "Sign in and we'll get you signed up for the "
                                 ++ GroupName.toString (Group.name group)

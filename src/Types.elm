@@ -57,8 +57,8 @@ type alias LoadedFrontend =
     { navigationKey : NavigationKey
     , loginStatus : LoginStatus
     , route : Route
-    , cachedGroups : Dict GroupId GroupCache
-    , cachedUsers : Dict (Id UserId) UserCache
+    , cachedGroups : Dict GroupId (Cache Group)
+    , cachedUsers : Dict (Id UserId) (Cache FrontendUser)
     , time : Time.Posix
     , timezone : Time.Zone
     , lastConnectionCheck : Time.Posix
@@ -81,29 +81,29 @@ type GroupRequest
     | GroupFound_ Group (Dict (Id UserId) FrontendUser)
 
 
-type GroupCache
-    = GroupNotFound
-    | GroupFound Group
-    | GroupRequestPending
+type Cache item
+    = ItemDoesNotExist
+    | ItemCached item
+    | ItemRequestPending
 
 
-type UserCache
-    = UserNotFound
-    | UserFound FrontendUser
-    | UserRequestPending
+type AdminCache
+    = AdminCacheNotRequested
+    | AdminCached AdminModel
+    | AdminCachePending
 
 
-mapUserCache : (FrontendUser -> FrontendUser) -> UserCache -> UserCache
-mapUserCache mapFunc userCache =
+mapCache : (a -> a) -> Cache a -> Cache a
+mapCache mapFunc userCache =
     case userCache of
-        UserNotFound ->
-            UserNotFound
+        ItemDoesNotExist ->
+            ItemDoesNotExist
 
-        UserFound frontendUser ->
-            mapFunc frontendUser |> UserFound
+        ItemCached item ->
+            mapFunc item |> ItemCached
 
-        UserRequestPending ->
-            UserRequestPending
+        ItemRequestPending ->
+            ItemRequestPending
 
 
 type alias LoginForm =
@@ -124,13 +124,15 @@ type alias LoggedIn_ =
     , emailAddress : EmailAddress
     , profileForm : ProfilePage.Model
     , myGroups : Maybe (Set GroupId)
-    , adminState : Maybe AdminModel
+    , adminState : AdminCache
+    , isAdmin : Bool
     }
 
 
 type alias AdminModel =
     { cachedEmailAddress : Dict (Id UserId) EmailAddress
     , logs : Array Log
+    , lastLogCheck : Time.Posix
     }
 
 
@@ -359,9 +361,9 @@ type BackendMsg
 type ToFrontend
     = GetGroupResponse GroupId GroupRequest
     | GetUserResponse (Id UserId) (Result () FrontendUser)
-    | CheckLoginResponse (Maybe ( Id UserId, BackendUser ))
-    | LoginWithTokenResponse (Result () ( Id UserId, BackendUser ))
-    | GetAdminDataResponse (Array Log)
+    | CheckLoginResponse (Maybe { userId : Id UserId, user : BackendUser, isAdmin : Bool })
+    | LoginWithTokenResponse (Result () { userId : Id UserId, user : BackendUser, isAdmin : Bool })
+    | GetAdminDataResponse AdminModel
     | CreateGroupResponse (Result CreateGroupError ( GroupId, Group ))
     | LogoutResponse
     | ChangeNameResponse Name

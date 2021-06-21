@@ -14,7 +14,6 @@ module Id exposing
     , TextInputId
     , TimeInputId
     , UserId
-    , adminUserId
     , anonymizeSessionId
     , buttonId
     , clientIdFromString
@@ -157,11 +156,6 @@ clientIdFromString =
 clientIdToString : ClientId -> String
 clientIdToString (ClientId clientId) =
     clientId
-
-
-adminUserId : Id UserId
-adminUserId =
-    cryptoHashFromString Env.adminUserId_
 
 
 getUniqueId : { a | secretCounter : Int, time : Time.Posix } -> ( { a | secretCounter : Int, time : Time.Posix }, Id b )

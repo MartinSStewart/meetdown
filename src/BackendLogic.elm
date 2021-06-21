@@ -20,7 +20,6 @@ import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionI
 import Link
 import List.Extra as List
 import List.Nonempty
-import MultiDict.Assoc as MultiDict
 import Name
 import ProfileImage
 import Quantity
@@ -321,7 +320,16 @@ updateFromFrontend cmds sessionId clientId msg model =
                 sessionId
                 model
                 (\_ ->
-                    ( model, cmds.sendToFrontend clientId (GetAdminDataResponse model.logs) )
+                    ( model
+                    , cmds.sendToFrontend
+                        clientId
+                        (GetAdminDataResponse
+                            { cachedEmailAddress = Dict.map (\_ value -> value.emailAddress) model.users
+                            , logs = model.logs
+                            , lastLogCheck = model.time
+                            }
+                        )
+                    )
                 )
 
         LoginWithTokenRequest loginToken maybeJoinEvent ->
@@ -808,10 +816,11 @@ loginWithToken : Effects cmd -> SessionId -> ClientId -> Maybe ( GroupId, EventI
 loginWithToken cmds sessionId clientId maybeJoinEvent maybeLoginTokenData model =
     let
         loginResponse : ( Id UserId, BackendUser ) -> cmd
-        loginResponse userEntry =
+        loginResponse ( userId, userEntry ) =
             case Dict.get sessionId model.connections of
                 Just clientIds ->
-                    Ok userEntry
+                    { userId = userId, user = userEntry, isAdmin = isAdmin userEntry }
+                        |> Ok
                         |> LoginWithTokenResponse
                         |> cmds.sendToFrontends (List.Nonempty.toList clientIds)
 
@@ -946,7 +955,7 @@ userAuthorization :
     -> ( BackendModel, cmd )
 userAuthorization cmds sessionId model updateFunc =
     case checkLogin sessionId model of
-        Just ( userId, user ) ->
+        Just { userId, user } ->
             updateFunc ( userId, user )
 
         Nothing ->
@@ -962,7 +971,7 @@ userWithGroupAuthorization :
     -> ( BackendModel, cmd )
 userWithGroupAuthorization cmds sessionId groupId model updateFunc =
     case checkLogin sessionId model of
-        Just ( userId, user ) ->
+        Just { userId, user } ->
             case getGroup groupId model of
                 Just group ->
                     if Group.ownerId group == userId then
@@ -986,9 +995,9 @@ adminAuthorization :
     -> ( BackendModel, cmd )
 adminAuthorization cmds sessionId model updateFunc =
     case checkLogin sessionId model of
-        Just ( userId, user ) ->
-            if Id.adminUserId == userId then
-                updateFunc ( userId, user )
+        Just checkLogin_ ->
+            if checkLogin_.isAdmin then
+                updateFunc ( checkLogin_.userId, checkLogin_.user )
 
             else
                 ( model, cmds.none )
@@ -997,13 +1006,18 @@ adminAuthorization cmds sessionId model updateFunc =
             ( model, cmds.none )
 
 
-checkLogin : SessionId -> BackendModel -> Maybe ( Id UserId, BackendUser )
+isAdmin : BackendUser -> Bool
+isAdmin user =
+    EmailAddress.toString user.emailAddress == Env.adminEmailAddress
+
+
+checkLogin : SessionId -> BackendModel -> Maybe { userId : Id UserId, user : BackendUser, isAdmin : Bool }
 checkLogin sessionId model =
     case BiDict.get sessionId model.sessions of
         Just userId ->
             case Dict.get userId model.users of
                 Just user ->
-                    Just ( userId, user )
+                    Just { userId = userId, user = user, isAdmin = isAdmin user }
 
                 Nothing ->
                     Nothing
@@ -1040,8 +1054,8 @@ loginEmailContent route loginToken maybeJoinEvent =
         loginLink =
             loginEmailLink route loginToken maybeJoinEvent
 
-        --_ =
-        --    Debug.log "login" loginLink
+        _ =
+            Debug.log "login" loginLink
     in
     Email.Html.div
         []

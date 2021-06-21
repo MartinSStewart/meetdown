@@ -12,7 +12,7 @@ tests =
         [ test "5 hours" <|
             \_ ->
                 TimeExtra.diffToString (Time.millisToPosix 0) (Time.millisToPosix (5 * 60 * 60 * 1000))
-                    |> Expect.equal "5 hours"
+                    |> Expect.equal "5\u{00A0}hours"
         , test "4.9 hours" <|
             \_ ->
                 Duration.hours 4.9
@@ -20,9 +20,9 @@ tests =
                     |> round
                     |> Time.millisToPosix
                     |> TimeExtra.diffToString (Time.millisToPosix 0)
-                    |> Expect.equal "4.9 hours"
+                    |> Expect.equal "4.9\u{00A0}hours"
         , test "5 hours ago" <|
             \_ ->
                 TimeExtra.diffToString (Time.millisToPosix (5 * 60 * 60 * 1000)) (Time.millisToPosix 0)
-                    |> Expect.equal "5 hours ago"
+                    |> Expect.equal "5\u{00A0}hours ago"
         ]
