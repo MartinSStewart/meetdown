@@ -14,14 +14,14 @@ import Markdown.Parser
 import Markdown.Renderer
 
 
-render : String -> Element msg
-render markdownBody =
+render : Bool -> String -> Element msg
+render isSearchPreview markdownBody =
     Markdown.Parser.parse markdownBody
         -- @TODO show markdown parsing errors, i.e. malformed html?
         |> Result.withDefault []
         |> (\parsed ->
                 parsed
-                    |> Markdown.Renderer.render renderer
+                    |> Markdown.Renderer.render (renderer isSearchPreview)
                     |> (\res ->
                             case res of
                                 Ok elements ->
@@ -37,8 +37,8 @@ render markdownBody =
            )
 
 
-renderer : Markdown.Renderer.Renderer (Element msg)
-renderer =
+renderer : Bool -> Markdown.Renderer.Renderer (Element msg)
+renderer searchPreview =
     { heading = \data -> row [] [ heading data ]
     , paragraph = \children -> paragraph [ paddingXY 0 10 ] children
     , blockQuote =
@@ -61,7 +61,16 @@ renderer =
     , hardLineBreak = fromHtml <| Html.br [] []
     , link =
         \{ title, destination } list ->
-            link [ Font.underline, Font.color readingMuted ]
+            link
+                [ Font.underline
+                , Font.color
+                    (if searchPreview then
+                        readingMuted
+
+                     else
+                        blue
+                    )
+                ]
                 { url = destination
                 , label =
                     case title of
@@ -72,17 +81,21 @@ renderer =
                             paragraph [] list
                 }
     , image =
-        \{ alt, src, title } ->
-            let
-                attrs =
-                    [ title |> Maybe.map (\title_ -> htmlAttribute <| Html.Attributes.attribute "title" title_) ]
-                        |> justs
-            in
-            image
-                attrs
-                { src = src
-                , description = alt
-                }
+        if searchPreview then
+            \_ -> none
+
+        else
+            \{ alt, src, title } ->
+                let
+                    attrs =
+                        [ title |> Maybe.map (\title_ -> htmlAttribute <| Html.Attributes.attribute "title" title_) ]
+                            |> justs
+                in
+                image
+                    attrs
+                    { src = src
+                    , description = alt
+                    }
     , unorderedList =
         \items ->
             column [ spacing 15, width fill ]

@@ -73,6 +73,6 @@ groupView groupId group =
                     |> Element.text
                     |> List.singleton
                     |> Element.paragraph [ Element.Font.bold ]
-                , Group.description group |> Description.toParagraph
+                , Group.description group |> Description.toParagraph True
                 ]
         }

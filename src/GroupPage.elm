@@ -900,7 +900,7 @@ groupView currentTime timezone owner group model maybeUserId =
                      else
                         Element.none
                     )
-                    (Description.toParagraph (Group.description group))
+                    (Description.toParagraph False (Group.description group))
         , case ongoingEvent of
             Just event ->
                 section
@@ -1029,7 +1029,7 @@ ongoingEventView currentTime timezone isOwner maybeUserId ( eventId, event ) =
     in
     eventCard
         [ eventCardHeader currentTime timezone IsOngoingEvent event
-        , Event.description event |> Description.toParagraph
+        , Event.description event |> Description.toParagraph False
         , eventTypeView False event
         , Element.paragraph
             []
@@ -1087,7 +1087,7 @@ pastEventView currentTime timezone maybeUserId event =
     in
     eventCard
         [ eventCardHeader currentTime timezone IsPastEvent event
-        , Event.description event |> Description.toParagraph
+        , Event.description event |> Description.toParagraph False
         , eventTypeView True event
         , Element.paragraph
             []
@@ -1202,7 +1202,7 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
     in
     eventCard
         [ eventCardHeader currentTime timezone IsFutureEvent event
-        , Event.description event |> Description.toParagraph
+        , Event.description event |> Description.toParagraph False
         , eventTypeView False event
         , Element.paragraph
             []

@@ -51,13 +51,13 @@ toString (Description description) =
     description
 
 
-toParagraph : Description -> Element msg
-toParagraph description =
+toParagraph : Bool -> Description -> Element msg
+toParagraph searchPreview description =
     if toString description == "" then
         Element.paragraph [ Element.Font.italic ] [ Element.text "No description" ]
 
     else
-        MarkdownThemed.render <| toString description
+        MarkdownThemed.render searchPreview (toString description)
 
 
 empty : Description
