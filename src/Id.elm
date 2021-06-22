@@ -56,7 +56,7 @@ type SessionIdFirst4Chars
 
 anonymizeSessionId : SessionId -> SessionIdFirst4Chars
 anonymizeSessionId (SessionId sessionId) =
-    String.right 4 sessionId |> SessionIdFirst4Chars
+    String.left 4 sessionId |> SessionIdFirst4Chars
 
 
 sessionIdFirst4CharsToString : SessionIdFirst4Chars -> String
