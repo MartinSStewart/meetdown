@@ -1298,6 +1298,7 @@ searchInputLarge searchText =
         [ Element.Input.text
             [ Element.Border.roundEach { topLeft = 5, bottomLeft = 5, bottomRight = 0, topRight = 0 }
             , Element.Border.color Colors.darkGrey
+            , Element.Border.widthEach { bottom = 1, left = 1, right = 0, top = 1 }
             , Element.paddingEach { left = 30, right = 8, top = 8, bottom = 8 }
             , Ui.onEnter SubmittedSearchBox
             , Id.htmlIdToString groupSearchLargeId |> Html.Attributes.id |> Element.htmlAttribute

@@ -504,14 +504,16 @@ numberInput htmlId onChange value labelText maybeError =
         ]
         [ formLabelAboveEl labelText
         , Html.input
-            [ Html.Attributes.type_ "number"
-            , Html.Events.onInput onChange
-            , Id.htmlIdToString htmlId |> Html.Attributes.id
-            , Html.Attributes.value value
-            , Html.Attributes.style "line-height" "38px"
-            , Html.Attributes.style "text-align" "right"
-            , Html.Attributes.style "padding-right" "4px"
-            ]
+            ([ Html.Attributes.type_ "number"
+             , Html.Events.onInput onChange
+             , Id.htmlIdToString htmlId |> Html.Attributes.id
+             , Html.Attributes.value value
+             , Html.Attributes.style "line-height" "38px"
+             , Html.Attributes.style "text-align" "right"
+             , Html.Attributes.style "padding-right" "4px"
+             ]
+                ++ htmlInputBorderStyles
+            )
             []
             |> Element.html
             |> Element.el []
@@ -548,13 +550,15 @@ dateTimeInput { dateInputId, timeInputId, dateChanged, timeChanged, labelText, m
 timeInput : HtmlId TimeInputId -> (String -> msg) -> String -> Bool -> Element msg
 timeInput htmlId onChange time isDisabled =
     Html.input
-        [ Html.Attributes.type_ "time"
-        , Html.Events.onInput onChange
-        , Html.Attributes.value time
-        , Html.Attributes.style "padding" "0"
-        , Id.htmlIdToString htmlId |> Html.Attributes.id
-        , Html.Attributes.disabled isDisabled
-        ]
+        ([ Html.Attributes.type_ "time"
+         , Html.Events.onInput onChange
+         , Html.Attributes.value time
+         , Html.Attributes.style "padding" "5px"
+         , Id.htmlIdToString htmlId |> Html.Attributes.id
+         , Html.Attributes.disabled isDisabled
+         ]
+            ++ htmlInputBorderStyles
+        )
         []
         |> Element.html
         |> Element.el []
@@ -570,14 +574,16 @@ timeToString timezone time =
 dateInput : HtmlId DateInputId -> (String -> msg) -> Date -> String -> Bool -> Element msg
 dateInput htmlId onChange minDateTime date isDisabled =
     Html.input
-        [ Html.Attributes.type_ "date"
-        , Html.Attributes.min (datestamp minDateTime)
-        , Html.Events.onInput onChange
-        , Html.Attributes.value date
-        , Html.Attributes.style "padding" "0"
-        , Id.htmlIdToString htmlId |> Html.Attributes.id
-        , Html.Attributes.disabled isDisabled
-        ]
+        ([ Html.Attributes.type_ "date"
+         , Html.Attributes.min (datestamp minDateTime)
+         , Html.Events.onInput onChange
+         , Html.Attributes.value date
+         , Html.Attributes.style "padding" "5px"
+         , Id.htmlIdToString htmlId |> Html.Attributes.id
+         , Html.Attributes.disabled isDisabled
+         ]
+            ++ htmlInputBorderStyles
+        )
         []
         |> Element.html
         |> Element.el []
@@ -655,3 +661,11 @@ loadingError text =
         , Element.Font.color errorColor
         ]
         (Element.text text)
+
+
+htmlInputBorderStyles =
+    [ Html.Attributes.style "border-color" (toCssString darkGrey)
+    , Html.Attributes.style "border-width" "1px"
+    , Html.Attributes.style "border-style" "solid"
+    , Html.Attributes.style "border-radius" "4px"
+    ]

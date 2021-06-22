@@ -62,7 +62,7 @@ groupView groupId group =
         (Element.width Element.fill
             :: Ui.inputFocusClass
             :: Ui.cardAttributes
-            ++ [ Element.Border.color Colors.darkGrey ]
+            ++ [ Element.Border.color Colors.grey ]
         )
         { url = Route.encode (GroupRoute groupId (Group.name group))
         , label =
