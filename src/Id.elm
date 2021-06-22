@@ -10,7 +10,7 @@ module Id exposing
     , NumberInputId
     , RadioButtonId
     , SessionId
-    , SessionIdLast4Chars
+    , SessionIdFirst4Chars
     , TextInputId
     , TimeInputId
     , UserId
@@ -27,8 +27,8 @@ module Id exposing
     , htmlIdToString
     , numberInputId
     , radioButtonId
+    , sessionIdFirst4CharsToString
     , sessionIdFromString
-    , sessionIdLast4CharsToString
     , textInputId
     , timeInputId
     )
@@ -50,17 +50,17 @@ type SessionId
     = SessionId String
 
 
-type SessionIdLast4Chars
-    = SessionIdLast4Chars String
+type SessionIdFirst4Chars
+    = SessionIdFirst4Chars String
 
 
-anonymizeSessionId : SessionId -> SessionIdLast4Chars
+anonymizeSessionId : SessionId -> SessionIdFirst4Chars
 anonymizeSessionId (SessionId sessionId) =
-    String.right 4 sessionId |> SessionIdLast4Chars
+    String.right 4 sessionId |> SessionIdFirst4Chars
 
 
-sessionIdLast4CharsToString : SessionIdLast4Chars -> String
-sessionIdLast4CharsToString (SessionIdLast4Chars a) =
+sessionIdFirst4CharsToString : SessionIdFirst4Chars -> String
+sessionIdFirst4CharsToString (SessionIdFirst4Chars a) =
     a
 
 

@@ -16,6 +16,7 @@ module Ui exposing
     , filler
     , formError
     , formLabelAbove
+    , formLabelAboveEl
     , headerButton
     , headerLink
     , horizontalLine
@@ -653,4 +654,4 @@ loadingError text =
         , Element.centerY
         , Element.Font.color errorColor
         ]
-        (Element.text (text ++ ". Try refreshing the page?"))
+        (Element.text text)
