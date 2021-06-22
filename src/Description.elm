@@ -2,6 +2,7 @@ module Description exposing (Description, Error(..), empty, errorToString, fromS
 
 import Element exposing (Element)
 import Element.Font
+import MarkdownThemed
 
 
 type Description
@@ -56,7 +57,7 @@ toParagraph description =
         Element.paragraph [ Element.Font.italic ] [ Element.text "No description" ]
 
     else
-        Element.paragraph [] [ Element.text (toString description) ]
+        MarkdownThemed.render <| toString description
 
 
 empty : Description
