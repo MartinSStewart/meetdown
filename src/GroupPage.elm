@@ -1045,7 +1045,8 @@ ongoingEventView currentTime timezone isOwner maybeUserId ( eventId, event ) =
                         Element.text "• One person is attending"
 
                 _ ->
-                    String.fromInt attendeeCount
+                    "• "
+                        ++ String.fromInt attendeeCount
                         ++ " people are attending"
                         ++ (if isAttending then
                                 " (including you)"
@@ -1218,7 +1219,8 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
                         Element.text "• One person plans on attending"
 
                 _ ->
-                    String.fromInt attendeeCount
+                    "• "
+                        ++ String.fromInt attendeeCount
                         ++ " people plan on attending"
                         ++ (if isAttending then
                                 " (including you)"

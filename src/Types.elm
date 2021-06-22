@@ -281,7 +281,7 @@ logData model log =
             , message =
                 "Login request to "
                     ++ EmailAddress.toString emailAddress
-                    ++ " was not sent due to rate limiting. Last 4 chars of sessionId: "
+                    ++ " was not sent due to rate limiting. First 4 chars of sessionId: "
                     ++ Id.sessionIdFirst4CharsToString sessionId
             }
 
@@ -291,7 +291,7 @@ logData model log =
             , message =
                 "Login request to "
                     ++ getEmailAddress userId
-                    ++ " was not sent due to rate limiting. Last 4 chars of sessionId: "
+                    ++ " was not sent due to rate limiting. First 4 chars of sessionId: "
                     ++ Id.sessionIdFirst4CharsToString sessionId
             }
 
