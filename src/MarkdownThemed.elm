@@ -141,6 +141,11 @@ renderer searchPreview =
                 , padding 10
                 , width fill
                 , htmlAttribute <| Html.Attributes.class "preserve-white-space"
+                , if searchPreview then
+                    clipX
+
+                  else
+                    scrollbarX
                 ]
                 [ html (Html.text body)
                 ]

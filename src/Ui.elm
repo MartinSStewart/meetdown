@@ -80,7 +80,7 @@ css =
           }
 
           .preserve-white-space {
-              white-space: pre-wrap;
+              white-space: pre;
           }
 
           @keyframes fade-in {

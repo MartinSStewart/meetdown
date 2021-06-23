@@ -82,7 +82,7 @@ groupView groupId group =
                                 , Element.rgba 1 1 1 0
                                 , Element.rgba 1 1 1 0
                                 , Element.rgba 1 1 1 0
-                                , Element.rgba 1 1 1 0.85
+                                , Element.rgba 1 1 1 0
                                 , Element.rgba 1 1 1 1
                                 ]
                             }
@@ -91,7 +91,7 @@ groupView groupId group =
                         ]
                         Element.none
                     )
-                , Element.height (Element.px 140)
+                , Element.height (Element.maximum 140 Element.shrink)
                 , Element.clip
                 ]
                 [ Group.name group
