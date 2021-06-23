@@ -239,7 +239,12 @@ updateFromFrontend cmds sessionId clientId msg model =
                                     Dict.empty
 
                                  else
-                                    Dict.singleton (Group.ownerId group) (userToFrontend user)
+                                    case getUser (Group.ownerId group) model of
+                                        Just groupOwner ->
+                                            Dict.singleton (Group.ownerId group) (userToFrontend groupOwner)
+
+                                        Nothing ->
+                                            Dict.empty
                                 )
 
                         Nothing ->
