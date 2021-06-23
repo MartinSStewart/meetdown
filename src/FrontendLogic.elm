@@ -1038,10 +1038,10 @@ viewLoaded model =
                     Element.none
 
                 else
-                    header (isMobile model) True model.route model.searchText
+                    header (isMobile model) (Just loggedIn) model.route model.searchText
 
             NotLoggedIn _ ->
-                header (isMobile model) False model.route model.searchText
+                header (isMobile model) Nothing model.route model.searchText
         , Element.el
             [ Element.Region.mainContent
             , Element.width Element.fill
@@ -1298,6 +1298,7 @@ searchInputLarge searchText =
         [ Element.Input.text
             [ Element.Border.roundEach { topLeft = 5, bottomLeft = 5, bottomRight = 0, topRight = 0 }
             , Element.Border.color Colors.darkGrey
+            , Element.Border.widthEach { bottom = 1, left = 1, right = 0, top = 1 }
             , Element.paddingEach { left = 30, right = 8, top = 8, bottom = 8 }
             , Ui.onEnter SubmittedSearchBox
             , Id.htmlIdToString groupSearchLargeId |> Html.Attributes.id |> Element.htmlAttribute
@@ -1330,8 +1331,8 @@ searchInputLarge searchText =
         ]
 
 
-header : Bool -> Bool -> Route -> String -> Element FrontendMsg
-header isMobile_ isLoggedIn_ route searchText =
+header : Bool -> Maybe LoggedIn_ -> Route -> String -> Element FrontendMsg
+header isMobile_ maybeLoggedIn route searchText =
     Element.column [ Element.width Element.fill, Element.spacing 10, Element.padding 10 ]
         [ Element.row
             [ Element.width Element.fill
@@ -1343,7 +1344,7 @@ header isMobile_ isLoggedIn_ route searchText =
                 Element.none
 
               else
-                Element.link []
+                Element.link [ Element.paddingEach { left = 0, right = 10, top = 0, bottom = 0 } ]
                     { url = "/"
                     , label =
                         Element.row [ Element.spacing 10 ]
@@ -1356,32 +1357,42 @@ header isMobile_ isLoggedIn_ route searchText =
             , searchInput searchText
             , Element.row
                 [ Element.alignRight ]
-                (if isLoggedIn_ then
-                    headerButtons isMobile_ route
-                        ++ [ Ui.headerButton isMobile_
-                                logOutButtonId
-                                { onPress = PressedLogout
-                                , label = "Log out"
-                                }
-                           ]
+                (case maybeLoggedIn of
+                    Just loggedIn ->
+                        headerButtons isMobile_ loggedIn.isAdmin route
+                            ++ [ Ui.headerButton isMobile_
+                                    logOutButtonId
+                                    { onPress = PressedLogout
+                                    , label = "Log out"
+                                    }
+                               ]
 
-                 else
-                    [ Ui.headerButton
-                        isMobile_
-                        signUpOrLoginButtonId
-                        { onPress = PressedLogin
-                        , label = "Sign up / Login"
-                        }
-                    ]
+                    Nothing ->
+                        [ Ui.headerButton
+                            isMobile_
+                            signUpOrLoginButtonId
+                            { onPress = PressedLogin
+                            , label = "Sign up / Login"
+                            }
+                        ]
                 )
             ]
         , Element.row [ Element.Background.color Colors.grey, Element.width Element.fill, Element.height (Element.px 2) ] []
         ]
 
 
-headerButtons : Bool -> Route -> List (Element msg)
-headerButtons isMobile_ route =
-    [ Ui.headerLink isMobile_
+headerButtons : Bool -> Bool -> Route -> List (Element msg)
+headerButtons isMobile_ isAdmin route =
+    [ if isAdmin then
+        Ui.headerLink isMobile_
+            (route == AdminRoute)
+            { route = AdminRoute
+            , label = "Admin"
+            }
+
+      else
+        Element.none
+    , Ui.headerLink isMobile_
         (route == CreateGroupRoute)
         { route = CreateGroupRoute
         , label = "Create group"

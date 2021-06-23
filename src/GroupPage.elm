@@ -1045,7 +1045,8 @@ ongoingEventView currentTime timezone isOwner maybeUserId ( eventId, event ) =
                         Element.text "• One person is attending"
 
                 _ ->
-                    String.fromInt attendeeCount
+                    "• "
+                        ++ String.fromInt attendeeCount
                         ++ " people are attending"
                         ++ (if isAttending then
                                 " (including you)"
@@ -1218,7 +1219,8 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
                         Element.text "• One person plans on attending"
 
                 _ ->
-                    String.fromInt attendeeCount
+                    "• "
+                        ++ String.fromInt attendeeCount
                         ++ " people plan on attending"
                         ++ (if isAttending then
                                 " (including you)"
@@ -1855,16 +1857,14 @@ createEventStartTimeId =
 
 
 datetimeToString : Maybe Time.Zone -> Time.Posix -> String
-datetimeToString maybeTimezone datetime =
+datetimeToString maybeTimezone posix =
     let
         timezone =
             Maybe.withDefault Time.utc maybeTimezone
     in
-    monthToText datetime Time.utc
-        ++ " "
-        ++ dayToText datetime timezone
+    (posix |> Date.fromPosix timezone |> Date.format "MMMM ddd")
         ++ ", "
-        ++ Ui.timeToString timezone datetime
+        ++ Ui.timeToString timezone posix
         ++ (case maybeTimezone of
                 Just _ ->
                     ""
@@ -1875,68 +1875,12 @@ datetimeToString maybeTimezone datetime =
 
 
 dateToString : Maybe Time.Zone -> Time.Posix -> String
-dateToString maybeTimezone datetime =
+dateToString maybeTimezone posix =
     let
         timezone =
             Maybe.withDefault Time.utc maybeTimezone
     in
-    monthToText datetime Time.utc ++ " " ++ dayToText datetime timezone
-
-
-dayToText : Time.Posix -> Time.Zone -> String
-dayToText time timezone =
-    case Time.toDay timezone time of
-        1 ->
-            "1st"
-
-        2 ->
-            "2nd"
-
-        3 ->
-            "3rd"
-
-        n ->
-            String.fromInt n ++ "th"
-
-
-monthToText : Time.Posix -> Time.Zone -> String
-monthToText time timezone =
-    case Time.toMonth timezone time of
-        Time.Jan ->
-            "January"
-
-        Time.Feb ->
-            "February"
-
-        Time.Mar ->
-            "March"
-
-        Time.Apr ->
-            "April"
-
-        Time.May ->
-            "May"
-
-        Time.Jun ->
-            "June"
-
-        Time.Jul ->
-            "July"
-
-        Time.Aug ->
-            "August"
-
-        Time.Sep ->
-            "September"
-
-        Time.Oct ->
-            "October"
-
-        Time.Nov ->
-            "November"
-
-        Time.Dec ->
-            "December"
+    posix |> Date.fromPosix timezone |> Date.format "MMMM ddd"
 
 
 validateDuration : String -> Result String EventDuration

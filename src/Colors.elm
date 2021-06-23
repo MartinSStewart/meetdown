@@ -69,3 +69,7 @@ fromHex str =
 
         Err _ ->
             Element.rgb 255 0 0
+
+
+toCssString =
+    Element.toRgb >> Color.fromRgba >> Color.toCssString

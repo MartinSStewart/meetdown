@@ -16,7 +16,7 @@ import FrontendUser exposing (FrontendUser)
 import Group exposing (EventId, Group, GroupVisibility, JoinEventError)
 import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError)
-import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, SessionIdLast4Chars, UserId)
+import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, SessionIdFirst4Chars, UserId)
 import List.Nonempty exposing (Nonempty)
 import MaxAttendees exposing (MaxAttendees)
 import MultiDict.Assoc exposing (MultiDict)
@@ -160,11 +160,12 @@ type alias DeleteUserTokenData =
 
 
 type Log
-    = LogUntrustedCheckFailed Time.Posix ToBackend SessionIdLast4Chars
+    = LogUntrustedCheckFailed Time.Posix ToBackend SessionIdFirst4Chars
     | LogLoginEmail Time.Posix (Result SendGrid.Error ()) EmailAddress
     | LogDeleteAccountEmail Time.Posix (Result SendGrid.Error ()) (Id UserId)
     | LogEventReminderEmail Time.Posix (Result SendGrid.Error ()) (Id UserId) GroupId EventId
-    | LogLoginTokenRequestRateLimited Time.Posix EmailAddress SessionIdLast4Chars
+    | LogLoginTokenEmailRequestRateLimited Time.Posix EmailAddress SessionIdFirst4Chars
+    | LogDeleteAccountEmailRequestRateLimited Time.Posix (Id UserId) SessionIdFirst4Chars
 
 
 logData : AdminModel -> Log -> { time : Time.Posix, isError : Bool, message : String }
@@ -274,14 +275,24 @@ logData model log =
                         emailErrorToString (getEmailAddress userId) error
             }
 
-        LogLoginTokenRequestRateLimited time emailAddress sessionId ->
+        LogLoginTokenEmailRequestRateLimited time emailAddress sessionId ->
             { time = time
-            , isError = True
+            , isError = False
             , message =
                 "Login request to "
                     ++ EmailAddress.toString emailAddress
-                    ++ " was not sent due to rate limiting. Last 4 chars of sessionId: "
-                    ++ Id.sessionIdLast4CharsToString sessionId
+                    ++ " was not sent due to rate limiting. First 4 chars of sessionId: "
+                    ++ Id.sessionIdFirst4CharsToString sessionId
+            }
+
+        LogDeleteAccountEmailRequestRateLimited time userId sessionId ->
+            { time = time
+            , isError = False
+            , message =
+                "Login request to "
+                    ++ getEmailAddress userId
+                    ++ " was not sent due to rate limiting. First 4 chars of sessionId: "
+                    ++ Id.sessionIdFirst4CharsToString sessionId
             }
 
 

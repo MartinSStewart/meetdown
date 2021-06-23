@@ -1,6 +1,7 @@
 module AdminPage exposing (..)
 
 import Array
+import Date
 import Element exposing (Element)
 import Time
 import Types exposing (AdminCache(..), AdminModel, Log)
@@ -21,8 +22,8 @@ view timezone loggedIn =
                         , Element.text (Ui.timeToString timezone model.lastLogCheck)
                         ]
                     , Array.toList model.logs
-                        |> List.map (logView model)
-                        |> Element.column [ Element.spacing 8 ]
+                        |> List.map (logView timezone model)
+                        |> Element.column [ Element.spacing 16 ]
                     ]
 
             AdminCachePending ->
@@ -32,13 +33,27 @@ view timezone loggedIn =
                 Ui.loadingView
 
     else
-        Ui.loadingError "You don't have access to view this page"
+        Ui.loadingError "Sorry, you aren't allowed to view this page"
 
 
-logView : AdminModel -> Log -> Element msg
-logView model log =
+logView : Time.Zone -> AdminModel -> Log -> Element msg
+logView timezone model log =
     let
-        { message } =
+        { message, time, isError } =
             Types.logData model log
     in
-    Element.paragraph [] [ Element.text message ]
+    Element.column
+        []
+        [ Ui.datestamp (Date.fromPosix timezone time)
+            ++ ", "
+            ++ Ui.timeToString timezone time
+            |> Ui.formLabelAboveEl
+        , Element.paragraph []
+            [ if isError then
+                Element.text "🔥 "
+
+              else
+                Element.none
+            , Element.text message
+            ]
+        ]

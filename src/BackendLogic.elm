@@ -281,7 +281,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                     in
                     if loginIsRateLimited sessionId email model then
                         ( addLog
-                            (LogLoginTokenRequestRateLimited model.time email (Id.anonymizeSessionId sessionId))
+                            (LogLoginTokenEmailRequestRateLimited model.time email (Id.anonymizeSessionId sessionId))
                             model
                         , cmds.none
                         )
@@ -452,7 +452,11 @@ updateFromFrontend cmds sessionId clientId msg model =
                             Id.getUniqueId model
                     in
                     if rateLimited then
-                        ( model, cmds.none )
+                        ( addLog
+                            (LogDeleteAccountEmailRequestRateLimited model.time userId (Id.anonymizeSessionId sessionId))
+                            model
+                        , cmds.none
+                        )
 
                     else
                         ( { model2
@@ -1054,8 +1058,8 @@ loginEmailContent route loginToken maybeJoinEvent =
         loginLink =
             loginEmailLink route loginToken maybeJoinEvent
 
-        _ =
-            Debug.log "login" loginLink
+        --_ =
+        --    Debug.log "login" loginLink
     in
     Email.Html.div
         []
