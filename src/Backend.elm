@@ -31,6 +31,11 @@ app =
         }
 
 
+noReplyEmailAddress : Maybe EmailAddress
+noReplyEmailAddress =
+    EmailAddress.fromString "noreply@meetdown.app"
+
+
 allEffects : Effects (Cmd BackendMsg)
 allEffects =
     { batch = Cmd.batch
@@ -45,7 +50,7 @@ allEffects =
                 |> Cmd.batch
     , sendLoginEmail =
         \msg emailAddress route loginToken maybeJoinEvent ->
-            case EmailAddress.fromString "noreply@meetdown.com" of
+            case noReplyEmailAddress of
                 Just sender ->
                     SendGrid.htmlEmail
                         { subject = BackendLogic.loginEmailSubject
@@ -60,7 +65,7 @@ allEffects =
                     Cmd.none
     , sendDeleteUserEmail =
         \msg emailAddress deleteUserToken ->
-            case EmailAddress.fromString "noreply@meetdown.com" of
+            case noReplyEmailAddress of
                 Just sender ->
                     SendGrid.htmlEmail
                         { subject = BackendLogic.deleteAccountEmailSubject
@@ -75,7 +80,7 @@ allEffects =
                     Cmd.none
     , sendEventReminderEmail =
         \msg groupId groupName event timezone emailAddress ->
-            case EmailAddress.fromString "noreply@meetdown.com" of
+            case noReplyEmailAddress of
                 Just sender ->
                     SendGrid.htmlEmail
                         { subject = BackendLogic.eventReminderEmailSubject groupName event timezone
