@@ -78,6 +78,10 @@ css =
               outline: solid #9bcbff !important;
           }
 
+          .preserve-white-space {
+              white-space: pre-wrap;
+          }
+
           @keyframes fade-in {
             0% {opacity: 0;}
             50% {opacity: 0;}
