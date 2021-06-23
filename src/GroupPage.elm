@@ -1203,7 +1203,6 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
     in
     eventCard
         [ eventCardHeader currentTime timezone IsFutureEvent event
-        , Event.description event |> Description.toParagraph False
         , eventTypeView False event
         , Element.paragraph
             []
@@ -1273,6 +1272,7 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
 
             Nothing ->
                 Element.none
+        , Event.description event |> Description.toParagraph False
         ]
 
 
