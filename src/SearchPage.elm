@@ -4,6 +4,7 @@ import AssocList as Dict
 import Colors
 import Description
 import Element exposing (Element)
+import Element.Background
 import Element.Border
 import Element.Font
 import Group exposing (Group)
@@ -62,17 +63,43 @@ groupView groupId group =
         (Element.width Element.fill
             :: Ui.inputFocusClass
             :: Ui.cardAttributes
-            ++ [ Element.Border.color Colors.grey ]
+            ++ [ Element.paddingEach { top = 15, left = 15, right = 15, bottom = 0 }
+               , Element.Border.color Colors.darkGrey
+               ]
         )
         { url = Route.encode (GroupRoute groupId (Group.name group))
         , label =
             Element.column
-                [ Element.width Element.fill, Element.spacing 8 ]
+                [ Element.width Element.fill
+                , Element.spacing 8
+                , Element.inFront
+                    (Element.el
+                        [ Element.Background.gradient
+                            { angle = pi
+                            , steps =
+                                [ Element.rgba 1 1 1 0
+                                , Element.rgba 1 1 1 0
+                                , Element.rgba 1 1 1 0
+                                , Element.rgba 1 1 1 0
+                                , Element.rgba 1 1 1 0
+                                , Element.rgba 1 1 1 0.85
+                                , Element.rgba 1 1 1 1
+                                ]
+                            }
+                        , Element.width Element.fill
+                        , Element.height Element.fill
+                        ]
+                        Element.none
+                    )
+                , Element.height (Element.px 140)
+                , Element.clip
+                ]
                 [ Group.name group
                     |> GroupName.toString
                     |> Element.text
                     |> List.singleton
                     |> Element.paragraph [ Element.Font.bold ]
-                , Group.description group |> Description.toParagraph
+                , Group.description group
+                    |> Description.toParagraph True
                 ]
         }

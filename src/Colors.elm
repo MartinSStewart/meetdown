@@ -29,6 +29,10 @@ redLight =
     Element.rgb 1 0.9059 0.9059
 
 
+lightGrey =
+    fromHex "#f4f6f8"
+
+
 grey =
     fromHex "#E0E4E8"
 
