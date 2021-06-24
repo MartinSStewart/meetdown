@@ -1,4 +1,4 @@
-module Link exposing (Link(..), fromString, toString)
+module Link exposing (Link, fromString, toString)
 
 import Parser exposing ((|.), (|=), Parser)
 
