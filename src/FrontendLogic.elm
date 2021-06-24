@@ -107,6 +107,7 @@ subscriptions subs _ =
     subs.batch
         [ subs.cropImageFromJs CroppedImage
         , subs.onResize GotWindowSize
+        , subs.timeEvery Duration.minute GotTime
         ]
 
 
@@ -1124,6 +1125,7 @@ viewPage model =
                     case getCachedUser (Group.ownerId group) model of
                         Just owner ->
                             GroupPage.view
+                                (isMobile model)
                                 model.time
                                 model.timezone
                                 owner

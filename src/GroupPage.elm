@@ -746,8 +746,8 @@ leaveEventResponse eventId result model =
     }
 
 
-view : Time.Posix -> Time.Zone -> FrontendUser -> Group -> Model -> Maybe (Id UserId) -> Element Msg
-view currentTime timezone owner group model maybeUserId =
+view : Bool -> Time.Posix -> Time.Zone -> FrontendUser -> Group -> Model -> Maybe (Id UserId) -> Element Msg
+view isMobile currentTime timezone owner group model maybeUserId =
     Element.el
         Ui.pageContentAttributes
         (case model.eventOverlay of
@@ -763,12 +763,12 @@ view currentTime timezone owner group model maybeUserId =
                         Element.text "This event doesn't exist"
 
             Nothing ->
-                groupView currentTime timezone owner group model maybeUserId
+                groupView isMobile currentTime timezone owner group model maybeUserId
         )
 
 
-groupView : Time.Posix -> Time.Zone -> FrontendUser -> Group -> Model -> Maybe (Id UserId) -> Element Msg
-groupView currentTime timezone owner group model maybeUserId =
+groupView : Bool -> Time.Posix -> Time.Zone -> FrontendUser -> Group -> Model -> Maybe (Id UserId) -> Element Msg
+groupView isMobile currentTime timezone owner group model maybeUserId =
     let
         { pastEvents, ongoingEvent, futureEvents } =
             Group.events currentTime group
@@ -950,7 +950,7 @@ groupView currentTime timezone owner group model maybeUserId =
                      else
                         [ soonest ]
                     )
-                        |> List.map (futureEventView currentTime timezone isOwner maybeUserId model.pendingJoinOrLeave)
+                        |> List.map (futureEventView isMobile currentTime timezone isOwner maybeUserId model.pendingJoinOrLeave)
              )
                 |> Element.column [ Element.width Element.fill, Element.spacing 8 ]
             )
@@ -1146,14 +1146,15 @@ eventCardHeader currentTime timezone eventStatus event =
 
 
 futureEventView :
-    Time.Posix
+    Bool
+    -> Time.Posix
     -> Time.Zone
     -> Bool
     -> Maybe (Id UserId)
     -> Dict EventId EventJoinOrLeaveStatus
     -> ( EventId, Event )
     -> Element Msg
-futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatuses ( eventId, event ) =
+futureEventView isMobile currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatuses ( eventId, event ) =
     let
         isAttending =
             maybeUserId |> Maybe.map (\userId -> Set.member userId (Event.attendees event)) |> Maybe.withDefault False
@@ -1231,7 +1232,15 @@ futureEventView currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatu
             ]
         , maxAttendeesView event
         , Element.wrappedRow
-            [ Element.spacingXY 16 8 ]
+            [ Element.spacingXY 16 8
+            , Element.width
+                (if isMobile then
+                    Element.fill
+
+                 else
+                    Element.shrink
+                )
+            ]
             [ case Event.cancellationStatus event of
                 Just ( Event.EventUncancelled, _ ) ->
                     joinOrLeaveButton
