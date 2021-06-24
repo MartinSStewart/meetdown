@@ -1,4 +1,4 @@
-module Description exposing (Description, Error(..), empty, errorToString, fromString, maxLength, toParagraph, toString)
+module Description exposing (Description(..), Error(..), empty, errorToString, fromString, maxLength, toParagraph, toString)
 
 import Element exposing (Element)
 import Element.Font
