@@ -1,16 +1,16 @@
 module Id exposing
     ( ButtonId
-    , ClientId
+    , ClientId(..)
     , DateInputId
     , DeleteUserToken
-    , GroupId
-    , HtmlId
-    , Id
+    , GroupId(..)
+    , HtmlId(..)
+    , Id(..)
     , LoginToken
     , NumberInputId
     , RadioButtonId
-    , SessionId
-    , SessionIdFirst4Chars
+    , SessionId(..)
+    , SessionIdFirst4Chars(..)
     , TextInputId
     , TimeInputId
     , UserId
