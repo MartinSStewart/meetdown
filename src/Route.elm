@@ -2,7 +2,7 @@ module Route exposing (Route(..), Token(..), decode, encode, encodeWithToken, lo
 
 import Group exposing (EventId)
 import GroupName exposing (GroupName)
-import Id exposing (DeleteUserToken, GroupId, Id, LoginToken)
+import Id exposing (DeleteUserToken, GroupId, Id, LoginToken, UserId)
 import Url
 import Url.Builder
 import Url.Parser exposing ((</>), (<?>))
@@ -17,6 +17,7 @@ type Route
     | SearchGroupsRoute String
     | MyGroupsRoute
     | MyProfileRoute
+    | UserRoute (Id UserId)
 
 
 decode : Url.Parser.Parser (( Route, Token ) -> c) c
@@ -52,6 +53,7 @@ decode =
         , Url.Parser.s "search" |> Url.Parser.map (SearchGroupsRoute "")
         , Url.Parser.s "my-groups" |> Url.Parser.map MyGroupsRoute
         , Url.Parser.s "profile" |> Url.Parser.map MyProfileRoute
+        , Url.Parser.s "user" </> Url.Parser.string |> Url.Parser.map (Id.cryptoHashFromString >> UserRoute)
         ]
         <?> decodeToken
         |> Url.Parser.map Tuple.pair
@@ -147,6 +149,9 @@ encodeWithToken route token =
                         else
                             [ Url.percentEncode searchText ]
                        )
+
+            UserRoute userId ->
+                [ "user", Id.cryptoHashToString userId ]
         )
         (case token of
             LoginToken loginToken maybeJoinEvent ->

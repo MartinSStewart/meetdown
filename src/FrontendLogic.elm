@@ -36,6 +36,7 @@ import Ui
 import Untrusted
 import Url exposing (Url)
 import Url.Parser exposing ((</>))
+import UserPage
 
 
 type alias Effects cmd =
@@ -295,6 +296,16 @@ routeRequest cmds route model =
 
         SearchGroupsRoute searchText ->
             ( model, cmds.sendToBackend (SearchGroupsRequest searchText) )
+
+        UserRoute userId ->
+            case Dict.get userId model.cachedUsers of
+                Just _ ->
+                    ( model, cmds.none )
+
+                Nothing ->
+                    ( { model | cachedUsers = Dict.insert userId ItemRequestPending model.cachedUsers }
+                    , cmds.sendToBackend (GetUserRequest userId)
+                    )
 
 
 checkAdminState : Effects cmd -> LoadedFrontend -> ( LoadedFrontend, cmd )
@@ -1197,6 +1208,14 @@ viewPage model =
 
         SearchGroupsRoute searchText ->
             SearchPage.view searchText model
+
+        UserRoute userId ->
+            case getCachedUser userId model of
+                Just user ->
+                    UserPage.view user
+
+                Nothing ->
+                    Ui.loadingView
 
 
 myGroupsView : LoadedFrontend -> LoggedIn_ -> Element FrontendMsg

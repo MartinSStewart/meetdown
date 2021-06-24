@@ -22,12 +22,12 @@ import GroupName exposing (GroupName)
 import Html.Attributes
 import Id exposing (ButtonId(..), HtmlId, Id, UserId)
 import Link exposing (Link)
-import List.Extra as List
 import List.Nonempty exposing (Nonempty(..))
 import MaxAttendees exposing (Error(..))
 import Name
 import ProfileImage
 import Quantity exposing (Quantity)
+import Route
 import Time
 import Time.Extra as Time
 import TimeExtra as Time
@@ -843,11 +843,16 @@ groupView isMobile currentTime timezone owner group model maybeUserId =
                         ]
                 )
             , Ui.section "Organizer"
-                (Element.row
-                    [ Element.spacing 16 ]
-                    [ ProfileImage.smallImage owner.profileImage
-                    , Element.text (Name.toString owner.name)
-                    ]
+                (Element.link
+                    []
+                    { url = Route.encode (Route.UserRoute (Group.ownerId group))
+                    , label =
+                        Element.row
+                            [ Element.spacing 16 ]
+                            [ ProfileImage.smallImage owner.profileImage
+                            , Element.text (Name.toString owner.name)
+                            ]
+                    }
                 )
             ]
         , case model.description of
@@ -1022,7 +1027,9 @@ ongoingEventView : Time.Posix -> Time.Zone -> Bool -> Maybe (Id UserId) -> ( Eve
 ongoingEventView currentTime timezone isOwner maybeUserId ( eventId, event ) =
     let
         isAttending =
-            maybeUserId |> Maybe.map (\userId -> Set.member userId (Event.attendees event)) |> Maybe.withDefault False
+            maybeUserId
+                |> Maybe.map (\userId -> Set.member userId (Event.attendees event))
+                |> Maybe.withDefault False
 
         attendeeCount =
             Event.attendees event |> Set.size
