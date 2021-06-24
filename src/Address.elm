@@ -1,4 +1,4 @@
-module Address exposing (Address(..), Error(..), errorToString, fromString, maxLength, minLength, toString)
+module Address exposing (Address, Error(..), errorToString, fromString, maxLength, minLength, toString)
 
 
 type Address
