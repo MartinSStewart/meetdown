@@ -821,7 +821,14 @@ getClientIdsForUser userId model =
             )
 
 
-loginWithToken : Effects cmd -> SessionId -> ClientId -> Maybe ( GroupId, EventId ) -> Maybe LoginTokenData -> BackendModel -> ( BackendModel, cmd )
+loginWithToken :
+    Effects cmd
+    -> SessionId
+    -> ClientId
+    -> Maybe ( GroupId, EventId )
+    -> Maybe LoginTokenData
+    -> BackendModel
+    -> ( BackendModel, cmd )
 loginWithToken cmds sessionId clientId maybeJoinEvent maybeLoginTokenData model =
     let
         loginResponse : ( Id UserId, BackendUser ) -> cmd
@@ -839,14 +846,27 @@ loginWithToken cmds sessionId clientId maybeJoinEvent maybeLoginTokenData model 
         addSession : Id UserId -> BackendModel -> BackendModel
         addSession userId model_ =
             { model_ | sessions = BiDict.insert sessionId userId model_.sessions }
+
+        joinEventHelper : Id UserId -> BackendModel -> ( BackendModel, cmd )
+        joinEventHelper userId model_ =
+            case maybeJoinEvent of
+                Just joinEvent_ ->
+                    joinEvent cmds clientId userId joinEvent_ model_
+
+                Nothing ->
+                    ( model_, cmds.none )
     in
     case maybeLoginTokenData of
         Just { creationTime, emailAddress } ->
             if Duration.from creationTime model.time |> Quantity.lessThan Duration.hour then
                 case Dict.toList model.users |> List.find (Tuple.second >> .emailAddress >> (==) emailAddress) of
-                    Just userEntry ->
-                        ( addSession (Tuple.first userEntry) model
-                        , loginResponse userEntry
+                    Just ( userId, user ) ->
+                        let
+                            ( model2, effects ) =
+                                joinEventHelper userId model
+                        in
+                        ( addSession userId model2
+                        , cmds.batch [ loginResponse ( userId, user ), effects ]
                         )
 
                     Nothing ->
@@ -867,14 +887,7 @@ loginWithToken cmds sessionId clientId maybeJoinEvent maybeLoginTokenData model 
                             ( model3, effects ) =
                                 { model2 | users = Dict.insert userId newUser model2.users }
                                     |> addSession userId
-                                    |> (\a ->
-                                            case maybeJoinEvent of
-                                                Just joinEvent_ ->
-                                                    joinEvent cmds clientId userId joinEvent_ a
-
-                                                Nothing ->
-                                                    ( a, cmds.none )
-                                       )
+                                    |> joinEventHelper userId
                         in
                         ( model3
                         , cmds.batch [ loginResponse ( userId, newUser ), effects ]
