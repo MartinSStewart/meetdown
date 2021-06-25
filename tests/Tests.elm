@@ -464,9 +464,8 @@ suite =
                     |> TF.toExpectation
         , test "Create an event and another user (who isn't logged in) joins it" <|
             \_ -> TF.toExpectation createEventAndAnotherUserNotLoggedInJoinsIt
-        , only <|
-            test "Create an event and another user (who isn't logged in but has an account) joins it" <|
-                \_ -> TF.toExpectation createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt
+        , test "Create an event and another user (who isn't logged in but has an account) joins it" <|
+            \_ -> TF.toExpectation createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt
         , test "Rate limit login for a given email address" <|
             \_ ->
                 let
