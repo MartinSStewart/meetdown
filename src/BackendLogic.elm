@@ -42,12 +42,12 @@ type alias Effects cmd =
         -> EmailAddress
         -> Route
         -> Id LoginToken
-        -> Maybe ( GroupId, EventId )
+        -> Maybe ( Id GroupId, EventId )
         -> cmd
     , sendDeleteUserEmail : (Result SendGrid.Error () -> BackendMsg) -> EmailAddress -> Id DeleteUserToken -> cmd
     , sendEventReminderEmail :
         (Result SendGrid.Error () -> BackendMsg)
-        -> GroupId
+        -> Id GroupId
         -> GroupName
         -> Event
         -> Time.Zone
@@ -87,7 +87,7 @@ sendGridApiKey =
     SendGrid.apiKey Env.sendGridApiKey_
 
 
-loginEmailLink : Route -> Id LoginToken -> Maybe ( GroupId, EventId ) -> String
+loginEmailLink : Route -> Id LoginToken -> Maybe ( Id GroupId, EventId ) -> String
 loginEmailLink route loginToken maybeJoinEvent =
     Env.domain ++ Route.encodeWithToken route (Route.LoginToken loginToken maybeJoinEvent)
 
@@ -96,7 +96,6 @@ init : Effects cmd -> ( BackendModel, cmd )
 init effects =
     ( { users = Dict.empty
       , groups = Dict.empty
-      , groupIdCounter = 0
       , sessions = BiDict.empty
       , loginAttempts = Dict.empty
       , connections = Dict.empty
@@ -825,7 +824,7 @@ loginWithToken :
     Effects cmd
     -> SessionId
     -> ClientId
-    -> Maybe ( GroupId, EventId )
+    -> Maybe ( Id GroupId, EventId )
     -> Maybe LoginTokenData
     -> BackendModel
     -> ( BackendModel, cmd )
@@ -872,7 +871,7 @@ loginWithToken cmds sessionId clientId maybeJoinEvent maybeLoginTokenData model 
                     Nothing ->
                         let
                             ( model2, userId ) =
-                                Id.getUniqueId model
+                                Id.getUniqueShortId (\id_ model_ -> Dict.member id_ model_.users |> not) model
 
                             newUser : BackendUser
                             newUser =
@@ -900,7 +899,7 @@ loginWithToken cmds sessionId clientId maybeJoinEvent maybeLoginTokenData model 
             ( model, Err () |> LoginWithTokenResponse |> cmds.sendToFrontend clientId )
 
 
-joinEvent : Effects cmd -> ClientId -> Id UserId -> ( GroupId, EventId ) -> BackendModel -> ( BackendModel, cmd )
+joinEvent : Effects cmd -> ClientId -> Id UserId -> ( Id GroupId, EventId ) -> BackendModel -> ( BackendModel, cmd )
 joinEvent cmds clientId userId ( groupId, eventId ) model =
     case getGroup groupId model of
         Just group ->
@@ -958,13 +957,13 @@ addGroup cmds clientId userId name description visibility model =
 
     else
         let
-            groupId =
-                Id.groupIdFromInt model.groupIdCounter
+            ( model2, groupId ) =
+                Id.getUniqueShortId (\id_ model_ -> Dict.member id_ model_.groups |> not) model
 
             newGroup =
-                Group.init userId name description visibility model.time
+                Group.init userId name description visibility model2.time
         in
-        ( { model | groupIdCounter = model.groupIdCounter + 1, groups = Dict.insert groupId newGroup model.groups }
+        ( { model2 | groups = Dict.insert groupId newGroup model2.groups }
         , Ok ( groupId, newGroup ) |> CreateGroupResponse |> cmds.sendToFrontend clientId
         )
 
@@ -987,7 +986,7 @@ userAuthorization cmds sessionId model updateFunc =
 userWithGroupAuthorization :
     Effects cmd
     -> SessionId
-    -> GroupId
+    -> Id GroupId
     -> BackendModel
     -> (( Id UserId, BackendUser, Group ) -> ( BackendModel, cmd ))
     -> ( BackendModel, cmd )
@@ -1048,7 +1047,7 @@ checkLogin sessionId model =
             Nothing
 
 
-getGroup : GroupId -> BackendModel -> Maybe Group
+getGroup : Id GroupId -> BackendModel -> Maybe Group
 getGroup groupId model =
     Dict.get groupId model.groups
 
@@ -1069,15 +1068,15 @@ loginEmailSubject =
     NonemptyString 'M' "eetdown login link"
 
 
-loginEmailContent : Route -> Id LoginToken -> Maybe ( GroupId, EventId ) -> Email.Html.Html
+loginEmailContent : Route -> Id LoginToken -> Maybe ( Id GroupId, EventId ) -> Email.Html.Html
 loginEmailContent route loginToken maybeJoinEvent =
     let
         loginLink : String
         loginLink =
             loginEmailLink route loginToken maybeJoinEvent
 
-        --_ =
-        --    Debug.log "login" loginLink
+        _ =
+            Debug.log "login" loginLink
     in
     Email.Html.div
         []
@@ -1140,7 +1139,7 @@ eventReminderEmailSubject groupName event timezone =
         ("'s next event starts tomorrow, " ++ startText)
 
 
-eventReminderEmailContent : GroupId -> GroupName -> Event -> Email.Html.Html
+eventReminderEmailContent : Id GroupId -> GroupName -> Event -> Email.Html.Html
 eventReminderEmailContent groupId groupName event =
     let
         groupRoute =

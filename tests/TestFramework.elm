@@ -90,9 +90,9 @@ type Instructions
 
 
 type EmailType
-    = LoginEmail Route (Id LoginToken) (Maybe ( GroupId, EventId ))
+    = LoginEmail Route (Id LoginToken) (Maybe ( Id GroupId, EventId ))
     | DeleteAccountEmail (Id DeleteUserToken)
-    | EventReminderEmail GroupId GroupName Event.Event Time.Zone
+    | EventReminderEmail (Id GroupId) GroupName Event.Event Time.Zone
 
 
 isEventReminderEmail : EmailType -> Bool

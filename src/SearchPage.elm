@@ -9,13 +9,13 @@ import Element.Border
 import Element.Font
 import Group exposing (Group)
 import GroupName
-import Id exposing (GroupId)
+import Id exposing (GroupId, Id)
 import Route exposing (Route(..))
 import Types exposing (Cache(..), FrontendMsg, LoadedFrontend)
 import Ui
 
 
-getGroupsFromIds : List GroupId -> LoadedFrontend -> List ( GroupId, Group )
+getGroupsFromIds : List (Id GroupId) -> LoadedFrontend -> List ( Id GroupId, Group )
 getGroupsFromIds groups model =
     List.filterMap
         (\groupId ->
@@ -57,7 +57,7 @@ view searchText model =
         ]
 
 
-groupView : GroupId -> Group -> Element msg
+groupView : Id GroupId -> Group -> Element msg
 groupView groupId group =
     Element.link
         (Element.width Element.fill

@@ -297,7 +297,7 @@ routeRequest cmds route model =
         SearchGroupsRoute searchText ->
             ( model, cmds.sendToBackend (SearchGroupsRequest searchText) )
 
-        UserRoute userId ->
+        UserRoute userId _ ->
             case Dict.get userId model.cachedUsers of
                 Just _ ->
                     ( model, cmds.none )
@@ -1209,7 +1209,7 @@ viewPage model =
         SearchGroupsRoute searchText ->
             SearchPage.view searchText model
 
-        UserRoute userId ->
+        UserRoute userId _ ->
             case getCachedUser userId model of
                 Just user ->
                     UserPage.view user

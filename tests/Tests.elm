@@ -1,5 +1,6 @@
 module Tests exposing (createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt, createEventAndAnotherUserNotLoggedInJoinsIt, suite)
 
+import AssocList as Dict
 import BackendLogic
 import CreateGroupPage
 import Date
@@ -10,7 +11,7 @@ import FrontendLogic
 import Group
 import GroupName exposing (GroupName)
 import GroupPage
-import Id
+import Id exposing (GroupId, Id)
 import List.Extra as List
 import LoginForm
 import ProfilePage
@@ -292,11 +293,16 @@ suite =
                                     (\model ->
                                         case model of
                                             Loaded loaded ->
-                                                if loaded.route == Route.GroupRoute (Id.groupIdFromInt 0) (Unsafe.groupName groupName) then
-                                                    Ok ()
+                                                case Dict.keys loaded.cachedGroups of
+                                                    [ groupId ] ->
+                                                        if loaded.route == Route.GroupRoute groupId (Unsafe.groupName groupName) then
+                                                            Ok ()
 
-                                                else
-                                                    Err "Was redirected to incorrect route"
+                                                        else
+                                                            Err "Was redirected to incorrect route"
+
+                                                    _ ->
+                                                        Err "No cached groups were found"
 
                                             Loading _ ->
                                                 Err "Somehow we ended up in the loading state"
@@ -441,25 +447,28 @@ suite =
                         session1
                         emailAddress1
                         (\{ inProgress, clientId, clientIdFromEmail } ->
-                            inProgress
-                                |> TF.inputText clientId FrontendLogic.groupSearchId "my group!"
-                                |> TF.keyDownEvent clientId FrontendLogic.groupSearchId Ui.enterKeyCode
-                                |> TF.simulateTime Duration.second
-                                |> TF.clickLink clientId (Route.GroupRoute (Id.groupIdFromInt 0) groupName)
-                                |> TF.simulateTime Duration.second
-                                |> TF.clickButton clientId GroupPage.joinEventButtonId
-                                |> TF.simulateTime Duration.second
-                                |> TF.fastForward (Duration.hours 14)
-                                |> TF.simulateTime (Duration.seconds 30)
-                                |> TF.checkState
-                                    (\model ->
-                                        case gotReminder emailAddress1 model of
-                                            Just _ ->
-                                                Ok ()
+                            findSingleGroup inProgress
+                                (\groupId inProgress2 ->
+                                    inProgress2
+                                        |> TF.inputText clientId FrontendLogic.groupSearchId "my group!"
+                                        |> TF.keyDownEvent clientId FrontendLogic.groupSearchId Ui.enterKeyCode
+                                        |> TF.simulateTime Duration.second
+                                        |> TF.clickLink clientId (Route.GroupRoute groupId groupName)
+                                        |> TF.simulateTime Duration.second
+                                        |> TF.clickButton clientId GroupPage.joinEventButtonId
+                                        |> TF.simulateTime Duration.second
+                                        |> TF.fastForward (Duration.hours 14)
+                                        |> TF.simulateTime (Duration.seconds 30)
+                                        |> TF.checkState
+                                            (\model ->
+                                                case gotReminder emailAddress1 model of
+                                                    Just _ ->
+                                                        Ok ()
 
-                                            Nothing ->
-                                                Err "Should have gotten an event notification"
-                                    )
+                                                    Nothing ->
+                                                        Err "Should have gotten an event notification"
+                                            )
+                                )
                         )
                     |> TF.toExpectation
         , test "Create an event and another user (who isn't logged in) joins it" <|
@@ -644,6 +653,27 @@ suite =
         ]
 
 
+findSingleGroup : TF.Instructions -> (Id GroupId -> TF.Instructions -> TF.Instructions) -> TF.Instructions
+findSingleGroup inProgress continueWith =
+    inProgress
+        |> TF.andThen
+            (\state ->
+                case Dict.keys state.backend.groups of
+                    [ groupId ] ->
+                        TF.continueWith state
+                            |> continueWith groupId
+
+                    keys ->
+                        TF.continueWith state
+                            |> TF.checkState
+                                (\_ ->
+                                    "Expected to find exactly one group, instead got "
+                                        ++ String.fromInt (List.length keys)
+                                        |> Err
+                                )
+            )
+
+
 createEventAndAnotherUserNotLoggedInJoinsIt : TF.Instructions
 createEventAndAnotherUserNotLoggedInJoinsIt =
     let
@@ -684,26 +714,29 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
         |> TF.connectFrontend session1
             (Env.domain ++ Route.encode Route.HomepageRoute |> Unsafe.url)
             (\( state, clientId ) ->
-                state
-                    |> TF.simulateTime Duration.second
-                    |> TF.inputText clientId FrontendLogic.groupSearchId "my group!"
-                    |> TF.keyDownEvent clientId FrontendLogic.groupSearchId Ui.enterKeyCode
-                    |> TF.simulateTime Duration.second
-                    |> TF.clickLink clientId (Route.GroupRoute (Id.groupIdFromInt 0) groupName)
-                    |> TF.simulateTime Duration.second
-                    |> TF.clickButton clientId GroupPage.joinEventButtonId
-                    |> TF.simulateTime Duration.second
-                    |> handleLoginForm
-                        True
-                        clientId
-                        session1
-                        emailAddress1
-                        (\a ->
-                            a.inProgress
-                                |> TF.simulateTime Duration.second
-                                -- We are just clicking the leave button to test that we had joined the event.
-                                |> TF.clickButton a.clientIdFromEmail GroupPage.leaveEventButtonId
-                        )
+                findSingleGroup state
+                    (\groupId inProgress2 ->
+                        inProgress2
+                            |> TF.simulateTime Duration.second
+                            |> TF.inputText clientId FrontendLogic.groupSearchId "my group!"
+                            |> TF.keyDownEvent clientId FrontendLogic.groupSearchId Ui.enterKeyCode
+                            |> TF.simulateTime Duration.second
+                            |> TF.clickLink clientId (Route.GroupRoute groupId groupName)
+                            |> TF.simulateTime Duration.second
+                            |> TF.clickButton clientId GroupPage.joinEventButtonId
+                            |> TF.simulateTime Duration.second
+                            |> handleLoginForm
+                                True
+                                clientId
+                                session1
+                                emailAddress1
+                                (\a ->
+                                    a.inProgress
+                                        |> TF.simulateTime Duration.second
+                                        -- We are just clicking the leave button to test that we had joined the event.
+                                        |> TF.clickButton a.clientIdFromEmail GroupPage.leaveEventButtonId
+                                )
+                    )
             )
 
 
@@ -757,26 +790,29 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
         |> TF.connectFrontend session1
             (Env.domain ++ Route.encode Route.HomepageRoute |> Unsafe.url)
             (\( state, clientId ) ->
-                state
-                    |> TF.simulateTime Duration.second
-                    |> TF.inputText clientId FrontendLogic.groupSearchId "my group!"
-                    |> TF.keyDownEvent clientId FrontendLogic.groupSearchId Ui.enterKeyCode
-                    |> TF.simulateTime Duration.second
-                    |> TF.clickLink clientId (Route.GroupRoute (Id.groupIdFromInt 0) groupName)
-                    |> TF.simulateTime Duration.second
-                    |> TF.clickButton clientId GroupPage.joinEventButtonId
-                    |> TF.simulateTime Duration.second
-                    |> handleLoginForm
-                        True
-                        clientId
-                        session1
-                        emailAddress1
-                        (\a ->
-                            a.inProgress
-                                |> TF.simulateTime Duration.second
-                                -- We are just clicking the leave button to test that we had joined the event.
-                                |> TF.clickButton a.clientIdFromEmail GroupPage.leaveEventButtonId
-                        )
+                findSingleGroup state
+                    (\groupId inProgress2 ->
+                        inProgress2
+                            |> TF.simulateTime Duration.second
+                            |> TF.inputText clientId FrontendLogic.groupSearchId "my group!"
+                            |> TF.keyDownEvent clientId FrontendLogic.groupSearchId Ui.enterKeyCode
+                            |> TF.simulateTime Duration.second
+                            |> TF.clickLink clientId (Route.GroupRoute groupId groupName)
+                            |> TF.simulateTime Duration.second
+                            |> TF.clickButton clientId GroupPage.joinEventButtonId
+                            |> TF.simulateTime Duration.second
+                            |> handleLoginForm
+                                True
+                                clientId
+                                session1
+                                emailAddress1
+                                (\a ->
+                                    a.inProgress
+                                        |> TF.simulateTime Duration.second
+                                        -- We are just clicking the leave button to test that we had joined the event.
+                                        |> TF.clickButton a.clientIdFromEmail GroupPage.leaveEventButtonId
+                                )
+                    )
             )
 
 

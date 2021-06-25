@@ -845,7 +845,7 @@ groupView isMobile currentTime timezone owner group model maybeUserId =
             , Ui.section "Organizer"
                 (Element.link
                     []
-                    { url = Route.encode (Route.UserRoute (Group.ownerId group))
+                    { url = Route.encode (Route.UserRoute (Group.ownerId group) owner.name)
                     , label =
                         Element.row
                             [ Element.spacing 16 ]

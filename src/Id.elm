@@ -22,8 +22,7 @@ module Id exposing
     , cryptoHashToString
     , dateInputId
     , getUniqueId
-    , groupIdFromInt
-    , groupIdToInt
+    , getUniqueShortId
     , htmlIdToString
     , numberInputId
     , radioButtonId
@@ -43,7 +42,7 @@ type UserId
 
 
 type GroupId
-    = GroupId Int
+    = GroupId Never
 
 
 type SessionId
@@ -171,6 +170,32 @@ getUniqueId model =
     )
 
 
+getUniqueShortId :
+    (Id b -> { a | secretCounter : Int, time : Time.Posix } -> Bool)
+    -> { a | secretCounter : Int, time : Time.Posix }
+    -> ( { a | secretCounter : Int, time : Time.Posix }, Id b )
+getUniqueShortId isUnique model =
+    let
+        id =
+            Env.secretKey
+                ++ ":"
+                ++ String.fromInt model.secretCounter
+                ++ ":"
+                ++ String.fromInt (Time.posixToMillis model.time)
+                |> Sha256.sha224
+                |> String.left 6
+                |> Id
+
+        newModel =
+            { model | secretCounter = model.secretCounter + 1 }
+    in
+    if isUnique id newModel then
+        ( newModel, id )
+
+    else
+        getUniqueShortId isUnique newModel
+
+
 cryptoHashToString : Id a -> String
 cryptoHashToString (Id hash) =
     hash
@@ -179,13 +204,3 @@ cryptoHashToString (Id hash) =
 cryptoHashFromString : String -> Id a
 cryptoHashFromString =
     Id
-
-
-groupIdFromInt : Int -> GroupId
-groupIdFromInt =
-    GroupId
-
-
-groupIdToInt : GroupId -> Int
-groupIdToInt (GroupId groupId) =
-    groupId

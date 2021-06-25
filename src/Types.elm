@@ -19,7 +19,6 @@ import GroupPage exposing (CreateEventError)
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, SessionIdFirst4Chars, UserId)
 import List.Nonempty exposing (Nonempty)
 import MaxAttendees exposing (MaxAttendees)
-import MultiDict.Assoc exposing (MultiDict)
 import Name exposing (Name)
 import Pixels exposing (Pixels)
 import ProfileImage exposing (ProfileImage)
@@ -57,7 +56,7 @@ type alias LoadedFrontend =
     { navigationKey : NavigationKey
     , loginStatus : LoginStatus
     , route : Route
-    , cachedGroups : Dict GroupId (Cache Group)
+    , cachedGroups : Dict (Id GroupId) (Cache Group)
     , cachedUsers : Dict (Id UserId) (Cache FrontendUser)
     , time : Time.Posix
     , timezone : Time.Zone
@@ -69,10 +68,10 @@ type alias LoadedFrontend =
     , groupCreated : Bool
     , accountDeletedResult : Maybe (Result () ())
     , searchText : String
-    , searchList : List GroupId
+    , searchList : List (Id GroupId)
     , windowWidth : Quantity Int Pixels
     , windowHeight : Quantity Int Pixels
-    , groupPage : Dict GroupId GroupPage.Model
+    , groupPage : Dict (Id GroupId) GroupPage.Model
     }
 
 
@@ -116,14 +115,14 @@ type alias LoginForm =
 type LoginStatus
     = LoginStatusPending
     | LoggedIn LoggedIn_
-    | NotLoggedIn { showLogin : Bool, joiningEvent : Maybe ( GroupId, EventId ) }
+    | NotLoggedIn { showLogin : Bool, joiningEvent : Maybe ( Id GroupId, EventId ) }
 
 
 type alias LoggedIn_ =
     { userId : Id UserId
     , emailAddress : EmailAddress
     , profileForm : ProfilePage.Model
-    , myGroups : Maybe (Set GroupId)
+    , myGroups : Maybe (Set (Id GroupId))
     , adminState : AdminCache
     , isAdmin : Bool
     }
@@ -138,8 +137,7 @@ type alias AdminModel =
 
 type alias BackendModel =
     { users : Dict (Id UserId) BackendUser
-    , groups : Dict GroupId Group
-    , groupIdCounter : Int
+    , groups : Dict (Id GroupId) Group
     , sessions : BiDict SessionId (Id UserId)
     , loginAttempts : Dict SessionId (Nonempty Time.Posix)
     , connections : Dict SessionId (Nonempty ClientId)
@@ -163,7 +161,7 @@ type Log
     = LogUntrustedCheckFailed Time.Posix ToBackend SessionIdFirst4Chars
     | LogLoginEmail Time.Posix (Result SendGrid.Error ()) EmailAddress
     | LogDeleteAccountEmail Time.Posix (Result SendGrid.Error ()) (Id UserId)
-    | LogEventReminderEmail Time.Posix (Result SendGrid.Error ()) (Id UserId) GroupId EventId
+    | LogEventReminderEmail Time.Posix (Result SendGrid.Error ()) (Id UserId) (Id GroupId) EventId
     | LogLoginTokenEmailRequestRateLimited Time.Posix EmailAddress SessionIdFirst4Chars
     | LogDeleteAccountEmailRequestRateLimited Time.Posix (Id UserId) SessionIdFirst4Chars
 
@@ -335,11 +333,11 @@ type FrontendMsg
 
 
 type ToBackend
-    = GetGroupRequest GroupId
+    = GetGroupRequest (Id GroupId)
     | GetUserRequest (Id UserId)
     | CheckLoginRequest
-    | LoginWithTokenRequest (Id LoginToken) (Maybe ( GroupId, EventId ))
-    | GetLoginTokenRequest Route (Untrusted EmailAddress) (Maybe ( GroupId, EventId ))
+    | LoginWithTokenRequest (Id LoginToken) (Maybe ( Id GroupId, EventId ))
+    | GetLoginTokenRequest Route (Untrusted EmailAddress) (Maybe ( Id GroupId, EventId ))
     | GetAdminDataRequest
     | LogoutRequest
     | CreateGroupRequest (Untrusted GroupName) (Untrusted Description) GroupVisibility
@@ -351,43 +349,43 @@ type ToBackend
     | ChangeProfileImageRequest (Untrusted ProfileImage)
     | GetMyGroupsRequest
     | SearchGroupsRequest String
-    | ChangeGroupNameRequest GroupId (Untrusted GroupName)
-    | ChangeGroupDescriptionRequest GroupId (Untrusted Description)
-    | CreateEventRequest GroupId (Untrusted EventName) (Untrusted Description) (Untrusted EventType) Time.Posix (Untrusted EventDuration) (Untrusted MaxAttendees)
-    | EditEventRequest GroupId EventId (Untrusted EventName) (Untrusted Description) (Untrusted EventType) Time.Posix (Untrusted EventDuration) (Untrusted MaxAttendees)
-    | JoinEventRequest GroupId EventId
-    | LeaveEventRequest GroupId EventId
-    | ChangeEventCancellationStatusRequest GroupId EventId CancellationStatus
+    | ChangeGroupNameRequest (Id GroupId) (Untrusted GroupName)
+    | ChangeGroupDescriptionRequest (Id GroupId) (Untrusted Description)
+    | CreateEventRequest (Id GroupId) (Untrusted EventName) (Untrusted Description) (Untrusted EventType) Time.Posix (Untrusted EventDuration) (Untrusted MaxAttendees)
+    | EditEventRequest (Id GroupId) EventId (Untrusted EventName) (Untrusted Description) (Untrusted EventType) Time.Posix (Untrusted EventDuration) (Untrusted MaxAttendees)
+    | JoinEventRequest (Id GroupId) EventId
+    | LeaveEventRequest (Id GroupId) EventId
+    | ChangeEventCancellationStatusRequest (Id GroupId) EventId CancellationStatus
 
 
 type BackendMsg
     = SentLoginEmail EmailAddress (Result SendGrid.Error ())
     | SentDeleteUserEmail (Id UserId) (Result SendGrid.Error ())
-    | SentEventReminderEmail (Id UserId) GroupId EventId (Result SendGrid.Error ())
+    | SentEventReminderEmail (Id UserId) (Id GroupId) EventId (Result SendGrid.Error ())
     | BackendGotTime Time.Posix
     | Connected SessionId ClientId
     | Disconnected SessionId ClientId
 
 
 type ToFrontend
-    = GetGroupResponse GroupId GroupRequest
+    = GetGroupResponse (Id GroupId) GroupRequest
     | GetUserResponse (Id UserId) (Result () FrontendUser)
     | CheckLoginResponse (Maybe { userId : Id UserId, user : BackendUser, isAdmin : Bool })
     | LoginWithTokenResponse (Result () { userId : Id UserId, user : BackendUser, isAdmin : Bool })
     | GetAdminDataResponse AdminModel
-    | CreateGroupResponse (Result CreateGroupError ( GroupId, Group ))
+    | CreateGroupResponse (Result CreateGroupError ( Id GroupId, Group ))
     | LogoutResponse
     | ChangeNameResponse Name
     | ChangeDescriptionResponse Description
     | ChangeEmailAddressResponse EmailAddress
     | DeleteUserResponse (Result () ())
     | ChangeProfileImageResponse ProfileImage
-    | GetMyGroupsResponse (List ( GroupId, Group ))
-    | SearchGroupsResponse String (List ( GroupId, Group ))
-    | ChangeGroupNameResponse GroupId GroupName
-    | ChangeGroupDescriptionResponse GroupId Description
-    | CreateEventResponse GroupId (Result CreateEventError Event)
-    | EditEventResponse GroupId EventId (Result Group.EditEventError Event) Time.Posix
-    | JoinEventResponse GroupId EventId (Result JoinEventError ())
-    | LeaveEventResponse GroupId EventId (Result () ())
-    | ChangeEventCancellationStatusResponse GroupId EventId (Result Group.EditCancellationStatusError CancellationStatus) Time.Posix
+    | GetMyGroupsResponse (List ( Id GroupId, Group ))
+    | SearchGroupsResponse String (List ( Id GroupId, Group ))
+    | ChangeGroupNameResponse (Id GroupId) GroupName
+    | ChangeGroupDescriptionResponse (Id GroupId) Description
+    | CreateEventResponse (Id GroupId) (Result CreateEventError Event)
+    | EditEventResponse (Id GroupId) EventId (Result Group.EditEventError Event) Time.Posix
+    | JoinEventResponse (Id GroupId) EventId (Result JoinEventError ())
+    | LeaveEventResponse (Id GroupId) EventId (Result () ())
+    | ChangeEventCancellationStatusResponse (Id GroupId) EventId (Result Group.EditCancellationStatusError CancellationStatus) Time.Posix

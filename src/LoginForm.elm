@@ -8,7 +8,7 @@ import EmailAddress exposing (EmailAddress)
 import Group exposing (EventId, Group)
 import GroupName
 import Html.Attributes
-import Id exposing (ButtonId(..), GroupId, HtmlId, TextInputId)
+import Id exposing (ButtonId(..), GroupId, HtmlId, Id, TextInputId)
 import Route exposing (Route)
 import Types exposing (Cache(..), FrontendMsg(..), LoginForm, ToBackend(..))
 import Ui
@@ -37,7 +37,7 @@ emailInput id onSubmit onChange text labelText maybeError =
         ]
 
 
-view : Maybe ( GroupId, EventId ) -> Dict GroupId (Cache Group) -> LoginForm -> Element FrontendMsg
+view : Maybe ( Id GroupId, EventId ) -> Dict (Id GroupId) (Cache Group) -> LoginForm -> Element FrontendMsg
 view joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent } =
     Element.column
         [ Element.centerX
@@ -117,7 +117,12 @@ validateEmail text =
                 Err "Invalid email address"
 
 
-submitForm : { a | none : cmd, sendToBackend : ToBackend -> cmd } -> Route -> Maybe ( GroupId, EventId ) -> LoginForm -> ( LoginForm, cmd )
+submitForm :
+    { a | none : cmd, sendToBackend : ToBackend -> cmd }
+    -> Route
+    -> Maybe ( Id GroupId, EventId )
+    -> LoginForm
+    -> ( LoginForm, cmd )
 submitForm cmds route maybeJoinEvent loginForm =
     case validateEmail loginForm.email of
         Ok email ->

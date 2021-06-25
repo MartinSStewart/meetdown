@@ -3,6 +3,7 @@ module Route exposing (Route(..), Token(..), decode, encode, encodeWithToken, lo
 import Group exposing (EventId)
 import GroupName exposing (GroupName)
 import Id exposing (DeleteUserToken, GroupId, Id, LoginToken, UserId)
+import Name exposing (Name)
 import Url
 import Url.Builder
 import Url.Parser exposing ((</>), (<?>))
@@ -11,13 +12,13 @@ import Url.Parser.Query
 
 type Route
     = HomepageRoute
-    | GroupRoute GroupId GroupName
+    | GroupRoute (Id GroupId) GroupName
     | AdminRoute
     | CreateGroupRoute
     | SearchGroupsRoute String
     | MyGroupsRoute
     | MyProfileRoute
-    | UserRoute (Id UserId)
+    | UserRoute (Id UserId) Name
 
 
 decode : Url.Parser.Parser (( Route, Token ) -> c) c
@@ -26,23 +27,14 @@ decode =
         [ Url.Parser.top |> Url.Parser.map HomepageRoute
         , Url.Parser.s "group"
             </> Url.Parser.string
+            </> Url.Parser.string
             |> Url.Parser.map
-                (\text ->
-                    case String.split "-" text of
-                        head :: rest ->
-                            case ( String.toInt head, String.join "-" rest |> Url.percentDecode ) of
-                                ( Just groupId, Just groupNameText ) ->
-                                    case GroupName.fromString (String.replace "-" " " groupNameText) of
-                                        Ok groupName ->
-                                            GroupRoute (Id.groupIdFromInt groupId) groupName
+                (\groupIdSegment groupNameSegment ->
+                    case decodeGroupName groupNameSegment of
+                        Just groupName ->
+                            GroupRoute (Id.cryptoHashFromString groupIdSegment) groupName
 
-                                        Err _ ->
-                                            HomepageRoute
-
-                                _ ->
-                                    HomepageRoute
-
-                        [] ->
+                        Nothing ->
                             HomepageRoute
                 )
         , Url.Parser.s "admin" |> Url.Parser.map AdminRoute
@@ -53,7 +45,18 @@ decode =
         , Url.Parser.s "search" |> Url.Parser.map (SearchGroupsRoute "")
         , Url.Parser.s "my-groups" |> Url.Parser.map MyGroupsRoute
         , Url.Parser.s "profile" |> Url.Parser.map MyProfileRoute
-        , Url.Parser.s "user" </> Url.Parser.string |> Url.Parser.map (Id.cryptoHashFromString >> UserRoute)
+        , Url.Parser.s "user"
+            </> Url.Parser.string
+            </> Url.Parser.string
+            |> Url.Parser.map
+                (\userIdSegment userNameSegment ->
+                    case decodeName userNameSegment of
+                        Just name ->
+                            UserRoute (Id.cryptoHashFromString userIdSegment) name
+
+                        Nothing ->
+                            HomepageRoute
+                )
         ]
         <?> decodeToken
         |> Url.Parser.map Tuple.pair
@@ -81,7 +84,7 @@ decodeToken =
                     NoToken
         )
         (Url.Parser.Query.string loginTokenName |> Url.Parser.Query.map (Maybe.map Id.cryptoHashFromString))
-        (Url.Parser.Query.int groupIdName |> Url.Parser.Query.map (Maybe.map Id.groupIdFromInt))
+        (Url.Parser.Query.string groupIdName |> Url.Parser.Query.map (Maybe.map Id.cryptoHashFromString))
         (Url.Parser.Query.int eventIdName |> Url.Parser.Query.map (Maybe.map Group.eventIdFromInt))
         (Url.Parser.Query.string deleteUserTokenName |> Url.Parser.Query.map (Maybe.map Id.cryptoHashFromString))
 
@@ -104,13 +107,43 @@ deleteUserTokenName =
 
 type Token
     = NoToken
-    | LoginToken (Id LoginToken) (Maybe ( GroupId, EventId ))
+    | LoginToken (Id LoginToken) (Maybe ( Id GroupId, EventId ))
     | DeleteUserToken (Id DeleteUserToken)
 
 
 encode : Route -> String
 encode route =
     encodeWithToken route NoToken
+
+
+encodeGroupName : GroupName -> String
+encodeGroupName =
+    GroupName.toString >> String.replace " " "-" >> Url.percentEncode
+
+
+decodeGroupName : String -> Maybe GroupName
+decodeGroupName text =
+    case Url.percentDecode text of
+        Just decoded ->
+            String.replace "-" " " decoded |> GroupName.fromString |> Result.toMaybe
+
+        Nothing ->
+            Nothing
+
+
+encodeName : Name -> String
+encodeName =
+    Name.toString >> String.replace " " "-" >> Url.percentEncode
+
+
+decodeName : String -> Maybe Name
+decodeName text =
+    case Url.percentDecode text of
+        Just decoded ->
+            String.replace "-" " " decoded |> Name.fromString |> Result.toMaybe
+
+        Nothing ->
+            Nothing
 
 
 encodeWithToken : Route -> Token -> String
@@ -121,13 +154,7 @@ encodeWithToken route token =
                 []
 
             GroupRoute groupId groupName ->
-                let
-                    groupNameText =
-                        GroupName.toString groupName
-                            |> String.replace " " "-"
-                            |> Url.percentEncode
-                in
-                [ "group", String.fromInt (Id.groupIdToInt groupId) ++ "-" ++ groupNameText ]
+                [ "group", Id.cryptoHashToString groupId, encodeGroupName groupName ]
 
             AdminRoute ->
                 [ "admin" ]
@@ -150,15 +177,15 @@ encodeWithToken route token =
                             [ Url.percentEncode searchText ]
                        )
 
-            UserRoute userId ->
-                [ "user", Id.cryptoHashToString userId ]
+            UserRoute userId name ->
+                [ "user", Id.cryptoHashToString userId, encodeName name ]
         )
         (case token of
             LoginToken loginToken maybeJoinEvent ->
                 Url.Builder.string loginTokenName (Id.cryptoHashToString loginToken)
                     :: (case maybeJoinEvent of
                             Just ( groupId, eventId ) ->
-                                [ Url.Builder.int groupIdName (Id.groupIdToInt groupId)
+                                [ Url.Builder.string groupIdName (Id.cryptoHashToString groupId)
                                 , Url.Builder.int eventIdName (Group.eventIdToInt eventId)
                                 ]
 

@@ -16,9 +16,9 @@ type BackendEffect
     = Batch (List BackendEffect)
     | None
     | SendToFrontend ClientId ToFrontend
-    | SendLoginEmail (Result SendGrid.Error () -> BackendMsg) EmailAddress Route (Id LoginToken) (Maybe ( GroupId, EventId ))
+    | SendLoginEmail (Result SendGrid.Error () -> BackendMsg) EmailAddress Route (Id LoginToken) (Maybe ( Id GroupId, EventId ))
     | SendDeleteUserEmail (Result SendGrid.Error () -> BackendMsg) EmailAddress (Id DeleteUserToken)
-    | SendEventReminderEmail (Result SendGrid.Error () -> BackendMsg) GroupId GroupName Event Time.Zone EmailAddress
+    | SendEventReminderEmail (Result SendGrid.Error () -> BackendMsg) (Id GroupId) GroupName Event Time.Zone EmailAddress
     | GetTime (Time.Posix -> BackendMsg)
 
 
