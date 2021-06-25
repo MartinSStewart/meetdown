@@ -1,18 +1,19 @@
 {
     "type": "application",
     "source-directories": [
-        "src"
+        "src",
+        "send-grid"
     ],
     "elm-version": "0.19.1",
     "dependencies": {
         "direct": {
             "Janiczek/elm-bidict": "2.0.1",
             "MartinSStewart/elm-nonempty-string": "2.0.0",
-            "MartinSStewart/send-grid": "4.1.0",
             "NoRedInk/elm-json-decode-pipeline": "1.0.0",
             "avh4/elm-color": "1.0.0",
             "bburdette/toop": "1.0.1",
             "billstclair/elm-sha256": "1.0.9",
+            "danfishgold/base64-bytes": "1.1.0",
             "dillonkearns/elm-markdown": "6.0.1",
             "elm/browser": "1.0.2",
             "elm/bytes": "1.0.8",
@@ -43,7 +44,6 @@
         },
         "indirect": {
             "NoRedInk/elm-string-conversions": "1.0.1",
-            "danfishgold/base64-bytes": "1.1.0",
             "elm/random": "1.0.0",
             "elm/regex": "1.0.0",
             "elm/virtual-dom": "1.0.2",
