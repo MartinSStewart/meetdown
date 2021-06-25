@@ -170,7 +170,7 @@ migrateEvent (Evergreen.V25.Event.Event event) =
         { name = migrateEventName event.name
         , description = migrateDescription event.description
         , eventType = migrateEventType event.eventType
-        , attendees = Set.map migrateId event.attendees
+        , attendees = Set.map migrateUserId event.attendees
         , startTime = event.startTime
         , duration = migrateEventDuration event.duration
         , cancellationStatus = Maybe.map (Tuple.mapFirst migrateCancellationStatus) event.cancellationStatus
@@ -192,7 +192,7 @@ migrateGroupVisibility a =
 migrateGroup : Evergreen.V25.Group.Group -> Evergreen.V26.Group.Group
 migrateGroup (Evergreen.V25.Group.Group group) =
     Evergreen.V26.Group.Group
-        { ownerId = migrateId group.ownerId
+        { ownerId = migrateUserId group.ownerId
         , name = migrateGroupName group.name
         , description = migrateDescription group.description
         , events =
@@ -236,7 +236,7 @@ migrateRoute a =
             Evergreen.V26.Route.MyProfileRoute
 
         Evergreen.V25.Route.UserRoute id ->
-            Evergreen.V26.Route.UserRoute (migrateId id) (Evergreen.V26.Name.Name "temp")
+            Evergreen.V26.Route.UserRoute (migrateUserId id) (Evergreen.V26.Name.Name "temp")
 
 
 migrateToBackend : Old.ToBackend -> New.ToBackend
@@ -246,7 +246,7 @@ migrateToBackend toBackend_ =
             New.GetGroupRequest (migrateGroupId a)
 
         Old.GetUserRequest a ->
-            New.GetUserRequest (migrateId a)
+            New.GetUserRequest (migrateUserId a)
 
         Old.CheckLoginRequest ->
             New.CheckLoginRequest
@@ -343,22 +343,22 @@ migrateLog log =
             New.LogLoginEmail posix result emailAddress
 
         Old.LogDeleteAccountEmail posix result id ->
-            New.LogDeleteAccountEmail posix result (migrateId id)
+            New.LogDeleteAccountEmail posix result (migrateUserId id)
 
         Old.LogEventReminderEmail posix result id groupId eventId ->
-            New.LogEventReminderEmail posix result (migrateId id) (migrateGroupId groupId) (migrateEventId eventId)
+            New.LogEventReminderEmail posix result (migrateUserId id) (migrateGroupId groupId) (migrateEventId eventId)
 
         Old.LogLoginTokenEmailRequestRateLimited a b c ->
             New.LogLoginTokenEmailRequestRateLimited a b (migrateSessionIdFirst4Chars c)
 
         Old.LogDeleteAccountEmailRequestRateLimited a b c ->
-            New.LogDeleteAccountEmailRequestRateLimited a (migrateId b) (migrateSessionIdFirst4Chars c)
+            New.LogDeleteAccountEmailRequestRateLimited a (migrateUserId b) (migrateSessionIdFirst4Chars c)
 
 
 migrateDeleteUserToken : Old.DeleteUserTokenData -> New.DeleteUserTokenData
 migrateDeleteUserToken a =
     { creationTime = a.creationTime
-    , userId = migrateId a.userId
+    , userId = migrateUserId a.userId
     }
 
 
@@ -366,7 +366,7 @@ migrateBackendModel : Old.BackendModel -> New.BackendModel
 migrateBackendModel old =
     { users =
         Dict.toList old.users
-            |> List.map (Tuple.mapBoth migrateId migrateBackendUser)
+            |> List.map (Tuple.mapBoth migrateUserId migrateBackendUser)
             |> Dict.fromList
     , groups =
         Dict.toList old.groups
@@ -374,7 +374,7 @@ migrateBackendModel old =
             |> Dict.fromList
     , sessions =
         BiDict.toList old.sessions
-            |> List.map (Tuple.mapBoth migrateSessionId migrateId)
+            |> List.map (Tuple.mapBoth migrateSessionId migrateUserId)
             |> BiDict.fromList
     , loginAttempts = Dict.toList old.loginAttempts |> List.map (Tuple.mapFirst migrateSessionId) |> Dict.fromList
     , connections =

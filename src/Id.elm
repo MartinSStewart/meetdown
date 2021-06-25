@@ -201,6 +201,24 @@ cryptoHashToString (Id hash) =
     hash
 
 
-cryptoHashFromString : String -> Id a
-cryptoHashFromString =
-    Id
+cryptoHashFromString : String -> Maybe (Id a)
+cryptoHashFromString text =
+    if text == "" then
+        Nothing
+
+    else if
+        String.all
+            (\char ->
+                let
+                    code =
+                        Char.toCode char
+                in
+                -- Only digits and lower case letters are allowed
+                (0x30 <= code && code <= 0x39) || (0x61 <= code && code <= 0x66)
+            )
+            text
+    then
+        Just (Id text)
+
+    else
+        Nothing

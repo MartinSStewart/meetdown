@@ -30,11 +30,11 @@ decode =
             </> Url.Parser.string
             |> Url.Parser.map
                 (\groupIdSegment groupNameSegment ->
-                    case decodeGroupName groupNameSegment of
-                        Just groupName ->
-                            GroupRoute (Id.cryptoHashFromString groupIdSegment) groupName
+                    case ( Id.cryptoHashFromString groupIdSegment, decodeGroupName groupNameSegment ) of
+                        ( Just groupId, Just groupName ) ->
+                            GroupRoute groupId groupName
 
-                        Nothing ->
+                        _ ->
                             HomepageRoute
                 )
         , Url.Parser.s "admin" |> Url.Parser.map AdminRoute
@@ -50,11 +50,11 @@ decode =
             </> Url.Parser.string
             |> Url.Parser.map
                 (\userIdSegment userNameSegment ->
-                    case decodeName userNameSegment of
-                        Just name ->
-                            UserRoute (Id.cryptoHashFromString userIdSegment) name
+                    case ( Id.cryptoHashFromString userIdSegment, decodeName userNameSegment ) of
+                        ( Just userId, Just name ) ->
+                            UserRoute userId name
 
-                        Nothing ->
+                        _ ->
                             HomepageRoute
                 )
         ]
@@ -83,10 +83,10 @@ decodeToken =
                 ( Nothing, Nothing ) ->
                     NoToken
         )
-        (Url.Parser.Query.string loginTokenName |> Url.Parser.Query.map (Maybe.map Id.cryptoHashFromString))
-        (Url.Parser.Query.string groupIdName |> Url.Parser.Query.map (Maybe.map Id.cryptoHashFromString))
+        (Url.Parser.Query.string loginTokenName |> Url.Parser.Query.map (Maybe.andThen Id.cryptoHashFromString))
+        (Url.Parser.Query.string groupIdName |> Url.Parser.Query.map (Maybe.andThen Id.cryptoHashFromString))
         (Url.Parser.Query.int eventIdName |> Url.Parser.Query.map (Maybe.map Group.eventIdFromInt))
-        (Url.Parser.Query.string deleteUserTokenName |> Url.Parser.Query.map (Maybe.map Id.cryptoHashFromString))
+        (Url.Parser.Query.string deleteUserTokenName |> Url.Parser.Query.map (Maybe.andThen Id.cryptoHashFromString))
 
 
 loginTokenName =
