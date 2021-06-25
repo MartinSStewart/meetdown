@@ -67,8 +67,8 @@ handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress andTh
         |> TF.simulateTime Duration.second
         |> TF.andThen
             (\state3 ->
-                case List.filter (Tuple.first >> (==) emailAddress) state3.emailInboxes of
-                    [ ( _, LoginEmail route loginToken maybeJoinEvent ) ] ->
+                case List.filter (Tuple.first >> (==) emailAddress) state3.emailInboxes |> List.reverse |> List.head of
+                    Just ( _, LoginEmail route loginToken maybeJoinEvent ) ->
                         TF.continueWith state3
                             |> TF.connectFrontend
                                 sessionIdFromEmail
@@ -767,7 +767,6 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
                     |> TF.simulateTime Duration.second
                     |> TF.clickButton clientId GroupPage.joinEventButtonId
                     |> TF.simulateTime Duration.second
-                    |> TF.simulateTime Duration.minute
                     |> handleLoginForm
                         True
                         clientId
