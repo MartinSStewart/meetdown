@@ -56,8 +56,8 @@ allEffects =
         \msg emailAddress route loginToken maybeJoinEvent ->
             case noReplyEmailAddress of
                 Just sender ->
-                    { from = sender
-                    , to = List.Nonempty.fromElement { name = "Meetdown", email = emailAddress }
+                    { from = { name = "Meetdown", email = sender }
+                    , to = List.Nonempty.fromElement { name = "", email = emailAddress }
                     , subject = BackendLogic.loginEmailSubject
                     , body = Postmark.BodyHtml <| BackendLogic.loginEmailContent route loginToken maybeJoinEvent
                     , messageStream = "outbound"
@@ -70,8 +70,8 @@ allEffects =
         \msg emailAddress deleteUserToken ->
             case noReplyEmailAddress of
                 Just sender ->
-                    { from = sender
-                    , to = List.Nonempty.fromElement { name = "Meetdown", email = emailAddress }
+                    { from = { name = "Meetdown", email = sender }
+                    , to = List.Nonempty.fromElement { name = "", email = emailAddress }
                     , subject = BackendLogic.deleteAccountEmailSubject
                     , body = Postmark.BodyHtml <| BackendLogic.deleteAccountEmailContent deleteUserToken
                     , messageStream = "outbound"
@@ -84,8 +84,8 @@ allEffects =
         \msg groupId groupName event timezone emailAddress ->
             case noReplyEmailAddress of
                 Just sender ->
-                    { from = sender
-                    , to = List.Nonempty.fromElement { name = "Meetdown", email = emailAddress }
+                    { from = { name = "Meetdown", email = sender }
+                    , to = List.Nonempty.fromElement { name = "", email = emailAddress }
                     , subject = BackendLogic.eventReminderEmailSubject groupName event timezone
                     , body = Postmark.BodyHtml <| BackendLogic.eventReminderEmailContent groupId groupName event
                     , messageStream = "broadcast"

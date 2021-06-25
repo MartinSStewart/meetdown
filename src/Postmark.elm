@@ -32,7 +32,7 @@ type PostmarkEmailBody
 
 
 type alias PostmarkSend =
-    { from : EmailAddress
+    { from : { name : String, email : EmailAddress }
     , to : List.Nonempty.Nonempty { name : String, email : EmailAddress }
     , subject : NonemptyString
     , body : PostmarkEmailBody
@@ -46,7 +46,7 @@ sendEmailTask token d =
         httpBody =
             Http.jsonBody <|
                 E.object <|
-                    [ ( "From", E.string <| EmailAddress.toString d.from )
+                    [ ( "From", E.string <| emailToString d.from )
                     , ( "To", E.string <| emailsToString d.to )
                     , ( "Subject", E.string <| String.Nonempty.toString d.subject )
                     , ( "MessageStream", E.string d.messageStream )
@@ -72,15 +72,17 @@ emailsToString : List.Nonempty.Nonempty { name : String, email : EmailAddress } 
 emailsToString nonEmptyEmails =
     nonEmptyEmails
         |> List.Nonempty.toList
-        |> List.map
-            (\to ->
-                if to.name == "" then
-                    EmailAddress.toString to.email
-
-                else
-                    "<" ++ to.name ++ "> " ++ EmailAddress.toString to.email
-            )
+        |> List.map emailToString
         |> String.join ", "
+
+
+emailToString : { name : String, email : EmailAddress } -> String
+emailToString address =
+    if address.name == "" then
+        EmailAddress.toString address.email
+
+    else
+        address.name ++ " <" ++ EmailAddress.toString address.email ++ ">"
 
 
 type alias PostmarkSendResponse =
