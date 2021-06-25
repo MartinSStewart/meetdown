@@ -88,7 +88,7 @@ allEffects =
                     , to = List.Nonempty.fromElement { name = "Meetdown", email = emailAddress }
                     , subject = BackendLogic.eventReminderEmailSubject groupName event timezone
                     , body = Postmark.BodyHtml <| BackendLogic.eventReminderEmailContent groupId groupName event
-                    , messageStream = "outbound"
+                    , messageStream = "broadcast"
                     }
                         |> Postmark.sendEmail msg Env.postmarkServerToken
 
