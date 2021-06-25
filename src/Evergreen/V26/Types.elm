@@ -6,7 +6,6 @@ import AssocSet
 import BiDict.Assoc
 import Browser
 import Browser.Navigation
-import EmailAddress
 import Evergreen.V26.CreateGroupPage
 import Evergreen.V26.Description
 import Evergreen.V26.Event
@@ -52,13 +51,13 @@ type ToBackend
     | GetUserRequest (Evergreen.V26.Id.Id Evergreen.V26.Id.UserId)
     | CheckLoginRequest
     | LoginWithTokenRequest (Evergreen.V26.Id.Id Evergreen.V26.Id.LoginToken) (Maybe ( Evergreen.V26.Id.Id Evergreen.V26.Id.GroupId, Evergreen.V26.Group.EventId ))
-    | GetLoginTokenRequest Evergreen.V26.Route.Route (Evergreen.V26.Untrusted.Untrusted EmailAddress.EmailAddress) (Maybe ( Evergreen.V26.Id.Id Evergreen.V26.Id.GroupId, Evergreen.V26.Group.EventId ))
+    | GetLoginTokenRequest Evergreen.V26.Route.Route (Evergreen.V26.Untrusted.Untrusted EmailAddress) (Maybe ( Evergreen.V26.Id.Id Evergreen.V26.Id.GroupId, Evergreen.V26.Group.EventId ))
     | GetAdminDataRequest
     | LogoutRequest
     | CreateGroupRequest (Evergreen.V26.Untrusted.Untrusted Evergreen.V26.GroupName.GroupName) (Evergreen.V26.Untrusted.Untrusted Evergreen.V26.Description.Description) Evergreen.V26.Group.GroupVisibility
     | ChangeNameRequest (Evergreen.V26.Untrusted.Untrusted Evergreen.V26.Name.Name)
     | ChangeDescriptionRequest (Evergreen.V26.Untrusted.Untrusted Evergreen.V26.Description.Description)
-    | ChangeEmailAddressRequest (Evergreen.V26.Untrusted.Untrusted EmailAddress.EmailAddress)
+    | ChangeEmailAddressRequest (Evergreen.V26.Untrusted.Untrusted EmailAddress)
     | SendDeleteUserEmailRequest
     | DeleteUserRequest (Evergreen.V26.Id.Id Evergreen.V26.Id.DeleteUserToken)
     | ChangeProfileImageRequest (Evergreen.V26.Untrusted.Untrusted Evergreen.V26.ProfileImage.ProfileImage)
@@ -75,15 +74,15 @@ type ToBackend
 
 type Log
     = LogUntrustedCheckFailed Time.Posix ToBackend Evergreen.V26.Id.SessionIdFirst4Chars
-    | LogLoginEmail Time.Posix (Result SendGrid.Error ()) EmailAddress.EmailAddress
+    | LogLoginEmail Time.Posix (Result SendGrid.Error ()) EmailAddress
     | LogDeleteAccountEmail Time.Posix (Result SendGrid.Error ()) (Evergreen.V26.Id.Id Evergreen.V26.Id.UserId)
     | LogEventReminderEmail Time.Posix (Result SendGrid.Error ()) (Evergreen.V26.Id.Id Evergreen.V26.Id.UserId) (Evergreen.V26.Id.Id Evergreen.V26.Id.GroupId) Evergreen.V26.Group.EventId
-    | LogLoginTokenEmailRequestRateLimited Time.Posix EmailAddress.EmailAddress Evergreen.V26.Id.SessionIdFirst4Chars
+    | LogLoginTokenEmailRequestRateLimited Time.Posix EmailAddress Evergreen.V26.Id.SessionIdFirst4Chars
     | LogDeleteAccountEmailRequestRateLimited Time.Posix (Evergreen.V26.Id.Id Evergreen.V26.Id.UserId) Evergreen.V26.Id.SessionIdFirst4Chars
 
 
 type alias AdminModel =
-    { cachedEmailAddress : AssocList.Dict (Evergreen.V26.Id.Id Evergreen.V26.Id.UserId) EmailAddress.EmailAddress
+    { cachedEmailAddress : AssocList.Dict (Evergreen.V26.Id.Id Evergreen.V26.Id.UserId) EmailAddress
     , logs : Array.Array Log
     , lastLogCheck : Time.Posix
     }
@@ -97,7 +96,7 @@ type AdminCache
 
 type alias LoggedIn_ =
     { userId : Evergreen.V26.Id.Id Evergreen.V26.Id.UserId
-    , emailAddress : EmailAddress.EmailAddress
+    , emailAddress : EmailAddress
     , profileForm : Evergreen.V26.ProfilePage.Model
     , myGroups : Maybe (AssocSet.Set (Evergreen.V26.Id.Id Evergreen.V26.Id.GroupId))
     , adminState : AdminCache
@@ -123,7 +122,7 @@ type Cache item
 type alias LoginForm =
     { email : String
     , pressedSubmitEmail : Bool
-    , emailSent : Maybe EmailAddress.EmailAddress
+    , emailSent : Maybe EmailAddress
     }
 
 
@@ -158,7 +157,7 @@ type FrontendModel
 type alias BackendUser =
     { name : Evergreen.V26.Name.Name
     , description : Evergreen.V26.Description.Description
-    , emailAddress : EmailAddress.EmailAddress
+    , emailAddress : EmailAddress
     , profileImage : Evergreen.V26.ProfileImage.ProfileImage
     , timezone : Time.Zone
     , allowEventReminders : Bool
@@ -167,7 +166,7 @@ type alias BackendUser =
 
 type alias LoginTokenData =
     { creationTime : Time.Posix
-    , emailAddress : EmailAddress.EmailAddress
+    , emailAddress : EmailAddress
     }
 
 
@@ -215,7 +214,7 @@ type FrontendMsg
 
 
 type BackendMsg
-    = SentLoginEmail EmailAddress.EmailAddress (Result SendGrid.Error ())
+    = SentLoginEmail EmailAddress (Result SendGrid.Error ())
     | SentDeleteUserEmail (Evergreen.V26.Id.Id Evergreen.V26.Id.UserId) (Result SendGrid.Error ())
     | SentEventReminderEmail (Evergreen.V26.Id.Id Evergreen.V26.Id.UserId) (Evergreen.V26.Id.Id Evergreen.V26.Id.GroupId) Evergreen.V26.Group.EventId (Result SendGrid.Error ())
     | BackendGotTime Time.Posix
@@ -251,7 +250,7 @@ type ToFrontend
     | LogoutResponse
     | ChangeNameResponse Evergreen.V26.Name.Name
     | ChangeDescriptionResponse Evergreen.V26.Description.Description
-    | ChangeEmailAddressResponse EmailAddress.EmailAddress
+    | ChangeEmailAddressResponse EmailAddress
     | DeleteUserResponse (Result () ())
     | ChangeProfileImageResponse Evergreen.V26.ProfileImage.ProfileImage
     | GetMyGroupsResponse (List ( Evergreen.V26.Id.Id Evergreen.V26.Id.GroupId, Evergreen.V26.Group.Group ))
@@ -263,3 +262,12 @@ type ToFrontend
     | JoinEventResponse (Evergreen.V26.Id.Id Evergreen.V26.Id.GroupId) Evergreen.V26.Group.EventId (Result Evergreen.V26.Group.JoinEventError ())
     | LeaveEventResponse (Evergreen.V26.Id.Id Evergreen.V26.Id.GroupId) Evergreen.V26.Group.EventId (Result () ())
     | ChangeEventCancellationStatusResponse (Evergreen.V26.Id.Id Evergreen.V26.Id.GroupId) Evergreen.V26.Group.EventId (Result Evergreen.V26.Group.EditCancellationStatusError Evergreen.V26.Event.CancellationStatus) Time.Posix
+
+
+type EmailAddress
+    = EmailAddress
+        { localPart : String
+        , tags : List String
+        , domain : String
+        , tld : List String
+        }

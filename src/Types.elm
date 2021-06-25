@@ -16,11 +16,14 @@ import FrontendUser exposing (FrontendUser)
 import Group exposing (EventId, Group, GroupVisibility, JoinEventError)
 import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError)
+import Http
+import HttpHelpers
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, SessionIdFirst4Chars, UserId)
 import List.Nonempty exposing (Nonempty)
 import MaxAttendees exposing (MaxAttendees)
 import Name exposing (Name)
 import Pixels exposing (Pixels)
+import Postmark
 import ProfileImage exposing (ProfileImage)
 import ProfilePage
 import Quantity exposing (Quantity)
@@ -159,9 +162,9 @@ type alias DeleteUserTokenData =
 
 type Log
     = LogUntrustedCheckFailed Time.Posix ToBackend SessionIdFirst4Chars
-    | LogLoginEmail Time.Posix (Result SendGrid.Error ()) EmailAddress
-    | LogDeleteAccountEmail Time.Posix (Result SendGrid.Error ()) (Id UserId)
-    | LogEventReminderEmail Time.Posix (Result SendGrid.Error ()) (Id UserId) (Id GroupId) EventId
+    | LogLoginEmail Time.Posix (Result Http.Error Postmark.PostmarkSendResponse) EmailAddress
+    | LogDeleteAccountEmail Time.Posix (Result Http.Error Postmark.PostmarkSendResponse) (Id UserId)
+    | LogEventReminderEmail Time.Posix (Result Http.Error Postmark.PostmarkSendResponse) (Id UserId) (Id GroupId) EventId
     | LogLoginTokenEmailRequestRateLimited Time.Posix EmailAddress SessionIdFirst4Chars
     | LogDeleteAccountEmailRequestRateLimited Time.Posix (Id UserId) SessionIdFirst4Chars
 
@@ -181,39 +184,7 @@ logData model log =
             "Tried sending a login email to "
                 ++ email
                 ++ " but got this error "
-                ++ (case error of
-                        SendGrid.StatusCode400 errors ->
-                            List.map (\a -> a.message) errors
-                                |> String.join ", "
-                                |> (++) "StatusCode400: "
-
-                        SendGrid.StatusCode401 errors ->
-                            List.map (\a -> a.message) errors
-                                |> String.join ", "
-                                |> (++) "StatusCode401: "
-
-                        SendGrid.StatusCode403 { errors } ->
-                            List.filterMap (\a -> a.message) errors
-                                |> String.join ", "
-                                |> (++) "StatusCode403: "
-
-                        SendGrid.StatusCode413 errors ->
-                            List.map (\a -> a.message) errors
-                                |> String.join ", "
-                                |> (++) "StatusCode413: "
-
-                        SendGrid.UnknownError { statusCode, body } ->
-                            "UnknownError: " ++ String.fromInt statusCode ++ " " ++ body
-
-                        SendGrid.NetworkError ->
-                            "NetworkError"
-
-                        SendGrid.Timeout ->
-                            "Timeout"
-
-                        SendGrid.BadUrl url ->
-                            "BadUrl: " ++ url
-                   )
+                ++ HttpHelpers.httpErrorToString error
     in
     case log of
         LogUntrustedCheckFailed time _ _ ->
@@ -230,7 +201,7 @@ logData model log =
                         True
             , message =
                 case result of
-                    Ok () ->
+                    Ok response ->
                         "Sent an email to " ++ EmailAddress.toString emailAddress
 
                     Err error ->
@@ -248,7 +219,7 @@ logData model log =
                         True
             , message =
                 case result of
-                    Ok () ->
+                    Ok _ ->
                         "Sent an email to " ++ getEmailAddress userId ++ " for deleting their account"
 
                     Err error ->
@@ -266,7 +237,7 @@ logData model log =
                         True
             , message =
                 case result of
-                    Ok () ->
+                    Ok _ ->
                         "Sent an email to " ++ getEmailAddress userId ++ " to notify of an upcoming event"
 
                     Err error ->
@@ -359,9 +330,9 @@ type ToBackend
 
 
 type BackendMsg
-    = SentLoginEmail EmailAddress (Result SendGrid.Error ())
-    | SentDeleteUserEmail (Id UserId) (Result SendGrid.Error ())
-    | SentEventReminderEmail (Id UserId) (Id GroupId) EventId (Result SendGrid.Error ())
+    = SentLoginEmail EmailAddress (Result Http.Error Postmark.PostmarkSendResponse)
+    | SentDeleteUserEmail (Id UserId) (Result Http.Error Postmark.PostmarkSendResponse)
+    | SentEventReminderEmail (Id UserId) (Id GroupId) EventId (Result Http.Error Postmark.PostmarkSendResponse)
     | BackendGotTime Time.Posix
     | Connected SessionId ClientId
     | Disconnected SessionId ClientId

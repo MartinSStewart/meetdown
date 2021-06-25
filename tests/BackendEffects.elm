@@ -5,7 +5,9 @@ import EmailAddress exposing (EmailAddress)
 import Event exposing (Event)
 import Group exposing (EventId)
 import GroupName exposing (GroupName)
+import Http
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken)
+import Postmark
 import Route exposing (Route)
 import SendGrid
 import Time
@@ -16,9 +18,9 @@ type BackendEffect
     = Batch (List BackendEffect)
     | None
     | SendToFrontend ClientId ToFrontend
-    | SendLoginEmail (Result SendGrid.Error () -> BackendMsg) EmailAddress Route (Id LoginToken) (Maybe ( Id GroupId, EventId ))
-    | SendDeleteUserEmail (Result SendGrid.Error () -> BackendMsg) EmailAddress (Id DeleteUserToken)
-    | SendEventReminderEmail (Result SendGrid.Error () -> BackendMsg) (Id GroupId) GroupName Event Time.Zone EmailAddress
+    | SendLoginEmail (Result Http.Error Postmark.PostmarkSendResponse -> BackendMsg) EmailAddress Route (Id LoginToken) (Maybe ( Id GroupId, EventId ))
+    | SendDeleteUserEmail (Result Http.Error Postmark.PostmarkSendResponse -> BackendMsg) EmailAddress (Id DeleteUserToken)
+    | SendEventReminderEmail (Result Http.Error Postmark.PostmarkSendResponse -> BackendMsg) (Id GroupId) GroupName Event Time.Zone EmailAddress
     | GetTime (Time.Posix -> BackendMsg)
 
 

@@ -1073,7 +1073,7 @@ runBackendEffects effect state =
         BackendEffects.SendLoginEmail msg emailAddress route loginToken maybeJoinEvent ->
             let
                 ( model, effects ) =
-                    backendApp.update (msg (Ok ())) state.backend
+                    backendApp.update (msg (Ok postmarkResponse)) state.backend
             in
             { state
                 | backend = model
@@ -1084,7 +1084,7 @@ runBackendEffects effect state =
         BackendEffects.SendDeleteUserEmail msg emailAddress deleteToken ->
             let
                 ( model, effects ) =
-                    backendApp.update (msg (Ok ())) state.backend
+                    backendApp.update (msg (Ok postmarkResponse)) state.backend
             in
             { state
                 | backend = model
@@ -1095,10 +1095,19 @@ runBackendEffects effect state =
         BackendEffects.SendEventReminderEmail msg groupId groupName event timezone emailAddress ->
             let
                 ( model, effects ) =
-                    backendApp.update (msg (Ok ())) state.backend
+                    backendApp.update (msg (Ok postmarkResponse)) state.backend
             in
             { state
                 | backend = model
                 , pendingEffects = BackendEffects.Batch [ state.pendingEffects, effects ]
                 , emailInboxes = state.emailInboxes ++ [ ( emailAddress, EventReminderEmail groupId groupName event timezone ) ]
             }
+
+
+postmarkResponse =
+    { to = ""
+    , submittedAt = ""
+    , messageID = ""
+    , errorCode = 0
+    , message = ""
+    }
