@@ -56,38 +56,27 @@ allEffects =
         \msg emailAddress route loginToken maybeJoinEvent ->
             case noReplyEmailAddress of
                 Just sender ->
-                    { token = Env.postmarkServerToken
-                    , from = EmailAddress.toString sender
-                    , to = EmailAddress.toString emailAddress
-                    , subject = String.Nonempty.toString BackendLogic.loginEmailSubject
-                    , body = Postmark.EmailHtml_ <| BackendLogic.loginEmailContent route loginToken maybeJoinEvent
+                    { from = sender
+                    , to = List.Nonempty.fromElement { name = "Meetdown", email = emailAddress }
+                    , subject = BackendLogic.loginEmailSubject
+                    , body = Postmark.BodyHtml <| BackendLogic.loginEmailContent route loginToken maybeJoinEvent
                     , messageStream = "outbound"
                     }
-                        |> Postmark.sendEmail
-                        |> Task.attempt msg
+                        |> Postmark.sendEmail msg Env.postmarkServerToken
 
-                -- SendGrid.htmlEmail
-                --     { subject = BackendLogic.loginEmailSubject
-                --     , content = BackendLogic.loginEmailContent route loginToken maybeJoinEvent
-                --     , to = List.Nonempty.fromElement emailAddress
-                --     , emailAddressOfSender = sender
-                --     , nameOfSender = "Meetdown"
-                --     }
-                --     |> SendGrid.sendEmail msg BackendLogic.sendGridApiKey
                 Nothing ->
                     Cmd.none
     , sendDeleteUserEmail =
         \msg emailAddress deleteUserToken ->
             case noReplyEmailAddress of
                 Just sender ->
-                    SendGrid.htmlEmail
-                        { subject = BackendLogic.deleteAccountEmailSubject
-                        , content = BackendLogic.deleteAccountEmailContent deleteUserToken
-                        , to = List.Nonempty.fromElement emailAddress
-                        , emailAddressOfSender = sender
-                        , nameOfSender = "Meetdown"
-                        }
-                        |> SendGrid.sendEmail msg BackendLogic.sendGridApiKey
+                    { from = sender
+                    , to = List.Nonempty.fromElement { name = "Meetdown", email = emailAddress }
+                    , subject = BackendLogic.deleteAccountEmailSubject
+                    , body = Postmark.BodyHtml <| BackendLogic.deleteAccountEmailContent deleteUserToken
+                    , messageStream = "outbound"
+                    }
+                        |> Postmark.sendEmail msg Env.postmarkServerToken
 
                 Nothing ->
                     Cmd.none
@@ -95,14 +84,13 @@ allEffects =
         \msg groupId groupName event timezone emailAddress ->
             case noReplyEmailAddress of
                 Just sender ->
-                    SendGrid.htmlEmail
-                        { subject = BackendLogic.eventReminderEmailSubject groupName event timezone
-                        , content = BackendLogic.eventReminderEmailContent groupId groupName event
-                        , to = List.Nonempty.fromElement emailAddress
-                        , emailAddressOfSender = sender
-                        , nameOfSender = "Meetdown"
-                        }
-                        |> SendGrid.sendEmail msg BackendLogic.sendGridApiKey
+                    { from = sender
+                    , to = List.Nonempty.fromElement { name = "Meetdown", email = emailAddress }
+                    , subject = BackendLogic.eventReminderEmailSubject groupName event timezone
+                    , body = Postmark.BodyHtml <| BackendLogic.eventReminderEmailContent groupId groupName event
+                    , messageStream = "outbound"
+                    }
+                        |> Postmark.sendEmail msg Env.postmarkServerToken
 
                 Nothing ->
                     Cmd.none

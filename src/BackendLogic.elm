@@ -46,9 +46,9 @@ type alias Effects cmd =
         -> Id LoginToken
         -> Maybe ( Id GroupId, EventId )
         -> cmd
-    , sendDeleteUserEmail : (Result SendGrid.Error () -> BackendMsg) -> EmailAddress -> Id DeleteUserToken -> cmd
+    , sendDeleteUserEmail : (Result Http.Error Postmark.PostmarkSendResponse -> BackendMsg) -> EmailAddress -> Id DeleteUserToken -> cmd
     , sendEventReminderEmail :
-        (Result SendGrid.Error () -> BackendMsg)
+        (Result Http.Error Postmark.PostmarkSendResponse -> BackendMsg)
         -> Id GroupId
         -> GroupName
         -> Event

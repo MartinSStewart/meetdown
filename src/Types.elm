@@ -163,8 +163,8 @@ type alias DeleteUserTokenData =
 type Log
     = LogUntrustedCheckFailed Time.Posix ToBackend SessionIdFirst4Chars
     | LogLoginEmail Time.Posix (Result Http.Error Postmark.PostmarkSendResponse) EmailAddress
-    | LogDeleteAccountEmail Time.Posix (Result SendGrid.Error ()) (Id UserId)
-    | LogEventReminderEmail Time.Posix (Result SendGrid.Error ()) (Id UserId) (Id GroupId) EventId
+    | LogDeleteAccountEmail Time.Posix (Result Http.Error Postmark.PostmarkSendResponse) (Id UserId)
+    | LogEventReminderEmail Time.Posix (Result Http.Error Postmark.PostmarkSendResponse) (Id UserId) (Id GroupId) EventId
     | LogLoginTokenEmailRequestRateLimited Time.Posix EmailAddress SessionIdFirst4Chars
     | LogDeleteAccountEmailRequestRateLimited Time.Posix (Id UserId) SessionIdFirst4Chars
 
@@ -185,11 +185,6 @@ logData model log =
                 ++ email
                 ++ " but got this error "
                 ++ HttpHelpers.httpErrorToString error
-
-        emailErrorToString_ email error =
-            "Tried sending a login email to "
-                ++ email
-                ++ " but got this error "
     in
     case log of
         LogUntrustedCheckFailed time _ _ ->
@@ -228,7 +223,7 @@ logData model log =
                         "Sent an email to " ++ getEmailAddress userId ++ " for deleting their account"
 
                     Err error ->
-                        emailErrorToString_ (getEmailAddress userId) error
+                        emailErrorToString (getEmailAddress userId) error
             }
 
         LogEventReminderEmail time result userId groupId eventId ->
@@ -242,11 +237,11 @@ logData model log =
                         True
             , message =
                 case result of
-                    Ok () ->
+                    Ok _ ->
                         "Sent an email to " ++ getEmailAddress userId ++ " to notify of an upcoming event"
 
                     Err error ->
-                        emailErrorToString_ (getEmailAddress userId) error
+                        emailErrorToString (getEmailAddress userId) error
             }
 
         LogLoginTokenEmailRequestRateLimited time emailAddress sessionId ->
@@ -336,8 +331,8 @@ type ToBackend
 
 type BackendMsg
     = SentLoginEmail EmailAddress (Result Http.Error Postmark.PostmarkSendResponse)
-    | SentDeleteUserEmail (Id UserId) (Result SendGrid.Error ())
-    | SentEventReminderEmail (Id UserId) (Id GroupId) EventId (Result SendGrid.Error ())
+    | SentDeleteUserEmail (Id UserId) (Result Http.Error Postmark.PostmarkSendResponse)
+    | SentEventReminderEmail (Id UserId) (Id GroupId) EventId (Result Http.Error Postmark.PostmarkSendResponse)
     | BackendGotTime Time.Posix
     | Connected SessionId ClientId
     | Disconnected SessionId ClientId
