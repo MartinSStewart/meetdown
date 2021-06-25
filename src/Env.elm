@@ -19,3 +19,7 @@ secretKey =
 domain : String
 domain =
     "http://localhost:8000"
+
+
+postmarkServerToken =
+    ""

@@ -2,11 +2,15 @@ module Backend exposing (app)
 
 import BackendLogic exposing (Effects, Subscriptions)
 import Duration exposing (Duration)
+import Email.Html
 import EmailAddress exposing (EmailAddress)
+import Env
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
 import Lamdera
 import List.Nonempty
+import Postmark
 import SendGrid
+import String.Nonempty
 import Task
 import Time
 import Types exposing (..)
@@ -33,7 +37,7 @@ app =
 
 noReplyEmailAddress : Maybe EmailAddress
 noReplyEmailAddress =
-    EmailAddress.fromString "no-reply@meetdown.app"
+    EmailAddress.fromString "no-reply@lamdera.com"
 
 
 allEffects : Effects (Cmd BackendMsg)
@@ -52,15 +56,24 @@ allEffects =
         \msg emailAddress route loginToken maybeJoinEvent ->
             case noReplyEmailAddress of
                 Just sender ->
-                    SendGrid.htmlEmail
-                        { subject = BackendLogic.loginEmailSubject
-                        , content = BackendLogic.loginEmailContent route loginToken maybeJoinEvent
-                        , to = List.Nonempty.fromElement emailAddress
-                        , emailAddressOfSender = sender
-                        , nameOfSender = "Meetdown"
-                        }
-                        |> SendGrid.sendEmail msg BackendLogic.sendGridApiKey
+                    { token = Env.postmarkServerToken
+                    , from = EmailAddress.toString sender
+                    , to = EmailAddress.toString emailAddress
+                    , subject = String.Nonempty.toString BackendLogic.loginEmailSubject
+                    , body = Postmark.EmailHtml_ <| BackendLogic.loginEmailContent route loginToken maybeJoinEvent
+                    , messageStream = "outbound"
+                    }
+                        |> Postmark.sendEmail
+                        |> Task.attempt msg
 
+                -- SendGrid.htmlEmail
+                --     { subject = BackendLogic.loginEmailSubject
+                --     , content = BackendLogic.loginEmailContent route loginToken maybeJoinEvent
+                --     , to = List.Nonempty.fromElement emailAddress
+                --     , emailAddressOfSender = sender
+                --     , nameOfSender = "Meetdown"
+                --     }
+                --     |> SendGrid.sendEmail msg BackendLogic.sendGridApiKey
                 Nothing ->
                     Cmd.none
     , sendDeleteUserEmail =

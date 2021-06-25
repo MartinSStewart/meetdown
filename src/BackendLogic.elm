@@ -16,11 +16,13 @@ import Event exposing (Event)
 import Group exposing (EventId, Group, GroupVisibility)
 import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError(..))
+import Http
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
 import Link
 import List.Extra as List
 import List.Nonempty
 import Name
+import Postmark
 import ProfileImage
 import Quantity
 import Route exposing (Route(..))
@@ -38,7 +40,7 @@ type alias Effects cmd =
     , sendToFrontend : ClientId -> ToFrontend -> cmd
     , sendToFrontends : List ClientId -> ToFrontend -> cmd
     , sendLoginEmail :
-        (Result SendGrid.Error () -> BackendMsg)
+        (Result Http.Error Postmark.PostmarkSendResponse -> BackendMsg)
         -> EmailAddress
         -> Route
         -> Id LoginToken

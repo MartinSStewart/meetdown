@@ -1,5 +1,6 @@
 module Postmark exposing (..)
 
+import Email.Html
 import Html.String
 import Html.String.Attributes as Html
 import Http
@@ -19,6 +20,7 @@ type alias PostmarkServerToken =
 
 type PostmarkEmailBody a
     = EmailHtml (Html.String.Html a)
+    | EmailHtml_ Email.Html.Html
     | EmailText String
     | EmailBoth (Html.String.Html a) String
 
@@ -142,6 +144,9 @@ bodyToJsonValues body =
     case body of
         EmailHtml html ->
             [ ( "HtmlBody", E.string <| Html.String.toString 0 html ) ]
+
+        EmailHtml_ html ->
+            [ ( "HtmlBody", E.string <| Tuple.first <| Email.Html.toString html ) ]
 
         EmailText text ->
             [ ( "TextBody", E.string text ) ]
