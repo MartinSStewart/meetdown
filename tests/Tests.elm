@@ -1,4 +1,4 @@
-module Tests exposing (createEventAndAnotherUserNotLoggedInJoinsIt, suite)
+module Tests exposing (createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt, createEventAndAnotherUserNotLoggedInJoinsIt, suite)
 
 import BackendLogic
 import CreateGroupPage
@@ -82,7 +82,7 @@ handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress andTh
                                 )
 
                     _ ->
-                        Debug.todo "Should have gotten a login email"
+                        TF.continueWith state3 |> TF.checkState (\_ -> Err "Should have gotten a login email")
             )
 
 
@@ -463,8 +463,10 @@ suite =
                         )
                     |> TF.toExpectation
         , test "Create an event and another user (who isn't logged in) joins it" <|
-            \_ ->
-                TF.toExpectation createEventAndAnotherUserNotLoggedInJoinsIt
+            \_ -> TF.toExpectation createEventAndAnotherUserNotLoggedInJoinsIt
+        , only <|
+            test "Create an event and another user (who isn't logged in but has an account) joins it" <|
+                \_ -> TF.toExpectation createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt
         , test "Rate limit login for a given email address" <|
             \_ ->
                 let
@@ -692,6 +694,80 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
                     |> TF.simulateTime Duration.second
                     |> TF.clickButton clientId GroupPage.joinEventButtonId
                     |> TF.simulateTime Duration.second
+                    |> handleLoginForm
+                        True
+                        clientId
+                        session1
+                        emailAddress1
+                        (\a ->
+                            a.inProgress
+                                |> TF.simulateTime Duration.second
+                                -- We are just clicking the leave button to test that we had joined the event.
+                                |> TF.clickButton a.clientIdFromEmail GroupPage.leaveEventButtonId
+                        )
+            )
+
+
+createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt : TF.Instructions
+createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
+    let
+        session0 =
+            Id.sessionIdFromString "session0"
+
+        session1 =
+            Id.sessionIdFromString "session1"
+
+        emailAddress0 =
+            Unsafe.emailAddress "a@a.se"
+
+        emailAddress1 =
+            Unsafe.emailAddress "jim@a.com"
+
+        groupName =
+            Unsafe.groupName "It's my Group!"
+    in
+    TF.init
+        |> loginFromHomepage False
+            session0
+            session0
+            emailAddress0
+            (\{ inProgress, clientId, clientIdFromEmail } ->
+                createGroupAndEvent
+                    clientId
+                    { groupName = GroupName.toString groupName
+                    , groupDescription = "This is the best group"
+                    , eventName = "First group event!"
+                    , eventDescription = "We're gonna party!"
+                    , eventDate = Date.fromPosix Time.utc (Duration.addTo TF.startTime Duration.day)
+                    , eventHour = 14
+                    , eventMinute = 0
+                    , eventDuration = "1"
+                    }
+                    inProgress
+            )
+        |> loginFromHomepage False
+            session1
+            session1
+            emailAddress1
+            (\{ inProgress, clientIdFromEmail } ->
+                inProgress
+                    |> TF.simulateTime Duration.second
+                    |> TF.clickButton clientIdFromEmail FrontendLogic.logOutButtonId
+                    |> TF.simulateTime Duration.minute
+            )
+        |> TF.connectFrontend session1
+            (Env.domain ++ Route.encode Route.HomepageRoute |> Unsafe.url)
+            (\( state, clientId ) ->
+                state
+                    |> TF.simulateTime Duration.second
+                    |> TF.inputText clientId FrontendLogic.groupSearchId "my group!"
+                    |> TF.keyDownEvent clientId FrontendLogic.groupSearchId Ui.enterKeyCode
+                    |> TF.simulateTime Duration.second
+                    |> TF.clickLink clientId (Route.GroupRoute (Id.groupIdFromInt 0) groupName)
+                    |> TF.simulateTime Duration.second
+                    |> TF.clickButton clientId GroupPage.joinEventButtonId
+                    |> TF.simulateTime Duration.second
+                    |> TF.simulateTime Duration.minute
                     |> handleLoginForm
                         True
                         clientId

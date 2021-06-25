@@ -2,6 +2,7 @@ module LoginForm exposing (cancelButtonId, emailAddressInputId, submitButtonId, 
 
 import AssocList as Dict exposing (Dict)
 import Element exposing (Element)
+import Element.Font
 import Element.Input
 import EmailAddress exposing (EmailAddress)
 import Group exposing (EventId, Group)
@@ -67,10 +68,11 @@ view joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent } =
                 case Dict.get groupId cachedGroups of
                     Just (ItemCached group) ->
                         Element.paragraph []
-                            [ "Sign in and we'll get you signed up for the "
-                                ++ GroupName.toString (Group.name group)
-                                ++ " event"
+                            [ Element.text "Sign in and we'll get you signed up for the "
+                            , GroupName.toString (Group.name group)
                                 |> Element.text
+                                |> Element.el [ Element.Font.bold ]
+                            , Element.text " event"
                             ]
 
                     _ ->

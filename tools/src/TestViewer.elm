@@ -3,6 +3,7 @@ module TestViewer exposing (..)
 import AssocList as Dict
 import Browser exposing (Document, UrlRequest)
 import Browser.Navigation exposing (Key)
+import Colors
 import Dict as RegularDict
 import Element exposing (Element)
 import Element.Background
@@ -12,6 +13,7 @@ import Element.Input
 import Html exposing (Html)
 import Id exposing (ClientId)
 import Json.Decode
+import List.Extra as List
 import List.Nonempty exposing (Nonempty(..))
 import List.Zipper exposing (Zipper)
 import TestFramework as TF exposing (Instructions)
@@ -28,6 +30,7 @@ type Msg
     | NoOp
     | UrlChanged Url
     | LinkClicked UrlRequest
+    | TimelineSliderChanged Int
 
 
 type alias Model =
@@ -40,7 +43,7 @@ init : flags -> Url -> Key -> ( Model, Cmd Msg )
 init _ _ _ =
     let
         (Nonempty head rest) =
-            TF.flatten Tests.createEventAndAnotherUserNotLoggedInJoinsIt |> List.Nonempty.reverse
+            TF.flatten Tests.createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt |> List.Nonempty.reverse
     in
     ( { steps = List.Zipper.from [] head rest
       , clientId = Nothing
@@ -93,6 +96,26 @@ update msg model =
 
         LinkClicked urlRequest ->
             ( model, Cmd.none )
+
+        TimelineSliderChanged index ->
+            let
+                steps =
+                    List.Zipper.toList model.steps
+            in
+            case List.getAt index steps of
+                Just indexValue ->
+                    ( { model
+                        | steps =
+                            List.Zipper.from
+                                (List.take index steps)
+                                indexValue
+                                (List.drop (1 + index) steps)
+                      }
+                    , Cmd.none
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
 
 
 viewFrontend model =
@@ -158,6 +181,12 @@ controlsView model =
 
         nextStepName =
             List.Zipper.next model.steps |> Maybe.map (List.Zipper.current >> Tuple.first)
+
+        currentIndex =
+            List.Zipper.before model.steps |> List.length
+
+        timelineLength =
+            List.Zipper.toList model.steps |> List.length |> (+) -1
     in
     Element.row
         [ Element.Background.color <| Element.rgb 0.9 0.9 0.9
@@ -171,9 +200,28 @@ controlsView model =
             ]
             [ Element.row
                 [ Element.spacing 8, Element.width Element.fill ]
-                [ (List.Zipper.before model.steps |> List.length |> String.fromInt)
+                [ Element.Input.slider
+                    [ Element.width (Element.px 200)
+                    , Element.behindContent <|
+                        Element.el
+                            [ Element.Background.color Colors.darkGrey
+                            , Element.width Element.fill
+                            , Element.height (Element.px 10)
+                            , Element.centerY
+                            ]
+                            Element.none
+                    ]
+                    { onChange = round >> TimelineSliderChanged
+                    , label = Element.Input.labelHidden "Timeline slider"
+                    , min = 0
+                    , max = toFloat timelineLength
+                    , value = toFloat currentIndex
+                    , thumb = Element.Input.defaultThumb
+                    , step = Just 1
+                    }
+                , String.fromInt currentIndex
                     ++ "/"
-                    ++ (List.Zipper.toList model.steps |> List.length |> String.fromInt)
+                    ++ String.fromInt timelineLength
                     |> Element.text
                 , nextButton (nextStepName |> Maybe.withDefault "No steps remaining")
                 , previousButton
