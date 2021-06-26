@@ -37,7 +37,7 @@ app =
 
 noReplyEmailAddress : Maybe EmailAddress
 noReplyEmailAddress =
-    EmailAddress.fromString "no-reply@lamdera.com"
+    EmailAddress.fromString "no-reply@meetdown.app"
 
 
 allEffects : Effects (Cmd BackendMsg)
