@@ -1244,16 +1244,12 @@ myGroupsView model loggedIn =
     case loggedIn.myGroups of
         Just myGroups ->
             let
+                myGroupsList : List (Element msg)
                 myGroupsList =
                     SearchPage.getGroupsFromIds (Set.toList myGroups) model
                         |> List.map
                             (\( groupId, group ) ->
-                                Element.row
-                                    []
-                                    [ Ui.routeLink
-                                        (GroupRoute groupId (Group.name group))
-                                        (Group.name group |> GroupName.toString)
-                                    ]
+                                SearchPage.groupPreview model.time groupId group
                             )
 
                 mySubscriptionsList =
@@ -1276,16 +1272,14 @@ myGroupsView model loggedIn =
                   else
                     Element.column
                         [ Element.width Element.fill, Element.spacing 8 ]
-                        [ Ui.section "Groups I created"
-                            (if List.isEmpty myGroupsList then
-                                Element.paragraph []
-                                    [ Element.text "You haven't created any groups. "
-                                    , Ui.routeLink CreateGroupRoute "You can do that here."
-                                    ]
+                        [ if List.isEmpty myGroupsList then
+                            Element.paragraph []
+                                [ Element.text "You haven't created any groups. "
+                                , Ui.routeLink CreateGroupRoute "You can do that here."
+                                ]
 
-                             else
-                                Element.column [ Element.spacing 8 ] myGroupsList
-                            )
+                          else
+                            Element.column [ Element.spacing 8, Element.width Element.fill ] myGroupsList
 
                         --, Ui.section "Events I've joined"
                         --    (if List.isEmpty mySubscriptionsList then

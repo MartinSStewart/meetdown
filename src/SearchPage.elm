@@ -1,4 +1,4 @@
-module SearchPage exposing (getGroupsFromIds, view)
+module SearchPage exposing (getGroupsFromIds, groupPreview, view)
 
 import AssocList as Dict
 import Colors
@@ -7,10 +7,13 @@ import Element exposing (Element)
 import Element.Background
 import Element.Border
 import Element.Font
+import Event
 import Group exposing (Group)
 import GroupName
 import Id exposing (GroupId, Id)
 import Route exposing (Route(..))
+import Time
+import TimeExtra as Time
 import Types exposing (Cache(..), FrontendMsg, LoadedFrontend)
 import Ui
 
@@ -52,13 +55,13 @@ view searchText model =
         , Element.column
             [ Element.width Element.fill, Element.spacing 16 ]
             (getGroupsFromIds model.searchList model
-                |> List.map (\( groupId, group ) -> groupView groupId group)
+                |> List.map (\( groupId, group ) -> groupPreview model.time groupId group)
             )
         ]
 
 
-groupView : Id GroupId -> Group -> Element msg
-groupView groupId group =
+groupPreview : Time.Posix -> Id GroupId -> Group -> Element msg
+groupPreview currentTime groupId group =
     Element.link
         (Element.width Element.fill
             :: Ui.inputFocusClass
@@ -94,11 +97,32 @@ groupView groupId group =
                 , Element.height (Element.maximum 140 Element.shrink)
                 , Element.clip
                 ]
-                [ Group.name group
-                    |> GroupName.toString
-                    |> Element.text
-                    |> List.singleton
-                    |> Element.paragraph [ Element.Font.bold ]
+                [ Element.row
+                    [ Element.width Element.fill ]
+                    [ Group.name group
+                        |> GroupName.toString
+                        |> Element.text
+                        |> List.singleton
+                        |> Element.paragraph
+                            [ Element.Font.bold
+                            , Element.alignTop
+                            , Element.width (Element.fillPortion 2)
+                            ]
+                    , case Group.events currentTime group |> .futureEvents |> List.head of
+                        Just ( _, nextEvent ) ->
+                            "Next event is in "
+                                ++ Time.diffToString currentTime (Event.startTime nextEvent)
+                                |> Element.text
+                                |> List.singleton
+                                |> Element.paragraph
+                                    [ Element.Font.alignRight
+                                    , Element.alignTop
+                                    , Element.width (Element.fillPortion 1)
+                                    ]
+
+                        Nothing ->
+                            Element.none
+                    ]
                 , Group.description group
                     |> Description.toParagraph True
                 ]
