@@ -162,11 +162,20 @@ headerLink : Bool -> Bool -> { route : Route, label : String } -> Element msg
 headerLink isMobile_ isSelected { route, label } =
     Element.link
         [ Element.mouseOver [ Element.Background.color <| Element.rgba 1 1 1 0.5 ]
-        , if isSelected then
-            Element.Background.color <| Element.rgba 1 1 1 0.5
+        , Element.below <|
+            if isSelected then
+                Element.el
+                    [ Element.paddingXY 4 0, Element.width Element.fill ]
+                    (Element.el
+                        [ Element.Background.color Colors.green
+                        , Element.width Element.fill
+                        , Element.height (Element.px 2)
+                        ]
+                        Element.none
+                    )
 
-          else
-            Element.Background.color <| Element.rgba 1 1 1 0
+            else
+                Element.none
         , if isMobile_ then
             Element.padding 6
 

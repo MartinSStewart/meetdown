@@ -307,6 +307,12 @@ routeRequest cmds route model =
                     , cmds.sendToBackend (GetUserRequest userId)
                     )
 
+        PrivacyRoute ->
+            ( model, cmds.none )
+
+        TermsOfServiceRoute ->
+            ( model, cmds.none )
+
 
 checkAdminState : Effects cmd -> LoadedFrontend -> ( LoadedFrontend, cmd )
 checkAdminState cmds model =
@@ -1085,6 +1091,7 @@ viewLoaded model =
                     LoginStatusPending ->
                         Element.none
             )
+        , footer (isMobile model) model.route
         ]
 
 
@@ -1216,6 +1223,20 @@ viewPage model =
 
                 Nothing ->
                     Ui.loadingView
+
+        PrivacyRoute ->
+            Element.column
+                Ui.pageContentAttributes
+                [ Ui.title "Privacy"
+                , Element.paragraph [] [ Element.text "Privacy text goes here" ]
+                ]
+
+        TermsOfServiceRoute ->
+            Element.column
+                Ui.pageContentAttributes
+                [ Ui.title "Terms of service"
+                , Element.paragraph [] [ Element.text "ToS text goes here" ]
+                ]
 
 
 myGroupsView : LoadedFrontend -> LoggedIn_ -> Element FrontendMsg
@@ -1399,6 +1420,22 @@ header isMobile_ maybeLoggedIn route searchText =
                 )
             ]
         , Element.row [ Element.Background.color Colors.grey, Element.width Element.fill, Element.height (Element.px 2) ] []
+        ]
+
+
+footer : Bool -> Route -> Element msg
+footer isMobile_ route =
+    Element.column
+        [ Element.width Element.fill
+        , Element.spacing 10
+        , Element.padding 10
+        ]
+        [ Element.row [ Element.Background.color Colors.grey, Element.width Element.fill, Element.height (Element.px 2) ] []
+        , Element.row
+            [ Element.width Element.fill, Element.alignBottom, Element.spacing 8 ]
+            [ Ui.headerLink isMobile_ (route == PrivacyRoute) { route = PrivacyRoute, label = "Privacy" }
+            , Ui.headerLink isMobile_ (route == TermsOfServiceRoute) { route = TermsOfServiceRoute, label = "Terms of service" }
+            ]
         ]
 
 

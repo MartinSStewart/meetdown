@@ -19,6 +19,8 @@ type Route
     | MyGroupsRoute
     | MyProfileRoute
     | UserRoute (Id UserId) Name
+    | PrivacyRoute
+    | TermsOfServiceRoute
 
 
 decode : Url.Parser.Parser (( Route, Token ) -> c) c
@@ -57,6 +59,8 @@ decode =
                         _ ->
                             HomepageRoute
                 )
+        , Url.Parser.s "privacy" |> Url.Parser.map PrivacyRoute
+        , Url.Parser.s "terms-of-service" |> Url.Parser.map TermsOfServiceRoute
         ]
         <?> decodeToken
         |> Url.Parser.map Tuple.pair
@@ -179,6 +183,12 @@ encodeWithToken route token =
 
             UserRoute userId name ->
                 [ "user", Id.cryptoHashToString userId, encodeName name ]
+
+            PrivacyRoute ->
+                [ "privacy" ]
+
+            TermsOfServiceRoute ->
+                [ "terms-of-service" ]
         )
         (case token of
             LoginToken loginToken maybeJoinEvent ->
