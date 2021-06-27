@@ -1,12 +1,15 @@
 module Privacy exposing (text)
 
+import Env
+import Route
+
 
 text =
     """
 
 #### Version 1.0 – June 2021
 
-We’re committed to protecting and respecting your privacy. If you have any questions about your personal information please chat with us by emailing us at [hello@meetdown.app](mailto:hello@meetdown.com).
+We’re committed to protecting and respecting your privacy. If you have any questions about your personal information please chat with us by emailing us at [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """).
 
 
 ### 👀 The information we hold about you
@@ -48,7 +51,7 @@ We may share your personal information with:
 - Anyone who works for us when they need it to do their job.
 - Anyone who you give us explicit permission to share it with.
 
-We’ll also share it to comply with the law; to enforce our [Terms of service](/terms-of-service) or other agreements; or to protect the rights, property or safety of us, our users or others.
+We’ll also share it to comply with the law; to enforce our [Terms of service](""" ++ Route.encode Route.TermsOfServiceRoute ++ """) or other agreements; or to protect the rights, property or safety of us, our users or others.
 
 ### 📁 How long we keep it
 
@@ -64,7 +67,7 @@ You have a right to:
 - Object to us using your data for direct marketing and in certain circumstances ‘legitimate interests’, research and statistical reasons.
 - Withdraw any consent you’ve previously given us.
 
-To do so, please contact us by emailing [hello@meetdown.app](mailto:hello@meetdown.app).
+To do so, please contact us by emailing [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """).
 
 
 ### 🔒 Where we store or send your data
@@ -79,7 +82,7 @@ We may share data with organisations and countries that:
 
 ### 😔 How to make a complaint
 
-If you have a complaint, please contact us by emailing [hello@meetdown.app](mailto:hello@meetdown.app) and we’ll do our best to fix the problem.
+If you have a complaint, please contact us by emailing [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """) and we’ll do our best to fix the problem.
 
 
 ### 📝 Changes to this policy

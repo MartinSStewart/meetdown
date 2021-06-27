@@ -1,5 +1,8 @@
 module Terms exposing (text)
 
+import Env
+import Route
+
 
 text =
     """
@@ -10,12 +13,12 @@ text =
 
 These legal terms are between you and meetdown.app (“we”, “our”, “us”, “Meetdown”, the software”) and you agree to them by using the Meetdown service.
 
-You should read this document along with our [Data Privacy Notice](/privacy).
+You should read this document along with our [Data Privacy Notice](""" ++ Route.encode Route.PrivacyRoute ++ """).
 
 
 ### 💬 How to contact us
 
-Please chat with us by emailing us at [hello@lamdera.com](mailto:hello@lamdera.com)
+Please chat with us by emailing us at [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """)
 
 We'll contact you in English 🇬🇧 and Emoji 😃.
 
@@ -30,7 +33,7 @@ The software is provided "as is", without warranty of any kind, express or impli
 
 In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the software.
 
-We expect all users to behave according to the [Code of conduct](/code-of-conduct).
+We expect all users to behave according to the [Code of conduct](""" ++ Route.encode Route.CodeOfConductRoute ++ """).
 
 
 ### 💵 Cost
@@ -53,7 +56,7 @@ If we make changes to it, we'll tell you once we've made them.
 
 If you don't agree to these changes, you can close your account by pressing "Delete Account" on your profile page.
 
-We'll destroy any data in your account, unless we need to keep it for a reason outlined in our [Privacy policy](/privacy).
+We'll destroy any data in your account, unless we need to keep it for a reason outlined in our [Privacy policy](""" ++ Route.encode Route.PrivacyRoute ++ """).
 
 
 ### 😭 Closing your account
@@ -68,6 +71,6 @@ We may close your account immediately if we believe you've:
 - Put us in a position where we might break the law
 - Broken the law or attempted to break the law
 - Given us false information at any time
-- Been abusive to anyone at Lamdera or a member of our community
+- Been abusive to anyone at Meetdown or a member of our community
 
 """
