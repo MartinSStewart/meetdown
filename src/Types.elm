@@ -301,6 +301,7 @@ type FrontendMsg
     | GroupPageMsg GroupPage.Msg
     | GotWindowSize (Quantity Int Pixels) (Quantity Int Pixels)
     | GotTimeZone (Result TimeZone.Error ( String, Time.Zone ))
+    | ScrolledToTop
 
 
 type ToBackend

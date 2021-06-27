@@ -110,6 +110,7 @@ allEffects =
                         msg (Pixels.pixels (round scene.width)) (Pixels.pixels (round scene.height))
                     )
     , getTimeZone = \msg -> TimeZone.getZone |> Task.attempt msg
+    , scrollToTop = \msg -> Browser.Dom.setViewport 0 0 |> Task.perform (\() -> msg)
     }
 
 

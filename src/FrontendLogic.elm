@@ -60,6 +60,7 @@ type alias Effects cmd =
     , getElement : (Result Browser.Dom.Error Browser.Dom.Element -> FrontendMsg) -> String -> cmd
     , getWindowSize : (Quantity Int Pixels -> Quantity Int Pixels -> FrontendMsg) -> cmd
     , getTimeZone : (Result TimeZone.Error ( String, Time.Zone ) -> FrontendMsg) -> cmd
+    , scrollToTop : FrontendMsg -> cmd
     }
 
 
@@ -366,6 +367,7 @@ updateLoaded cmds msg model =
                         |> Maybe.withDefault HomepageRoute
             in
             routeRequest cmds route { model | route = route }
+                |> Tuple.mapSecond (\a -> cmds.batch [ a, cmds.scrollToTop ScrolledToTop ])
 
         GotTime time ->
             ( { model | time = time }, cmds.none )
@@ -575,6 +577,9 @@ updateLoaded cmds msg model =
 
         PressedCancelLogin ->
             ( closeLoginForm model, cmds.none )
+
+        ScrolledToTop ->
+            ( model, cmds.none )
 
 
 closeLoginForm : LoadedFrontend -> LoadedFrontend
