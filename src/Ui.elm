@@ -216,7 +216,7 @@ routeLinkNewTab : Route -> String -> Element msg
 routeLinkNewTab route label =
     Element.newTabLink
         [ Element.Font.color linkColor, inputFocusClass, Element.Font.underline ]
-        { url = Env.domain ++ Route.encode route, label = Element.text label }
+        { url = "https://meetdown.app" ++ Route.encode route, label = Element.text label }
 
 
 mailToLink : String -> Maybe String -> Element msg
