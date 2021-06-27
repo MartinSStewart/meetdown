@@ -28,6 +28,7 @@ type FrontendEffect
     | GetElement (Result Browser.Dom.Error Browser.Dom.Element -> FrontendMsg) String
     | GetWindowSize (Quantity Int Pixels -> Quantity Int Pixels -> FrontendMsg)
     | GetTimeZone (Result TimeZone.Error ( String, Time.Zone ) -> FrontendMsg)
+    | ScrollToTop FrontendMsg
 
 
 effects : Effects FrontendEffect
@@ -49,4 +50,5 @@ effects =
     , getElement = GetElement
     , getWindowSize = GetWindowSize
     , getTimeZone = GetTimeZone
+    , scrollToTop = ScrollToTop
     }

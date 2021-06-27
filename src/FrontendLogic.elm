@@ -1261,7 +1261,7 @@ viewPage model =
 
         CodeOfConductRoute ->
             Element.column
-                Ui.pageContentAttributes
+                (Ui.pageContentAttributes ++ [ Element.spacing 28 ])
                 [ Ui.title "Code of conduct"
                 , Element.paragraph []
                     [ Element.text "The most important rule is, "

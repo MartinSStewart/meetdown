@@ -982,6 +982,9 @@ runFrontendEffects sessionId clientId effectsToPerform state =
                 Nothing ->
                     state
 
+        FrontendEffects.ScrollToTop _ ->
+            state
+
 
 handleUrlChange : String -> ClientId -> State -> State
 handleUrlChange urlText clientId state =
