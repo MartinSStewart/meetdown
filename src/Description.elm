@@ -57,7 +57,7 @@ toParagraph searchPreview description =
         Element.paragraph [ Element.Font.italic ] [ Element.text "No description" ]
 
     else
-        MarkdownThemed.render searchPreview (toString description)
+        MarkdownThemed.renderMinimal searchPreview (toString description)
 
 
 empty : Description

@@ -1252,14 +1252,14 @@ viewPage model =
             Element.column
                 Ui.pageContentAttributes
                 [ Ui.title "Privacy"
-                , MarkdownThemed.render False Privacy.text
+                , MarkdownThemed.renderFull Privacy.text
                 ]
 
         TermsOfServiceRoute ->
             Element.column
                 Ui.pageContentAttributes
                 [ Ui.title "Terms of service"
-                , MarkdownThemed.render False Terms.text
+                , MarkdownThemed.renderFull Terms.text
                 ]
 
         CodeOfConductRoute ->

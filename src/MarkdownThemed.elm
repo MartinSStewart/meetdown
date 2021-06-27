@@ -1,4 +1,4 @@
-module MarkdownThemed exposing (..)
+module MarkdownThemed exposing (renderFull, renderMinimal)
 
 import Colors exposing (..)
 import Element exposing (..)
@@ -14,14 +14,31 @@ import Markdown.Parser
 import Markdown.Renderer
 
 
-render : Bool -> String -> Element msg
-render isSearchPreview markdownBody =
+{-| Markdown with only the minimal parts, and a flag to restrict things even further e.g. for search result summaries
+-}
+renderMinimal : Bool -> String -> Element msg
+renderMinimal isSearchPreview markdownBody =
+    let
+        rendererMinimal =
+            renderer isSearchPreview
+                |> (\r -> { r | heading = \data -> row [] [ paragraph [] data.children ] })
+    in
+    render rendererMinimal markdownBody
+
+
+renderFull : String -> Element msg
+renderFull markdownBody =
+    render (renderer False) markdownBody
+
+
+render : Markdown.Renderer.Renderer (Element msg) -> String -> Element msg
+render chosenRenderer markdownBody =
     Markdown.Parser.parse markdownBody
         -- @TODO show markdown parsing errors, i.e. malformed html?
         |> Result.withDefault []
         |> (\parsed ->
                 parsed
-                    |> Markdown.Renderer.render (renderer isSearchPreview)
+                    |> Markdown.Renderer.render chosenRenderer
                     |> (\res ->
                             case res of
                                 Ok elements ->
@@ -162,55 +179,51 @@ renderer searchPreview =
 
 heading : { level : HeadingLevel, rawText : String, children : List (Element msg) } -> Element msg
 heading { level, rawText, children } =
-    paragraph [] children
+    paragraph
+        ((case headingLevelToInt level of
+            1 ->
+                [ Font.size 28
+                , Font.bold
+                , Font.color readingBlack
+                , paddingXY 0 20
+                ]
 
+            2 ->
+                [ Font.color readingBlack
+                , Font.size 20
+                , Font.bold
+                , paddingEach { top = 50, right = 0, bottom = 20, left = 0 }
+                ]
 
+            3 ->
+                [ Font.color readingBlack
+                , Font.size 18
+                , Font.bold
+                , paddingEach { top = 30, right = 0, bottom = 10, left = 0 }
+                ]
 
---paragraph
---    ((case headingLevelToInt level of
---        1 ->
---            [ Font.size 48
---            , Font.bold
---            , Font.color readingBlack
---            , paddingXY 0 20
---            ]
---
---        2 ->
---            [ Font.color readingBlack
---            , Font.size 24
---            , Font.bold
---            , paddingEach { top = 50, right = 0, bottom = 20, left = 0 }
---            ]
---
---        3 ->
---            [ Font.color readingBlack
---            , Font.size 20
---            , Font.bold
---            , paddingXY 0 20
---            ]
---
---        4 ->
---            [ Font.color readingBlack
---            , Font.size 18
---            , Font.bold
---            , paddingXY 0 20
---            ]
---
---        _ ->
---            [ Font.size 36
---            , Font.bold
---            , Font.center
---            , paddingXY 0 20
---            ]
---     )
---        ++ [ Region.heading (headingLevelToInt level)
---           , htmlAttribute
---                (Html.Attributes.attribute "name" (rawTextToId rawText))
---           , htmlAttribute
---                (Html.Attributes.id (rawTextToId rawText))
---           ]
---    )
---    children
+            4 ->
+                [ Font.color readingBlack
+                , Font.size 16
+                , Font.bold
+                , paddingEach { top = 0, right = 0, bottom = 10, left = 0 }
+                ]
+
+            _ ->
+                [ Font.size 12
+                , Font.bold
+                , Font.center
+                , paddingXY 0 20
+                ]
+         )
+            ++ [ Region.heading (headingLevelToInt level)
+               , htmlAttribute
+                    (Html.Attributes.attribute "name" (rawTextToId rawText))
+               , htmlAttribute
+                    (Html.Attributes.id (rawTextToId rawText))
+               ]
+        )
+        children
 
 
 rawTextToId rawText =
