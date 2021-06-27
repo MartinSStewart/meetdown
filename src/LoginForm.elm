@@ -97,7 +97,11 @@ view joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent } =
                     Nothing
             )
         , Element.paragraph [ Element.Font.size 10, Element.Font.color Colors.darkGrey ]
-            [ Element.text "By continuing you agree to our ", Element.link [ Element.Font.underline ] { url = "/terms", label = Element.text "Terms" }, Element.text "." ]
+            [ Element.text "By continuing you agree to our "
+            , Element.link [ Element.Font.underline ]
+                { url = Route.encodeWithToken Route.TermsOfServiceRoute Route.NoToken, label = Element.text "Terms" }
+            , Element.text "."
+            ]
         , Element.wrappedRow
             [ Element.spacingXY 16 8, Element.width Element.fill ]
             [ Ui.submitButton submitButtonId False { onPress = PressedSubmitLogin, label = "Sign up/Login" }
