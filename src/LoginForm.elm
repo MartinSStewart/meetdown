@@ -97,7 +97,7 @@ view joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent } =
                     Nothing
             )
         , Element.paragraph []
-            [ Element.text "By continuing you agree to our "
+            [ Element.text "By continuing you agree to the "
             , Ui.routeLink Route.TermsOfServiceRoute "Terms"
             , Element.text "."
             ]
