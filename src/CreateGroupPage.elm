@@ -21,6 +21,7 @@ import Group exposing (GroupVisibility(..))
 import GroupName exposing (GroupName)
 import Id exposing (ButtonId(..))
 import List.Nonempty exposing (Nonempty(..))
+import Route
 import Ui
 
 
@@ -43,6 +44,7 @@ validatedToForm validated =
     , name = GroupName.toString validated.name
     , description = Description.toString validated.description
     , visibility = Just validated.visibility
+    , acceptedTermsOfService = Just ()
     }
 
 
@@ -57,6 +59,7 @@ type alias Form =
     , name : String
     , description : String
     , visibility : Maybe GroupVisibility
+    , acceptedTermsOfService : Maybe ()
     }
 
 
@@ -71,21 +74,27 @@ initForm =
     , name = ""
     , description = ""
     , visibility = Nothing
+    , acceptedTermsOfService = Nothing
     }
 
 
-validate : Form -> Maybe GroupFormValidated
-validate form =
-    case ( GroupName.fromString form.name, Description.fromString form.description, form.visibility ) of
-        ( Ok groupName, Ok description, Just visibility ) ->
-            { name = groupName
-            , description = description
-            , visibility = visibility
-            }
-                |> Just
+validate : Bool -> Form -> Maybe GroupFormValidated
+validate isFirstGroup form =
+    case ( form.acceptedTermsOfService, isFirstGroup ) of
+        ( Nothing, True ) ->
+            Nothing
 
         _ ->
-            Nothing
+            case ( GroupName.fromString form.name, Description.fromString form.description, form.visibility ) of
+                ( Ok groupName, Ok description, Just visibility ) ->
+                    { name = groupName
+                    , description = description
+                    , visibility = visibility
+                    }
+                        |> Just
+
+                _ ->
+                    Nothing
 
 
 type OutMsg
@@ -93,27 +102,27 @@ type OutMsg
     | NoChange
 
 
-update : Msg -> Model -> ( Model, OutMsg )
-update msg model =
+update : Bool -> Msg -> Model -> ( Model, OutMsg )
+update isFirstGroup msg model =
     case model of
         Editting form ->
-            updateForm Editting msg form
+            updateForm isFirstGroup Editting msg form
 
         Submitting _ ->
             ( model, NoChange )
 
         SubmitFailed error form ->
-            updateForm (SubmitFailed error) msg form
+            updateForm isFirstGroup (SubmitFailed error) msg form
 
 
-updateForm : (Form -> Model) -> Msg -> Form -> ( Model, OutMsg )
-updateForm wrapper msg form =
+updateForm : Bool -> (Form -> Model) -> Msg -> Form -> ( Model, OutMsg )
+updateForm isFirstGroup wrapper msg form =
     case msg of
         FormChanged newForm ->
             ( wrapper newForm, NoChange )
 
         PressedSubmit ->
-            case validate form of
+            case validate isFirstGroup form of
                 Just validated ->
                     ( Submitting validated, Submitted validated )
 
@@ -124,17 +133,19 @@ updateForm wrapper msg form =
             ( wrapper initForm, NoChange )
 
 
-view : Model -> Element Msg
-view model =
+view : Bool -> Bool -> Model -> Element Msg
+view isMobile isFirstGroup model =
     case model of
         Editting form ->
-            formView Nothing False form
+            formView isMobile isFirstGroup Nothing False form
 
         Submitting validated ->
-            formView Nothing True (validatedToForm validated)
+            formView isMobile isFirstGroup Nothing True (validatedToForm validated)
 
         SubmitFailed error form ->
             formView
+                isMobile
+                isFirstGroup
                 (case error of
                     GroupNameAlreadyInUse ->
                         Just "Sorry, that group name is already being used."
@@ -160,8 +171,8 @@ submitFailed error model =
             SubmitFailed createGroupError form
 
 
-formView : Maybe String -> Bool -> Form -> Element Msg
-formView maybeSubmitError isSubmitting form =
+formView : Bool -> Bool -> Maybe String -> Bool -> Form -> Element Msg
+formView isMobile firstGroup maybeSubmitError isSubmitting form =
     Element.column
         (Element.width Element.fill
             :: Element.spacing 20
@@ -223,19 +234,52 @@ formView maybeSubmitError isSubmitting form =
                 _ ->
                     Nothing
             )
+        , if firstGroup then
+            Element.column
+                [ Element.spacing 4 ]
+                [ Element.paragraph
+                    []
+                    [ Element.text "Since this is your first group, please read the "
+                    , Ui.routeLinkNewTab Route.TermsOfServiceRoute "terms of service"
+                    , Element.text ". It's also recommended that you read the "
+                    , Ui.routeLinkNewTab Route.CodeOfConductRoute "code of conduct"
+                    , Element.text "."
+                    ]
+                , Ui.radioGroup
+                    termsOfServiceId
+                    (\a -> FormChanged { form | acceptedTermsOfService = Just a })
+                    (Nonempty () [])
+                    form.acceptedTermsOfService
+                    (\() ->
+                        "I've read the terms of service and agree to it"
+                    )
+                    (case ( form.pressedSubmit, form.acceptedTermsOfService ) of
+                        ( True, Nothing ) ->
+                            Just "Please read and agree first"
+
+                        _ ->
+                            Nothing
+                    )
+                ]
+
+          else
+            Element.none
         , Element.column
-            [ Element.spacing 8, Element.paddingXY 0 16 ]
+            [ Element.spacing 8, Element.paddingXY 0 16, Element.width Element.fill ]
             [ case maybeSubmitError of
                 Just error ->
                     Ui.formError error
 
                 Nothing ->
                     Element.none
-            , Element.row
-                [ Element.spacing 16, Element.width Element.fill ]
-                [ Ui.submitButton submitButtonId isSubmitting { onPress = PressedSubmit, label = "Submit" }
-                , Ui.button clearButtonId { onPress = PressedClear, label = "Clear" }
+            , Element.el
+                [ if isMobile then
+                    Element.width Element.fill
+
+                  else
+                    Element.width (Element.px 200)
                 ]
+                (Ui.submitButton submitButtonId isSubmitting { onPress = PressedSubmit, label = "Submit" })
             ]
         ]
 
@@ -272,3 +316,8 @@ groupVisibilityId =
                 PublicGroup ->
                     "PublicGroup"
         )
+
+
+termsOfServiceId : () -> Id.HtmlId Id.RadioButtonId
+termsOfServiceId =
+    Id.radioButtonId "termsOfServiceId" (\() -> "")

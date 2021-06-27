@@ -293,7 +293,7 @@ type FrontendMsg
     | PressedSubmitLogin
     | PressedCancelLogin
     | PressedCreateGroup
-    | GroupFormMsg CreateGroupPage.Msg
+    | CreateGroupPageMsg CreateGroupPage.Msg
     | ProfileFormMsg ProfilePage.Msg
     | CroppedImage { requestId : Int, croppedImageUrl : String }
     | TypedSearchText String

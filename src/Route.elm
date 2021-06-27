@@ -21,7 +21,7 @@ type Route
     | UserRoute (Id UserId) Name
     | PrivacyRoute
     | TermsOfServiceRoute
-    | RulesRoute
+    | CodeOfConductRoute
 
 
 decode : Url.Parser.Parser (( Route, Token ) -> c) c
@@ -62,7 +62,7 @@ decode =
                 )
         , Url.Parser.s "privacy" |> Url.Parser.map PrivacyRoute
         , Url.Parser.s "terms-of-service" |> Url.Parser.map TermsOfServiceRoute
-        , Url.Parser.s "rules" |> Url.Parser.map RulesRoute
+        , Url.Parser.s "code-of-conduct" |> Url.Parser.map CodeOfConductRoute
         ]
         <?> decodeToken
         |> Url.Parser.map Tuple.pair
@@ -192,8 +192,8 @@ encodeWithToken route token =
             TermsOfServiceRoute ->
                 [ "terms-of-service" ]
 
-            RulesRoute ->
-                [ "rules" ]
+            CodeOfConductRoute ->
+                [ "code-of-conduct" ]
         )
         (case token of
             LoginToken loginToken maybeJoinEvent ->

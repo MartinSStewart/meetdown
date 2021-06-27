@@ -18,7 +18,6 @@ import Element.Region
 import Env
 import FrontendUser exposing (FrontendUser)
 import Group exposing (Group)
-import GroupName exposing (GroupName)
 import GroupPage
 import Html.Attributes
 import Id exposing (ButtonId(..), GroupId, Id, UserId)
@@ -290,7 +289,7 @@ routeRequest cmds route model =
             checkAdminState cmds model
 
         CreateGroupRoute ->
-            ( model, cmds.none )
+            ( model, cmds.sendToBackend GetMyGroupsRequest )
 
         MyProfileRoute ->
             ( model, cmds.none )
@@ -314,7 +313,7 @@ routeRequest cmds route model =
         TermsOfServiceRoute ->
             ( model, cmds.none )
 
-        RulesRoute ->
+        CodeOfConductRoute ->
             ( model, cmds.none )
 
 
@@ -407,24 +406,37 @@ updateLoaded cmds msg model =
         PressedCreateGroup ->
             ( model, cmds.navigationPushRoute model.navigationKey CreateGroupRoute )
 
-        GroupFormMsg groupFormMsg ->
-            let
-                ( newModel, outMsg ) =
-                    CreateGroupPage.update groupFormMsg model.groupForm
-                        |> Tuple.mapFirst (\a -> { model | groupForm = a })
-            in
-            case outMsg of
-                CreateGroupPage.Submitted submitted ->
-                    ( newModel
-                    , CreateGroupRequest
-                        (Untrusted.untrust submitted.name)
-                        (Untrusted.untrust submitted.description)
-                        submitted.visibility
-                        |> cmds.sendToBackend
-                    )
+        CreateGroupPageMsg groupFormMsg ->
+            case model.loginStatus of
+                LoggedIn loggedIn ->
+                    case loggedIn.myGroups of
+                        Just myGroups ->
+                            let
+                                ( newModel, outMsg ) =
+                                    CreateGroupPage.update (Set.isEmpty myGroups) groupFormMsg model.groupForm
+                                        |> Tuple.mapFirst (\a -> { model | groupForm = a })
+                            in
+                            case outMsg of
+                                CreateGroupPage.Submitted submitted ->
+                                    ( newModel
+                                    , CreateGroupRequest
+                                        (Untrusted.untrust submitted.name)
+                                        (Untrusted.untrust submitted.description)
+                                        submitted.visibility
+                                        |> cmds.sendToBackend
+                                    )
 
-                CreateGroupPage.NoChange ->
-                    ( newModel, cmds.none )
+                                CreateGroupPage.NoChange ->
+                                    ( newModel, cmds.none )
+
+                        Nothing ->
+                            ( model, cmds.none )
+
+                NotLoggedIn _ ->
+                    ( model, cmds.none )
+
+                LoginStatusPending ->
+                    ( model, cmds.none )
 
         ProfileFormMsg profileFormMsg ->
             case model.loginStatus of
@@ -1183,9 +1195,14 @@ viewPage model =
         CreateGroupRoute ->
             loginRequiredPage
                 model
-                (\_ ->
-                    CreateGroupPage.view model.groupForm
-                        |> Element.map GroupFormMsg
+                (\loggedIn ->
+                    case loggedIn.myGroups of
+                        Just myGroups ->
+                            CreateGroupPage.view (isMobile model) (Set.isEmpty myGroups) model.groupForm
+                                |> Element.map CreateGroupPageMsg
+
+                        Nothing ->
+                            Ui.loadingView
                 )
 
         MyGroupsRoute ->
@@ -1242,23 +1259,23 @@ viewPage model =
                 , Element.paragraph [] [ Element.text "ToS text goes here" ]
                 ]
 
-        RulesRoute ->
+        CodeOfConductRoute ->
             Element.column
                 Ui.pageContentAttributes
-                [ Ui.title "Rules"
+                [ Ui.title "Code of conduct"
                 , Element.paragraph []
                     [ Element.text "The most important rule is, "
                     , Element.el [ Element.Font.bold ] (Element.text "don't be a jerk")
                     , Element.text "."
                     ]
                 , Element.paragraph [] [ Element.text "Here is some guidance in order to fulfill the \"don't be a jerk\" rule:" ]
-                , Element.paragraph [] [ Element.text "• Respect people regardless of their race, sexual identity, nationality, appearance, or related characteristics." ]
+                , Element.paragraph [] [ Element.text "• Respect people regardless of their race, gender, sexual identity, nationality, appearance, or related characteristics." ]
                 , Element.paragraph
                     []
                     [ Element.text "• Be respectful to the group organizer. They put in the time to coordinate an event and they are willing to invite strangers. Don't betray their trust in you!" ]
                 , Element.paragraph
                     []
-                    [ Element.text "• To group organizers: Make people feel included your event. It's hard for people to participate if they feel like an outsider." ]
+                    [ Element.text "• To group organizers: Make people feel included. It's hard for people to participate if they feel like an outsider." ]
                 , Element.paragraph
                     []
                     [ Element.text "• If someone is being a jerk that is not an excuse to be a jerk back. Ask them to stop, and if that doesn't work, avoid them and explain the problem here "
@@ -1450,15 +1467,15 @@ footer : Bool -> Route -> Element msg
 footer isMobile_ route =
     Element.column
         [ Element.width Element.fill
-        , Element.spacing 10
-        , Element.padding 10
+        , Element.spacing 8
+        , Element.padding 8
         ]
         [ Element.row [ Element.Background.color Colors.grey, Element.width Element.fill, Element.height (Element.px 2) ] []
         , Element.row
             [ Element.width Element.fill, Element.alignBottom, Element.spacing 8 ]
             [ Ui.headerLink isMobile_ (route == PrivacyRoute) { route = PrivacyRoute, label = "Privacy" }
             , Ui.headerLink isMobile_ (route == TermsOfServiceRoute) { route = TermsOfServiceRoute, label = "Terms of service" }
-            , Ui.headerLink isMobile_ (route == RulesRoute) { route = RulesRoute, label = "Rules" }
+            , Ui.headerLink isMobile_ (route == CodeOfConductRoute) { route = CodeOfConductRoute, label = "Code of conduct" }
             ]
         ]
 

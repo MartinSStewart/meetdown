@@ -35,6 +35,7 @@ module Ui exposing
     , pageContentAttributes
     , radioGroup
     , routeLink
+    , routeLinkNewTab
     , section
     , submitButton
     , submitColor
@@ -53,6 +54,7 @@ import Element.Font
 import Element.Input
 import Element.Region
 import EmailAddress exposing (EmailAddress)
+import Env
 import Html exposing (Html)
 import Html.Attributes
 import Html.Events
@@ -208,6 +210,13 @@ routeLink route label =
     Element.link
         [ Element.Font.color linkColor, inputFocusClass ]
         { url = Route.encode route, label = Element.text label }
+
+
+routeLinkNewTab : Route -> String -> Element msg
+routeLinkNewTab route label =
+    Element.newTabLink
+        [ Element.Font.color linkColor, inputFocusClass ]
+        { url = Env.domain ++ Route.encode route, label = Element.text label }
 
 
 mailToLink : String -> Maybe String -> Element msg
