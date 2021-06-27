@@ -450,7 +450,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                                 |> List.maximumBy (Tuple.second >> .creationTime >> Time.posixToMillis)
                                 |> Maybe.map
                                     (\( _, { creationTime } ) ->
-                                        Duration.from creationTime model.time |> Quantity.lessThan Duration.minute
+                                        Duration.from creationTime model.time |> Quantity.lessThan (Duration.seconds 10)
                                     )
                                 |> Maybe.withDefault False
 
@@ -763,7 +763,7 @@ loginIsRateLimited sessionId emailAddress model =
         Dict.get sessionId model.loginAttempts
             |> Maybe.map List.Nonempty.toList
             |> Maybe.withDefault []
-            |> List.filter (\time -> Duration.from time model.time |> Quantity.lessThan (Duration.seconds 30))
+            |> List.filter (\time -> Duration.from time model.time |> Quantity.lessThan (Duration.seconds 10))
             |> List.length
             |> (\a -> a > 0)
     then
