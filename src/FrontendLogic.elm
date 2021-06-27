@@ -1251,7 +1251,7 @@ viewPage model =
         PrivacyRoute ->
             Element.column
                 Ui.pageContentAttributes
-                [ Ui.title "Privacy"
+                [ Ui.title "Privacy notice"
                 , MarkdownThemed.renderFull Privacy.text
                 ]
 

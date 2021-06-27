@@ -4,7 +4,6 @@ module Privacy exposing (text)
 text =
     """
 
-# Privacy Policy
 #### Version 1.0 – June 2021
 
 We’re committed to protecting and respecting your privacy. If you have any questions about your personal information please chat with us by emailing us at [hello@meetdown.app](mailto:hello@meetdown.com).

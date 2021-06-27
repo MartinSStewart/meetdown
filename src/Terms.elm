@@ -4,7 +4,6 @@ module Terms exposing (text)
 text =
     """
 
-# Terms & Conditions
 #### Version 1.0 – July 2018
 
 ### 🤔 What is Meetdown
