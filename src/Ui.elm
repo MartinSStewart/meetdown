@@ -28,6 +28,7 @@ module Ui exposing
     , linkColor
     , loadingError
     , loadingView
+    , mailToLink
     , multiline
     , numberInput
     , onEnter
@@ -117,6 +118,7 @@ pageContentAttributes =
     [ Element.padding 8
     , Element.centerX
     , Element.width (Element.maximum 800 Element.fill)
+    , Element.spacing 20
     ]
 
 
@@ -206,6 +208,24 @@ routeLink route label =
     Element.link
         [ Element.Font.color linkColor, inputFocusClass ]
         { url = Route.encode route, label = Element.text label }
+
+
+mailToLink : String -> Maybe String -> Element msg
+mailToLink emailAddress maybeSubject =
+    Element.link
+        [ Element.Font.color linkColor, inputFocusClass ]
+        { url =
+            "mailto:"
+                ++ emailAddress
+                ++ (case maybeSubject of
+                        Just subject ->
+                            "?subject=" ++ subject
+
+                        Nothing ->
+                            ""
+                   )
+        , label = Element.text emailAddress
+        }
 
 
 section : String -> Element msg -> Element msg

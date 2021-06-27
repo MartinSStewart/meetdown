@@ -11,6 +11,11 @@ adminEmailAddress =
     "a@a.se"
 
 
+contactEmailAddress : String
+contactEmailAddress =
+    "contact+email@email.com"
+
+
 secretKey : String
 secretKey =
     "123"

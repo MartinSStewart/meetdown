@@ -15,6 +15,7 @@ import Element.Border
 import Element.Font
 import Element.Input
 import Element.Region
+import Env
 import FrontendUser exposing (FrontendUser)
 import Group exposing (Group)
 import GroupName exposing (GroupName)
@@ -311,6 +312,9 @@ routeRequest cmds route model =
             ( model, cmds.none )
 
         TermsOfServiceRoute ->
+            ( model, cmds.none )
+
+        RulesRoute ->
             ( model, cmds.none )
 
 
@@ -1067,7 +1071,7 @@ viewLoaded model =
             ]
             (if model.hasLoginTokenError then
                 Element.column
-                    (Element.spacing 16 :: Element.centerY :: Ui.pageContentAttributes)
+                    (Element.centerY :: Ui.pageContentAttributes ++ [ Element.spacing 16 ])
                     [ Element.paragraph
                         [ Element.Font.center ]
                         [ Element.text "The link you used is either invalid or has expired." ]
@@ -1238,6 +1242,31 @@ viewPage model =
                 , Element.paragraph [] [ Element.text "ToS text goes here" ]
                 ]
 
+        RulesRoute ->
+            Element.column
+                Ui.pageContentAttributes
+                [ Ui.title "Rules"
+                , Element.paragraph []
+                    [ Element.text "The most important rule is, "
+                    , Element.el [ Element.Font.bold ] (Element.text "don't be a jerk")
+                    , Element.text "."
+                    ]
+                , Element.paragraph [] [ Element.text "Here is some guidance in order to fulfill the \"don't be a jerk\" rule:" ]
+                , Element.paragraph [] [ Element.text "• Respect people regardless of their race, sexual identity, nationality, appearance, or related characteristics." ]
+                , Element.paragraph
+                    []
+                    [ Element.text "• Be respectful to the group organizer. They put in the time to coordinate an event and they are willing to invite strangers. Don't betray their trust in you!" ]
+                , Element.paragraph
+                    []
+                    [ Element.text "• To group organizers: Make people feel included your event. It's hard for people to participate if they feel like an outsider." ]
+                , Element.paragraph
+                    []
+                    [ Element.text "• If someone is being a jerk that is not an excuse to be a jerk back. Ask them to stop, and if that doesn't work, avoid them and explain the problem here "
+                    , Ui.mailToLink Env.contactEmailAddress (Just "Moderation help request")
+                    , Element.text "."
+                    ]
+                ]
+
 
 myGroupsView : LoadedFrontend -> LoggedIn_ -> Element FrontendMsg
 myGroupsView model loggedIn =
@@ -1256,7 +1285,7 @@ myGroupsView model loggedIn =
                     []
             in
             Element.column
-                (Element.spacing 16 :: Ui.pageContentAttributes)
+                Ui.pageContentAttributes
                 [ Ui.title "My groups"
                 , if List.isEmpty myGroupsList && List.isEmpty mySubscriptionsList then
                     Element.paragraph
@@ -1429,6 +1458,7 @@ footer isMobile_ route =
             [ Element.width Element.fill, Element.alignBottom, Element.spacing 8 ]
             [ Ui.headerLink isMobile_ (route == PrivacyRoute) { route = PrivacyRoute, label = "Privacy" }
             , Ui.headerLink isMobile_ (route == TermsOfServiceRoute) { route = TermsOfServiceRoute, label = "Terms of service" }
+            , Ui.headerLink isMobile_ (route == RulesRoute) { route = RulesRoute, label = "Rules" }
             ]
         ]
 

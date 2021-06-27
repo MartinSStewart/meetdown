@@ -14,7 +14,7 @@ view timezone loggedIn =
         case loggedIn.adminState of
             AdminCached model ->
                 Element.column
-                    (Element.spacing 16 :: Ui.pageContentAttributes)
+                    Ui.pageContentAttributes
                     [ Ui.title "Admin panel"
                     , Element.paragraph
                         []

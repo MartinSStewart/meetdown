@@ -11,7 +11,7 @@ import Ui
 view : FrontendUser -> Element msg
 view user =
     Element.column
-        (Element.spacing 32 :: Ui.pageContentAttributes)
+        (Ui.pageContentAttributes ++ [ Element.spacing 32 ])
         [ Element.row
             [ Element.spacing 16 ]
             [ ProfileImage.image user.profileImage, Ui.title (Name.toString user.name) ]
