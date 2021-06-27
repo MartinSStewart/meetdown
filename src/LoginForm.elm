@@ -1,6 +1,7 @@
 module LoginForm exposing (cancelButtonId, emailAddressInputId, submitButtonId, submitForm, typedEmail, view)
 
 import AssocList as Dict exposing (Dict)
+import Colors
 import Element exposing (Element)
 import Element.Font
 import Element.Input
@@ -95,6 +96,12 @@ view joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent } =
                 _ ->
                     Nothing
             )
+        , Element.paragraph [ Element.Font.size 10, Element.Font.color Colors.darkGrey ]
+            [ Element.text "By continuing you agree to our "
+            , Element.link [ Element.Font.underline ]
+                { url = Route.encodeWithToken Route.TermsOfServiceRoute Route.NoToken, label = Element.text "Terms" }
+            , Element.text "."
+            ]
         , Element.wrappedRow
             [ Element.spacingXY 16 8, Element.width Element.fill ]
             [ Ui.submitButton submitButtonId False { onPress = PressedSubmitLogin, label = "Sign up/Login" }

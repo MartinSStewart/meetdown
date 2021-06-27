@@ -22,13 +22,16 @@ import GroupPage
 import Html.Attributes
 import Id exposing (ButtonId(..), GroupId, Id, UserId)
 import LoginForm
+import MarkdownThemed
 import MockFile
 import Pixels exposing (Pixels)
+import Privacy
 import ProfileImage
 import ProfilePage
 import Quantity exposing (Quantity)
 import Route exposing (Route(..))
 import SearchPage
+import Terms
 import Time
 import TimeZone
 import Types exposing (..)
@@ -1246,18 +1249,10 @@ viewPage model =
                     Ui.loadingView
 
         PrivacyRoute ->
-            Element.column
-                Ui.pageContentAttributes
-                [ Ui.title "Privacy"
-                , Element.paragraph [] [ Element.text "Privacy text goes here" ]
-                ]
+            Privacy.view
 
         TermsOfServiceRoute ->
-            Element.column
-                Ui.pageContentAttributes
-                [ Ui.title "Terms of service"
-                , Element.paragraph [] [ Element.text "ToS text goes here" ]
-                ]
+            Terms.view
 
         CodeOfConductRoute ->
             Element.column
