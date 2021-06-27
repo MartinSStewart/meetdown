@@ -49,7 +49,7 @@ We may share your personal information with:
 - Anyone who works for us when they need it to do their job.
 - Anyone who you give us explicit permission to share it with.
 
-We’ll also share it to comply with the law; to enforce our [Terms and Conditions](/terms) or other agreements; or to protect the rights, property or safety of us, our users or others.
+We’ll also share it to comply with the law; to enforce our [Terms of service](/terms-of-service) or other agreements; or to protect the rights, property or safety of us, our users or others.
 
 ### 📁 How long we keep it
 
