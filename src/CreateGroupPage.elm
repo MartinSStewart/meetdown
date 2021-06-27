@@ -44,7 +44,6 @@ validatedToForm validated =
     , name = GroupName.toString validated.name
     , description = Description.toString validated.description
     , visibility = Just validated.visibility
-    , acceptedTermsOfService = Just ()
     }
 
 
@@ -59,7 +58,6 @@ type alias Form =
     , name : String
     , description : String
     , visibility : Maybe GroupVisibility
-    , acceptedTermsOfService : Maybe ()
     }
 
 
@@ -74,27 +72,21 @@ initForm =
     , name = ""
     , description = ""
     , visibility = Nothing
-    , acceptedTermsOfService = Nothing
     }
 
 
-validate : Bool -> Form -> Maybe GroupFormValidated
-validate isFirstGroup form =
-    case ( form.acceptedTermsOfService, isFirstGroup ) of
-        ( Nothing, True ) ->
-            Nothing
+validate : Form -> Maybe GroupFormValidated
+validate form =
+    case ( GroupName.fromString form.name, Description.fromString form.description, form.visibility ) of
+        ( Ok groupName, Ok description, Just visibility ) ->
+            { name = groupName
+            , description = description
+            , visibility = visibility
+            }
+                |> Just
 
         _ ->
-            case ( GroupName.fromString form.name, Description.fromString form.description, form.visibility ) of
-                ( Ok groupName, Ok description, Just visibility ) ->
-                    { name = groupName
-                    , description = description
-                    , visibility = visibility
-                    }
-                        |> Just
-
-                _ ->
-                    Nothing
+            Nothing
 
 
 type OutMsg
@@ -102,27 +94,27 @@ type OutMsg
     | NoChange
 
 
-update : Bool -> Msg -> Model -> ( Model, OutMsg )
-update isFirstGroup msg model =
+update : Msg -> Model -> ( Model, OutMsg )
+update msg model =
     case model of
         Editting form ->
-            updateForm isFirstGroup Editting msg form
+            updateForm Editting msg form
 
         Submitting _ ->
             ( model, NoChange )
 
         SubmitFailed error form ->
-            updateForm isFirstGroup (SubmitFailed error) msg form
+            updateForm (SubmitFailed error) msg form
 
 
-updateForm : Bool -> (Form -> Model) -> Msg -> Form -> ( Model, OutMsg )
-updateForm isFirstGroup wrapper msg form =
+updateForm : (Form -> Model) -> Msg -> Form -> ( Model, OutMsg )
+updateForm wrapper msg form =
     case msg of
         FormChanged newForm ->
             ( wrapper newForm, NoChange )
 
         PressedSubmit ->
-            case validate isFirstGroup form of
+            case validate form of
                 Just validated ->
                     ( Submitting validated, Submitted validated )
 
@@ -239,27 +231,10 @@ formView isMobile firstGroup maybeSubmitError isSubmitting form =
                 [ Element.spacing 4 ]
                 [ Element.paragraph
                     []
-                    [ Element.text "Since this is your first group, please read the "
-                    , Ui.routeLinkNewTab Route.TermsOfServiceRoute "terms of service"
-                    , Element.text ". It's also recommended that you read the "
+                    [ Element.text "Since this is your first group, we recommend you read the "
                     , Ui.routeLinkNewTab Route.CodeOfConductRoute "code of conduct"
                     , Element.text "."
                     ]
-                , Ui.radioGroup
-                    termsOfServiceId
-                    (\a -> FormChanged { form | acceptedTermsOfService = Just a })
-                    (Nonempty () [])
-                    form.acceptedTermsOfService
-                    (\() ->
-                        "I've read the terms of service and agree to it"
-                    )
-                    (case ( form.pressedSubmit, form.acceptedTermsOfService ) of
-                        ( True, Nothing ) ->
-                            Just "Please read and agree first"
-
-                        _ ->
-                            Nothing
-                    )
                 ]
 
           else

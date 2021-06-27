@@ -416,7 +416,7 @@ updateLoaded cmds msg model =
                         Just myGroups ->
                             let
                                 ( newModel, outMsg ) =
-                                    CreateGroupPage.update (Set.isEmpty myGroups) groupFormMsg model.groupForm
+                                    CreateGroupPage.update groupFormMsg model.groupForm
                                         |> Tuple.mapFirst (\a -> { model | groupForm = a })
                             in
                             case outMsg of

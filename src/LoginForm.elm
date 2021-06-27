@@ -96,10 +96,9 @@ view joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent } =
                 _ ->
                     Nothing
             )
-        , Element.paragraph [ Element.Font.size 10, Element.Font.color Colors.darkGrey ]
+        , Element.paragraph []
             [ Element.text "By continuing you agree to our "
-            , Element.link [ Element.Font.underline ]
-                { url = Route.encodeWithToken Route.TermsOfServiceRoute Route.NoToken, label = Element.text "Terms" }
+            , Ui.routeLink Route.TermsOfServiceRoute "Terms"
             , Element.text "."
             ]
         , Element.wrappedRow

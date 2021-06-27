@@ -208,14 +208,14 @@ emailAddressText emailAddress =
 routeLink : Route -> String -> Element msg
 routeLink route label =
     Element.link
-        [ Element.Font.color linkColor, inputFocusClass ]
+        [ Element.Font.color linkColor, inputFocusClass, Element.Font.underline ]
         { url = Route.encode route, label = Element.text label }
 
 
 routeLinkNewTab : Route -> String -> Element msg
 routeLinkNewTab route label =
     Element.newTabLink
-        [ Element.Font.color linkColor, inputFocusClass ]
+        [ Element.Font.color linkColor, inputFocusClass, Element.Font.underline ]
         { url = Env.domain ++ Route.encode route, label = Element.text label }
 
 
