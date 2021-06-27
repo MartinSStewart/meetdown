@@ -1249,18 +1249,10 @@ viewPage model =
                     Ui.loadingView
 
         PrivacyRoute ->
-            Element.column
-                Ui.pageContentAttributes
-                [ Ui.title "Privacy notice"
-                , MarkdownThemed.renderFull Privacy.text
-                ]
+            Privacy.view
 
         TermsOfServiceRoute ->
-            Element.column
-                Ui.pageContentAttributes
-                [ Ui.title "Terms of service"
-                , MarkdownThemed.renderFull Terms.text
-                ]
+            Terms.view
 
         CodeOfConductRoute ->
             Element.column

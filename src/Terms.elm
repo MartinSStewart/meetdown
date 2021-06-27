@@ -1,9 +1,22 @@
-module Terms exposing (text)
+module Terms exposing (view)
 
+import Element
 import Env
+import MarkdownThemed
 import Route
+import Ui
 
 
+view : Element.Element msg
+view =
+    Element.column
+        Ui.pageContentAttributes
+        [ Ui.title "Terms of service"
+        , MarkdownThemed.renderFull text
+        ]
+
+
+text : String
 text =
     """
 

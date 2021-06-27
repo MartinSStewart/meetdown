@@ -1,9 +1,22 @@
-module Privacy exposing (text)
+module Privacy exposing (view)
 
+import Element exposing (Element)
 import Env
+import MarkdownThemed
 import Route
+import Ui
 
 
+view : Element msg
+view =
+    Element.column
+        Ui.pageContentAttributes
+        [ Ui.title "Privacy notice"
+        , MarkdownThemed.renderFull text
+        ]
+
+
+text : String
 text =
     """
 
