@@ -20,7 +20,7 @@ text : String
 text =
     """
 
-#### Version 1.0 – July 2018
+#### Version 1.0 – June 2021
 
 ### 🤔 What is Meetdown
 
