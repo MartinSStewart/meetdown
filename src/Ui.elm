@@ -13,6 +13,7 @@ module Ui exposing
     , emailAddressText
     , enterKeyCode
     , error
+    , externalLink
     , filler
     , formError
     , formLabelAbove
@@ -217,6 +218,13 @@ routeLinkNewTab route label =
     Element.newTabLink
         [ Element.Font.color linkColor, inputFocusClass, Element.Font.underline ]
         { url = "https://meetdown.app" ++ Route.encode route, label = Element.text label }
+
+
+externalLink : String -> String -> Element msg
+externalLink url label =
+    Element.newTabLink
+        [ Element.Font.color linkColor, inputFocusClass, Element.Font.underline ]
+        { url = url, label = Element.text label }
 
 
 mailToLink : String -> Maybe String -> Element msg

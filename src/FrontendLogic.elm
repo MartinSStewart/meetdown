@@ -1291,23 +1291,33 @@ viewPage model =
 
         FrequentQuestionsRoute ->
             let
-                questionAndAnswer : String -> String -> Element msg
+                questionAndAnswer : String -> List (Element msg) -> Element msg
                 questionAndAnswer question answer =
                     Element.column
                         [ Element.spacing 8 ]
                         [ Element.paragraph [ Element.Font.bold ] [ Element.text ("\"" ++ question ++ "\"") ]
-                        , MarkdownThemed.renderFull answer
+                        , Element.paragraph [] answer
                         ]
             in
             Element.column
                 (Ui.pageContentAttributes ++ [ Element.spacing 28 ])
                 [ Ui.title "Frequently asked questions"
+                , questionAndAnswer "Who is behind all this?"
+                    [ Element.text "It is I, "
+                    , Ui.externalLink "https://github.com/MartinSStewart/" "Martin"
+                    , Element.text ". Credit goes to "
+                    , Ui.externalLink "https://twitter.com/realmario" "Mario Rogic"
+                    , Element.text " for helping me out with parts of the app."
+                    ]
                 , questionAndAnswer
                     "Why was this website made?"
-                    "I dislike that meetup.com charges money, spams me with emails, and feels bloated. Also I wanted to try making something more substantial using [Lamdera](https://www.lamdera.com/) to see if it's feasible to use at work."
+                    [ Element.text "I dislike that meetup.com charges money, spams me with emails, and feels bloated. Also I wanted to try making something more substantial using "
+                    , Ui.externalLink "https://www.lamdera.com/" "Lamdera"
+                    , Element.text " to see if it's feasible to use at work."
+                    ]
                 , questionAndAnswer
                     "If this website is free and doesn't run ads or sell data, how does it sustain itself?"
-                    "I just spend my own money to host it. That's okay because it's designed to cost very little to run. In the unlikely even that Meetdown gets very popular and hosting costs become too great, I'll ask for donations."
+                    [ Element.text "I just spend my own money to host it. That's okay because it's designed to cost very little to run. In the unlikely even that Meetdown gets very popular and hosting costs become too expensive, I'll ask for donations." ]
                 ]
 
 
