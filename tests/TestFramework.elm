@@ -27,6 +27,7 @@ module TestFramework exposing
     , keyDownEvent
     , reconnectFrontend
     , runEffects
+    , sendToBackend
     , simulateStep
     , simulateTime
     , startTime
@@ -637,6 +638,14 @@ reconnectFrontend frontendState state =
       }
     , clientId
     )
+
+
+sendToBackend : SessionId -> ClientId -> ToBackend -> Instructions -> Instructions
+sendToBackend sessionId clientId toBackend =
+    NextStep "Send to backend"
+        (\state ->
+            { state | toBackend = state.toBackend ++ [ ( sessionId, clientId, toBackend ) ] }
+        )
 
 
 animationFrame =

@@ -1,7 +1,9 @@
 module Tests exposing (createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt, createEventAndAnotherUserNotLoggedInJoinsIt, suite)
 
 import AssocList as Dict
+import BackendEffects
 import BackendLogic
+import BackendSub
 import CreateGroupPage
 import Date
 import Duration
@@ -22,9 +24,10 @@ import Test.Html.Query
 import Test.Html.Selector
 import TestFramework as TF exposing (EmailType(..))
 import Time
-import Types exposing (FrontendModel(..), LoginStatus(..))
+import Types exposing (FrontendModel(..), LoginStatus(..), ToBackend(..))
 import Ui
 import Unsafe
+import Untrusted
 
 
 loginFromHomepage :
@@ -32,7 +35,7 @@ loginFromHomepage :
     -> Id.SessionId
     -> Id.SessionId
     -> EmailAddress.EmailAddress
-    -> ({ inProgress : TF.Instructions, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId } -> TF.Instructions)
+    -> ({ instructions : TF.Instructions, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId } -> TF.Instructions)
     -> TF.Instructions
     -> TF.Instructions
 loginFromHomepage loginWithEnterKey sessionId sessionIdFromEmail emailAddress stateFunc =
@@ -51,7 +54,7 @@ handleLoginForm :
     -> Id.ClientId
     -> Id.SessionId
     -> EmailAddress
-    -> ({ inProgress : TF.Instructions, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId } -> TF.Instructions)
+    -> ({ instructions : TF.Instructions, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId } -> TF.Instructions)
     -> TF.Instructions
     -> TF.Instructions
 handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress andThenFunc state =
@@ -76,7 +79,7 @@ handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress andTh
                                 (Unsafe.url (BackendLogic.loginEmailLink route loginToken maybeJoinEvent))
                                 (\( state4, clientIdFromEmail ) ->
                                     andThenFunc
-                                        { inProgress = state4 |> TF.simulateTime Duration.second
+                                        { instructions = state4 |> TF.simulateTime Duration.second
                                         , clientId = clientId
                                         , clientIdFromEmail = clientIdFromEmail
                                         }
@@ -97,15 +100,15 @@ suite =
                         Id.sessionIdFromString "session0"
 
                     emailAddress =
-                        Unsafe.emailAddress "a@a.se"
+                        Unsafe.emailAddress "the@email.com"
                 in
                 TF.init
                     |> loginFromHomepage False
                         sessionId
                         sessionId
                         emailAddress
-                        (\{ inProgress, clientId, clientIdFromEmail } ->
-                            inProgress
+                        (\{ instructions, clientId, clientIdFromEmail } ->
+                            instructions
                                 |> TF.checkLoadedFrontend
                                     clientIdFromEmail
                                     (\frontend ->
@@ -131,7 +134,7 @@ suite =
                         Id.sessionIdFromString "session0"
 
                     emailAddress =
-                        Unsafe.emailAddress "a@a.se"
+                        Unsafe.emailAddress "the@email.com"
                 in
                 TF.init
                     |> loginFromHomepage
@@ -139,8 +142,8 @@ suite =
                         sessionId
                         sessionId
                         emailAddress
-                        (\{ inProgress, clientId, clientIdFromEmail } ->
-                            inProgress
+                        (\{ instructions, clientId, clientIdFromEmail } ->
+                            instructions
                                 |> TF.checkLoadedFrontend
                                     clientIdFromEmail
                                     (\frontend ->
@@ -166,7 +169,7 @@ suite =
                         Id.sessionIdFromString "session0"
 
                     emailAddress =
-                        Unsafe.emailAddress "a@a.se"
+                        Unsafe.emailAddress "the@email.com"
                 in
                 TF.init
                     |> loginFromHomepage
@@ -174,8 +177,8 @@ suite =
                         sessionId
                         sessionId
                         emailAddress
-                        (\{ inProgress, clientId, clientIdFromEmail } ->
-                            inProgress
+                        (\{ instructions, clientId, clientIdFromEmail } ->
+                            instructions
                                 |> TF.checkLoadedFrontend
                                     clientId
                                     (\frontend ->
@@ -201,9 +204,9 @@ suite =
                         True
                         (Id.sessionIdFromString "session0")
                         (Id.sessionIdFromString "session1")
-                        (Unsafe.emailAddress "a@a.se")
-                        (\{ inProgress, clientId, clientIdFromEmail } ->
-                            inProgress
+                        (Unsafe.emailAddress "the@email.com")
+                        (\{ instructions, clientId, clientIdFromEmail } ->
+                            instructions
                                 |> TF.checkLoadedFrontend
                                     clientId
                                     (\frontend ->
@@ -223,7 +226,7 @@ suite =
             \_ ->
                 let
                     emailAddress =
-                        Unsafe.emailAddress "a@a.se"
+                        Unsafe.emailAddress "the@email.com"
 
                     sessionId =
                         Id.sessionIdFromString "session0"
@@ -233,8 +236,8 @@ suite =
                         sessionId
                         sessionId
                         emailAddress
-                        (\{ inProgress, clientId, clientIdFromEmail } ->
-                            inProgress
+                        (\{ instructions, clientId, clientIdFromEmail } ->
+                            instructions
                                 |> TF.andThen
                                     (\state ->
                                         case List.filter (Tuple.first >> (==) emailAddress) state.emailInboxes of
@@ -286,9 +289,9 @@ suite =
                     |> loginFromHomepage False
                         session0
                         session0
-                        (Unsafe.emailAddress "a@a.se")
-                        (\{ inProgress, clientId, clientIdFromEmail } ->
-                            createGroup clientIdFromEmail groupName groupDescription inProgress
+                        (Unsafe.emailAddress "the@email.com")
+                        (\{ instructions, clientId, clientIdFromEmail } ->
+                            createGroup clientIdFromEmail groupName groupDescription instructions
                                 |> TF.checkFrontend clientIdFromEmail
                                     (\model ->
                                         case model of
@@ -323,14 +326,14 @@ suite =
                         Id.sessionIdFromString "session0"
 
                     emailAddress =
-                        Unsafe.emailAddress "a@a.se"
+                        Unsafe.emailAddress "the@email.com"
                 in
                 TF.init
                     |> loginFromHomepage False
                         session0
                         session0
                         emailAddress
-                        (\{ inProgress, clientId, clientIdFromEmail } ->
+                        (\{ instructions, clientId, clientIdFromEmail } ->
                             createGroupAndEvent
                                 clientId
                                 { groupName = "It's my Group!"
@@ -342,7 +345,7 @@ suite =
                                 , eventMinute = 0
                                 , eventDuration = "1"
                                 }
-                                inProgress
+                                instructions
                                 |> TF.fastForward (Duration.days 1.999 |> Quantity.plus (Duration.hours 14))
                                 |> TF.checkState
                                     (\model ->
@@ -372,14 +375,14 @@ suite =
                         Id.sessionIdFromString "session0"
 
                     emailAddress =
-                        Unsafe.emailAddress "a@a.se"
+                        Unsafe.emailAddress "the@email.com"
                 in
                 TF.init
                     |> loginFromHomepage False
                         session0
                         session0
                         emailAddress
-                        (\{ inProgress, clientId, clientIdFromEmail } ->
+                        (\{ instructions, clientId, clientIdFromEmail } ->
                             createGroupAndEvent
                                 clientId
                                 { groupName = "It's my Group!"
@@ -391,7 +394,7 @@ suite =
                                 , eventMinute = 0
                                 , eventDuration = "1"
                                 }
-                                inProgress
+                                instructions
                                 |> TF.fastForward (Duration.hours 1.99)
                                 |> TF.simulateTime (Duration.hours 0.02)
                                 |> TF.checkState
@@ -415,7 +418,7 @@ suite =
                         Id.sessionIdFromString "session1"
 
                     emailAddress0 =
-                        Unsafe.emailAddress "a@a.se"
+                        Unsafe.emailAddress "the@email.com"
 
                     emailAddress1 =
                         Unsafe.emailAddress "jim@a.com"
@@ -428,7 +431,7 @@ suite =
                         session0
                         session0
                         emailAddress0
-                        (\{ inProgress, clientId, clientIdFromEmail } ->
+                        (\{ instructions, clientId, clientIdFromEmail } ->
                             createGroupAndEvent
                                 clientId
                                 { groupName = GroupName.toString groupName
@@ -440,14 +443,14 @@ suite =
                                 , eventMinute = 0
                                 , eventDuration = "1"
                                 }
-                                inProgress
+                                instructions
                         )
                     |> loginFromHomepage False
                         session1
                         session1
                         emailAddress1
-                        (\{ inProgress, clientId, clientIdFromEmail } ->
-                            findSingleGroup inProgress
+                        (\{ instructions, clientId, clientIdFromEmail } ->
+                            findSingleGroup
                                 (\groupId inProgress2 ->
                                     inProgress2
                                         |> TF.inputText clientId FrontendLogic.groupSearchId "my group!"
@@ -469,6 +472,7 @@ suite =
                                                         Err "Should have gotten an event notification"
                                             )
                                 )
+                                instructions
                         )
                     |> TF.toExpectation
         , test "Create an event and another user (who isn't logged in) joins it" <|
@@ -595,8 +599,8 @@ suite =
                         session0
                         session0
                         emailAddress
-                        (\{ inProgress, clientId, clientIdFromEmail } ->
-                            inProgress
+                        (\{ instructions, clientId, clientIdFromEmail } ->
+                            instructions
                                 |> TF.simulateTime Duration.second
                                 |> TF.clickLink clientId Route.MyProfileRoute
                                 |> TF.clickButton clientId ProfilePage.deleteAccountButtonId
@@ -650,11 +654,93 @@ suite =
                                     )
                         )
                     |> TF.toExpectation
+        , test "Not logged in users can't create groups" <|
+            \_ ->
+                let
+                    sessionId =
+                        Id.sessionIdFromString "sessionId"
+                in
+                TF.init
+                    |> TF.connectFrontend
+                        sessionId
+                        (Env.domain ++ Route.encode Route.HomepageRoute |> Unsafe.url)
+                        (\( instructions, clientId ) ->
+                            instructions
+                                |> TF.sendToBackend
+                                    sessionId
+                                    clientId
+                                    (CreateGroupRequest
+                                        (Unsafe.groupName "group" |> Untrusted.untrust)
+                                        (Unsafe.description "description" |> Untrusted.untrust)
+                                        Group.PublicGroup
+                                    )
+                        )
+                    |> TF.simulateTime Duration.second
+                    |> TF.checkBackend
+                        (\backend ->
+                            if Dict.isEmpty backend.groups then
+                                Ok ()
+
+                            else
+                                Err "No group should have been created"
+                        )
+                    |> TF.toExpectation
+        , test "Non-admin users can't delete groups" <|
+            \_ ->
+                let
+                    sessionId =
+                        Id.sessionIdFromString "sessionId"
+
+                    attackerSessionId =
+                        Id.sessionIdFromString "sessionIdAttacker"
+
+                    emailAddress =
+                        Unsafe.emailAddress "my@email.com"
+
+                    attackerEmailAddress =
+                        Unsafe.emailAddress "hacker@email.com"
+                in
+                TF.init
+                    |> loginFromHomepage
+                        True
+                        sessionId
+                        sessionId
+                        emailAddress
+                        (\{ instructions, clientId } ->
+                            instructions |> createGroup clientId "group" "description"
+                        )
+                    |> TF.simulateTime Duration.second
+                    |> loginFromHomepage
+                        False
+                        attackerSessionId
+                        attackerSessionId
+                        attackerEmailAddress
+                        (\{ instructions, clientId } ->
+                            findSingleGroup
+                                (\groupId instructions2 ->
+                                    instructions2
+                                        |> TF.sendToBackend
+                                            sessionId
+                                            clientId
+                                            (DeleteGroupAdminRequest groupId)
+                                )
+                                instructions
+                        )
+                    |> TF.simulateTime Duration.second
+                    |> TF.checkBackend
+                        (\backend ->
+                            if Dict.isEmpty backend.deletedGroups && Dict.size backend.groups == 1 then
+                                Ok ()
+
+                            else
+                                Err "No group should have been deleted"
+                        )
+                    |> TF.toExpectation
         ]
 
 
-findSingleGroup : TF.Instructions -> (Id GroupId -> TF.Instructions -> TF.Instructions) -> TF.Instructions
-findSingleGroup inProgress continueWith =
+findSingleGroup : (Id GroupId -> TF.Instructions -> TF.Instructions) -> TF.Instructions -> TF.Instructions
+findSingleGroup continueWith inProgress =
     inProgress
         |> TF.andThen
             (\state ->
@@ -684,7 +770,7 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
             Id.sessionIdFromString "session1"
 
         emailAddress0 =
-            Unsafe.emailAddress "a@a.se"
+            Unsafe.emailAddress "the@email.se"
 
         emailAddress1 =
             Unsafe.emailAddress "jim@a.com"
@@ -697,7 +783,7 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
             session0
             session0
             emailAddress0
-            (\{ inProgress, clientId, clientIdFromEmail } ->
+            (\{ instructions, clientId, clientIdFromEmail } ->
                 createGroupAndEvent
                     clientId
                     { groupName = GroupName.toString groupName
@@ -709,12 +795,12 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
                     , eventMinute = 0
                     , eventDuration = "1"
                     }
-                    inProgress
+                    instructions
             )
         |> TF.connectFrontend session1
             (Env.domain ++ Route.encode Route.HomepageRoute |> Unsafe.url)
-            (\( state, clientId ) ->
-                findSingleGroup state
+            (\( instructions, clientId ) ->
+                findSingleGroup
                     (\groupId inProgress2 ->
                         inProgress2
                             |> TF.simulateTime Duration.second
@@ -731,12 +817,13 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
                                 session1
                                 emailAddress1
                                 (\a ->
-                                    a.inProgress
+                                    a.instructions
                                         |> TF.simulateTime Duration.second
                                         -- We are just clicking the leave button to test that we had joined the event.
                                         |> TF.clickButton a.clientIdFromEmail GroupPage.leaveEventButtonId
                                 )
                     )
+                    instructions
             )
 
 
@@ -750,7 +837,7 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
             Id.sessionIdFromString "session1"
 
         emailAddress0 =
-            Unsafe.emailAddress "a@a.se"
+            Unsafe.emailAddress "the@email.com"
 
         emailAddress1 =
             Unsafe.emailAddress "jim@a.com"
@@ -763,7 +850,7 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
             session0
             session0
             emailAddress0
-            (\{ inProgress, clientId, clientIdFromEmail } ->
+            (\{ instructions, clientId, clientIdFromEmail } ->
                 createGroupAndEvent
                     clientId
                     { groupName = GroupName.toString groupName
@@ -775,22 +862,22 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
                     , eventMinute = 0
                     , eventDuration = "1"
                     }
-                    inProgress
+                    instructions
             )
         |> loginFromHomepage False
             session1
             session1
             emailAddress1
-            (\{ inProgress, clientIdFromEmail } ->
-                inProgress
+            (\{ instructions, clientIdFromEmail } ->
+                instructions
                     |> TF.simulateTime Duration.second
                     |> TF.clickButton clientIdFromEmail FrontendLogic.logOutButtonId
                     |> TF.simulateTime Duration.minute
             )
         |> TF.connectFrontend session1
             (Env.domain ++ Route.encode Route.HomepageRoute |> Unsafe.url)
-            (\( state, clientId ) ->
-                findSingleGroup state
+            (\( instructions, clientId ) ->
+                findSingleGroup
                     (\groupId inProgress2 ->
                         inProgress2
                             |> TF.simulateTime Duration.second
@@ -807,12 +894,13 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
                                 session1
                                 emailAddress1
                                 (\a ->
-                                    a.inProgress
+                                    a.instructions
                                         |> TF.simulateTime Duration.second
                                         -- We are just clicking the leave button to test that we had joined the event.
                                         |> TF.clickButton a.clientIdFromEmail GroupPage.leaveEventButtonId
                                 )
                     )
+                    instructions
             )
 
 
