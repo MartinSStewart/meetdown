@@ -39,8 +39,8 @@ getGroupsFromIds groups model =
         groups
 
 
-view : String -> LoadedFrontend -> Element FrontendMsg
-view searchText model =
+view : Bool -> String -> LoadedFrontend -> Element FrontendMsg
+view isMobile searchText model =
     Element.column
         [ Element.padding 8
         , Ui.contentWidth
@@ -55,13 +55,13 @@ view searchText model =
         , Element.column
             [ Element.width Element.fill, Element.spacing 16 ]
             (getGroupsFromIds model.searchList model
-                |> List.map (\( groupId, group ) -> groupPreview model.time groupId group)
+                |> List.map (\( groupId, group ) -> groupPreview isMobile model.time groupId group)
             )
         ]
 
 
-groupPreview : Time.Posix -> Id GroupId -> Group -> Element msg
-groupPreview currentTime groupId group =
+groupPreview : Bool -> Time.Posix -> Id GroupId -> Group -> Element msg
+groupPreview isMobile currentTime groupId group =
     Element.link
         (Element.width Element.fill
             :: Ui.inputFocusClass
@@ -118,6 +118,11 @@ groupPreview currentTime groupId group =
                                     [ Element.Font.alignRight
                                     , Element.alignTop
                                     , Element.width (Element.fillPortion 1)
+                                    , if isMobile then
+                                        Element.Font.size 14
+
+                                      else
+                                        Ui.defaultFontSize
                                     ]
 
                         Nothing ->

@@ -7,6 +7,7 @@ module Ui exposing
     , dangerButton
     , dateTimeInput
     , datestamp
+    , datetimeToString
     , defaultFont
     , defaultFontColor
     , defaultFontSize
@@ -66,6 +67,8 @@ import Route exposing (Route)
 import Svg
 import Svg.Attributes
 import Time
+import Time.Extra as Time
+import TimeExtra as Time
 
 
 css : Html msg
@@ -249,7 +252,6 @@ section : String -> Element msg -> Element msg
 section sectionTitle content =
     Element.column
         [ Element.spacing 8
-        , Element.padding 8
         , Element.Border.rounded 4
         , inputBackground False
         , Element.alignTop
@@ -328,8 +330,8 @@ submitButton htmlId isSubmitting { onPress, label } =
         }
 
 
-dangerButton : HtmlId ButtonId -> { onPress : msg, label : String } -> Element msg
-dangerButton htmlId { onPress, label } =
+dangerButton : HtmlId ButtonId -> Bool -> { onPress : msg, label : String } -> Element msg
+dangerButton htmlId isSubmitting { onPress, label } =
     Element.Input.button
         [ Element.Background.color Colors.red
         , Element.padding 10
@@ -339,7 +341,17 @@ dangerButton htmlId { onPress, label } =
         , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         ]
         { onPress = Just onPress
-        , label = Element.text label
+        , label =
+            Element.el
+                [ Element.width Element.fill
+                , Element.paddingXY 30 0
+                , if isSubmitting then
+                    Element.inFront (Element.el [] (Element.text "⌛"))
+
+                  else
+                    Element.inFront Element.none
+                ]
+                (Element.text label)
         }
 
 
@@ -637,6 +649,23 @@ dateInput htmlId onChange minDateTime date isDisabled =
         []
         |> Element.html
         |> Element.el []
+
+
+datetimeToString : Time.Zone -> Time.Posix -> String
+datetimeToString timezone time =
+    let
+        offset =
+            toFloat (Time.toOffset timezone time) / 60
+    in
+    (time |> Date.fromPosix timezone |> Date.format "MMMM ddd")
+        ++ ", "
+        ++ timeToString timezone time
+        ++ (if offset >= 0 then
+                Time.removeTrailing0s offset |> (++) " GMT+"
+
+            else
+                Time.removeTrailing0s offset |> (++) " GMT"
+           )
 
 
 datestamp : Date -> String

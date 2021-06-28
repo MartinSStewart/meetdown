@@ -754,7 +754,7 @@ view windowSize currentValues ({ form } as model) =
                         form.emailAddress
                         "Your email address"
                     ]
-                , Ui.dangerButton deleteAccountButtonId { onPress = PressedDeleteAccount, label = "Delete account" }
+                , Ui.dangerButton deleteAccountButtonId False { onPress = PressedDeleteAccount, label = "Delete account" }
                 , if model.pressedDeleteAccount then
                     Element.column
                         [ Element.spacing 20 ]

@@ -1,5 +1,6 @@
 module Types exposing (..)
 
+import AdminStatus exposing (AdminStatus)
 import Array exposing (Array)
 import AssocList as Dict exposing (Dict)
 import AssocSet exposing (Set)
@@ -127,7 +128,7 @@ type alias LoggedIn_ =
     , profileForm : ProfilePage.Model
     , myGroups : Maybe (Set (Id GroupId))
     , adminState : AdminCache
-    , isAdmin : Bool
+    , adminStatus : AdminStatus
     }
 
 
@@ -141,6 +142,7 @@ type alias AdminModel =
 type alias BackendModel =
     { users : Dict (Id UserId) BackendUser
     , groups : Dict (Id GroupId) Group
+    , deletedGroups : Dict (Id GroupId) Group
     , sessions : BiDict SessionId (Id UserId)
     , loginAttempts : Dict SessionId (Nonempty Time.Posix)
     , connections : Dict SessionId (Nonempty ClientId)
@@ -302,6 +304,8 @@ type FrontendMsg
     | GotWindowSize (Quantity Int Pixels) (Quantity Int Pixels)
     | GotTimeZone (Result TimeZone.Error ( String, Time.Zone ))
     | ScrolledToTop
+    | PressedEnableAdmin
+    | PressedDisableAdmin
 
 
 type ToBackend
@@ -323,11 +327,13 @@ type ToBackend
     | SearchGroupsRequest String
     | ChangeGroupNameRequest (Id GroupId) (Untrusted GroupName)
     | ChangeGroupDescriptionRequest (Id GroupId) (Untrusted Description)
+    | ChangeGroupVisibilityRequest (Id GroupId) GroupVisibility
     | CreateEventRequest (Id GroupId) (Untrusted EventName) (Untrusted Description) (Untrusted EventType) Time.Posix (Untrusted EventDuration) (Untrusted MaxAttendees)
     | EditEventRequest (Id GroupId) EventId (Untrusted EventName) (Untrusted Description) (Untrusted EventType) Time.Posix (Untrusted EventDuration) (Untrusted MaxAttendees)
     | JoinEventRequest (Id GroupId) EventId
     | LeaveEventRequest (Id GroupId) EventId
     | ChangeEventCancellationStatusRequest (Id GroupId) EventId CancellationStatus
+    | DeleteGroupAdminRequest (Id GroupId)
 
 
 type BackendMsg
@@ -356,8 +362,10 @@ type ToFrontend
     | SearchGroupsResponse String (List ( Id GroupId, Group ))
     | ChangeGroupNameResponse (Id GroupId) GroupName
     | ChangeGroupDescriptionResponse (Id GroupId) Description
+    | ChangeGroupVisibilityResponse (Id GroupId) GroupVisibility
     | CreateEventResponse (Id GroupId) (Result CreateEventError Event)
     | EditEventResponse (Id GroupId) EventId (Result Group.EditEventError Event) Time.Posix
     | JoinEventResponse (Id GroupId) EventId (Result JoinEventError ())
     | LeaveEventResponse (Id GroupId) EventId (Result () ())
     | ChangeEventCancellationStatusResponse (Id GroupId) EventId (Result Group.EditCancellationStatusError CancellationStatus) Time.Posix
+    | DeleteGroupAdminResponse (Id GroupId)

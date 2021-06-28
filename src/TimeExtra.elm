@@ -45,7 +45,7 @@ diffToString start end =
 
     else if days == 1 then
         if Time.posixToMillis start <= Time.posixToMillis end then
-            "tomorrow"
+            "1 day"
 
         else
             "yesterday"

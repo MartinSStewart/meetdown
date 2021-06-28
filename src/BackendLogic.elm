@@ -98,6 +98,7 @@ init : Effects cmd -> ( BackendModel, cmd )
 init effects =
     ( { users = Dict.empty
       , groups = Dict.empty
+      , deletedGroups = Dict.empty
       , sessions = BiDict.empty
       , loginAttempts = Dict.empty
       , connections = Dict.empty
@@ -756,6 +757,41 @@ updateFromFrontend cmds sessionId clientId msg model =
                             )
                 )
 
+        ChangeGroupVisibilityRequest groupId groupVisibility ->
+            userWithGroupAuthorization
+                cmds
+                sessionId
+                groupId
+                model
+                (\( userId, _, group ) ->
+                    ( { model | groups = Dict.insert groupId (Group.withVisibility groupVisibility group) model.groups }
+                    , cmds.sendToFrontends
+                        (getClientIdsForUser userId model)
+                        (ChangeGroupVisibilityResponse groupId groupVisibility)
+                    )
+                )
+
+        DeleteGroupAdminRequest groupId ->
+            adminAuthorization
+                cmds
+                sessionId
+                model
+                (\( userId, _ ) ->
+                    case Dict.get groupId model.groups of
+                        Just group ->
+                            ( { model
+                                | groups = Dict.remove groupId model.groups
+                                , deletedGroups = Dict.insert groupId group model.deletedGroups
+                              }
+                            , cmds.sendToFrontends
+                                (getClientIdsForUser userId model)
+                                (DeleteGroupAdminResponse groupId)
+                            )
+
+                        Nothing ->
+                            ( model, cmds.none )
+                )
+
 
 loginIsRateLimited : SessionId -> EmailAddress -> BackendModel -> Bool
 loginIsRateLimited sessionId emailAddress model =
@@ -997,7 +1033,7 @@ userWithGroupAuthorization cmds sessionId groupId model updateFunc =
         Just { userId, user } ->
             case getGroup groupId model of
                 Just group ->
-                    if Group.ownerId group == userId then
+                    if Group.ownerId group == userId || isAdmin user then
                         updateFunc ( userId, user, group )
 
                     else
