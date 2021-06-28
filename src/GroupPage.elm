@@ -1,4 +1,4 @@
-module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, addedNewEvent, createEventCancelId, createEventStartDateId, createEventStartTimeId, createEventSubmitId, createNewEventId, editCancellationStatusResponse, editDescriptionId, editEventResponse, editGroupNameId, eventDescriptionInputId, eventDurationId, eventMeetingInPersonInputId, eventMeetingOnlineInputId, eventMeetingTypeId, eventNameInputId, init, joinEventButtonId, joinEventResponse, leaveEventButtonId, leaveEventResponse, resetDescriptionId, resetGroupNameId, saveDescriptionId, saveGroupNameId, savedDescription, savedName, update, view)
+module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, addedNewEvent, changeVisibilityResponse, createEventCancelId, createEventStartDateId, createEventStartTimeId, createEventSubmitId, createNewEventId, editCancellationStatusResponse, editDescriptionId, editEventResponse, editGroupNameId, eventDescriptionInputId, eventDurationId, eventMeetingInPersonInputId, eventMeetingOnlineInputId, eventMeetingTypeId, eventNameInputId, init, joinEventButtonId, joinEventResponse, leaveEventButtonId, leaveEventResponse, resetDescriptionId, resetGroupNameId, saveDescriptionId, saveGroupNameId, savedDescription, savedName, update, view)
 
 import Address exposing (Address, Error(..))
 import AdminStatus exposing (AdminStatus(..))
@@ -44,6 +44,7 @@ type alias Model =
     , pendingJoinOrLeave : Dict EventId EventJoinOrLeaveStatus
     , showAllFutureEvents : Bool
     , pendingEventCancelOrUncancel : Set EventId
+    , pendingToggleVisibility : Bool
     }
 
 
@@ -83,6 +84,9 @@ type Msg
     | PressedUncancelEvent
     | PressedSubmitEditEvent
     | PressedCancelEditEvent
+    | PressedMakeGroupPublic
+    | PressedMakeGroupUnlisted
+    | PressedDeleteGroup
 
 
 type alias Effects cmd =
@@ -109,6 +113,8 @@ type alias Effects cmd =
     , joinEvent : EventId -> cmd
     , leaveEvent : EventId -> cmd
     , changeCancellationStatus : EventId -> Event.CancellationStatus -> cmd
+    , changeVisibility : Group.GroupVisibility -> cmd
+    , deleteGroup : cmd
     }
 
 
@@ -155,6 +161,7 @@ init =
     , pendingJoinOrLeave = Dict.empty
     , showAllFutureEvents = False
     , pendingEventCancelOrUncancel = Set.empty
+    , pendingToggleVisibility = False
     }
 
 
@@ -196,6 +203,11 @@ savedDescription model =
 
         _ ->
             model
+
+
+changeVisibilityResponse : Group.GroupVisibility -> Model -> Model
+changeVisibilityResponse _ model =
+    { model | pendingToggleVisibility = False }
 
 
 type CreateEventError
@@ -702,6 +714,34 @@ update effects config group maybeLoggedIn msg model =
                 _ ->
                     ( model, effects.none, { joinEvent = Nothing } )
 
+        PressedMakeGroupPublic ->
+            if canEdit_ && not model.pendingToggleVisibility then
+                ( { model | pendingToggleVisibility = True }
+                , effects.changeVisibility Group.PublicGroup
+                , { joinEvent = Nothing }
+                )
+
+            else
+                ( model, effects.none, { joinEvent = Nothing } )
+
+        PressedMakeGroupUnlisted ->
+            if canEdit_ && not model.pendingToggleVisibility then
+                ( { model | pendingToggleVisibility = True }
+                , effects.changeVisibility Group.UnlistedGroup
+                , { joinEvent = Nothing }
+                )
+
+            else
+                ( model, effects.none, { joinEvent = Nothing } )
+
+        PressedDeleteGroup ->
+            case Maybe.map (.adminStatus >> AdminStatus.isAdminEnabled) maybeLoggedIn of
+                Just True ->
+                    ( model, effects.deleteGroup, { joinEvent = Nothing } )
+
+                _ ->
+                    ( model, effects.none, { joinEvent = Nothing } )
+
 
 pressSubmit : { a | submitStatus : SubmitStatus b } -> { a | submitStatus : SubmitStatus b }
 pressSubmit event =
@@ -814,7 +854,7 @@ groupView isMobile currentTime timezone owner group model maybeLoggedIn =
             canEdit group maybeLoggedIn
     in
     Element.column
-        [ Element.spacing 8, Element.padding 8, Ui.contentWidth, Element.centerX ]
+        [ Element.spacing 24, Ui.contentWidth, Element.centerX ]
         [ Element.wrappedRow
             [ Element.width Element.fill, Element.spacing 8 ]
             [ Element.column [ Element.alignTop, Element.width Element.fill, Element.spacing 4 ]
@@ -1016,7 +1056,43 @@ groupView isMobile currentTime timezone owner group model maybeLoggedIn =
                 [ Element.alignRight ]
                 [ Element.text ("This group was created on " ++ dateToString (Just timezone) (Group.createdAt group)) ]
             )
+        , if canEdit_ then
+            Element.el []
+                (case Group.visibility group of
+                    Group.PublicGroup ->
+                        Ui.submitButton
+                            makeUnlistedGroupId
+                            model.pendingToggleVisibility
+                            { onPress = PressedMakeGroupUnlisted, label = "Make group unlisted" }
+
+                    Group.UnlistedGroup ->
+                        Ui.submitButton
+                            makePublicGroupId
+                            model.pendingToggleVisibility
+                            { onPress = PressedMakeGroupPublic, label = "Make group public" }
+                )
+
+          else
+            Element.none
+        , case Maybe.map (.adminStatus >> AdminStatus.isAdminEnabled) maybeLoggedIn of
+            Just True ->
+                Ui.dangerButton deleteGroupButtonId False { onPress = PressedDeleteGroup, label = "Delete group" }
+
+            _ ->
+                Element.none
         ]
+
+
+deleteGroupButtonId =
+    Id.buttonId "groupPageDeleteGroup"
+
+
+makeUnlistedGroupId =
+    Id.buttonId "groupPageMakeUnlistedGroup"
+
+
+makePublicGroupId =
+    Id.buttonId "groupPageMakePublicGroup"
 
 
 showAllFutureEventsId =
@@ -1193,21 +1269,21 @@ eventCardHeader isMobile currentTime timezone eventStatus event =
         , Element.column
             [ Element.spacing 4, Element.alignTop ]
             [ Ui.datetimeToString timezone (Event.startTime event) |> Element.text
-            , case eventStatus of
+            , (case eventStatus of
                 IsOngoingEvent ->
                     "Ends in "
                         ++ Time.diffToString currentTime (Event.endTime event)
-                        |> Element.text
 
                 IsFutureEvent ->
                     "Begins in "
                         ++ Time.diffToString currentTime (Event.startTime event)
-                        |> Element.text
 
                 IsPastEvent ->
                     "Ended "
                         ++ Time.diffToString currentTime (Event.endTime event)
-                        |> Element.text
+              )
+                |> Element.text
+                |> Element.el [ Element.alignRight ]
             ]
         ]
 
@@ -1724,13 +1800,22 @@ editEventView currentTime timezone maybeCancellationStatus eventStatus event =
                         [ Element.alignRight ]
                         (case maybeCancellationStatus of
                             Just ( Event.EventCancelled, _ ) ->
-                                Ui.dangerButton uncancelEventId { onPress = PressedUncancelEvent, label = "Uncancel event" }
+                                Ui.dangerButton
+                                    uncancelEventId
+                                    False
+                                    { onPress = PressedUncancelEvent, label = "Uncancel event" }
 
                             Just ( Event.EventUncancelled, _ ) ->
-                                Ui.dangerButton recancelEventId { onPress = PressedCancelEvent, label = "Recancel event" }
+                                Ui.dangerButton
+                                    recancelEventId
+                                    False
+                                    { onPress = PressedCancelEvent, label = "Recancel event" }
 
                             Nothing ->
-                                Ui.dangerButton cancelEventId { onPress = PressedCancelEvent, label = "Cancel event" }
+                                Ui.dangerButton
+                                    cancelEventId
+                                    False
+                                    { onPress = PressedCancelEvent, label = "Cancel event" }
                         )
 
                 IsOngoingEvent ->
@@ -2037,7 +2122,6 @@ section : Bool -> String -> Element msg -> Element msg -> Element msg
 section hasError title headerExtra content =
     Element.column
         [ Element.spacing 8
-        , Element.padding 8
         , Element.Border.rounded 4
         , Ui.inputBackground hasError
         , Element.width Element.fill

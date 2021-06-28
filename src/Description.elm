@@ -1,7 +1,6 @@
 module Description exposing (Description(..), Error(..), empty, errorToString, fromString, maxLength, toParagraph, toString)
 
 import Element exposing (Element)
-import Element.Font
 import MarkdownThemed
 
 
@@ -54,7 +53,7 @@ toString (Description description) =
 toParagraph : Bool -> Description -> Element msg
 toParagraph searchPreview description =
     if toString description == "" then
-        Element.paragraph [ Element.Font.italic ] [ Element.text "No description" ]
+        MarkdownThemed.renderMinimal searchPreview "_No description_"
 
     else
         MarkdownThemed.renderMinimal searchPreview (toString description)

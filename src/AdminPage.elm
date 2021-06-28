@@ -34,7 +34,7 @@ adminView adminEnabled timezone loggedIn =
                     Ui.submitButton enableAdminId False { onPress = PressedDisableAdmin, label = "Disable admin" }
 
                   else
-                    Ui.dangerButton enableAdminId { onPress = PressedEnableAdmin, label = "Enable admin" }
+                    Ui.dangerButton enableAdminId False { onPress = PressedEnableAdmin, label = "Enable admin" }
                 , Element.paragraph
                     []
                     [ Element.text "Logs last updated at: "

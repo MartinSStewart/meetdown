@@ -252,7 +252,6 @@ section : String -> Element msg -> Element msg
 section sectionTitle content =
     Element.column
         [ Element.spacing 8
-        , Element.padding 8
         , Element.Border.rounded 4
         , inputBackground False
         , Element.alignTop
@@ -331,8 +330,8 @@ submitButton htmlId isSubmitting { onPress, label } =
         }
 
 
-dangerButton : HtmlId ButtonId -> { onPress : msg, label : String } -> Element msg
-dangerButton htmlId { onPress, label } =
+dangerButton : HtmlId ButtonId -> Bool -> { onPress : msg, label : String } -> Element msg
+dangerButton htmlId isSubmitting { onPress, label } =
     Element.Input.button
         [ Element.Background.color Colors.red
         , Element.padding 10
@@ -342,7 +341,17 @@ dangerButton htmlId { onPress, label } =
         , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         ]
         { onPress = Just onPress
-        , label = Element.text label
+        , label =
+            Element.el
+                [ Element.width Element.fill
+                , Element.paddingXY 30 0
+                , if isSubmitting then
+                    Element.inFront (Element.el [] (Element.text "⌛"))
+
+                  else
+                    Element.inFront Element.none
+                ]
+                (Element.text label)
         }
 
 

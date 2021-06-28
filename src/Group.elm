@@ -24,6 +24,7 @@ module Group exposing
     , visibility
     , withDescription
     , withName
+    , withVisibility
     )
 
 import AssocList as Dict exposing (Dict)
@@ -98,6 +99,11 @@ withDescription description_ (Group a) =
 visibility : Group -> GroupVisibility
 visibility (Group a) =
     a.visibility
+
+
+withVisibility : GroupVisibility -> Group -> Group
+withVisibility groupVisibility (Group a) =
+    Group { a | visibility = groupVisibility }
 
 
 type EventId

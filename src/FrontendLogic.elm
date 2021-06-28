@@ -532,6 +532,8 @@ updateLoaded cmds msg model =
                                             \a b c d e f g -> EditEventRequest groupId a b c d e f g |> cmds.sendToBackend
                                         , changeCancellationStatus =
                                             \a b -> ChangeEventCancellationStatusRequest groupId a b |> cmds.sendToBackend
+                                        , changeVisibility = ChangeGroupVisibilityRequest groupId >> cmds.sendToBackend
+                                        , deleteGroup = DeleteGroupAdminRequest groupId |> cmds.sendToBackend
                                         }
                                         model
                                         group
@@ -1089,6 +1091,20 @@ updateLoadedFromBackend cmds msg model =
             , cmds.none
             )
 
+        ChangeGroupVisibilityResponse groupId visibility ->
+            ( { model
+                | cachedGroups =
+                    Dict.updateJust groupId (Types.mapCache (Group.withVisibility visibility)) model.cachedGroups
+                , groupPage = Dict.updateJust groupId (GroupPage.changeVisibilityResponse visibility) model.groupPage
+              }
+            , cmds.none
+            )
+
+        DeleteGroupAdminResponse groupId ->
+            ( { model | cachedGroups = Dict.updateJust groupId (\_ -> ItemDoesNotExist) model.cachedGroups }
+            , cmds.none
+            )
+
 
 view : FrontendModel -> Browser.Document FrontendMsg
 view model =
@@ -1305,7 +1321,7 @@ viewPage model =
                 )
 
         SearchGroupsRoute searchText ->
-            SearchPage.view searchText model
+            SearchPage.view (isMobile model) searchText model
 
         UserRoute userId _ ->
             case getCachedUser userId model of
@@ -1388,7 +1404,7 @@ myGroupsView model loggedIn =
                     SearchPage.getGroupsFromIds (Set.toList myGroups) model
                         |> List.map
                             (\( groupId, group ) ->
-                                SearchPage.groupPreview model.time groupId group
+                                SearchPage.groupPreview (isMobile model) model.time groupId group
                             )
 
                 mySubscriptionsList =
