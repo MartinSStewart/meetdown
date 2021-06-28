@@ -22,6 +22,7 @@ type Route
     | PrivacyRoute
     | TermsOfServiceRoute
     | CodeOfConductRoute
+    | FrequentQuestionsRoute
 
 
 decode : Url.Parser.Parser (( Route, Token ) -> c) c
@@ -63,6 +64,7 @@ decode =
         , Url.Parser.s "privacy" |> Url.Parser.map PrivacyRoute
         , Url.Parser.s "terms-of-service" |> Url.Parser.map TermsOfServiceRoute
         , Url.Parser.s "code-of-conduct" |> Url.Parser.map CodeOfConductRoute
+        , Url.Parser.s "faq" |> Url.Parser.map FrequentQuestionsRoute
         ]
         <?> decodeToken
         |> Url.Parser.map Tuple.pair
@@ -194,6 +196,9 @@ encodeWithToken route token =
 
             CodeOfConductRoute ->
                 [ "code-of-conduct" ]
+
+            FrequentQuestionsRoute ->
+                [ "faq" ]
         )
         (case token of
             LoginToken loginToken maybeJoinEvent ->

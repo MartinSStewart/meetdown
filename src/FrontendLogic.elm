@@ -320,6 +320,9 @@ routeRequest cmds route model =
         CodeOfConductRoute ->
             ( model, cmds.none )
 
+        FrequentQuestionsRoute ->
+            ( model, cmds.none )
+
 
 checkAdminState : Effects cmd -> LoadedFrontend -> ( LoadedFrontend, cmd )
 checkAdminState cmds model =
@@ -1157,7 +1160,9 @@ viewPage model =
                     [ Element.text "A place to join groups of people with shared interests." ]
                 , Element.paragraph
                     [ Element.Font.center ]
-                    [ Element.text " We don't sell your data, we don't show ads, and it's free." ]
+                    [ Element.text " We don't sell your data, we don't show ads, and it's free. "
+                    , Ui.routeLink Route.FrequentQuestionsRoute "Read more"
+                    ]
                 , searchInputLarge model.searchText
                 ]
 
@@ -1282,6 +1287,27 @@ viewPage model =
                     , Ui.mailToLink Env.contactEmailAddress (Just "Moderation help request")
                     , Element.text "."
                     ]
+                ]
+
+        FrequentQuestionsRoute ->
+            let
+                questionAndAnswer : String -> String -> Element msg
+                questionAndAnswer question answer =
+                    Element.column
+                        [ Element.spacing 8 ]
+                        [ Element.paragraph [ Element.Font.bold ] [ Element.text ("\"" ++ question ++ "\"") ]
+                        , MarkdownThemed.renderFull answer
+                        ]
+            in
+            Element.column
+                (Ui.pageContentAttributes ++ [ Element.spacing 28 ])
+                [ Ui.title "Frequently asked questions"
+                , questionAndAnswer
+                    "Why was this website made?"
+                    "I dislike that meetup.com charges money, spams me with emails, and feels bloated. Also I wanted to try making something more substantial using [Lamdera](https://www.lamdera.com/) to see if it's feasible to use at work."
+                , questionAndAnswer
+                    "If this website is free and doesn't run ads or sell data, how does it sustain itself?"
+                    "I just spend my own money to host it. That's okay because it's designed to cost very little to run. In the unlikely even that Meetdown gets very popular and hosting costs become too great, I'll ask for donations."
                 ]
 
 
@@ -1476,6 +1502,7 @@ footer isMobile_ route =
             [ Ui.headerLink isMobile_ (route == PrivacyRoute) { route = PrivacyRoute, label = "Privacy" }
             , Ui.headerLink isMobile_ (route == TermsOfServiceRoute) { route = TermsOfServiceRoute, label = "Terms of service" }
             , Ui.headerLink isMobile_ (route == CodeOfConductRoute) { route = CodeOfConductRoute, label = "Code of conduct" }
+            , Ui.headerLink isMobile_ (route == FrequentQuestionsRoute) { route = FrequentQuestionsRoute, label = "FaQ" }
             ]
         ]
 
