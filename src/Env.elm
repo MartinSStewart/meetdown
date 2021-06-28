@@ -28,3 +28,13 @@ domain =
 
 postmarkServerToken =
     ""
+
+
+isProduction_ : String
+isProduction_ =
+    "False"
+
+
+isProduction : Bool
+isProduction =
+    isProduction_ == "True"

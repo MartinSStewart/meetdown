@@ -1,6 +1,7 @@
 module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, addedNewEvent, createEventCancelId, createEventStartDateId, createEventStartTimeId, createEventSubmitId, createNewEventId, editCancellationStatusResponse, editDescriptionId, editEventResponse, editGroupNameId, eventDescriptionInputId, eventDurationId, eventMeetingInPersonInputId, eventMeetingOnlineInputId, eventMeetingTypeId, eventNameInputId, init, joinEventButtonId, joinEventResponse, leaveEventButtonId, leaveEventResponse, resetDescriptionId, resetGroupNameId, saveDescriptionId, saveGroupNameId, savedDescription, savedName, update, view)
 
 import Address exposing (Address, Error(..))
+import AdminStatus exposing (AdminStatus(..))
 import AssocList as Dict exposing (Dict)
 import AssocSet as Set exposing (Set)
 import Colors exposing (..)
@@ -248,22 +249,42 @@ editCancellationStatusResponse eventId _ model =
     { model | pendingEventCancelOrUncancel = Set.remove eventId model.pendingEventCancelOrUncancel }
 
 
+canEdit : Group -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus } -> Bool
+canEdit group maybeLoggedIn =
+    case maybeLoggedIn of
+        Just loggedIn ->
+            (Group.ownerId group == loggedIn.userId)
+                || (case loggedIn.adminStatus of
+                        IsAdminAndEnabled ->
+                            True
+
+                        IsNotAdmin ->
+                            False
+
+                        IsAdminButDisabled ->
+                            False
+                   )
+
+        Nothing ->
+            False
+
+
 update :
     Effects cmd
     -> { a | time : Time.Posix, timezone : Time.Zone }
     -> Group
-    -> Maybe (Id UserId)
+    -> Maybe { b | userId : Id UserId, adminStatus : AdminStatus }
     -> Msg
     -> Model
     -> ( Model, cmd, { joinEvent : Maybe EventId } )
-update effects config group maybeUserId msg model =
+update effects config group maybeLoggedIn msg model =
     let
-        isOwner =
-            Just (Group.ownerId group) == maybeUserId
+        canEdit_ =
+            canEdit group maybeLoggedIn
     in
     case msg of
         PressedEditName ->
-            if isOwner then
+            if canEdit_ then
                 ( { model | name = Group.name group |> GroupName.toString |> Editting }
                 , effects.none
                 , { joinEvent = Nothing }
@@ -273,7 +294,7 @@ update effects config group maybeUserId msg model =
                 ( model, effects.none, { joinEvent = Nothing } )
 
         PressedSaveName ->
-            if isOwner then
+            if canEdit_ then
                 case model.name of
                     Unchanged ->
                         ( model, effects.none, { joinEvent = Nothing } )
@@ -296,14 +317,14 @@ update effects config group maybeUserId msg model =
                 ( model, effects.none, { joinEvent = Nothing } )
 
         PressedResetName ->
-            if isOwner then
+            if canEdit_ then
                 ( { model | name = Unchanged }, effects.none, { joinEvent = Nothing } )
 
             else
                 ( model, effects.none, { joinEvent = Nothing } )
 
         TypedName name ->
-            if isOwner then
+            if canEdit_ then
                 case model.name of
                     Editting _ ->
                         ( { model | name = Editting name }, effects.none, { joinEvent = Nothing } )
@@ -315,7 +336,7 @@ update effects config group maybeUserId msg model =
                 ( model, effects.none, { joinEvent = Nothing } )
 
         PressedEditDescription ->
-            if isOwner then
+            if canEdit_ then
                 ( { model | description = Group.description group |> Description.toString |> Editting }
                 , effects.none
                 , { joinEvent = Nothing }
@@ -325,7 +346,7 @@ update effects config group maybeUserId msg model =
                 ( model, effects.none, { joinEvent = Nothing } )
 
         PressedSaveDescription ->
-            if isOwner then
+            if canEdit_ then
                 case model.description of
                     Unchanged ->
                         ( model, effects.none, { joinEvent = Nothing } )
@@ -348,14 +369,14 @@ update effects config group maybeUserId msg model =
                 ( model, effects.none, { joinEvent = Nothing } )
 
         PressedResetDescription ->
-            if isOwner then
+            if canEdit_ then
                 ( { model | description = Unchanged }, effects.none, { joinEvent = Nothing } )
 
             else
                 ( model, effects.none, { joinEvent = Nothing } )
 
         TypedDescription description ->
-            if isOwner then
+            if canEdit_ then
                 case model.description of
                     Editting _ ->
                         ( { model | description = Editting description }, effects.none, { joinEvent = Nothing } )
@@ -367,7 +388,7 @@ update effects config group maybeUserId msg model =
                 ( model, effects.none, { joinEvent = Nothing } )
 
         PressedAddEvent ->
-            if isOwner && model.eventOverlay == Nothing then
+            if canEdit_ && model.eventOverlay == Nothing then
                 ( { model | eventOverlay = Just AddingNewEvent }, effects.none, { joinEvent = Nothing } )
 
             else
@@ -380,14 +401,14 @@ update effects config group maybeUserId msg model =
             ( { model | showAllFutureEvents = False }, effects.none, { joinEvent = Nothing } )
 
         ChangedNewEvent newEvent ->
-            if isOwner then
+            if canEdit_ then
                 ( { model | newEvent = newEvent }, effects.none, { joinEvent = Nothing } )
 
             else
                 ( model, effects.none, { joinEvent = Nothing } )
 
         PressedCancelNewEvent ->
-            if isOwner then
+            if canEdit_ then
                 case model.eventOverlay of
                     Just AddingNewEvent ->
                         ( { model | eventOverlay = Nothing }, effects.none, { joinEvent = Nothing } )
@@ -423,7 +444,7 @@ update effects config group maybeUserId msg model =
                     validateDateTime config.time config.timezone newEvent.startDate newEvent.startTime
                         |> Result.toMaybe
             in
-            if isOwner then
+            if canEdit_ then
                 Maybe.map5
                     (\name description eventType startTime ( duration, maxAttendees ) ->
                         ( { model | newEvent = { newEvent | submitStatus = IsSubmitting } }
@@ -466,7 +487,7 @@ update effects config group maybeUserId msg model =
                     )
 
         PressedJoinEvent eventId ->
-            case maybeUserId of
+            case maybeLoggedIn of
                 Just _ ->
                     case Dict.get eventId model.pendingJoinOrLeave of
                         Just JoinOrLeavePending ->
@@ -482,7 +503,7 @@ update effects config group maybeUserId msg model =
                     ( model, effects.none, { joinEvent = Just eventId } )
 
         PressedEditEvent eventId ->
-            if isOwner && model.eventOverlay == Nothing then
+            if canEdit_ && model.eventOverlay == Nothing then
                 case Group.getEvent config.time eventId group of
                     Just ( _, IsPastEvent ) ->
                         ( model, effects.none, { joinEvent = Nothing } )
@@ -572,7 +593,7 @@ update effects config group maybeUserId msg model =
                             if editEvent.submitStatus == IsSubmitting then
                                 ( model, effects.none, { joinEvent = Nothing } )
 
-                            else if isOwner then
+                            else if canEdit_ then
                                 let
                                     maybeEventType : Maybe Event.EventType
                                     maybeEventType =
@@ -746,8 +767,16 @@ leaveEventResponse eventId result model =
     }
 
 
-view : Bool -> Time.Posix -> Time.Zone -> FrontendUser -> Group -> Model -> Maybe (Id UserId) -> Element Msg
-view isMobile currentTime timezone owner group model maybeUserId =
+view :
+    Bool
+    -> Time.Posix
+    -> Time.Zone
+    -> FrontendUser
+    -> Group
+    -> Model
+    -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus }
+    -> Element Msg
+view isMobile currentTime timezone owner group model maybeLoggedIn =
     Element.el
         Ui.pageContentAttributes
         (case model.eventOverlay of
@@ -763,23 +792,26 @@ view isMobile currentTime timezone owner group model maybeUserId =
                         Element.text "This event doesn't exist"
 
             Nothing ->
-                groupView isMobile currentTime timezone owner group model maybeUserId
+                groupView isMobile currentTime timezone owner group model maybeLoggedIn
         )
 
 
-groupView : Bool -> Time.Posix -> Time.Zone -> FrontendUser -> Group -> Model -> Maybe (Id UserId) -> Element Msg
-groupView isMobile currentTime timezone owner group model maybeUserId =
+groupView :
+    Bool
+    -> Time.Posix
+    -> Time.Zone
+    -> FrontendUser
+    -> Group
+    -> Model
+    -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus }
+    -> Element Msg
+groupView isMobile currentTime timezone owner group model maybeLoggedIn =
     let
         { pastEvents, ongoingEvent, futureEvents } =
             Group.events currentTime group
 
-        isOwner =
-            case maybeUserId of
-                Just userId ->
-                    Group.ownerId group == userId
-
-                Nothing ->
-                    False
+        canEdit_ =
+            canEdit group maybeLoggedIn
     in
     Element.column
         [ Element.spacing 8, Element.padding 8, Ui.contentWidth, Element.centerX ]
@@ -835,7 +867,7 @@ groupView isMobile currentTime timezone owner group model maybeUserId =
                             |> GroupName.toString
                             |> Ui.title
                             |> Element.el [ Element.paddingXY 8 4 ]
-                        , if isOwner then
+                        , if canEdit_ then
                             Element.el [ Element.paddingXY 8 0 ] (smallButton editGroupNameId PressedEditName "Edit")
 
                           else
@@ -898,7 +930,7 @@ groupView isMobile currentTime timezone owner group model maybeUserId =
                 section
                     False
                     "Description"
-                    (if isOwner then
+                    (if canEdit_ then
                         -- Extra el prevents focus on both reset and save buttons
                         Element.el [] (smallButton editDescriptionId PressedEditDescription "Edit")
 
@@ -912,7 +944,7 @@ groupView isMobile currentTime timezone owner group model maybeUserId =
                     False
                     "Ongoing event"
                     Element.none
-                    (ongoingEventView currentTime timezone isOwner maybeUserId event)
+                    (ongoingEventView isMobile currentTime timezone canEdit_ maybeLoggedIn event)
 
             Nothing ->
                 Element.none
@@ -931,7 +963,7 @@ groupView isMobile currentTime timezone owner group model maybeUserId =
                     else
                         Element.none
              in
-             if isOwner then
+             if canEdit_ then
                 Element.row
                     [ Element.spacing 16 ]
                     [ showAllButton
@@ -955,7 +987,15 @@ groupView isMobile currentTime timezone owner group model maybeUserId =
                      else
                         [ soonest ]
                     )
-                        |> List.map (futureEventView isMobile currentTime timezone isOwner maybeUserId model.pendingJoinOrLeave)
+                        |> List.map
+                            (futureEventView
+                                isMobile
+                                currentTime
+                                timezone
+                                canEdit_
+                                maybeLoggedIn
+                                model.pendingJoinOrLeave
+                            )
              )
                 |> Element.column [ Element.width Element.fill, Element.spacing 8 ]
             )
@@ -965,7 +1005,7 @@ groupView isMobile currentTime timezone owner group model maybeUserId =
                     False
                     "Past events"
                     Element.none
-                    (List.map (Tuple.second >> pastEventView currentTime timezone maybeUserId) (head :: rest)
+                    (List.map (Tuple.second >> pastEventView isMobile currentTime timezone maybeLoggedIn) (head :: rest)
                         |> Element.column [ Element.width Element.fill, Element.spacing 8 ]
                     )
 
@@ -1023,19 +1063,26 @@ createNewEventId =
     Id.buttonId "groupPageCreateNewEvent"
 
 
-ongoingEventView : Time.Posix -> Time.Zone -> Bool -> Maybe (Id UserId) -> ( EventId, Event ) -> Element Msg
-ongoingEventView currentTime timezone isOwner maybeUserId ( eventId, event ) =
+ongoingEventView :
+    Bool
+    -> Time.Posix
+    -> Time.Zone
+    -> Bool
+    -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus }
+    -> ( EventId, Event )
+    -> Element Msg
+ongoingEventView isMobile currentTime timezone isOwner maybeLoggedIn ( eventId, event ) =
     let
         isAttending =
-            maybeUserId
-                |> Maybe.map (\userId -> Set.member userId (Event.attendees event))
+            maybeLoggedIn
+                |> Maybe.map (\{ userId } -> Set.member userId (Event.attendees event))
                 |> Maybe.withDefault False
 
         attendeeCount =
             Event.attendees event |> Set.size
     in
     eventCard
-        [ eventCardHeader currentTime timezone IsOngoingEvent event
+        [ eventCardHeader isMobile currentTime timezone IsOngoingEvent event
         , Event.description event |> Description.toParagraph False
         , eventTypeView False event
         , Element.paragraph
@@ -1084,17 +1131,23 @@ ongoingEventView currentTime timezone isOwner maybeUserId ( eventId, event ) =
         ]
 
 
-pastEventView : Time.Posix -> Time.Zone -> Maybe (Id UserId) -> Event -> Element Msg
-pastEventView currentTime timezone maybeUserId event =
+pastEventView :
+    Bool
+    -> Time.Posix
+    -> Time.Zone
+    -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus }
+    -> Event
+    -> Element Msg
+pastEventView isMobile currentTime timezone maybeLoggedIn event =
     let
         isAttending =
-            maybeUserId |> Maybe.map (\userId -> Set.member userId (Event.attendees event)) |> Maybe.withDefault False
+            maybeLoggedIn |> Maybe.map (\{ userId } -> Set.member userId (Event.attendees event)) |> Maybe.withDefault False
 
         attendeeCount =
             Event.attendees event |> Set.size
     in
     eventCard
-        [ eventCardHeader currentTime timezone IsPastEvent event
+        [ eventCardHeader isMobile currentTime timezone IsPastEvent event
         , Event.description event |> Description.toParagraph False
         , eventTypeView True event
         , Element.paragraph
@@ -1125,14 +1178,21 @@ pastEventView currentTime timezone maybeUserId event =
         ]
 
 
-eventCardHeader : Time.Posix -> Time.Zone -> PastOngoingOrFuture -> Event -> Element msg
-eventCardHeader currentTime timezone eventStatus event =
+eventCardHeader : Bool -> Time.Posix -> Time.Zone -> PastOngoingOrFuture -> Event -> Element msg
+eventCardHeader isMobile currentTime timezone eventStatus event =
     Element.wrappedRow
-        [ Element.spacing 16, Element.width Element.fill ]
+        [ Element.spacing 16
+        , Element.width Element.fill
+        , if isMobile then
+            Element.Font.size 14
+
+          else
+            Ui.defaultFontSize
+        ]
         [ eventTitle event
         , Element.column
             [ Element.spacing 4, Element.alignTop ]
-            [ datetimeToString (Just timezone) (Event.startTime event) |> Element.text
+            [ Ui.datetimeToString timezone (Event.startTime event) |> Element.text
             , case eventStatus of
                 IsOngoingEvent ->
                     "Ends in "
@@ -1157,14 +1217,14 @@ futureEventView :
     -> Time.Posix
     -> Time.Zone
     -> Bool
-    -> Maybe (Id UserId)
+    -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus }
     -> Dict EventId EventJoinOrLeaveStatus
     -> ( EventId, Event )
     -> Element Msg
-futureEventView isMobile currentTime timezone isOwner maybeUserId pendingJoinOrLeaveStatuses ( eventId, event ) =
+futureEventView isMobile currentTime timezone isOwner maybeLoggedIn pendingJoinOrLeaveStatuses ( eventId, event ) =
     let
         isAttending =
-            maybeUserId |> Maybe.map (\userId -> Set.member userId (Event.attendees event)) |> Maybe.withDefault False
+            maybeLoggedIn |> Maybe.map (\{ userId } -> Set.member userId (Event.attendees event)) |> Maybe.withDefault False
 
         maybeJoinOrLeaveStatus : Maybe EventJoinOrLeaveStatus
         maybeJoinOrLeaveStatus =
@@ -1210,7 +1270,7 @@ futureEventView isMobile currentTime timezone isOwner maybeUserId pendingJoinOrL
                             { onPress = PressedJoinEvent eventId, label = "Join event" }
     in
     eventCard
-        [ eventCardHeader currentTime timezone IsFutureEvent event
+        [ eventCardHeader isMobile currentTime timezone IsFutureEvent event
         , eventTypeView False event
         , Element.paragraph
             []
@@ -1870,26 +1930,6 @@ createEventStartDateId =
 
 createEventStartTimeId =
     Id.timeInputId "groupPageCreateEventStartTime"
-
-
-datetimeToString : Maybe Time.Zone -> Time.Posix -> String
-datetimeToString maybeTimezone time =
-    let
-        timezone =
-            Maybe.withDefault Time.utc maybeTimezone
-
-        offset =
-            toFloat (Time.toOffset timezone time) / 60
-    in
-    (time |> Date.fromPosix timezone |> Date.format "MMMM ddd")
-        ++ ", "
-        ++ Ui.timeToString timezone time
-        ++ (if offset >= 0 then
-                Time.removeTrailing0s offset |> (++) " GMT+"
-
-            else
-                Time.removeTrailing0s offset |> (++) " GMT"
-           )
 
 
 dateToString : Maybe Time.Zone -> Time.Posix -> String

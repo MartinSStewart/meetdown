@@ -1,5 +1,6 @@
 module Types exposing (..)
 
+import AdminStatus exposing (AdminStatus)
 import Array exposing (Array)
 import AssocList as Dict exposing (Dict)
 import AssocSet exposing (Set)
@@ -127,7 +128,7 @@ type alias LoggedIn_ =
     , profileForm : ProfilePage.Model
     , myGroups : Maybe (Set (Id GroupId))
     , adminState : AdminCache
-    , isAdmin : Bool
+    , adminStatus : AdminStatus
     }
 
 
@@ -302,6 +303,8 @@ type FrontendMsg
     | GotWindowSize (Quantity Int Pixels) (Quantity Int Pixels)
     | GotTimeZone (Result TimeZone.Error ( String, Time.Zone ))
     | ScrolledToTop
+    | PressedEnableAdmin
+    | PressedDisableAdmin
 
 
 type ToBackend

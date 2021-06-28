@@ -1,6 +1,7 @@
 module FrontendLogic exposing (CropImageData, Effects, Subscriptions, createApp, groupSearchId, logOutButtonId, signUpOrLoginButtonId)
 
 import AdminPage
+import AdminStatus exposing (AdminStatus(..))
 import AssocList as Dict
 import AssocSet as Set
 import Browser exposing (UrlRequest(..))
@@ -22,7 +23,6 @@ import GroupPage
 import Html.Attributes
 import Id exposing (ButtonId(..), GroupId, Id, UserId)
 import LoginForm
-import MarkdownThemed
 import MockFile
 import Pixels exposing (Pixels)
 import Privacy
@@ -328,7 +328,7 @@ checkAdminState : Effects cmd -> LoadedFrontend -> ( LoadedFrontend, cmd )
 checkAdminState cmds model =
     case model.loginStatus of
         LoggedIn loggedIn_ ->
-            if loggedIn_.adminState == AdminCacheNotRequested && loggedIn_.isAdmin then
+            if loggedIn_.adminState == AdminCacheNotRequested && loggedIn_.adminStatus /= IsNotAdmin then
                 ( { model | loginStatus = LoggedIn { loggedIn_ | adminState = AdminCachePending } }
                 , cmds.sendToBackend GetAdminDataRequest
                 )
@@ -537,7 +537,7 @@ updateLoaded cmds msg model =
                                         group
                                         (case model.loginStatus of
                                             LoggedIn loggedIn ->
-                                                Just loggedIn.userId
+                                                Just loggedIn
 
                                             LoginStatusPending ->
                                                 Nothing
@@ -583,6 +583,42 @@ updateLoaded cmds msg model =
 
         ScrolledToTop ->
             ( model, cmds.none )
+
+        PressedEnableAdmin ->
+            ( case model.loginStatus of
+                LoggedIn loggedIn ->
+                    case loggedIn.adminStatus of
+                        IsAdminButDisabled ->
+                            { model | loginStatus = LoggedIn { loggedIn | adminStatus = IsAdminAndEnabled } }
+
+                        IsAdminAndEnabled ->
+                            model
+
+                        IsNotAdmin ->
+                            model
+
+                _ ->
+                    model
+            , cmds.none
+            )
+
+        PressedDisableAdmin ->
+            ( case model.loginStatus of
+                LoggedIn loggedIn ->
+                    case loggedIn.adminStatus of
+                        IsAdminButDisabled ->
+                            model
+
+                        IsAdminAndEnabled ->
+                            { model | loginStatus = LoggedIn { loggedIn | adminStatus = IsAdminButDisabled } }
+
+                        IsNotAdmin ->
+                            model
+
+                _ ->
+                    model
+            , cmds.none
+            )
 
 
 closeLoginForm : LoadedFrontend -> LoadedFrontend
@@ -672,7 +708,12 @@ updateLoadedFromBackend cmds msg model =
                                 , profileForm = ProfilePage.init
                                 , myGroups = Nothing
                                 , adminState = AdminCacheNotRequested
-                                , isAdmin = isAdmin
+                                , adminStatus =
+                                    if isAdmin then
+                                        IsAdminButDisabled
+
+                                    else
+                                        IsNotAdmin
                                 }
                         , cachedUsers = Dict.insert userId (userToFrontend user |> ItemCached) model.cachedUsers
                     }
@@ -697,7 +738,12 @@ updateLoadedFromBackend cmds msg model =
                                 , profileForm = ProfilePage.init
                                 , myGroups = Nothing
                                 , adminState = AdminCacheNotRequested
-                                , isAdmin = isAdmin
+                                , adminStatus =
+                                    if isAdmin then
+                                        IsAdminButDisabled
+
+                                    else
+                                        IsNotAdmin
                                 }
                         , cachedUsers = Dict.insert userId (userToFrontend user |> ItemCached) model.cachedUsers
                     }
@@ -1083,10 +1129,10 @@ viewLoaded model =
                     Element.none
 
                 else
-                    header (isMobile model) (Just loggedIn) model.route model.searchText
+                    header (Just loggedIn) model
 
             NotLoggedIn _ ->
-                header (isMobile model) Nothing model.route model.searchText
+                header Nothing model
         , Element.el
             [ Element.Region.mainContent
             , Element.width Element.fill
@@ -1118,7 +1164,18 @@ viewLoaded model =
                     LoginStatusPending ->
                         Element.none
             )
-        , footer (isMobile model) model.route
+        , footer (isMobile model)
+            model.route
+            (case model.loginStatus of
+                LoggedIn loggedIn ->
+                    Just loggedIn
+
+                LoginStatusPending ->
+                    Nothing
+
+                NotLoggedIn _ ->
+                    Nothing
+            )
         ]
 
 
@@ -1180,7 +1237,7 @@ viewPage model =
                                 (Dict.get groupId model.groupPage |> Maybe.withDefault GroupPage.init)
                                 (case model.loginStatus of
                                     LoggedIn loggedIn ->
-                                        Just loggedIn.userId
+                                        Just loggedIn
 
                                     NotLoggedIn _ ->
                                         Nothing
@@ -1449,14 +1506,49 @@ searchInputLarge searchText =
         ]
 
 
-header : Bool -> Maybe LoggedIn_ -> Route -> String -> Element FrontendMsg
-header isMobile_ maybeLoggedIn route searchText =
+adminStatusColor maybeLoggedIn =
+    case Maybe.map .adminStatus maybeLoggedIn of
+        Just IsNotAdmin ->
+            if Env.isProduction then
+                Colors.grey
+
+            else
+                Colors.green
+
+        Just IsAdminButDisabled ->
+            if Env.isProduction then
+                Colors.grey
+
+            else
+                Colors.green
+
+        Just IsAdminAndEnabled ->
+            if Env.isProduction then
+                Colors.red
+
+            else
+                Colors.green
+
+        Nothing ->
+            if Env.isProduction then
+                Colors.grey
+
+            else
+                Colors.green
+
+
+header : Maybe LoggedIn_ -> LoadedFrontend -> Element FrontendMsg
+header maybeLoggedIn model =
+    let
+        isMobile_ =
+            isMobile model
+    in
     Element.column [ Element.width Element.fill, Element.spacing 10, Element.padding 10 ]
         [ Element.row
             [ Element.width Element.fill
             , Element.paddingEach { left = 4, right = 0, top = 0, bottom = 0 }
             , Element.Region.navigation
-            , Element.spacing 10
+            , Element.spacing 8
             ]
             [ if isMobile_ then
                 Element.none
@@ -1472,16 +1564,16 @@ header isMobile_ maybeLoggedIn route searchText =
                             , Element.text "Meetdown"
                             ]
                     }
-            , searchInput searchText
+            , searchInput model.searchText
             , Element.row
                 [ Element.alignRight ]
                 (case maybeLoggedIn of
                     Just loggedIn ->
-                        headerButtons isMobile_ loggedIn.isAdmin route
+                        headerButtons isMobile_ (loggedIn.adminStatus /= IsNotAdmin) model.route
                             ++ [ Ui.headerButton isMobile_
                                     logOutButtonId
                                     { onPress = PressedLogout
-                                    , label = "Log out"
+                                    , label = "Logout"
                                     }
                                ]
 
@@ -1495,18 +1587,28 @@ header isMobile_ maybeLoggedIn route searchText =
                         ]
                 )
             ]
-        , Element.row [ Element.Background.color Colors.grey, Element.width Element.fill, Element.height (Element.px 2) ] []
+        , largeLine maybeLoggedIn
         ]
 
 
-footer : Bool -> Route -> Element msg
-footer isMobile_ route =
+largeLine : Maybe LoggedIn_ -> Element msg
+largeLine maybeLoggedIn =
+    Element.row
+        [ Element.Background.color (adminStatusColor maybeLoggedIn)
+        , Element.width Element.fill
+        , Element.height (Element.px 2)
+        ]
+        []
+
+
+footer : Bool -> Route -> Maybe LoggedIn_ -> Element msg
+footer isMobile_ route maybeLoggedIn =
     Element.column
         [ Element.width Element.fill
         , Element.spacing 8
         , Element.padding 8
         ]
-        [ Element.row [ Element.Background.color Colors.grey, Element.width Element.fill, Element.height (Element.px 2) ] []
+        [ largeLine maybeLoggedIn
         , Element.row
             [ Element.width Element.fill, Element.alignBottom, Element.spacing 8 ]
             [ Ui.headerLink isMobile_ (route == PrivacyRoute) { route = PrivacyRoute, label = "Privacy" }
@@ -1531,7 +1633,7 @@ headerButtons isMobile_ isAdmin route =
     , Ui.headerLink isMobile_
         (route == CreateGroupRoute)
         { route = CreateGroupRoute
-        , label = "Create group"
+        , label = "New group"
         }
     , Ui.headerLink isMobile_
         (route == MyGroupsRoute)

@@ -7,6 +7,7 @@ module Ui exposing
     , dangerButton
     , dateTimeInput
     , datestamp
+    , datetimeToString
     , defaultFont
     , defaultFontColor
     , defaultFontSize
@@ -66,6 +67,8 @@ import Route exposing (Route)
 import Svg
 import Svg.Attributes
 import Time
+import Time.Extra as Time
+import TimeExtra as Time
 
 
 css : Html msg
@@ -637,6 +640,23 @@ dateInput htmlId onChange minDateTime date isDisabled =
         []
         |> Element.html
         |> Element.el []
+
+
+datetimeToString : Time.Zone -> Time.Posix -> String
+datetimeToString timezone time =
+    let
+        offset =
+            toFloat (Time.toOffset timezone time) / 60
+    in
+    (time |> Date.fromPosix timezone |> Date.format "MMMM ddd")
+        ++ ", "
+        ++ timeToString timezone time
+        ++ (if offset >= 0 then
+                Time.removeTrailing0s offset |> (++) " GMT+"
+
+            else
+                Time.removeTrailing0s offset |> (++) " GMT"
+           )
 
 
 datestamp : Date -> String
