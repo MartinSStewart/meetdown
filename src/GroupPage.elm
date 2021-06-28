@@ -1873,20 +1873,22 @@ createEventStartTimeId =
 
 
 datetimeToString : Maybe Time.Zone -> Time.Posix -> String
-datetimeToString maybeTimezone posix =
+datetimeToString maybeTimezone time =
     let
         timezone =
             Maybe.withDefault Time.utc maybeTimezone
-    in
-    (posix |> Date.fromPosix timezone |> Date.format "MMMM ddd")
-        ++ ", "
-        ++ Ui.timeToString timezone posix
-        ++ (case maybeTimezone of
-                Just _ ->
-                    ""
 
-                Nothing ->
-                    " (UTC)"
+        offset =
+            toFloat (Time.toOffset timezone time) / 60
+    in
+    (time |> Date.fromPosix timezone |> Date.format "MMMM ddd")
+        ++ ", "
+        ++ Ui.timeToString timezone time
+        ++ (if offset >= 0 then
+                Time.removeTrailing0s offset |> (++) " GMT+"
+
+            else
+                Time.removeTrailing0s offset |> (++) " GMT"
            )
 
 
