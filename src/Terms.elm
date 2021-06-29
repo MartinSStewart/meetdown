@@ -54,7 +54,7 @@ We expect all users to behave according to the [Code of conduct](""" ++ Route.en
 Meetdown is a free product.
 
 
-### 😔How to make a complaint
+### 😔 How to make a complaint
 
 If you have a complaint, please contact us and we'll do our best to fix the problem.
 
