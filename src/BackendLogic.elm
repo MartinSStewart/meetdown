@@ -13,6 +13,7 @@ import Email.Html.Attributes
 import EmailAddress exposing (EmailAddress)
 import Env
 import Event exposing (Event)
+import EventName
 import Group exposing (EventId, Group, GroupVisibility)
 import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError(..))
@@ -1185,22 +1186,30 @@ eventReminderEmailContent groupId groupName event =
     in
     Email.Html.div
         []
-        [ "The event will be taking place "
-            ++ (case Event.eventType event of
+        (Email.Html.b [] [ Event.name event |> EventName.toString |> Email.Html.text ]
+            :: Email.Html.text " will be taking place "
+            :: (case Event.eventType event of
                     Event.MeetOnline (Just meetingLink) ->
-                        "online. You can join using this link " ++ Link.toString meetingLink
+                        [ Email.Html.text "online tomorrow. The event will be accessible with this link "
+                        , Email.Html.a
+                            [ Email.Html.Attributes.href (Link.toString meetingLink) ]
+                            [ Email.Html.text (Link.toString meetingLink) ]
+                        , Email.Html.text ". "
+                        ]
 
                     Event.MeetOnline Nothing ->
-                        "online."
+                        [ Email.Html.text "online tomorrow." ]
 
                     Event.MeetInPerson (Just address) ->
-                        "in person at " ++ Address.toString address ++ "."
+                        [ Email.Html.text (" in person tomorrow at " ++ Address.toString address ++ ".") ]
 
                     Event.MeetInPerson Nothing ->
-                        "in person."
+                        [ Email.Html.text " in person tomorrow." ]
                )
-            |> Email.Html.text
-        , Email.Html.a
-            [ Email.Html.Attributes.href groupRoute ]
-            [ Email.Html.text "Go to their group page" ]
-        ]
+            ++ [ Email.Html.br [] []
+               , Email.Html.br [] []
+               , Email.Html.a
+                    [ Email.Html.Attributes.href groupRoute ]
+                    [ Email.Html.text "Click here to go to their group page" ]
+               ]
+        )

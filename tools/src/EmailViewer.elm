@@ -5,6 +5,7 @@ import Email.Html
 import Event
 import Html exposing (Html)
 import Id
+import MaxAttendees
 import Route
 import String.Nonempty exposing (NonemptyString)
 import Time
@@ -13,7 +14,7 @@ import Unsafe
 
 main : Html msg
 main =
-    [ loginEmail, deleteAccountEmail, eventReminderEmail ]
+    (loginEmail :: deleteAccountEmail :: eventReminderEmail)
         |> List.intersperse line
         |> Html.div []
 
@@ -36,17 +37,17 @@ loginEmail : Html msg
 loginEmail =
     emailView
         BackendLogic.loginEmailSubject
-        (BackendLogic.loginEmailContent Route.HomepageRoute (Id.cryptoHashFromString "123") Nothing)
+        (BackendLogic.loginEmailContent Route.HomepageRoute (Unsafe.id "123") Nothing)
 
 
 deleteAccountEmail : Html msg
 deleteAccountEmail =
     emailView
         BackendLogic.deleteAccountEmailSubject
-        (BackendLogic.deleteAccountEmailContent (Id.cryptoHashFromString "123"))
+        (BackendLogic.deleteAccountEmailContent (Unsafe.id "123"))
 
 
-eventReminderEmail : Html msg
+eventReminderEmail : List (Html msg)
 eventReminderEmail =
     let
         groupName =
@@ -58,18 +59,39 @@ eventReminderEmail =
         description =
             Unsafe.description "We're gonna party like it's 1940-something"
 
-        eventType =
-            Unsafe.link "https://example-site.com" |> Just |> Event.MeetOnline
-
-        event =
+        event eventType =
             Event.newEvent
+                (Unsafe.id "123")
                 eventName
                 description
                 eventType
                 (Time.millisToPosix 10000000)
                 (Unsafe.eventDuration 60)
                 (Time.millisToPosix 1000000)
+                MaxAttendees.noLimit
+
+        onlineEventWithLink =
+            event (Unsafe.link "https://example-site.com/event" |> Just |> Event.MeetOnline)
+
+        onlineEventWithoutLink =
+            event (Event.MeetOnline Nothing)
+
+        inPersonEventWithAddress =
+            event (Unsafe.address "123 Example Lane, Townsend" |> Just |> Event.MeetInPerson)
+
+        inPersonEventWithoutAddress =
+            event (Event.MeetInPerson Nothing)
     in
-    emailView
-        (BackendLogic.eventReminderEmailSubject groupName event Time.utc)
-        (BackendLogic.eventReminderEmailContent (Id.groupIdFromInt 0) groupName event)
+    [ emailView
+        (BackendLogic.eventReminderEmailSubject groupName onlineEventWithLink Time.utc)
+        (BackendLogic.eventReminderEmailContent (Unsafe.id "0") groupName onlineEventWithLink)
+    , emailView
+        (BackendLogic.eventReminderEmailSubject groupName onlineEventWithoutLink Time.utc)
+        (BackendLogic.eventReminderEmailContent (Unsafe.id "0") groupName onlineEventWithoutLink)
+    , emailView
+        (BackendLogic.eventReminderEmailSubject groupName inPersonEventWithAddress Time.utc)
+        (BackendLogic.eventReminderEmailContent (Unsafe.id "0") groupName inPersonEventWithAddress)
+    , emailView
+        (BackendLogic.eventReminderEmailSubject groupName inPersonEventWithoutAddress Time.utc)
+        (BackendLogic.eventReminderEmailContent (Unsafe.id "0") groupName inPersonEventWithoutAddress)
+    ]

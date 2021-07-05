@@ -1,10 +1,12 @@
 module Unsafe exposing (..)
 
+import Address exposing (Address)
 import Description exposing (Description)
 import EmailAddress exposing (EmailAddress)
 import EventDuration exposing (EventDuration)
 import EventName exposing (EventName)
 import GroupName exposing (GroupName)
+import Id exposing (Id)
 import Link exposing (Link)
 import Url exposing (Url)
 
@@ -19,13 +21,33 @@ url urlText =
             Debug.todo ("Invalid url " ++ urlText)
 
 
+id : String -> Id a
+id text =
+    case Id.cryptoHashFromString text of
+        Just a ->
+            a
+
+        Nothing ->
+            Debug.todo ("Invalid id " ++ text)
+
+
 emailAddress : String -> EmailAddress
 emailAddress text =
     case EmailAddress.fromString text of
-        Just address ->
-            address
+        Just address_ ->
+            address_
 
         Nothing ->
+            Debug.todo ("Invalid email address " ++ text)
+
+
+address : String -> Address
+address text =
+    case Address.fromString text of
+        Ok address_ ->
+            address_
+
+        Err _ ->
             Debug.todo ("Invalid email address " ++ text)
 
 
