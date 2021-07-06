@@ -1118,7 +1118,7 @@ loginEmailContent route loginToken maybeJoinEvent =
         --    Debug.log "login" loginLink
     in
     Email.Html.div
-        [ emailFont, Email.Html.Attributes.padding "8px" ]
+        [ Email.Html.Attributes.padding "8px" ]
         [ Email.Html.a
             [ Email.Html.Attributes.href loginLink ]
             [ Email.Html.text "Click here to log in." ]
@@ -1142,7 +1142,7 @@ deleteAccountEmailContent deleteUserToken =
         --    Debug.log "delete user" deleteUserLink
     in
     Email.Html.div
-        [ emailFont, Email.Html.Attributes.padding "8px" ]
+        [ Email.Html.Attributes.padding "8px" ]
         [ Email.Html.a
             [ Email.Html.Attributes.href deleteUserLink ]
             [ Email.Html.text "Click here confirm you want to delete your account." ]
@@ -1178,10 +1178,6 @@ eventReminderEmailSubject groupName event timezone =
         ("'s next event starts tomorrow, " ++ startText)
 
 
-emailFont =
-    Email.Html.Attributes.fontFamily "Arial"
-
-
 eventReminderEmailContent : Id GroupId -> GroupName -> Event -> Email.Html.Html
 eventReminderEmailContent groupId groupName event =
     let
@@ -1189,7 +1185,7 @@ eventReminderEmailContent groupId groupName event =
             Env.domain ++ Route.encode (Route.GroupRoute groupId groupName)
     in
     Email.Html.div
-        [ emailFont, Email.Html.Attributes.padding "8px" ]
+        [ Email.Html.Attributes.padding "8px" ]
         (Email.Html.b [] [ Event.name event |> EventName.toString |> Email.Html.text ]
             :: Email.Html.text " will be taking place "
             :: (case Event.eventType event of
