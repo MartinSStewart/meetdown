@@ -41,6 +41,10 @@ tests =
             \_ ->
                 TimeExtra.diffToString (Time.millisToPosix 0) (Time.millisToPosix (36 * hour))
                     |> Expect.equal "2\u{00A0}days"
+        , test "1 day close to rounding point" <|
+            \_ ->
+                TimeExtra.diffToString (Time.millisToPosix 0) (Time.millisToPosix (35 * hour))
+                    |> Expect.equal "1\u{00A0}day"
         , test "2 days ago" <|
             \_ ->
                 TimeExtra.diffToString (Time.millisToPosix (36 * hour)) (Time.millisToPosix 0)
