@@ -19,7 +19,7 @@ diffToString start end =
             Duration.inWeeks difference |> floor
 
         days =
-            Duration.inDays difference |> floor
+            Duration.inDays difference |> round
 
         hours =
             Duration.inHours difference |> floor
@@ -43,9 +43,9 @@ diffToString start end =
     else if days > 1 then
         String.fromInt days ++ "\u{00A0}days" ++ suffix
 
-    else if days == 1 then
+    else if hours > 22 then
         if Time.posixToMillis start <= Time.posixToMillis end then
-            "1 day"
+            "1\u{00A0}day"
 
         else
             "yesterday"
