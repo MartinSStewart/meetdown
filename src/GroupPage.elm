@@ -1159,7 +1159,6 @@ ongoingEventView isMobile currentTime timezone isOwner maybeLoggedIn ( eventId, 
     in
     eventCard
         [ eventCardHeader isMobile currentTime timezone IsOngoingEvent event
-        , Event.description event |> Description.toParagraph False
         , eventTypeView False event
         , Element.paragraph
             []
@@ -1204,6 +1203,7 @@ ongoingEventView isMobile currentTime timezone isOwner maybeLoggedIn ( eventId, 
 
           else
             Element.none
+        , Event.description event |> Description.toParagraph False
         ]
 
 
