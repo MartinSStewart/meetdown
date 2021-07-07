@@ -1224,7 +1224,6 @@ pastEventView isMobile currentTime timezone maybeLoggedIn event =
     in
     eventCard
         [ eventCardHeader isMobile currentTime timezone IsPastEvent event
-        , Event.description event |> Description.toParagraph False
         , eventTypeView True event
         , Element.paragraph
             []
@@ -1244,13 +1243,14 @@ pastEventView isMobile currentTime timezone maybeLoggedIn event =
                         ++ String.fromInt attendeeCount
                         ++ " people attended"
                         ++ (if isAttending then
-                                "(you included)"
+                                " (including you)"
 
                             else
                                 ""
                            )
                         |> Element.text
             ]
+        , Event.description event |> Description.toParagraph False
         ]
 
 
