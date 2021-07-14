@@ -229,6 +229,12 @@ addLog log model =
 
 updateFromFrontend : Effects cmd -> SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, cmd )
 updateFromFrontend cmds sessionId clientId msg model =
+    let
+        logUntrusted =
+            ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
+            , cmds.none
+            )
+    in
     case msg of
         GetGroupRequest groupId ->
             ( model
@@ -318,9 +324,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 Nothing ->
-                    ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
-                    , cmds.none
-                    )
+                    logUntrusted
 
         GetAdminDataRequest ->
             adminAuthorization
@@ -368,9 +372,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                             addGroup cmds clientId userId groupName description visibility model
 
                         _ ->
-                            ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
-                            , cmds.none
-                            )
+                            logUntrusted
                 )
 
         ChangeNameRequest untrustedName ->
@@ -389,9 +391,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 Nothing ->
-                    ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
-                    , cmds.none
-                    )
+                    logUntrusted
 
         ChangeDescriptionRequest untrustedDescription ->
             case Untrusted.description untrustedDescription of
@@ -409,9 +409,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 Nothing ->
-                    ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
-                    , cmds.none
-                    )
+                    logUntrusted
 
         ChangeEmailAddressRequest untrustedEmailAddress ->
             case Untrusted.validateEmailAddress untrustedEmailAddress of
@@ -435,9 +433,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 Nothing ->
-                    ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
-                    , cmds.none
-                    )
+                    logUntrusted
 
         SendDeleteUserEmailRequest ->
             userAuthorization
@@ -507,9 +503,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                             )
 
                         Nothing ->
-                            ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
-                            , cmds.none
-                            )
+                            logUntrusted
                 )
 
         GetMyGroupsRequest ->
@@ -579,9 +573,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 Nothing ->
-                    ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
-                    , cmds.none
-                    )
+                    logUntrusted
 
         ChangeGroupDescriptionRequest groupId untrustedDescription ->
             case Untrusted.description untrustedDescription of
@@ -603,9 +595,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 Nothing ->
-                    ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
-                    , cmds.none
-                    )
+                    logUntrusted
 
         CreateEventRequest groupId eventName_ description_ eventType_ startTime eventDuration_ maxAttendees_ ->
             case
@@ -666,9 +656,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 _ ->
-                    ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
-                    , cmds.none
-                    )
+                    logUntrusted
 
         JoinEventRequest groupId eventId ->
             userAuthorization
@@ -746,9 +734,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
 
                 _ ->
-                    ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
-                    , cmds.none
-                    )
+                    logUntrusted
 
         ChangeEventCancellationStatusRequest groupId eventId cancellationStatus ->
             userWithGroupAuthorization

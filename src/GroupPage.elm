@@ -293,6 +293,9 @@ update effects config group maybeLoggedIn msg model =
     let
         canEdit_ =
             canEdit group maybeLoggedIn
+
+        noChange =
+            ( model, effects.none, { joinEvent = Nothing } )
     in
     case msg of
         PressedEditName ->
@@ -303,13 +306,13 @@ update effects config group maybeLoggedIn msg model =
                 )
 
             else
-                ( model, effects.none, { joinEvent = Nothing } )
+                noChange
 
         PressedSaveName ->
             if canEdit_ then
                 case model.name of
                     Unchanged ->
-                        ( model, effects.none, { joinEvent = Nothing } )
+                        noChange
 
                     Editting nameText ->
                         case GroupName.fromString nameText of
@@ -320,20 +323,20 @@ update effects config group maybeLoggedIn msg model =
                                 )
 
                             Err _ ->
-                                ( model, effects.none, { joinEvent = Nothing } )
+                                noChange
 
                     Submitting _ ->
-                        ( model, effects.none, { joinEvent = Nothing } )
+                        noChange
 
             else
-                ( model, effects.none, { joinEvent = Nothing } )
+                noChange
 
         PressedResetName ->
             if canEdit_ then
                 ( { model | name = Unchanged }, effects.none, { joinEvent = Nothing } )
 
             else
-                ( model, effects.none, { joinEvent = Nothing } )
+                noChange
 
         TypedName name ->
             if canEdit_ then
@@ -342,10 +345,10 @@ update effects config group maybeLoggedIn msg model =
                         ( { model | name = Editting name }, effects.none, { joinEvent = Nothing } )
 
                     _ ->
-                        ( model, effects.none, { joinEvent = Nothing } )
+                        noChange
 
             else
-                ( model, effects.none, { joinEvent = Nothing } )
+                noChange
 
         PressedEditDescription ->
             if canEdit_ then
@@ -355,13 +358,13 @@ update effects config group maybeLoggedIn msg model =
                 )
 
             else
-                ( model, effects.none, { joinEvent = Nothing } )
+                noChange
 
         PressedSaveDescription ->
             if canEdit_ then
                 case model.description of
                     Unchanged ->
-                        ( model, effects.none, { joinEvent = Nothing } )
+                        noChange
 
                     Editting descriptionText ->
                         case Description.fromString descriptionText of
@@ -372,20 +375,20 @@ update effects config group maybeLoggedIn msg model =
                                 )
 
                             Err _ ->
-                                ( model, effects.none, { joinEvent = Nothing } )
+                                noChange
 
                     Submitting _ ->
-                        ( model, effects.none, { joinEvent = Nothing } )
+                        noChange
 
             else
-                ( model, effects.none, { joinEvent = Nothing } )
+                noChange
 
         PressedResetDescription ->
             if canEdit_ then
                 ( { model | description = Unchanged }, effects.none, { joinEvent = Nothing } )
 
             else
-                ( model, effects.none, { joinEvent = Nothing } )
+                noChange
 
         TypedDescription description ->
             if canEdit_ then
@@ -394,17 +397,17 @@ update effects config group maybeLoggedIn msg model =
                         ( { model | description = Editting description }, effects.none, { joinEvent = Nothing } )
 
                     _ ->
-                        ( model, effects.none, { joinEvent = Nothing } )
+                        noChange
 
             else
-                ( model, effects.none, { joinEvent = Nothing } )
+                noChange
 
         PressedAddEvent ->
             if canEdit_ && model.eventOverlay == Nothing then
                 ( { model | eventOverlay = Just AddingNewEvent }, effects.none, { joinEvent = Nothing } )
 
             else
-                ( model, effects.none, { joinEvent = Nothing } )
+                noChange
 
         PressedShowAllFutureEvents ->
             ( { model | showAllFutureEvents = True }, effects.none, { joinEvent = Nothing } )
@@ -417,7 +420,7 @@ update effects config group maybeLoggedIn msg model =
                 ( { model | newEvent = newEvent }, effects.none, { joinEvent = Nothing } )
 
             else
-                ( model, effects.none, { joinEvent = Nothing } )
+                noChange
 
         PressedCancelNewEvent ->
             if canEdit_ then
@@ -426,10 +429,10 @@ update effects config group maybeLoggedIn msg model =
                         ( { model | eventOverlay = Nothing }, effects.none, { joinEvent = Nothing } )
 
                     _ ->
-                        ( model, effects.none, { joinEvent = Nothing } )
+                        noChange
 
             else
-                ( model, effects.none, { joinEvent = Nothing } )
+                noChange
 
         PressedCreateNewEvent ->
             let
@@ -485,12 +488,12 @@ update effects config group maybeLoggedIn msg model =
                         )
 
             else
-                ( model, effects.none, { joinEvent = Nothing } )
+                noChange
 
         PressedLeaveEvent eventId ->
             case Dict.get eventId model.pendingJoinOrLeave of
                 Just JoinOrLeavePending ->
-                    ( model, effects.none, { joinEvent = Nothing } )
+                    noChange
 
                 _ ->
                     ( { model | pendingJoinOrLeave = Dict.insert eventId JoinOrLeavePending model.pendingJoinOrLeave }
@@ -503,7 +506,7 @@ update effects config group maybeLoggedIn msg model =
                 Just _ ->
                     case Dict.get eventId model.pendingJoinOrLeave of
                         Just JoinOrLeavePending ->
-                            ( model, effects.none, { joinEvent = Nothing } )
+                            noChange
 
                         _ ->
                             ( { model | pendingJoinOrLeave = Dict.insert eventId JoinOrLeavePending model.pendingJoinOrLeave }
@@ -518,10 +521,10 @@ update effects config group maybeLoggedIn msg model =
             if canEdit_ && model.eventOverlay == Nothing then
                 case Group.getEvent config.time eventId group of
                     Just ( _, IsPastEvent ) ->
-                        ( model, effects.none, { joinEvent = Nothing } )
+                        noChange
 
                     Nothing ->
-                        ( model, effects.none, { joinEvent = Nothing } )
+                        noChange
 
                     Just ( event, _ ) ->
                         ( { model
@@ -581,7 +584,7 @@ update effects config group maybeLoggedIn msg model =
                         )
 
             else
-                ( model, effects.none, { joinEvent = Nothing } )
+                noChange
 
         ChangedEditEvent editEvent ->
             ( { model
@@ -603,7 +606,7 @@ update effects config group maybeLoggedIn msg model =
                     case Group.getEvent config.time eventId group of
                         Just ( event, eventStatus ) ->
                             if editEvent.submitStatus == IsSubmitting then
-                                ( model, effects.none, { joinEvent = Nothing } )
+                                noChange
 
                             else if canEdit_ then
                                 let
@@ -665,13 +668,13 @@ update effects config group maybeLoggedIn msg model =
                                         )
 
                             else
-                                ( model, effects.none, { joinEvent = Nothing } )
+                                noChange
 
                         Nothing ->
-                            ( model, effects.none, { joinEvent = Nothing } )
+                            noChange
 
                 _ ->
-                    ( model, effects.none, { joinEvent = Nothing } )
+                    noChange
 
         PressedCancelEditEvent ->
             case model.eventOverlay of
@@ -679,7 +682,7 @@ update effects config group maybeLoggedIn msg model =
                     ( { model | eventOverlay = Nothing }, effects.none, { joinEvent = Nothing } )
 
                 _ ->
-                    ( model, effects.none, { joinEvent = Nothing } )
+                    noChange
 
         PressedCancelEvent ->
             case model.eventOverlay of
@@ -690,7 +693,7 @@ update effects config group maybeLoggedIn msg model =
                     )
 
                 _ ->
-                    ( model, effects.none, { joinEvent = Nothing } )
+                    noChange
 
         PressedUncancelEvent ->
             case model.eventOverlay of
@@ -701,7 +704,7 @@ update effects config group maybeLoggedIn msg model =
                     )
 
                 _ ->
-                    ( model, effects.none, { joinEvent = Nothing } )
+                    noChange
 
         PressedRecancelEvent ->
             case model.eventOverlay of
@@ -712,7 +715,7 @@ update effects config group maybeLoggedIn msg model =
                     )
 
                 _ ->
-                    ( model, effects.none, { joinEvent = Nothing } )
+                    noChange
 
         PressedMakeGroupPublic ->
             if canEdit_ && not model.pendingToggleVisibility then
@@ -722,7 +725,7 @@ update effects config group maybeLoggedIn msg model =
                 )
 
             else
-                ( model, effects.none, { joinEvent = Nothing } )
+                noChange
 
         PressedMakeGroupUnlisted ->
             if canEdit_ && not model.pendingToggleVisibility then
@@ -732,7 +735,7 @@ update effects config group maybeLoggedIn msg model =
                 )
 
             else
-                ( model, effects.none, { joinEvent = Nothing } )
+                noChange
 
         PressedDeleteGroup ->
             case Maybe.map (.adminStatus >> AdminStatus.isAdminEnabled) maybeLoggedIn of
@@ -740,7 +743,7 @@ update effects config group maybeLoggedIn msg model =
                     ( model, effects.deleteGroup, { joinEvent = Nothing } )
 
                 _ ->
-                    ( model, effects.none, { joinEvent = Nothing } )
+                    noChange
 
 
 pressSubmit : { a | submitStatus : SubmitStatus b } -> { a | submitStatus : SubmitStatus b }
@@ -886,7 +889,7 @@ groupView isMobile currentTime timezone owner group model maybeLoggedIn =
                         , Element.row
                             [ Element.spacing 16, Element.paddingXY 8 0 ]
                             [ smallButton resetGroupNameId PressedResetName "Reset"
-                            , smallSubmitButton saveGroupNameId False { onPress = PressedSaveName, label = "Save" }
+                            , Ui.smallSubmitButton saveGroupNameId False { onPress = PressedSaveName, label = "Save" }
                             ]
                         ]
 
@@ -897,7 +900,7 @@ groupView isMobile currentTime timezone owner group model maybeLoggedIn =
                         , Element.row
                             [ Element.spacing 16, Element.paddingXY 8 0 ]
                             [ smallButton resetGroupNameId PressedResetName "Reset"
-                            , smallSubmitButton saveGroupNameId True { onPress = PressedSaveName, label = "Save" }
+                            , Ui.smallSubmitButton saveGroupNameId True { onPress = PressedSaveName, label = "Save" }
                             ]
                         ]
 
@@ -945,7 +948,7 @@ groupView isMobile currentTime timezone owner group model maybeLoggedIn =
                     (Element.row
                         [ Element.spacing 8 ]
                         [ smallButton resetDescriptionId PressedResetDescription "Reset"
-                        , smallSubmitButton saveDescriptionId False { onPress = PressedSaveDescription, label = "Save" }
+                        , Ui.smallSubmitButton saveDescriptionId False { onPress = PressedSaveDescription, label = "Save" }
                         ]
                     )
                     (Element.column
@@ -961,7 +964,7 @@ groupView isMobile currentTime timezone owner group model maybeLoggedIn =
                     "Description"
                     (Element.row [ Element.spacing 8 ]
                         [ smallButton resetDescriptionId PressedResetDescription "Reset"
-                        , smallSubmitButton saveDescriptionId True { onPress = PressedSaveDescription, label = "Save" }
+                        , Ui.smallSubmitButton saveDescriptionId True { onPress = PressedSaveDescription, label = "Save" }
                         ]
                     )
                     (multiline TypedDescription (Description.toString description) "")
@@ -2147,31 +2150,6 @@ smallButton htmlId onPress label =
         ]
         { onPress = Just onPress
         , label = Element.text label
-        }
-
-
-smallSubmitButton : HtmlId ButtonId -> Bool -> { onPress : msg, label : String } -> Element msg
-smallSubmitButton htmlId isSubmitting { onPress, label } =
-    Element.Input.button
-        [ Element.Background.color <| Element.rgb 0.1 0.6 0.25
-        , Element.paddingXY 8 4
-        , Element.Border.rounded 4
-        , Element.Font.center
-        , Element.Font.color <| Element.rgb 1 1 1
-        , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
-        ]
-        { onPress = Just onPress
-        , label =
-            Element.el
-                [ Element.width Element.fill
-                , Element.paddingXY 30 0
-                , if isSubmitting then
-                    Element.inFront (Element.el [] (Element.text "⌛"))
-
-                  else
-                    Element.inFront Element.none
-                ]
-                (Element.text label)
         }
 
 

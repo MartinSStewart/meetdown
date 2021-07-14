@@ -39,6 +39,7 @@ module Ui exposing
     , routeLink
     , routeLinkNewTab
     , section
+    , smallSubmitButton
     , submitButton
     , submitColor
     , textInput
@@ -316,17 +317,22 @@ submitButton htmlId isSubmitting { onPress, label } =
         , Element.width Element.fill
         ]
         { onPress = Just onPress
-        , label =
-            Element.el
-                [ Element.width Element.fill
-                , Element.paddingXY 30 0
-                , if isSubmitting then
-                    Element.inFront (Element.el [] (Element.text "⌛"))
+        , label = labelWithHourglass isSubmitting label
+        }
 
-                  else
-                    Element.inFront Element.none
-                ]
-                (Element.text label)
+
+smallSubmitButton : HtmlId ButtonId -> Bool -> { onPress : msg, label : String } -> Element msg
+smallSubmitButton htmlId isSubmitting { onPress, label } =
+    Element.Input.button
+        [ Element.Background.color <| Element.rgb 0.1 0.6 0.25
+        , Element.paddingXY 8 4
+        , Element.Border.rounded 4
+        , Element.Font.center
+        , Element.Font.color <| Element.rgb 1 1 1
+        , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
+        ]
+        { onPress = Just onPress
+        , label = labelWithHourglass isSubmitting label
         }
 
 
@@ -341,18 +347,22 @@ dangerButton htmlId isSubmitting { onPress, label } =
         , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         ]
         { onPress = Just onPress
-        , label =
-            Element.el
-                [ Element.width Element.fill
-                , Element.paddingXY 30 0
-                , if isSubmitting then
-                    Element.inFront (Element.el [] (Element.text "⌛"))
-
-                  else
-                    Element.inFront Element.none
-                ]
-                (Element.text label)
+        , label = labelWithHourglass isSubmitting label
         }
+
+
+labelWithHourglass : Bool -> String -> Element msg
+labelWithHourglass isSubmitting label =
+    Element.el
+        [ Element.width Element.fill
+        , Element.paddingXY 30 0
+        , if isSubmitting then
+            Element.inFront (Element.el [] (Element.text "⌛"))
+
+          else
+            Element.inFront Element.none
+        ]
+        (Element.text label)
 
 
 filler : Element.Length -> Element msg
