@@ -532,6 +532,26 @@ updateFromFrontend cmds sessionId clientId msg model =
                 ( model
                 , Dict.toList model.groups
                     |> List.filter (Tuple.second >> Group.visibility >> (==) Group.PublicGroup)
+                    |> List.sortBy
+                        (\( _, group ) ->
+                            let
+                                events =
+                                    Group.events model.time group
+                            in
+                            if events.ongoingEvent /= Nothing then
+                                -- Lowest value is highest priority
+                                0
+
+                            else if List.isEmpty events.futureEvents then
+                                if List.isEmpty events.pastEvents then
+                                    3
+
+                                else
+                                    2
+
+                            else
+                                1
+                        )
                     |> SearchGroupsResponse searchText
                     |> cmds.sendToFrontend clientId
                 )
