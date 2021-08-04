@@ -1376,6 +1376,21 @@ futureEventView isMobile currentTime timezone isOwner maybeLoggedIn pendingJoinO
                            )
                         |> Element.text
             ]
+        , if Duration.from currentTime (Event.startTime event) |> Quantity.lessThan Duration.day then
+            case Event.eventType event of
+                Event.MeetOnline (Just link) ->
+                    Element.paragraph []
+                        [ Element.text "• The event will take place at "
+                        , Element.link
+                            [ Element.Font.color Ui.linkColor ]
+                            { url = Link.toString link, label = Element.text (Link.toString link) }
+                        ]
+
+                _ ->
+                    Element.none
+
+          else
+            Element.none
         , maxAttendeesView event
         , Element.wrappedRow
             [ Element.spacingXY 16 8
