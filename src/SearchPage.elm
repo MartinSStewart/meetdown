@@ -108,7 +108,12 @@ groupPreview isMobile currentTime groupId group =
                             , Element.alignTop
                             , Element.width (Element.fillPortion 2)
                             ]
-                    , case Group.events currentTime group |> .futureEvents |> List.head of
+                    , case
+                        Group.events currentTime group
+                            |> .futureEvents
+                            |> List.filter (Tuple.second >> Event.isCancelled >> not)
+                            |> List.head
+                      of
                         Just ( _, nextEvent ) ->
                             "Next event is in "
                                 ++ Time.diffToString currentTime (Event.startTime nextEvent)

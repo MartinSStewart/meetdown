@@ -1,4 +1,4 @@
-module Event exposing (CancellationStatus(..), Event, EventType(..), addAttendee, attendees, cancellationStatus, description, duration, endTime, eventType, isOngoing, maxAttendees, name, newEvent, overlaps, removeAttendee, startTime, withCancellationStatus, withDescription, withDuration, withEventType, withMaxAttendees, withName, withStartTime)
+module Event exposing (CancellationStatus(..), Event, EventType(..), addAttendee, attendees, cancellationStatus, description, duration, endTime, eventType, isCancelled, isOngoing, maxAttendees, name, newEvent, overlaps, removeAttendee, startTime, withCancellationStatus, withDescription, withDuration, withEventType, withMaxAttendees, withName, withStartTime)
 
 import Address exposing (Address)
 import AssocSet as Set exposing (Set)
@@ -121,6 +121,19 @@ cancellationStatus (Event event) =
 withCancellationStatus : Time.Posix -> CancellationStatus -> Event -> Event
 withCancellationStatus time status (Event event) =
     Event { event | cancellationStatus = Just ( status, time ) }
+
+
+isCancelled : Event -> Bool
+isCancelled event =
+    case cancellationStatus event of
+        Just ( EventCancelled, _ ) ->
+            True
+
+        Just ( EventUncancelled, _ ) ->
+            False
+
+        Nothing ->
+            False
 
 
 endTime : Event -> Time.Posix
