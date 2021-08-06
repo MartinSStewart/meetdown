@@ -49,4 +49,6 @@ tests =
             \_ ->
                 TimeExtra.diffToString (Time.millisToPosix (36 * hour)) (Time.millisToPosix 0)
                     |> Expect.equal "2\u{00A0}days ago"
+        , test "Don't remove last 0" <|
+            \_ -> TimeExtra.removeTrailing0s 0 |> Expect.equal "0"
         ]

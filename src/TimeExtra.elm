@@ -78,3 +78,10 @@ removeTrailing0s =
                     newText ++ String.fromChar char
             )
             ""
+        >> (\a ->
+                if a == "" then
+                    "0"
+
+                else
+                    a
+           )
