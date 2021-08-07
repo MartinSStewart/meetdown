@@ -7,6 +7,7 @@ module Group exposing
     , JoinEventError(..)
     , PastOngoingOrFuture(..)
     , addEvent
+    , allEvents
     , createdAt
     , description
     , editCancellationStatus

@@ -9,7 +9,6 @@ import Date
 import Description exposing (Description)
 import Duration exposing (Duration)
 import Element exposing (Element)
-import Element.Background
 import Element.Border
 import Element.Font
 import Element.Input
@@ -87,6 +86,7 @@ type Msg
     | PressedMakeGroupPublic
     | PressedMakeGroupUnlisted
     | PressedDeleteGroup
+    | PressedCopyPreviousEvent
 
 
 type alias Effects cmd =
@@ -745,6 +745,106 @@ update effects config group maybeLoggedIn msg model =
                 _ ->
                     noChange
 
+        PressedCopyPreviousEvent ->
+            case model.eventOverlay of
+                Just AddingNewEvent ->
+                    case latestEvent group of
+                        Just latestEvent_ ->
+                            ( { model | newEvent = fillInEmptyNewEventInputs latestEvent_ model.newEvent }
+                            , effects.none
+                            , { joinEvent = Nothing }
+                            )
+
+                        Nothing ->
+                            noChange
+
+                Just (EdittingEvent _ _) ->
+                    noChange
+
+                Nothing ->
+                    noChange
+
+
+latestEvent : Group -> Maybe Event
+latestEvent group =
+    Group.allEvents group
+        |> Dict.values
+        |> List.sortBy (Event.startTime >> Time.posixToMillis)
+        |> List.reverse
+        |> List.head
+
+
+fillInEmptyNewEventInputs : Event -> NewEvent -> NewEvent
+fillInEmptyNewEventInputs copyFrom newEvent =
+    { submitStatus = newEvent.submitStatus
+    , eventName =
+        fillEmptyInput
+            (Event.name copyFrom |> EventName.toString)
+            newEvent.eventName
+    , description =
+        fillEmptyInput
+            (Event.description copyFrom |> Description.toString)
+            newEvent.description
+    , meetingType =
+        case newEvent.meetingType of
+            Just _ ->
+                newEvent.meetingType
+
+            Nothing ->
+                case Event.eventType copyFrom of
+                    Event.MeetOnline _ ->
+                        Just MeetOnline
+
+                    Event.MeetInPerson _ ->
+                        Just MeetInPerson
+    , meetOnlineLink =
+        case Event.eventType copyFrom of
+            Event.MeetOnline (Just link) ->
+                fillEmptyInput
+                    (Link.toString link)
+                    newEvent.meetOnlineLink
+
+            _ ->
+                newEvent.meetOnlineLink
+    , meetInPersonAddress =
+        case Event.eventType copyFrom of
+            Event.MeetInPerson (Just address) ->
+                fillEmptyInput
+                    (Address.toString address)
+                    newEvent.meetInPersonAddress
+
+            _ ->
+                newEvent.meetInPersonAddress
+    , startDate = newEvent.startDate
+    , startTime = newEvent.startTime
+    , duration =
+        fillEmptyInput
+            (Event.duration copyFrom
+                |> EventDuration.toDuration
+                |> Duration.inHours
+                |> Time.removeTrailing0s
+                |> String.left 3
+            )
+            newEvent.duration
+    , maxAttendees =
+        fillEmptyInput
+            (Event.maxAttendees copyFrom
+                |> MaxAttendees.toMaybe
+                |> Maybe.map String.fromInt
+                |> Maybe.withDefault ""
+            )
+            newEvent.maxAttendees
+    }
+
+
+fillEmptyInput : String -> String -> String
+fillEmptyInput replacement text =
+    if String.trim text == "" then
+        replacement
+
+    else
+        text
+
 
 pressSubmit : { a | submitStatus : SubmitStatus b } -> { a | submitStatus : SubmitStatus b }
 pressSubmit event =
@@ -824,7 +924,7 @@ view isMobile currentTime timezone owner group model maybeLoggedIn =
         Ui.pageContentAttributes
         (case model.eventOverlay of
             Just AddingNewEvent ->
-                newEventView currentTime timezone model.newEvent
+                newEventView currentTime timezone group model.newEvent
 
             Just (EdittingEvent eventId editEvent) ->
                 case Group.getEvent currentTime eventId group of
@@ -1625,7 +1725,13 @@ eventMeetingInPersonInputId =
     Id.textInputId "groupEventMeetingInPerson"
 
 
-editEventView : Time.Posix -> Time.Zone -> Maybe ( Event.CancellationStatus, Time.Posix ) -> Group.PastOngoingOrFuture -> EditEvent -> Element Msg
+editEventView :
+    Time.Posix
+    -> Time.Zone
+    -> Maybe ( Event.CancellationStatus, Time.Posix )
+    -> Group.PastOngoingOrFuture
+    -> EditEvent
+    -> Element Msg
 editEventView currentTime timezone maybeCancellationStatus eventStatus event =
     let
         pressedSubmit =
@@ -1845,8 +1951,8 @@ editEventView currentTime timezone maybeCancellationStatus eventStatus event =
         ]
 
 
-newEventView : Time.Posix -> Time.Zone -> NewEvent -> Element Msg
-newEventView currentTime timezone event =
+newEventView : Time.Posix -> Time.Zone -> Group -> NewEvent -> Element Msg
+newEventView currentTime timezone group event =
     let
         pressedSubmit =
             case event.submitStatus of
@@ -1871,7 +1977,17 @@ newEventView currentTime timezone event =
         [ Element.spacing 20, Element.padding 8, Ui.contentWidth, Element.centerX ]
         [ Ui.title "New event"
         , Ui.columnCard
-            [ Ui.textInput
+            [ case latestEvent group of
+                Just _ ->
+                    Element.el []
+                        (Ui.button
+                            copyPreviousEventButtonId
+                            { onPress = PressedCopyPreviousEvent, label = "Copy previous event" }
+                        )
+
+                Nothing ->
+                    Element.none
+            , Ui.textInput
                 eventNameInputId
                 (\text -> ChangedNewEvent { event | eventName = text })
                 event.eventName
@@ -2182,6 +2298,10 @@ multiline onChange text labelText =
 
 groupNameInputId =
     Id.textInputId "groupPageGroupName"
+
+
+copyPreviousEventButtonId =
+    Id.buttonId "groupPage_CopyPreviousEvent"
 
 
 groupNameTextInput : (String -> msg) -> String -> String -> Element msg
