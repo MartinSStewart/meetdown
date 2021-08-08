@@ -34,9 +34,8 @@ module TestFramework exposing
     , toExpectation
     )
 
-import Array exposing (Array)
 import AssocList as Dict exposing (Dict)
-import BackendEffects exposing (BackendEffect)
+import BackendEffect exposing (BackendEffect)
 import BackendLogic
 import BackendSub exposing (BackendSub)
 import Basics.Extra as Basics
@@ -73,7 +72,7 @@ import Url exposing (Url)
 
 type alias State =
     { backend : BackendModel
-    , pendingEffects : BackendEffect
+    , pendingEffects : BackendEffect ToFrontend BackendMsg
     , frontends : Dict ClientId FrontendState
     , counter : Int
     , elapsedTime : Duration
@@ -306,15 +305,11 @@ frontendApp =
     }
 
 
-backendApp =
-    BackendLogic.createApp BackendEffects.effects BackendSub.subscriptions
-
-
 init : Instructions
 init =
     let
         ( backend, effects ) =
-            backendApp.init
+            BackendLogic.init
     in
     Start
         { backend = backend
@@ -323,7 +318,7 @@ init =
         , counter = 0
         , elapsedTime = Quantity.zero
         , toBackend = []
-        , timers = getBackendTimers startTime (backendApp.subscriptions backend)
+        , timers = getBackendTimers startTime (BackendLogic.subscriptions backend)
         , testErrors = []
         , emailInboxes = []
         }
@@ -342,7 +337,10 @@ getFrontendTimers currentTime frontendSub =
             Dict.empty
 
 
-getBackendTimers : Time.Posix -> BackendSub -> Dict Duration { msg : Time.Posix -> BackendMsg, startTime : Time.Posix }
+getBackendTimers :
+    Time.Posix
+    -> BackendSub BackendMsg
+    -> Dict Duration { msg : Time.Posix -> BackendMsg, startTime : Time.Posix }
 getBackendTimers currentTime backendSub =
     case backendSub of
         BackendSub.Batch batch ->
@@ -355,7 +353,7 @@ getBackendTimers currentTime backendSub =
             Dict.empty
 
 
-getClientDisconnectSubs : BackendSub -> List (SessionId -> ClientId -> BackendMsg)
+getClientDisconnectSubs : BackendSub BackendMsg -> List (SessionId -> ClientId -> BackendMsg)
 getClientDisconnectSubs backendSub =
     case backendSub of
         BackendSub.Batch batch ->
@@ -368,7 +366,7 @@ getClientDisconnectSubs backendSub =
             []
 
 
-getClientConnectSubs : BackendSub -> List (SessionId -> ClientId -> BackendMsg)
+getClientConnectSubs : BackendSub BackendMsg -> List (SessionId -> ClientId -> BackendMsg)
 getClientConnectSubs backendSub =
     case backendSub of
         BackendSub.Batch batch ->
@@ -396,11 +394,11 @@ connectFrontend sessionId url andThenFunc =
                     frontendApp.subscriptions frontend
 
                 ( backend, backendEffects ) =
-                    getClientConnectSubs (backendApp.subscriptions state.backend)
+                    getClientConnectSubs (BackendLogic.subscriptions state.backend)
                         |> List.foldl
                             (\msg ( newBackend, newEffects ) ->
-                                backendApp.update (msg sessionId clientId) newBackend
-                                    |> Tuple.mapSecond (\a -> BackendEffects.Batch [ newEffects, a ])
+                                BackendLogic.update (msg sessionId clientId) newBackend
+                                    |> Tuple.mapSecond (\a -> BackendEffect.Batch [ newEffects, a ])
                             )
                             ( state.backend, state.pendingEffects )
 
@@ -605,11 +603,11 @@ disconnectFrontend clientId state =
         Just frontend ->
             let
                 ( backend, effects ) =
-                    getClientDisconnectSubs (backendApp.subscriptions state.backend)
+                    getClientDisconnectSubs (BackendLogic.subscriptions state.backend)
                         |> List.foldl
                             (\msg ( newBackend, newEffects ) ->
-                                backendApp.update (msg frontend.sessionId clientId) newBackend
-                                    |> Tuple.mapSecond (\a -> BackendEffects.Batch [ newEffects, a ])
+                                BackendLogic.update (msg frontend.sessionId clientId) newBackend
+                                    |> Tuple.mapSecond (\a -> BackendEffect.Batch [ newEffects, a ])
                             )
                             ( state.backend, state.pendingEffects )
             in
@@ -626,11 +624,11 @@ reconnectFrontend frontendState state =
             "clientId " ++ String.fromInt state.counter |> Id.clientIdFromString
 
         ( backend, effects ) =
-            getClientConnectSubs (backendApp.subscriptions state.backend)
+            getClientConnectSubs (BackendLogic.subscriptions state.backend)
                 |> List.foldl
                     (\msg ( newBackend, newEffects ) ->
-                        backendApp.update (msg frontendState.sessionId clientId) newBackend
-                            |> Tuple.mapSecond (\a -> BackendEffects.Batch [ newEffects, a ])
+                        BackendLogic.update (msg frontendState.sessionId clientId) newBackend
+                            |> Tuple.mapSecond (\a -> BackendEffect.Batch [ newEffects, a ])
                     )
                     ( state.backend, state.pendingEffects )
     in
@@ -684,10 +682,10 @@ simulateStep state =
             getCompletedTimers state.timers
                 |> List.foldl
                     (\( _, { msg } ) ( backend, effects ) ->
-                        backendApp.update
+                        BackendLogic.update
                             (msg (Duration.addTo startTime newTime))
                             backend
-                            |> Tuple.mapSecond (\a -> BackendEffects.Batch [ effects, a ])
+                            |> Tuple.mapSecond (\a -> BackendEffect.Batch [ effects, a ])
                     )
                     ( state.backend, state.pendingEffects )
     in
@@ -772,7 +770,7 @@ runEffects state =
                 state2.frontends
     in
     { state4
-        | pendingEffects = flattenBackendEffect state4.pendingEffects |> BackendEffects.Batch
+        | pendingEffects = flattenBackendEffect state4.pendingEffects |> BackendEffect.Batch
         , frontends =
             Dict.map
                 (\_ frontend ->
@@ -803,8 +801,8 @@ runNetwork state =
                     --    _ =
                     --        Debug.log "updateFromFrontend" ( clientId, toBackendMsg )
                     --in
-                    backendApp.updateFromFrontend sessionId clientId toBackendMsg model
-                        |> Tuple.mapSecond (\a -> BackendEffects.Batch [ effects2, a ])
+                    BackendLogic.updateFromFrontend sessionId clientId toBackendMsg model
+                        |> Tuple.mapSecond (\a -> BackendEffect.Batch [ effects2, a ])
                 )
                 ( state.backend, state.pendingEffects )
                 state.toBackend
@@ -837,14 +835,14 @@ runNetwork state =
     { state
         | toBackend = []
         , backend = backendModel
-        , pendingEffects = flattenBackendEffect effects |> BackendEffects.Batch
+        , pendingEffects = flattenBackendEffect effects |> BackendEffect.Batch
         , frontends = frontends
     }
 
 
 clearBackendEffects : State -> State
 clearBackendEffects state =
-    { state | pendingEffects = BackendEffects.None }
+    { state | pendingEffects = BackendEffect.None }
 
 
 clearFrontendEffects : ClientId -> State -> State
@@ -1048,26 +1046,26 @@ flattenFrontendEffect effect =
             [ effect ]
 
 
-flattenBackendEffect : BackendEffect -> List BackendEffect
+flattenBackendEffect : BackendEffect ToFrontend BackendMsg -> List (BackendEffect ToFrontend BackendMsg)
 flattenBackendEffect effect =
     case effect of
-        BackendEffects.Batch effects ->
+        BackendEffect.Batch effects ->
             List.concatMap flattenBackendEffect effects
 
-        BackendEffects.None ->
+        BackendEffect.None ->
             []
 
         _ ->
             [ effect ]
 
 
-runBackendEffects : BackendEffect -> State -> State
+runBackendEffects : BackendEffect ToFrontend BackendMsg -> State -> State
 runBackendEffects effect state =
     case effect of
-        BackendEffects.Batch effects ->
+        BackendEffect.Batch effects ->
             List.foldl runBackendEffects state effects
 
-        BackendEffects.SendToFrontend clientId toFrontend ->
+        BackendEffect.SendToFrontend clientId toFrontend ->
             { state
                 | frontends =
                     Dict.update
@@ -1076,48 +1074,62 @@ runBackendEffects effect state =
                         state.frontends
             }
 
-        BackendEffects.GetTime msg ->
+        BackendEffect.GetTime msg ->
             let
                 ( model, effects ) =
-                    backendApp.update (msg (Duration.addTo startTime state.elapsedTime)) state.backend
+                    BackendLogic.update (msg (Duration.addTo startTime state.elapsedTime)) state.backend
             in
-            { state | backend = model, pendingEffects = BackendEffects.Batch [ state.pendingEffects, effects ] }
+            { state | backend = model, pendingEffects = BackendEffect.Batch [ state.pendingEffects, effects ] }
 
-        BackendEffects.None ->
+        BackendEffect.None ->
             state
 
-        BackendEffects.SendLoginEmail msg emailAddress route loginToken maybeJoinEvent ->
+        BackendEffect.SendLoginEmail msg emailAddress route loginToken maybeJoinEvent ->
             let
                 ( model, effects ) =
-                    backendApp.update (msg (Ok postmarkResponse)) state.backend
+                    BackendLogic.update (msg (Ok postmarkResponse)) state.backend
             in
             { state
                 | backend = model
-                , pendingEffects = BackendEffects.Batch [ state.pendingEffects, effects ]
+                , pendingEffects = BackendEffect.Batch [ state.pendingEffects, effects ]
                 , emailInboxes = state.emailInboxes ++ [ ( emailAddress, LoginEmail route loginToken maybeJoinEvent ) ]
             }
 
-        BackendEffects.SendDeleteUserEmail msg emailAddress deleteToken ->
+        BackendEffect.SendDeleteUserEmail msg emailAddress deleteToken ->
             let
                 ( model, effects ) =
-                    backendApp.update (msg (Ok postmarkResponse)) state.backend
+                    BackendLogic.update (msg (Ok postmarkResponse)) state.backend
             in
             { state
                 | backend = model
-                , pendingEffects = BackendEffects.Batch [ state.pendingEffects, effects ]
+                , pendingEffects = BackendEffect.Batch [ state.pendingEffects, effects ]
                 , emailInboxes = state.emailInboxes ++ [ ( emailAddress, DeleteAccountEmail deleteToken ) ]
             }
 
-        BackendEffects.SendEventReminderEmail msg groupId groupName event timezone emailAddress ->
+        BackendEffect.SendEventReminderEmail msg groupId groupName event timezone emailAddress ->
             let
                 ( model, effects ) =
-                    backendApp.update (msg (Ok postmarkResponse)) state.backend
+                    BackendLogic.update (msg (Ok postmarkResponse)) state.backend
             in
             { state
                 | backend = model
-                , pendingEffects = BackendEffects.Batch [ state.pendingEffects, effects ]
+                , pendingEffects = BackendEffect.Batch [ state.pendingEffects, effects ]
                 , emailInboxes = state.emailInboxes ++ [ ( emailAddress, EventReminderEmail groupId groupName event timezone ) ]
             }
+
+        BackendEffect.SendToFrontends clientIds toFrontend ->
+            List.foldl
+                (\clientId state_ ->
+                    { state_
+                        | frontends =
+                            Dict.update
+                                clientId
+                                (Maybe.map (\frontend -> { frontend | toFrontend = frontend.toFrontend ++ [ toFrontend ] }))
+                                state_.frontends
+                    }
+                )
+                state
+                clientIds
 
 
 postmarkResponse =

@@ -1,37 +1,33 @@
 module Backend exposing (app)
 
-import BackendLogic exposing (Effects, Subscriptions)
+import BackendEffect exposing (BackendEffect)
+import BackendLogic
+import BackendSub exposing (BackendSub)
 import Duration exposing (Duration)
-import Email.Html
 import EmailAddress exposing (EmailAddress)
 import Env
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
 import Lamdera
 import List.Nonempty
 import Postmark
-import SendGrid
-import String.Nonempty
 import Task
 import Time
 import Types exposing (..)
 
 
 app =
-    let
-        app_ =
-            BackendLogic.createApp allEffects allSubscriptions
-    in
     Lamdera.backend
-        { init = app_.init
-        , update = app_.update
+        { init = BackendLogic.init |> Tuple.mapSecond toCmd
+        , update = \msg model -> BackendLogic.update msg model |> Tuple.mapSecond toCmd
         , updateFromFrontend =
             \sessionId clientId toBackend model ->
-                app_.updateFromFrontend
+                BackendLogic.updateFromFrontend
                     (Id.sessionIdFromString sessionId)
                     (Id.clientIdFromString clientId)
                     toBackend
                     model
-        , subscriptions = app_.subscriptions
+                    |> Tuple.mapSecond toCmd
+        , subscriptions = \model -> BackendLogic.subscriptions model |> toSub
         }
 
 
@@ -40,20 +36,24 @@ noReplyEmailAddress =
     EmailAddress.fromString "no-reply@meetdown.app"
 
 
-allEffects : Effects (Cmd BackendMsg)
-allEffects =
-    { batch = Cmd.batch
-    , none = Cmd.none
-    , sendToFrontend =
-        \clientId toFrontend ->
+toCmd : BackendEffect ToFrontend BackendMsg -> Cmd BackendMsg
+toCmd effect =
+    case effect of
+        BackendEffect.Batch effects ->
+            List.map toCmd effects |> Cmd.batch
+
+        BackendEffect.None ->
+            Cmd.none
+
+        BackendEffect.SendToFrontend clientId toFrontend ->
             Lamdera.sendToFrontend (Id.clientIdToString clientId) toFrontend
-    , sendToFrontends =
-        \clientIds toFrontend ->
+
+        BackendEffect.SendToFrontends clientIds toFrontend ->
             clientIds
                 |> List.map (\clientId -> Lamdera.sendToFrontend (Id.clientIdToString clientId) toFrontend)
                 |> Cmd.batch
-    , sendLoginEmail =
-        \msg emailAddress route loginToken maybeJoinEvent ->
+
+        BackendEffect.SendLoginEmail msg emailAddress route loginToken maybeJoinEvent ->
             case noReplyEmailAddress of
                 Just sender ->
                     { from = { name = "Meetdown", email = sender }
@@ -66,8 +66,8 @@ allEffects =
 
                 Nothing ->
                     Cmd.none
-    , sendDeleteUserEmail =
-        \msg emailAddress deleteUserToken ->
+
+        BackendEffect.SendDeleteUserEmail msg emailAddress deleteUserToken ->
             case noReplyEmailAddress of
                 Just sender ->
                     { from = { name = "Meetdown", email = sender }
@@ -80,8 +80,8 @@ allEffects =
 
                 Nothing ->
                     Cmd.none
-    , sendEventReminderEmail =
-        \msg groupId groupName event timezone emailAddress ->
+
+        BackendEffect.SendEventReminderEmail msg groupId groupName event timezone emailAddress ->
             case noReplyEmailAddress of
                 Just sender ->
                     { from = { name = "Meetdown", email = sender }
@@ -94,20 +94,24 @@ allEffects =
 
                 Nothing ->
                     Cmd.none
-    , getTime = \msg -> Time.now |> Task.perform msg
-    }
+
+        BackendEffect.GetTime msg ->
+            Time.now |> Task.perform msg
 
 
-allSubscriptions : Subscriptions (Sub BackendMsg)
-allSubscriptions =
-    { batch = Sub.batch
-    , timeEvery = \duration msg -> Time.every (Duration.inMilliseconds duration) msg
-    , onConnect =
-        \msg ->
+toSub : BackendSub BackendMsg -> Sub BackendMsg
+toSub backendSub =
+    case backendSub of
+        BackendSub.Batch subs ->
+            List.map toSub subs |> Sub.batch
+
+        BackendSub.TimeEvery duration msg ->
+            Time.every (Duration.inMilliseconds duration) msg
+
+        BackendSub.OnConnect msg ->
             Lamdera.onConnect
                 (\sessionId clientId -> msg (Id.sessionIdFromString sessionId) (Id.clientIdFromString clientId))
-    , onDisconnect =
-        \msg ->
+
+        BackendSub.OnDisconnect msg ->
             Lamdera.onDisconnect
                 (\sessionId clientId -> msg (Id.sessionIdFromString sessionId) (Id.clientIdFromString clientId))
-    }

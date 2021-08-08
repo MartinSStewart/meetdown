@@ -1,9 +1,7 @@
 module Tests exposing (createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt, createEventAndAnotherUserNotLoggedInJoinsIt, suite)
 
 import AssocList as Dict
-import BackendEffects
 import BackendLogic
-import BackendSub
 import CreateGroupPage
 import Date
 import Duration

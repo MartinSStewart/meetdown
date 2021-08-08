@@ -1,9 +1,24 @@
-module BackendLogic exposing (Effects, Subscriptions, createApp, deleteAccountEmailContent, deleteAccountEmailSubject, eventReminderEmailContent, eventReminderEmailSubject, loginEmailContent, loginEmailLink, loginEmailSubject, sendGridApiKey)
+module BackendLogic exposing
+    ( deleteAccountEmailContent
+    , deleteAccountEmailSubject
+    , eventReminderEmailContent
+    , eventReminderEmailSubject
+    , init
+    , loginEmailContent
+    , loginEmailLink
+    , loginEmailSubject
+    , sendGridApiKey
+    , subscriptions
+    , update
+    , updateFromFrontend
+    )
 
 import Address
 import Array
 import AssocList as Dict exposing (Dict)
 import AssocSet as Set
+import BackendEffect exposing (BackendEffect)
+import BackendSub exposing (BackendSub)
 import BiDict.Assoc as BiDict
 import CreateGroupPage exposing (CreateGroupError(..))
 import Description exposing (Description)
@@ -17,13 +32,11 @@ import EventName
 import Group exposing (EventId, Group, GroupVisibility)
 import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError(..))
-import Http
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
 import Link
 import List.Extra as List
 import List.Nonempty
 import Name
-import Postmark
 import ProfileImage
 import Quantity
 import Route exposing (Route(..))
@@ -33,56 +46,6 @@ import Time
 import Toop exposing (T3(..), T4(..), T5(..))
 import Types exposing (..)
 import Untrusted
-
-
-type alias Effects cmd =
-    { batch : List cmd -> cmd
-    , none : cmd
-    , sendToFrontend : ClientId -> ToFrontend -> cmd
-    , sendToFrontends : List ClientId -> ToFrontend -> cmd
-    , sendLoginEmail :
-        (Result Http.Error Postmark.PostmarkSendResponse -> BackendMsg)
-        -> EmailAddress
-        -> Route
-        -> Id LoginToken
-        -> Maybe ( Id GroupId, EventId )
-        -> cmd
-    , sendDeleteUserEmail : (Result Http.Error Postmark.PostmarkSendResponse -> BackendMsg) -> EmailAddress -> Id DeleteUserToken -> cmd
-    , sendEventReminderEmail :
-        (Result Http.Error Postmark.PostmarkSendResponse -> BackendMsg)
-        -> Id GroupId
-        -> GroupName
-        -> Event
-        -> Time.Zone
-        -> EmailAddress
-        -> cmd
-    , getTime : (Time.Posix -> BackendMsg) -> cmd
-    }
-
-
-type alias Subscriptions sub =
-    { batch : List sub -> sub
-    , timeEvery : Duration -> (Time.Posix -> BackendMsg) -> sub
-    , onConnect : (SessionId -> ClientId -> BackendMsg) -> sub
-    , onDisconnect : (SessionId -> ClientId -> BackendMsg) -> sub
-    }
-
-
-createApp :
-    Effects cmd
-    -> Subscriptions sub
-    ->
-        { init : ( BackendModel, cmd )
-        , update : BackendMsg -> BackendModel -> ( BackendModel, cmd )
-        , updateFromFrontend : Id.SessionId -> Id.ClientId -> ToBackend -> BackendModel -> ( BackendModel, cmd )
-        , subscriptions : BackendModel -> sub
-        }
-createApp cmds subs =
-    { init = init cmds
-    , update = update cmds
-    , updateFromFrontend = updateFromFrontend cmds
-    , subscriptions = subscriptions subs
-    }
 
 
 sendGridApiKey : SendGrid.ApiKey
@@ -95,8 +58,8 @@ loginEmailLink route loginToken maybeJoinEvent =
     Env.domain ++ Route.encodeWithToken route (Route.LoginToken loginToken maybeJoinEvent)
 
 
-init : Effects cmd -> ( BackendModel, cmd )
-init effects =
+init : ( BackendModel, BackendEffect ToFrontend BackendMsg )
+init =
     ( { users = Dict.empty
       , groups = Dict.empty
       , deletedGroups = Dict.empty
@@ -109,21 +72,21 @@ init effects =
       , pendingLoginTokens = Dict.empty
       , pendingDeleteUserTokens = Dict.empty
       }
-    , effects.getTime BackendGotTime
+    , BackendEffect.GetTime BackendGotTime
     )
 
 
-subscriptions : Subscriptions subs -> BackendModel -> subs
-subscriptions subs _ =
-    subs.batch
-        [ subs.timeEvery (Duration.seconds 15) BackendGotTime
-        , subs.onConnect Connected
-        , subs.onDisconnect Disconnected
+subscriptions : BackendModel -> BackendSub BackendMsg
+subscriptions _ =
+    BackendSub.Batch
+        [ BackendSub.TimeEvery (Duration.seconds 15) BackendGotTime
+        , BackendSub.OnConnect Connected
+        , BackendSub.OnDisconnect Disconnected
         ]
 
 
-handleNotifications : Effects cmd -> Time.Posix -> Time.Posix -> BackendModel -> cmd
-handleNotifications cmds lastCheck currentTime backendModel =
+handleNotifications : Time.Posix -> Time.Posix -> BackendModel -> BackendEffect ToFrontend BackendMsg
+handleNotifications lastCheck currentTime backendModel =
     Dict.toList backendModel.groups
         |> List.concatMap
             (\( groupId, group ) ->
@@ -147,7 +110,7 @@ handleNotifications cmds lastCheck currentTime backendModel =
                                     (\userId ->
                                         case getUser userId backendModel of
                                             Just user ->
-                                                cmds.sendEventReminderEmail
+                                                BackendEffect.SendEventReminderEmail
                                                     (SentEventReminderEmail userId groupId eventId)
                                                     groupId
                                                     (Group.name group)
@@ -165,14 +128,14 @@ handleNotifications cmds lastCheck currentTime backendModel =
                     )
                     futureEvents
             )
-        |> cmds.batch
+        |> BackendEffect.Batch
 
 
-update : Effects cmd -> BackendMsg -> BackendModel -> ( BackendModel, cmd )
-update cmds msg model =
+update : BackendMsg -> BackendModel -> ( BackendModel, BackendEffect ToFrontend BackendMsg )
+update msg model =
     case msg of
         SentLoginEmail userId result ->
-            ( addLog (LogLoginEmail model.time result userId) model, cmds.none )
+            ( addLog (LogLoginEmail model.time result userId) model, BackendEffect.None )
 
         BackendGotTime time ->
             ( { model
@@ -189,7 +152,7 @@ update cmds msg model =
                             )
                         |> Dict.fromList
               }
-            , handleNotifications cmds model.time time model
+            , handleNotifications model.time time model
             )
 
         Connected sessionId clientId ->
@@ -202,7 +165,7 @@ update cmds msg model =
                         )
                         model.connections
               }
-            , cmds.none
+            , BackendEffect.None
             )
 
         Disconnected sessionId clientId ->
@@ -212,14 +175,14 @@ update cmds msg model =
                         (Maybe.andThen (List.Nonempty.toList >> List.remove clientId >> List.Nonempty.fromList))
                         model.connections
               }
-            , cmds.none
+            , BackendEffect.None
             )
 
         SentDeleteUserEmail userId result ->
-            ( addLog (LogDeleteAccountEmail model.time result userId) model, cmds.none )
+            ( addLog (LogDeleteAccountEmail model.time result userId) model, BackendEffect.None )
 
         SentEventReminderEmail userId groupId eventId result ->
-            ( addLog (LogEventReminderEmail model.time result userId groupId eventId) model, cmds.none )
+            ( addLog (LogEventReminderEmail model.time result userId groupId eventId) model, BackendEffect.None )
 
 
 addLog : Log -> BackendModel -> BackendModel
@@ -227,12 +190,12 @@ addLog log model =
     { model | logs = Array.push log model.logs }
 
 
-updateFromFrontend : Effects cmd -> SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, cmd )
-updateFromFrontend cmds sessionId clientId msg model =
+updateFromFrontend : SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, BackendEffect ToFrontend BackendMsg )
+updateFromFrontend sessionId clientId msg model =
     let
         logUntrusted =
             ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
-            , cmds.none
+            , BackendEffect.None
             )
     in
     case msg of
@@ -270,21 +233,21 @@ updateFromFrontend cmds sessionId clientId msg model =
                     GroupNotFound_
               )
                 |> GetGroupResponse groupId
-                |> cmds.sendToFrontend clientId
+                |> BackendEffect.SendToFrontend clientId
             )
 
         GetUserRequest userId ->
             case getUser userId model of
                 Just user ->
                     ( model
-                    , Ok (Types.userToFrontend user) |> GetUserResponse userId |> cmds.sendToFrontend clientId
+                    , Ok (Types.userToFrontend user) |> GetUserResponse userId |> BackendEffect.SendToFrontend clientId
                     )
 
                 Nothing ->
-                    ( model, Err () |> GetUserResponse userId |> cmds.sendToFrontend clientId )
+                    ( model, Err () |> GetUserResponse userId |> BackendEffect.SendToFrontend clientId )
 
         CheckLoginRequest ->
-            ( model, checkLogin sessionId model |> CheckLoginResponse |> cmds.sendToFrontend clientId )
+            ( model, checkLogin sessionId model |> CheckLoginResponse |> BackendEffect.SendToFrontend clientId )
 
         GetLoginTokenRequest route untrustedEmail maybeJoinEvent ->
             case Untrusted.validateEmailAddress untrustedEmail of
@@ -297,7 +260,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         ( addLog
                             (LogLoginTokenEmailRequestRateLimited model.time email (Id.anonymizeSessionId sessionId))
                             model
-                        , cmds.none
+                        , BackendEffect.None
                         )
 
                     else
@@ -320,7 +283,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                                     )
                                     model.loginAttempts
                           }
-                        , cmds.sendLoginEmail (SentLoginEmail email) email route loginToken maybeJoinEvent
+                        , BackendEffect.SendLoginEmail (SentLoginEmail email) email route loginToken maybeJoinEvent
                         )
 
                 Nothing ->
@@ -328,12 +291,11 @@ updateFromFrontend cmds sessionId clientId msg model =
 
         GetAdminDataRequest ->
             adminAuthorization
-                cmds
                 sessionId
                 model
                 (\_ ->
                     ( model
-                    , cmds.sendToFrontend
+                    , BackendEffect.SendToFrontend
                         clientId
                         (GetAdminDataResponse
                             { cachedEmailAddress = Dict.map (\_ value -> value.emailAddress) model.users
@@ -345,21 +307,20 @@ updateFromFrontend cmds sessionId clientId msg model =
                 )
 
         LoginWithTokenRequest loginToken maybeJoinEvent ->
-            getAndRemoveLoginToken (loginWithToken cmds sessionId clientId maybeJoinEvent) loginToken model
+            getAndRemoveLoginToken (loginWithToken sessionId clientId maybeJoinEvent) loginToken model
 
         LogoutRequest ->
             ( { model | sessions = BiDict.remove sessionId model.sessions }
             , case Dict.get sessionId model.connections of
                 Just clientIds ->
-                    cmds.sendToFrontends (List.Nonempty.toList clientIds) LogoutResponse
+                    BackendEffect.SendToFrontends (List.Nonempty.toList clientIds) LogoutResponse
 
                 Nothing ->
-                    cmds.none
+                    BackendEffect.None
             )
 
         CreateGroupRequest untrustedName untrustedDescription visibility ->
             userAuthorization
-                cmds
                 sessionId
                 model
                 (\( userId, _ ) ->
@@ -369,7 +330,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         )
                     of
                         ( Just groupName, Just description ) ->
-                            addGroup cmds clientId userId groupName description visibility model
+                            addGroup clientId userId groupName description visibility model
 
                         _ ->
                             logUntrusted
@@ -379,12 +340,11 @@ updateFromFrontend cmds sessionId clientId msg model =
             case Untrusted.validateName untrustedName of
                 Just name ->
                     userAuthorization
-                        cmds
                         sessionId
                         model
                         (\( userId, user ) ->
                             ( { model | users = Dict.insert userId { user | name = name } model.users }
-                            , cmds.sendToFrontends
+                            , BackendEffect.SendToFrontends
                                 (getClientIdsForUser userId model)
                                 (ChangeNameResponse name)
                             )
@@ -397,12 +357,11 @@ updateFromFrontend cmds sessionId clientId msg model =
             case Untrusted.description untrustedDescription of
                 Just description ->
                     userAuthorization
-                        cmds
                         sessionId
                         model
                         (\( userId, user ) ->
                             ( { model | users = Dict.insert userId { user | description = description } model.users }
-                            , cmds.sendToFrontends
+                            , BackendEffect.SendToFrontends
                                 (getClientIdsForUser userId model)
                                 (ChangeDescriptionResponse description)
                             )
@@ -415,7 +374,6 @@ updateFromFrontend cmds sessionId clientId msg model =
             case Untrusted.validateEmailAddress untrustedEmailAddress of
                 Just emailAddress ->
                     userAuthorization
-                        cmds
                         sessionId
                         model
                         (\( userId, user ) ->
@@ -426,7 +384,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                                         { user | emailAddress = emailAddress }
                                         model.users
                               }
-                            , cmds.sendToFrontends
+                            , BackendEffect.SendToFrontends
                                 (getClientIdsForUser userId model)
                                 (ChangeEmailAddressResponse emailAddress)
                             )
@@ -437,7 +395,6 @@ updateFromFrontend cmds sessionId clientId msg model =
 
         SendDeleteUserEmailRequest ->
             userAuthorization
-                cmds
                 sessionId
                 model
                 (\( userId, user ) ->
@@ -459,7 +416,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         ( addLog
                             (LogDeleteAccountEmailRequestRateLimited model.time userId (Id.anonymizeSessionId sessionId))
                             model
-                        , cmds.none
+                        , BackendEffect.None
                         )
 
                     else
@@ -470,7 +427,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                                     { creationTime = model.time, userId = userId }
                                     model2.pendingDeleteUserTokens
                           }
-                        , cmds.sendDeleteUserEmail
+                        , BackendEffect.SendDeleteUserEmail
                             (SentDeleteUserEmail userId)
                             user.emailAddress
                             deleteUserToken
@@ -478,11 +435,10 @@ updateFromFrontend cmds sessionId clientId msg model =
                 )
 
         DeleteUserRequest deleteUserToken ->
-            getAndRemoveDeleteUserToken (handleDeleteUserRequest cmds clientId) deleteUserToken model
+            getAndRemoveDeleteUserToken (handleDeleteUserRequest clientId) deleteUserToken model
 
         ChangeProfileImageRequest untrustedProfileImage ->
             userAuthorization
-                cmds
                 sessionId
                 model
                 (\( userId, user ) ->
@@ -499,7 +455,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                                         { user | profileImage = profileImage }
                                         model.users
                               }
-                            , cmds.sendToFrontends (getClientIdsForUser userId model) response
+                            , BackendEffect.SendToFrontends (getClientIdsForUser userId model) response
                             )
 
                         Nothing ->
@@ -508,7 +464,6 @@ updateFromFrontend cmds sessionId clientId msg model =
 
         GetMyGroupsRequest ->
             userAuthorization
-                cmds
                 sessionId
                 model
                 (\( userId, _ ) ->
@@ -517,7 +472,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                         |> List.filter
                             (\( _, group ) -> Group.ownerId group == userId)
                         |> GetMyGroupsResponse
-                        |> cmds.sendToFrontend clientId
+                        |> BackendEffect.SendToFrontend clientId
                     )
                 )
 
@@ -550,17 +505,16 @@ updateFromFrontend cmds sessionId clientId msg model =
                                 1
                         )
                     |> SearchGroupsResponse searchText
-                    |> cmds.sendToFrontend clientId
+                    |> BackendEffect.SendToFrontend clientId
                 )
 
             else
-                ( model, cmds.none )
+                ( model, BackendEffect.None )
 
         ChangeGroupNameRequest groupId untrustedName ->
             case Untrusted.validateGroupName untrustedName of
                 Just name ->
                     userWithGroupAuthorization
-                        cmds
                         sessionId
                         groupId
                         model
@@ -569,7 +523,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                                 | groups =
                                     Dict.insert groupId (Group.withName name group) model.groups
                               }
-                            , cmds.sendToFrontends
+                            , BackendEffect.SendToFrontends
                                 (getClientIdsForUser userId model)
                                 (ChangeGroupNameResponse groupId name)
                             )
@@ -582,7 +536,6 @@ updateFromFrontend cmds sessionId clientId msg model =
             case Untrusted.description untrustedDescription of
                 Just description ->
                     userWithGroupAuthorization
-                        cmds
                         sessionId
                         groupId
                         model
@@ -591,7 +544,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                                 | groups =
                                     Dict.insert groupId (Group.withDescription description group) model.groups
                               }
-                            , cmds.sendToFrontends
+                            , BackendEffect.SendToFrontends
                                 (getClientIdsForUser userId model)
                                 (ChangeGroupDescriptionResponse groupId description)
                             )
@@ -611,19 +564,18 @@ updateFromFrontend cmds sessionId clientId msg model =
             of
                 T5 (Just eventName) (Just description) (Just eventType) (Just eventDuration) (Just maxAttendees) ->
                     userWithGroupAuthorization
-                        cmds
                         sessionId
                         groupId
                         model
                         (\( userId, _, group ) ->
                             if Group.totalEvents group > 1000 then
                                 ( model
-                                , cmds.sendToFrontend clientId (CreateEventResponse groupId (Err TooManyEvents))
+                                , BackendEffect.SendToFrontend clientId (CreateEventResponse groupId (Err TooManyEvents))
                                 )
 
                             else if Duration.from model.time startTime |> Quantity.lessThanZero then
                                 ( model
-                                , cmds.sendToFrontend
+                                , BackendEffect.SendToFrontend
                                     clientId
                                     (CreateEventResponse groupId (Err EventStartsInThePast))
                                 )
@@ -645,14 +597,14 @@ updateFromFrontend cmds sessionId clientId msg model =
                                 case Group.addEvent newEvent group of
                                     Ok newGroup ->
                                         ( { model | groups = Dict.insert groupId newGroup model.groups }
-                                        , cmds.sendToFrontends
+                                        , BackendEffect.SendToFrontends
                                             (getClientIdsForUser userId model)
                                             (CreateEventResponse groupId (Ok newEvent))
                                         )
 
                                     Err overlappingEvents ->
                                         ( model
-                                        , cmds.sendToFrontend
+                                        , BackendEffect.SendToFrontend
                                             clientId
                                             (CreateEventResponse groupId (Err (EventOverlapsOtherEvents overlappingEvents)))
                                         )
@@ -663,14 +615,12 @@ updateFromFrontend cmds sessionId clientId msg model =
 
         JoinEventRequest groupId eventId ->
             userAuthorization
-                cmds
                 sessionId
                 model
-                (\( userId, _ ) -> joinEvent cmds clientId userId ( groupId, eventId ) model)
+                (\( userId, _ ) -> joinEvent clientId userId ( groupId, eventId ) model)
 
         LeaveEventRequest groupId eventId ->
             userAuthorization
-                cmds
                 sessionId
                 model
                 (\( userId, _ ) ->
@@ -680,14 +630,14 @@ updateFromFrontend cmds sessionId clientId msg model =
                                 | groups =
                                     Dict.insert groupId (Group.leaveEvent userId eventId group) model.groups
                               }
-                            , cmds.sendToFrontends
+                            , BackendEffect.SendToFrontends
                                 (getClientIdsForUser userId model)
                                 (LeaveEventResponse groupId eventId (Ok ()))
                             )
 
                         Nothing ->
                             ( model
-                            , cmds.sendToFrontend
+                            , BackendEffect.SendToFrontend
                                 clientId
                                 (LeaveEventResponse groupId eventId (Err ()))
                             )
@@ -704,7 +654,6 @@ updateFromFrontend cmds sessionId clientId msg model =
             of
                 T5 (Just eventName) (Just description) (Just eventType) (Just eventDuration) (Just maxAttendees) ->
                     userWithGroupAuthorization
-                        cmds
                         sessionId
                         groupId
                         model
@@ -723,14 +672,14 @@ updateFromFrontend cmds sessionId clientId msg model =
                             of
                                 Ok ( newEvent, newGroup ) ->
                                     ( { model | groups = Dict.insert groupId newGroup model.groups }
-                                    , cmds.sendToFrontends
+                                    , BackendEffect.SendToFrontends
                                         (getClientIdsForUser userId model)
                                         (EditEventResponse groupId eventId (Ok newEvent) model.time)
                                     )
 
                                 Err error ->
                                     ( model
-                                    , cmds.sendToFrontend
+                                    , BackendEffect.SendToFrontend
                                         clientId
                                         (EditEventResponse groupId eventId (Err error) model.time)
                                     )
@@ -741,7 +690,6 @@ updateFromFrontend cmds sessionId clientId msg model =
 
         ChangeEventCancellationStatusRequest groupId eventId cancellationStatus ->
             userWithGroupAuthorization
-                cmds
                 sessionId
                 groupId
                 model
@@ -749,7 +697,7 @@ updateFromFrontend cmds sessionId clientId msg model =
                     case Group.editCancellationStatus model.time eventId cancellationStatus group of
                         Ok newGroup ->
                             ( { model | groups = Dict.insert groupId newGroup model.groups }
-                            , cmds.sendToFrontends
+                            , BackendEffect.SendToFrontends
                                 (getClientIdsForUser userId model)
                                 (ChangeEventCancellationStatusResponse
                                     groupId
@@ -761,7 +709,7 @@ updateFromFrontend cmds sessionId clientId msg model =
 
                         Err error ->
                             ( model
-                            , cmds.sendToFrontend
+                            , BackendEffect.SendToFrontend
                                 clientId
                                 (ChangeEventCancellationStatusResponse groupId eventId (Err error) model.time)
                             )
@@ -769,13 +717,12 @@ updateFromFrontend cmds sessionId clientId msg model =
 
         ChangeGroupVisibilityRequest groupId groupVisibility ->
             userWithGroupAuthorization
-                cmds
                 sessionId
                 groupId
                 model
                 (\( userId, _, group ) ->
                     ( { model | groups = Dict.insert groupId (Group.withVisibility groupVisibility group) model.groups }
-                    , cmds.sendToFrontends
+                    , BackendEffect.SendToFrontends
                         (getClientIdsForUser userId model)
                         (ChangeGroupVisibilityResponse groupId groupVisibility)
                     )
@@ -783,7 +730,6 @@ updateFromFrontend cmds sessionId clientId msg model =
 
         DeleteGroupAdminRequest groupId ->
             adminAuthorization
-                cmds
                 sessionId
                 model
                 (\( userId, _ ) ->
@@ -793,13 +739,13 @@ updateFromFrontend cmds sessionId clientId msg model =
                                 | groups = Dict.remove groupId model.groups
                                 , deletedGroups = Dict.insert groupId group model.deletedGroups
                               }
-                            , cmds.sendToFrontends
+                            , BackendEffect.SendToFrontends
                                 (getClientIdsForUser userId model)
                                 (DeleteGroupAdminResponse groupId)
                             )
 
                         Nothing ->
-                            ( model, cmds.none )
+                            ( model, BackendEffect.None )
                 )
 
 
@@ -828,20 +774,24 @@ loginIsRateLimited sessionId emailAddress model =
                 False
 
 
-handleDeleteUserRequest : Effects cmd -> ClientId -> Maybe DeleteUserTokenData -> BackendModel -> ( BackendModel, cmd )
-handleDeleteUserRequest cmds clientId maybeDeleteUserTokenData model =
+handleDeleteUserRequest :
+    ClientId
+    -> Maybe DeleteUserTokenData
+    -> BackendModel
+    -> ( BackendModel, BackendEffect ToFrontend BackendMsg )
+handleDeleteUserRequest clientId maybeDeleteUserTokenData model =
     case maybeDeleteUserTokenData of
         Just { creationTime, userId } ->
             if Duration.from creationTime model.time |> Quantity.lessThan Duration.hour then
                 ( deleteUser userId model
-                , cmds.sendToFrontends (getClientIdsForUser userId model) (DeleteUserResponse (Ok ()))
+                , BackendEffect.SendToFrontends (getClientIdsForUser userId model) (DeleteUserResponse (Ok ()))
                 )
 
             else
-                ( model, cmds.sendToFrontend clientId (DeleteUserResponse (Err ())) )
+                ( model, BackendEffect.SendToFrontend clientId (DeleteUserResponse (Err ())) )
 
         Nothing ->
-            ( model, cmds.sendToFrontend clientId (DeleteUserResponse (Err ())) )
+            ( model, BackendEffect.SendToFrontend clientId (DeleteUserResponse (Err ())) )
 
 
 deleteUser : Id UserId -> BackendModel -> BackendModel
@@ -869,39 +819,38 @@ getClientIdsForUser userId model =
 
 
 loginWithToken :
-    Effects cmd
-    -> SessionId
+    SessionId
     -> ClientId
     -> Maybe ( Id GroupId, EventId )
     -> Maybe LoginTokenData
     -> BackendModel
-    -> ( BackendModel, cmd )
-loginWithToken cmds sessionId clientId maybeJoinEvent maybeLoginTokenData model =
+    -> ( BackendModel, BackendEffect ToFrontend BackendMsg )
+loginWithToken sessionId clientId maybeJoinEvent maybeLoginTokenData model =
     let
-        loginResponse : ( Id UserId, BackendUser ) -> cmd
+        loginResponse : ( Id UserId, BackendUser ) -> BackendEffect ToFrontend BackendMsg
         loginResponse ( userId, userEntry ) =
             case Dict.get sessionId model.connections of
                 Just clientIds ->
                     { userId = userId, user = userEntry, isAdmin = isAdmin userEntry }
                         |> Ok
                         |> LoginWithTokenResponse
-                        |> cmds.sendToFrontends (List.Nonempty.toList clientIds)
+                        |> BackendEffect.SendToFrontends (List.Nonempty.toList clientIds)
 
                 Nothing ->
-                    cmds.none
+                    BackendEffect.None
 
         addSession : Id UserId -> BackendModel -> BackendModel
         addSession userId model_ =
             { model_ | sessions = BiDict.insert sessionId userId model_.sessions }
 
-        joinEventHelper : Id UserId -> BackendModel -> ( BackendModel, cmd )
+        joinEventHelper : Id UserId -> BackendModel -> ( BackendModel, BackendEffect ToFrontend BackendMsg )
         joinEventHelper userId model_ =
             case maybeJoinEvent of
                 Just joinEvent_ ->
-                    joinEvent cmds clientId userId joinEvent_ model_
+                    joinEvent clientId userId joinEvent_ model_
 
                 Nothing ->
-                    ( model_, cmds.none )
+                    ( model_, BackendEffect.None )
     in
     case maybeLoginTokenData of
         Just { creationTime, emailAddress } ->
@@ -913,7 +862,7 @@ loginWithToken cmds sessionId clientId maybeJoinEvent maybeLoginTokenData model 
                                 joinEventHelper userId model
                         in
                         ( addSession userId model2
-                        , cmds.batch [ loginResponse ( userId, user ), effects ]
+                        , BackendEffect.Batch [ loginResponse ( userId, user ), effects ]
                         )
 
                     Nothing ->
@@ -937,35 +886,35 @@ loginWithToken cmds sessionId clientId maybeJoinEvent maybeLoginTokenData model 
                                     |> joinEventHelper userId
                         in
                         ( model3
-                        , cmds.batch [ loginResponse ( userId, newUser ), effects ]
+                        , BackendEffect.Batch [ loginResponse ( userId, newUser ), effects ]
                         )
 
             else
-                ( model, Err () |> LoginWithTokenResponse |> cmds.sendToFrontend clientId )
+                ( model, Err () |> LoginWithTokenResponse |> BackendEffect.SendToFrontend clientId )
 
         Nothing ->
-            ( model, Err () |> LoginWithTokenResponse |> cmds.sendToFrontend clientId )
+            ( model, Err () |> LoginWithTokenResponse |> BackendEffect.SendToFrontend clientId )
 
 
-joinEvent : Effects cmd -> ClientId -> Id UserId -> ( Id GroupId, EventId ) -> BackendModel -> ( BackendModel, cmd )
-joinEvent cmds clientId userId ( groupId, eventId ) model =
+joinEvent : ClientId -> Id UserId -> ( Id GroupId, EventId ) -> BackendModel -> ( BackendModel, BackendEffect ToFrontend BackendMsg )
+joinEvent clientId userId ( groupId, eventId ) model =
     case getGroup groupId model of
         Just group ->
             case Group.joinEvent userId eventId group of
                 Ok newGroup ->
                     ( { model | groups = Dict.insert groupId newGroup model.groups }
-                    , cmds.sendToFrontends
+                    , BackendEffect.SendToFrontends
                         (getClientIdsForUser userId model)
                         (JoinEventResponse groupId eventId (Ok ()))
                     )
 
                 Err error ->
                     ( model
-                    , cmds.sendToFrontend clientId (JoinEventResponse groupId eventId (Err error))
+                    , BackendEffect.SendToFrontend clientId (JoinEventResponse groupId eventId (Err error))
                     )
 
         Nothing ->
-            ( model, cmds.none )
+            ( model, BackendEffect.None )
 
 
 getAndRemoveLoginToken :
@@ -980,10 +929,10 @@ getAndRemoveLoginToken updateFunc loginToken model =
 
 
 getAndRemoveDeleteUserToken :
-    (Maybe DeleteUserTokenData -> BackendModel -> ( BackendModel, cmd ))
+    (Maybe DeleteUserTokenData -> BackendModel -> ( BackendModel, BackendEffect ToFrontend BackendMsg ))
     -> Id DeleteUserToken
     -> BackendModel
-    -> ( BackendModel, cmd )
+    -> ( BackendModel, BackendEffect ToFrontend BackendMsg )
 getAndRemoveDeleteUserToken updateFunc deleteUserToken model =
     updateFunc
         (Dict.get deleteUserToken model.pendingDeleteUserTokens)
@@ -991,17 +940,16 @@ getAndRemoveDeleteUserToken updateFunc deleteUserToken model =
 
 
 addGroup :
-    Effects cmd
-    -> ClientId
+    ClientId
     -> Id UserId
     -> GroupName
     -> Description
     -> GroupVisibility
     -> BackendModel
-    -> ( BackendModel, cmd )
-addGroup cmds clientId userId name description visibility model =
+    -> ( BackendModel, BackendEffect ToFrontend BackendMsg )
+addGroup clientId userId name description visibility model =
     if Dict.values model.groups |> List.any (Group.name >> GroupName.namesMatch name) then
-        ( model, Err GroupNameAlreadyInUse |> CreateGroupResponse |> cmds.sendToFrontend clientId )
+        ( model, Err GroupNameAlreadyInUse |> CreateGroupResponse |> BackendEffect.SendToFrontend clientId )
 
     else
         let
@@ -1012,33 +960,31 @@ addGroup cmds clientId userId name description visibility model =
                 Group.init userId name description visibility model2.time
         in
         ( { model2 | groups = Dict.insert groupId newGroup model2.groups }
-        , Ok ( groupId, newGroup ) |> CreateGroupResponse |> cmds.sendToFrontend clientId
+        , Ok ( groupId, newGroup ) |> CreateGroupResponse |> BackendEffect.SendToFrontend clientId
         )
 
 
 userAuthorization :
-    Effects cmd
-    -> SessionId
+    SessionId
     -> BackendModel
-    -> (( Id UserId, BackendUser ) -> ( BackendModel, cmd ))
-    -> ( BackendModel, cmd )
-userAuthorization cmds sessionId model updateFunc =
+    -> (( Id UserId, BackendUser ) -> ( BackendModel, BackendEffect ToFrontend BackendMsg ))
+    -> ( BackendModel, BackendEffect ToFrontend BackendMsg )
+userAuthorization sessionId model updateFunc =
     case checkLogin sessionId model of
         Just { userId, user } ->
             updateFunc ( userId, user )
 
         Nothing ->
-            ( model, cmds.none )
+            ( model, BackendEffect.None )
 
 
 userWithGroupAuthorization :
-    Effects cmd
-    -> SessionId
+    SessionId
     -> Id GroupId
     -> BackendModel
-    -> (( Id UserId, BackendUser, Group ) -> ( BackendModel, cmd ))
-    -> ( BackendModel, cmd )
-userWithGroupAuthorization cmds sessionId groupId model updateFunc =
+    -> (( Id UserId, BackendUser, Group ) -> ( BackendModel, BackendEffect ToFrontend BackendMsg ))
+    -> ( BackendModel, BackendEffect ToFrontend BackendMsg )
+userWithGroupAuthorization sessionId groupId model updateFunc =
     case checkLogin sessionId model of
         Just { userId, user } ->
             case getGroup groupId model of
@@ -1047,32 +993,31 @@ userWithGroupAuthorization cmds sessionId groupId model updateFunc =
                         updateFunc ( userId, user, group )
 
                     else
-                        ( model, cmds.none )
+                        ( model, BackendEffect.None )
 
                 Nothing ->
-                    ( model, cmds.none )
+                    ( model, BackendEffect.None )
 
         Nothing ->
-            ( model, cmds.none )
+            ( model, BackendEffect.None )
 
 
 adminAuthorization :
-    Effects cmd
-    -> SessionId
+    SessionId
     -> BackendModel
-    -> (( Id UserId, BackendUser ) -> ( BackendModel, cmd ))
-    -> ( BackendModel, cmd )
-adminAuthorization cmds sessionId model updateFunc =
+    -> (( Id UserId, BackendUser ) -> ( BackendModel, BackendEffect ToFrontend BackendMsg ))
+    -> ( BackendModel, BackendEffect ToFrontend BackendMsg )
+adminAuthorization sessionId model updateFunc =
     case checkLogin sessionId model of
         Just checkLogin_ ->
             if checkLogin_.isAdmin then
                 updateFunc ( checkLogin_.userId, checkLogin_.user )
 
             else
-                ( model, cmds.none )
+                ( model, BackendEffect.None )
 
         Nothing ->
-            ( model, cmds.none )
+            ( model, BackendEffect.None )
 
 
 isAdmin : BackendUser -> Bool
