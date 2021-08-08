@@ -44,6 +44,7 @@ module Ui exposing
     , submitColor
     , textInput
     , timeToString
+    , timestamp
     , title
     , titleFontSize
     )
@@ -685,6 +686,13 @@ datestamp date =
         ++ String.padLeft 2 '0' (String.fromInt (Date.monthNumber date))
         ++ "-"
         ++ String.padLeft 2 '0' (String.fromInt (Date.day date))
+
+
+{-| Timestamp used by time input field.
+-}
+timestamp : Int -> Int -> String
+timestamp hour minute =
+    String.padLeft 2 '0' (String.fromInt hour) ++ ":" ++ String.padLeft 2 '0' (String.fromInt minute)
 
 
 formLabelAbove : String -> Element.Input.Label msg

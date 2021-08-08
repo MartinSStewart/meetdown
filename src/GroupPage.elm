@@ -750,7 +750,10 @@ update effects config group maybeLoggedIn msg model =
                 Just AddingNewEvent ->
                     case latestEvent group of
                         Just latestEvent_ ->
-                            ( { model | newEvent = fillInEmptyNewEventInputs latestEvent_ model.newEvent }
+                            ( { model
+                                | newEvent =
+                                    fillInEmptyNewEventInputs config.timezone latestEvent_ model.newEvent
+                              }
                             , effects.none
                             , { joinEvent = Nothing }
                             )
@@ -770,12 +773,11 @@ latestEvent group =
     Group.allEvents group
         |> Dict.values
         |> List.sortBy (Event.startTime >> Time.posixToMillis)
-        |> List.reverse
         |> List.head
 
 
-fillInEmptyNewEventInputs : Event -> NewEvent -> NewEvent
-fillInEmptyNewEventInputs copyFrom newEvent =
+fillInEmptyNewEventInputs : Time.Zone -> Event -> NewEvent -> NewEvent
+fillInEmptyNewEventInputs timezone copyFrom newEvent =
     { submitStatus = newEvent.submitStatus
     , eventName =
         fillEmptyInput
@@ -816,7 +818,13 @@ fillInEmptyNewEventInputs copyFrom newEvent =
             _ ->
                 newEvent.meetInPersonAddress
     , startDate = newEvent.startDate
-    , startTime = newEvent.startTime
+    , startTime =
+        fillEmptyInput
+            (Ui.timestamp
+                (Time.toHour timezone (Event.startTime copyFrom))
+                (Time.toMinute timezone (Event.startTime copyFrom))
+            )
+            newEvent.startTime
     , duration =
         fillEmptyInput
             (Event.duration copyFrom

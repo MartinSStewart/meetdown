@@ -473,11 +473,15 @@ inputDate clientId htmlId date state =
 
 inputTime : ClientId -> HtmlId TimeInputId -> Int -> Int -> Instructions -> Instructions
 inputTime clientId htmlId hour minute state =
+    let
+        input =
+            Ui.timestamp hour minute
+    in
     userEvent
-        ("Input time " ++ String.fromInt hour ++ ":" ++ String.padLeft 2 '0' (String.fromInt minute))
+        ("Input time " ++ input)
         clientId
         htmlId
-        (Test.Html.Event.input (String.fromInt hour ++ ":" ++ String.padLeft 2 '0' (String.fromInt minute)))
+        (Test.Html.Event.input input)
         state
 
 
