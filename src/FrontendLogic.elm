@@ -1,4 +1,16 @@
-module FrontendLogic exposing (CropImageData, Effects, Subscriptions, createApp, groupSearchId, logOutButtonId, signUpOrLoginButtonId)
+module FrontendLogic exposing
+    ( Subscriptions
+    , groupSearchId
+    , init
+    , logOutButtonId
+    , onUrlChange
+    , onUrlRequest
+    , signUpOrLoginButtonId
+    , subscriptions
+    , update
+    , updateFromBackend
+    , view
+    )
 
 import AdminPage
 import AdminStatus exposing (AdminStatus(..))
@@ -17,6 +29,8 @@ import Element.Font
 import Element.Input
 import Element.Region
 import Env
+import FrontendEffect exposing (FrontendEffect)
+import FrontendSub exposing (FrontendSub)
 import FrontendUser exposing (FrontendUser)
 import Group exposing (Group)
 import GroupPage
@@ -24,6 +38,7 @@ import Html.Attributes
 import Id exposing (ButtonId(..), GroupId, Id, UserId)
 import LoginForm
 import MockFile
+import NavigationKey exposing (NavigationKey)
 import Pixels exposing (Pixels)
 import Privacy
 import ProfileImage
@@ -42,28 +57,6 @@ import Url.Parser exposing ((</>))
 import UserPage
 
 
-type alias Effects cmd =
-    { batch : List cmd -> cmd
-    , none : cmd
-    , sendToBackend : ToBackend -> cmd
-    , navigationPushUrl : NavigationKey -> String -> cmd
-    , navigationReplaceUrl : NavigationKey -> String -> cmd
-    , navigationPushRoute : NavigationKey -> Route -> cmd
-    , navigationReplaceRoute : NavigationKey -> Route -> cmd
-    , navigationLoad : String -> cmd
-    , getTime : (Time.Posix -> FrontendMsg) -> cmd
-    , wait : Duration -> FrontendMsg -> cmd
-    , selectFile : List String -> (MockFile.File -> FrontendMsg) -> cmd
-    , copyToClipboard : String -> cmd
-    , cropImage : CropImageData -> cmd
-    , fileToUrl : (String -> FrontendMsg) -> MockFile.File -> cmd
-    , getElement : (Result Browser.Dom.Error Browser.Dom.Element -> FrontendMsg) -> String -> cmd
-    , getWindowSize : (Quantity Int Pixels -> Quantity Int Pixels -> FrontendMsg) -> cmd
-    , getTimeZone : (Result TimeZone.Error ( String, Time.Zone ) -> FrontendMsg) -> cmd
-    , scrollToTop : FrontendMsg -> cmd
-    }
-
-
 type alias Subscriptions sub =
     { batch : List sub -> sub
     , timeEvery : Duration -> (Time.Posix -> FrontendMsg) -> sub
@@ -72,52 +65,27 @@ type alias Subscriptions sub =
     }
 
 
-type alias CropImageData =
-    { requestId : Int
-    , imageUrl : String
-    , cropX : Quantity Int Pixels
-    , cropY : Quantity Int Pixels
-    , cropWidth : Quantity Int Pixels
-    , cropHeight : Quantity Int Pixels
-    , width : Quantity Int Pixels
-    , height : Quantity Int Pixels
-    }
-
-
-createApp :
-    Effects cmd
-    -> Subscriptions sub
-    ->
-        { init : Url -> NavigationKey -> ( FrontendModel, cmd )
-        , onUrlRequest : UrlRequest -> FrontendMsg
-        , onUrlChange : Url -> FrontendMsg
-        , update : FrontendMsg -> FrontendModel -> ( FrontendModel, cmd )
-        , updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, cmd )
-        , subscriptions : FrontendModel -> sub
-        , view : FrontendModel -> Browser.Document FrontendMsg
-        }
-createApp cmds subs =
-    { init = \url key -> init cmds url key
-    , onUrlRequest = UrlClicked
-    , onUrlChange = UrlChanged
-    , update = update cmds
-    , updateFromBackend = updateFromBackend cmds
-    , subscriptions = subscriptions subs
-    , view = view
-    }
-
-
-subscriptions : Subscriptions sub -> FrontendModel -> sub
-subscriptions subs _ =
-    subs.batch
-        [ subs.cropImageFromJs CroppedImage
-        , subs.onResize GotWindowSize
-        , subs.timeEvery Duration.minute GotTime
+subscriptions : FrontendModel -> FrontendSub FrontendMsg
+subscriptions _ =
+    FrontendSub.Batch
+        [ FrontendSub.CropImageFromJs CroppedImage
+        , FrontendSub.OnResize GotWindowSize
+        , FrontendSub.TimeEvery Duration.minute GotTime
         ]
 
 
-init : Effects cmd -> Url -> NavigationKey -> ( FrontendModel, cmd )
-init cmds url key =
+onUrlRequest : UrlRequest -> FrontendMsg
+onUrlRequest =
+    UrlClicked
+
+
+onUrlChange : Url -> FrontendMsg
+onUrlChange =
+    UrlChanged
+
+
+init : Url -> NavigationKey -> ( FrontendModel, FrontendEffect ToBackend FrontendMsg )
+init url key =
     let
         ( route, token ) =
             Url.Parser.parse Route.decode url |> Maybe.withDefault ( HomepageRoute, Route.NoToken )
@@ -130,25 +98,24 @@ init cmds url key =
         , time = Nothing
         , timezone = Nothing
         }
-    , cmds.batch
-        [ cmds.getTime GotTime
-        , cmds.getWindowSize GotWindowSize
-        , cmds.getTimeZone GotTimeZone
+    , FrontendEffect.Batch
+        [ FrontendEffect.GetTime GotTime
+        , FrontendEffect.GetWindowSize GotWindowSize
+        , FrontendEffect.GetTimeZone GotTimeZone
         ]
     )
 
 
 initLoadedFrontend :
-    Effects cmd
-    -> NavigationKey
+    NavigationKey
     -> Quantity Int Pixels
     -> Quantity Int Pixels
     -> Route
     -> Route.Token
     -> Time.Posix
     -> Time.Zone
-    -> ( LoadedFrontend, cmd )
-initLoadedFrontend cmds navigationKey windowWidth windowHeight route maybeLoginToken time timezone =
+    -> ( LoadedFrontend, FrontendEffect ToBackend FrontendMsg )
+initLoadedFrontend navigationKey windowWidth windowHeight route maybeLoginToken time timezone =
     let
         login =
             case maybeLoginToken of
@@ -189,22 +156,21 @@ initLoadedFrontend cmds navigationKey windowWidth windowHeight route maybeLoginT
             }
 
         ( model2, cmd ) =
-            routeRequest cmds route model
+            routeRequest route model
     in
     ( model2
-    , cmds.batch
-        [ cmds.batch [ cmds.sendToBackend login, cmd ]
-        , cmds.navigationReplaceUrl navigationKey (Route.encode route)
+    , FrontendEffect.Batch
+        [ FrontendEffect.Batch [ FrontendEffect.SendToBackend login, cmd ]
+        , FrontendEffect.NavigationReplaceUrl navigationKey (Route.encode route)
         ]
     )
 
 
-tryInitLoadedFrontend : Effects cmd -> LoadingFrontend -> ( FrontendModel, cmd )
-tryInitLoadedFrontend cmds loading =
+tryInitLoadedFrontend : LoadingFrontend -> ( FrontendModel, FrontendEffect ToBackend FrontendMsg )
+tryInitLoadedFrontend loading =
     Maybe.map3
         (\( windowWidth, windowHeight ) time zone ->
             initLoadedFrontend
-                cmds
                 loading.navigationKey
                 windowWidth
                 windowHeight
@@ -217,7 +183,7 @@ tryInitLoadedFrontend cmds loading =
         loading.windowSize
         loading.time
         loading.timezone
-        |> Maybe.withDefault ( Loading loading, cmds.none )
+        |> Maybe.withDefault ( Loading loading, FrontendEffect.None )
 
 
 gotTimeZone : Result error ( a, Time.Zone ) -> { b | timezone : Maybe Time.Zone } -> { b | timezone : Maybe Time.Zone }
@@ -230,32 +196,32 @@ gotTimeZone result model =
             { model | timezone = Just Time.utc }
 
 
-update : Effects cmd -> FrontendMsg -> FrontendModel -> ( FrontendModel, cmd )
-update cmds msg model =
+update : FrontendMsg -> FrontendModel -> ( FrontendModel, FrontendEffect ToBackend FrontendMsg )
+update msg model =
     case model of
         Loading loading ->
             case msg of
                 GotTime time ->
-                    tryInitLoadedFrontend cmds { loading | time = Just time }
+                    tryInitLoadedFrontend { loading | time = Just time }
 
                 GotWindowSize width height ->
-                    tryInitLoadedFrontend cmds { loading | windowSize = Just ( width, height ) }
+                    tryInitLoadedFrontend { loading | windowSize = Just ( width, height ) }
 
                 GotTimeZone result ->
-                    gotTimeZone result loading |> tryInitLoadedFrontend cmds
+                    gotTimeZone result loading |> tryInitLoadedFrontend
 
                 _ ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
         Loaded loaded ->
-            updateLoaded cmds msg loaded |> Tuple.mapFirst Loaded
+            updateLoaded msg loaded |> Tuple.mapFirst Loaded
 
 
-routeRequest : Effects cmd -> Route -> LoadedFrontend -> ( LoadedFrontend, cmd )
-routeRequest cmds route model =
+routeRequest : Route -> LoadedFrontend -> ( LoadedFrontend, FrontendEffect ToBackend FrontendMsg )
+routeRequest route model =
     case route of
         MyGroupsRoute ->
-            ( model, cmds.sendToBackend GetMyGroupsRequest )
+            ( model, FrontendEffect.SendToBackend GetMyGroupsRequest )
 
         GroupRoute groupId _ ->
             case Dict.get groupId model.cachedGroups of
@@ -266,85 +232,93 @@ routeRequest cmds route model =
                     in
                     case Dict.get ownerId model.cachedUsers of
                         Just _ ->
-                            ( model, cmds.none )
+                            ( model, FrontendEffect.None )
 
                         Nothing ->
                             ( { model | cachedUsers = Dict.insert ownerId ItemRequestPending model.cachedUsers }
-                            , cmds.sendToBackend (GetUserRequest ownerId)
+                            , FrontendEffect.SendToBackend (GetUserRequest ownerId)
                             )
 
                 Just ItemRequestPending ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
                 Just ItemDoesNotExist ->
                     ( { model | cachedGroups = Dict.insert groupId ItemRequestPending model.cachedGroups }
-                    , cmds.sendToBackend (GetGroupRequest groupId)
+                    , FrontendEffect.SendToBackend (GetGroupRequest groupId)
                     )
 
                 Nothing ->
                     ( { model | cachedGroups = Dict.insert groupId ItemRequestPending model.cachedGroups }
-                    , cmds.sendToBackend (GetGroupRequest groupId)
+                    , FrontendEffect.SendToBackend (GetGroupRequest groupId)
                     )
 
         HomepageRoute ->
-            ( model, cmds.none )
+            ( model, FrontendEffect.None )
 
         AdminRoute ->
-            checkAdminState cmds model
+            checkAdminState model
 
         CreateGroupRoute ->
-            ( model, cmds.sendToBackend GetMyGroupsRequest )
+            ( model, FrontendEffect.SendToBackend GetMyGroupsRequest )
 
         MyProfileRoute ->
-            ( model, cmds.none )
+            ( model, FrontendEffect.None )
 
         SearchGroupsRoute searchText ->
-            ( model, cmds.sendToBackend (SearchGroupsRequest searchText) )
+            ( model, FrontendEffect.SendToBackend (SearchGroupsRequest searchText) )
 
         UserRoute userId _ ->
             case Dict.get userId model.cachedUsers of
                 Just _ ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
                 Nothing ->
                     ( { model | cachedUsers = Dict.insert userId ItemRequestPending model.cachedUsers }
-                    , cmds.sendToBackend (GetUserRequest userId)
+                    , FrontendEffect.SendToBackend (GetUserRequest userId)
                     )
 
         PrivacyRoute ->
-            ( model, cmds.none )
+            ( model, FrontendEffect.None )
 
         TermsOfServiceRoute ->
-            ( model, cmds.none )
+            ( model, FrontendEffect.None )
 
         CodeOfConductRoute ->
-            ( model, cmds.none )
+            ( model, FrontendEffect.None )
 
         FrequentQuestionsRoute ->
-            ( model, cmds.none )
+            ( model, FrontendEffect.None )
 
 
-checkAdminState : Effects cmd -> LoadedFrontend -> ( LoadedFrontend, cmd )
-checkAdminState cmds model =
+checkAdminState : LoadedFrontend -> ( LoadedFrontend, FrontendEffect ToBackend FrontendMsg )
+checkAdminState model =
     case model.loginStatus of
         LoggedIn loggedIn_ ->
             if loggedIn_.adminState == AdminCacheNotRequested && loggedIn_.adminStatus /= IsNotAdmin then
                 ( { model | loginStatus = LoggedIn { loggedIn_ | adminState = AdminCachePending } }
-                , cmds.sendToBackend GetAdminDataRequest
+                , FrontendEffect.SendToBackend GetAdminDataRequest
                 )
 
             else
-                ( model, cmds.none )
+                ( model, FrontendEffect.None )
 
         NotLoggedIn _ ->
-            ( model, cmds.none )
+            ( model, FrontendEffect.None )
 
         LoginStatusPending ->
-            ( model, cmds.none )
+            ( model, FrontendEffect.None )
 
 
-updateLoaded : Effects cmd -> FrontendMsg -> LoadedFrontend -> ( LoadedFrontend, cmd )
-updateLoaded cmds msg model =
+navigationReplaceRoute navKey route =
+    Route.encode route |> FrontendEffect.NavigationReplaceUrl navKey
+
+
+navigationPushRoute navKey route =
+    Route.encode route |> FrontendEffect.NavigationPushUrl navKey
+
+
+updateLoaded : FrontendMsg -> LoadedFrontend -> ( LoadedFrontend, FrontendEffect ToBackend FrontendMsg )
+updateLoaded msg model =
     case msg of
         UrlClicked urlRequest ->
             case urlRequest of
@@ -356,11 +330,11 @@ updateLoaded cmds msg model =
                                 |> Maybe.withDefault HomepageRoute
                     in
                     ( { model | route = route, hasLoginTokenError = False } |> closeLoginForm
-                    , cmds.navigationPushUrl model.navigationKey (Route.encode route)
+                    , FrontendEffect.NavigationPushUrl model.navigationKey (Route.encode route)
                     )
 
                 External url ->
-                    ( model, cmds.navigationLoad url )
+                    ( model, FrontendEffect.NavigationLoad url )
 
         UrlChanged url ->
             let
@@ -369,50 +343,50 @@ updateLoaded cmds msg model =
                         |> Maybe.map Tuple.first
                         |> Maybe.withDefault HomepageRoute
             in
-            routeRequest cmds route { model | route = route }
-                |> Tuple.mapSecond (\a -> cmds.batch [ a, cmds.scrollToTop ScrolledToTop ])
+            routeRequest route { model | route = route }
+                |> Tuple.mapSecond (\a -> FrontendEffect.Batch [ a, FrontendEffect.ScrollToTop ScrolledToTop ])
 
         GotTime time ->
-            ( { model | time = time }, cmds.none )
+            ( { model | time = time }, FrontendEffect.None )
 
         PressedLogin ->
             case model.loginStatus of
                 LoginStatusPending ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
                 NotLoggedIn notLoggedIn ->
                     ( { model
                         | loginStatus = NotLoggedIn { notLoggedIn | showLogin = True }
                         , hasLoginTokenError = False
                       }
-                    , cmds.none
+                    , FrontendEffect.None
                     )
 
                 LoggedIn _ ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
         PressedLogout ->
             ( { model | loginStatus = NotLoggedIn { showLogin = False, joiningEvent = Nothing } }
-            , cmds.sendToBackend LogoutRequest
+            , FrontendEffect.SendToBackend LogoutRequest
             )
 
         TypedEmail text ->
-            ( { model | loginForm = LoginForm.typedEmail text model.loginForm }, cmds.none )
+            ( { model | loginForm = LoginForm.typedEmail text model.loginForm }, FrontendEffect.None )
 
         PressedSubmitLogin ->
             case model.loginStatus of
                 NotLoggedIn { joiningEvent } ->
-                    LoginForm.submitForm cmds model.route joiningEvent model.loginForm
+                    LoginForm.submitForm model.route joiningEvent model.loginForm
                         |> Tuple.mapFirst (\a -> { model | loginForm = a })
 
                 LoginStatusPending ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
                 LoggedIn _ ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
         PressedCreateGroup ->
-            ( model, cmds.navigationPushRoute model.navigationKey CreateGroupRoute )
+            ( model, navigationPushRoute model.navigationKey CreateGroupRoute )
 
         CreateGroupPageMsg groupFormMsg ->
             case model.loginStatus of
@@ -431,20 +405,20 @@ updateLoaded cmds msg model =
                                         (Untrusted.untrust submitted.name)
                                         (Untrusted.untrust submitted.description)
                                         submitted.visibility
-                                        |> cmds.sendToBackend
+                                        |> FrontendEffect.SendToBackend
                                     )
 
                                 CreateGroupPage.NoChange ->
-                                    ( newModel, cmds.none )
+                                    ( newModel, FrontendEffect.None )
 
                         Nothing ->
-                            ( model, cmds.none )
+                            ( model, FrontendEffect.None )
 
                 NotLoggedIn _ ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
                 LoginStatusPending ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
         ProfileFormMsg profileFormMsg ->
             case model.loginStatus of
@@ -453,21 +427,21 @@ updateLoaded cmds msg model =
                         ( newModel, effects ) =
                             ProfilePage.update
                                 model
-                                { wait = \duration waitMsg -> cmds.wait duration (ProfileFormMsg waitMsg)
-                                , none = cmds.none
-                                , changeName = ChangeNameRequest >> cmds.sendToBackend
-                                , changeDescription = ChangeDescriptionRequest >> cmds.sendToBackend
-                                , changeEmailAddress = ChangeEmailAddressRequest >> cmds.sendToBackend
+                                { wait = \duration waitMsg -> FrontendEffect.Wait duration (ProfileFormMsg waitMsg)
+                                , none = FrontendEffect.None
+                                , changeName = ChangeNameRequest >> FrontendEffect.SendToBackend
+                                , changeDescription = ChangeDescriptionRequest >> FrontendEffect.SendToBackend
+                                , changeEmailAddress = ChangeEmailAddressRequest >> FrontendEffect.SendToBackend
                                 , selectFile =
                                     \mimeTypes fileMsg ->
-                                        cmds.selectFile mimeTypes (fileMsg >> ProfileFormMsg)
+                                        FrontendEffect.SelectFile mimeTypes (fileMsg >> ProfileFormMsg)
                                 , getFileContents =
-                                    \fileMsg file -> cmds.fileToUrl (fileMsg >> ProfileFormMsg) file
-                                , setCanvasImage = cmds.cropImage
-                                , sendDeleteAccountEmail = cmds.sendToBackend SendDeleteUserEmailRequest
+                                    \fileMsg file -> FrontendEffect.FileToUrl (fileMsg >> ProfileFormMsg) file
+                                , setCanvasImage = FrontendEffect.CropImage
+                                , sendDeleteAccountEmail = FrontendEffect.SendToBackend SendDeleteUserEmailRequest
                                 , getElement =
-                                    \getElementMsg id -> cmds.getElement (getElementMsg >> ProfileFormMsg) id
-                                , batch = cmds.batch
+                                    \getElementMsg id -> FrontendEffect.GetElement (getElementMsg >> ProfileFormMsg) id
+                                , batch = FrontendEffect.Batch
                                 }
                                 profileFormMsg
                                 loggedIn.profileForm
@@ -477,10 +451,10 @@ updateLoaded cmds msg model =
                     )
 
                 NotLoggedIn _ ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
                 LoginStatusPending ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
         CroppedImage imageData ->
             case model.loginStatus of
@@ -494,23 +468,23 @@ updateLoaded cmds msg model =
                             ( { model | loginStatus = LoggedIn { loggedIn | profileForm = newModel } }
                             , Untrusted.untrust profileImage
                                 |> ChangeProfileImageRequest
-                                |> cmds.sendToBackend
+                                |> FrontendEffect.SendToBackend
                             )
 
                         Err _ ->
-                            ( model, cmds.none )
+                            ( model, FrontendEffect.None )
 
                 NotLoggedIn _ ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
                 LoginStatusPending ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
         TypedSearchText searchText ->
-            ( { model | searchText = searchText }, cmds.none )
+            ( { model | searchText = searchText }, FrontendEffect.None )
 
         SubmittedSearchBox ->
-            ( closeLoginForm model, cmds.navigationPushRoute model.navigationKey (SearchGroupsRoute model.searchText) )
+            ( closeLoginForm model, navigationPushRoute model.navigationKey (SearchGroupsRoute model.searchText) )
 
         GroupPageMsg groupPageMsg ->
             case model.route of
@@ -520,20 +494,20 @@ updateLoaded cmds msg model =
                             let
                                 ( newModel, effects, { joinEvent } ) =
                                     GroupPage.update
-                                        { none = cmds.none
-                                        , changeName = ChangeGroupNameRequest groupId >> cmds.sendToBackend
+                                        { none = FrontendEffect.None
+                                        , changeName = ChangeGroupNameRequest groupId >> FrontendEffect.SendToBackend
                                         , changeDescription =
-                                            ChangeGroupDescriptionRequest groupId >> cmds.sendToBackend
+                                            ChangeGroupDescriptionRequest groupId >> FrontendEffect.SendToBackend
                                         , createEvent =
-                                            \a b c d e f -> CreateEventRequest groupId a b c d e f |> cmds.sendToBackend
-                                        , leaveEvent = \eventId -> LeaveEventRequest groupId eventId |> cmds.sendToBackend
-                                        , joinEvent = \eventId -> JoinEventRequest groupId eventId |> cmds.sendToBackend
+                                            \a b c d e f -> CreateEventRequest groupId a b c d e f |> FrontendEffect.SendToBackend
+                                        , leaveEvent = \eventId -> LeaveEventRequest groupId eventId |> FrontendEffect.SendToBackend
+                                        , joinEvent = \eventId -> JoinEventRequest groupId eventId |> FrontendEffect.SendToBackend
                                         , editEvent =
-                                            \a b c d e f g -> EditEventRequest groupId a b c d e f g |> cmds.sendToBackend
+                                            \a b c d e f g -> EditEventRequest groupId a b c d e f g |> FrontendEffect.SendToBackend
                                         , changeCancellationStatus =
-                                            \a b -> ChangeEventCancellationStatusRequest groupId a b |> cmds.sendToBackend
-                                        , changeVisibility = ChangeGroupVisibilityRequest groupId >> cmds.sendToBackend
-                                        , deleteGroup = DeleteGroupAdminRequest groupId |> cmds.sendToBackend
+                                            \a b -> ChangeEventCancellationStatusRequest groupId a b |> FrontendEffect.SendToBackend
+                                        , changeVisibility = ChangeGroupVisibilityRequest groupId >> FrontendEffect.SendToBackend
+                                        , deleteGroup = DeleteGroupAdminRequest groupId |> FrontendEffect.SendToBackend
                                         }
                                         model
                                         group
@@ -569,22 +543,22 @@ updateLoaded cmds msg model =
                             )
 
                         _ ->
-                            ( model, cmds.none )
+                            ( model, FrontendEffect.None )
 
                 _ ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
         GotWindowSize width height ->
-            ( { model | windowWidth = width, windowHeight = height }, cmds.none )
+            ( { model | windowWidth = width, windowHeight = height }, FrontendEffect.None )
 
         GotTimeZone _ ->
-            ( model, cmds.none )
+            ( model, FrontendEffect.None )
 
         PressedCancelLogin ->
-            ( closeLoginForm model, cmds.none )
+            ( closeLoginForm model, FrontendEffect.None )
 
         ScrolledToTop ->
-            ( model, cmds.none )
+            ( model, FrontendEffect.None )
 
         PressedEnableAdmin ->
             ( case model.loginStatus of
@@ -601,7 +575,7 @@ updateLoaded cmds msg model =
 
                 _ ->
                     model
-            , cmds.none
+            , FrontendEffect.None
             )
 
         PressedDisableAdmin ->
@@ -619,7 +593,7 @@ updateLoaded cmds msg model =
 
                 _ ->
                     model
-            , cmds.none
+            , FrontendEffect.None
             )
 
 
@@ -639,18 +613,18 @@ closeLoginForm model =
     }
 
 
-updateFromBackend : Effects cmd -> ToFrontend -> FrontendModel -> ( FrontendModel, cmd )
-updateFromBackend cmds msg model =
+updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, FrontendEffect ToBackend FrontendMsg )
+updateFromBackend msg model =
     case model of
         Loading _ ->
-            ( model, cmds.none )
+            ( model, FrontendEffect.None )
 
         Loaded loaded ->
-            updateLoadedFromBackend cmds msg loaded |> Tuple.mapFirst Loaded
+            updateLoadedFromBackend msg loaded |> Tuple.mapFirst Loaded
 
 
-updateLoadedFromBackend : Effects cmd -> ToFrontend -> LoadedFrontend -> ( LoadedFrontend, cmd )
-updateLoadedFromBackend cmds msg model =
+updateLoadedFromBackend : ToFrontend -> LoadedFrontend -> ( LoadedFrontend, FrontendEffect ToBackend FrontendMsg )
+updateLoadedFromBackend msg model =
     case msg of
         GetGroupResponse groupId result ->
             ( { model
@@ -674,12 +648,12 @@ updateLoadedFromBackend cmds msg model =
               }
             , case result of
                 GroupFound_ groupData _ ->
-                    cmds.navigationReplaceRoute
+                    navigationReplaceRoute
                         model.navigationKey
                         (GroupRoute groupId (Group.name groupData))
 
                 GroupNotFound_ ->
-                    cmds.none
+                    FrontendEffect.None
             )
 
         GetUserResponse userId result ->
@@ -696,7 +670,7 @@ updateLoadedFromBackend cmds msg model =
                         )
                         model.cachedUsers
               }
-            , cmds.none
+            , FrontendEffect.None
             )
 
         LoginWithTokenResponse result ->
@@ -719,14 +693,14 @@ updateLoadedFromBackend cmds msg model =
                                 }
                         , cachedUsers = Dict.insert userId (userToFrontend user |> ItemCached) model.cachedUsers
                     }
-                        |> checkAdminState cmds
+                        |> checkAdminState
 
                 Err () ->
                     ( { model
                         | hasLoginTokenError = True
                         , loginStatus = NotLoggedIn { showLogin = True, joiningEvent = Nothing }
                       }
-                    , cmds.none
+                    , FrontendEffect.None
                     )
 
         CheckLoginResponse loginStatus ->
@@ -749,25 +723,25 @@ updateLoadedFromBackend cmds msg model =
                                 }
                         , cachedUsers = Dict.insert userId (userToFrontend user |> ItemCached) model.cachedUsers
                     }
-                        |> checkAdminState cmds
+                        |> checkAdminState
 
                 Nothing ->
                     ( { model | loginStatus = NotLoggedIn { showLogin = False, joiningEvent = Nothing } }
-                    , cmds.none
+                    , FrontendEffect.None
                     )
 
         GetAdminDataResponse adminData ->
             case model.loginStatus of
                 LoggedIn loggedIn_ ->
                     ( { model | loginStatus = LoggedIn { loggedIn_ | adminState = AdminCached adminData } }
-                    , cmds.none
+                    , FrontendEffect.None
                     )
 
                 LoginStatusPending ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
                 NotLoggedIn _ ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
         CreateGroupResponse result ->
             case model.loginStatus of
@@ -779,24 +753,24 @@ updateLoadedFromBackend cmds msg model =
                                     Dict.insert groupId (ItemCached groupData) model.cachedGroups
                                 , groupForm = CreateGroupPage.init
                               }
-                            , cmds.navigationReplaceRoute
+                            , navigationReplaceRoute
                                 model.navigationKey
                                 (GroupRoute groupId (Group.name groupData))
                             )
 
                         Err error ->
                             ( { model | groupForm = CreateGroupPage.submitFailed error model.groupForm }
-                            , cmds.none
+                            , FrontendEffect.None
                             )
 
                 NotLoggedIn _ ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
                 LoginStatusPending ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
         LogoutResponse ->
-            ( { model | loginStatus = NotLoggedIn { showLogin = False, joiningEvent = Nothing } }, cmds.none )
+            ( { model | loginStatus = NotLoggedIn { showLogin = False, joiningEvent = Nothing } }, FrontendEffect.None )
 
         ChangeNameResponse name ->
             case model.loginStatus of
@@ -808,14 +782,14 @@ updateLoadedFromBackend cmds msg model =
                                 (Types.mapCache (\a -> { a | name = name }))
                                 model.cachedUsers
                       }
-                    , cmds.none
+                    , FrontendEffect.None
                     )
 
                 LoginStatusPending ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
                 NotLoggedIn _ ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
         ChangeDescriptionResponse description ->
             case model.loginStatus of
@@ -827,27 +801,27 @@ updateLoadedFromBackend cmds msg model =
                                 (Types.mapCache (\a -> { a | description = description }))
                                 model.cachedUsers
                       }
-                    , cmds.none
+                    , FrontendEffect.None
                     )
 
                 LoginStatusPending ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
                 NotLoggedIn _ ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
         ChangeEmailAddressResponse emailAddress ->
             case model.loginStatus of
                 LoggedIn loggedIn ->
                     ( { model | loginStatus = LoggedIn { loggedIn | emailAddress = emailAddress } }
-                    , cmds.none
+                    , FrontendEffect.None
                     )
 
                 LoginStatusPending ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
                 NotLoggedIn _ ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
         DeleteUserResponse result ->
             case result of
@@ -856,11 +830,11 @@ updateLoadedFromBackend cmds msg model =
                         | loginStatus = NotLoggedIn { showLogin = False, joiningEvent = Nothing }
                         , accountDeletedResult = Just result
                       }
-                    , cmds.none
+                    , FrontendEffect.None
                     )
 
                 Err () ->
-                    ( { model | accountDeletedResult = Just result }, cmds.none )
+                    ( { model | accountDeletedResult = Just result }, FrontendEffect.None )
 
         ChangeProfileImageResponse profileImage ->
             case model.loginStatus of
@@ -872,14 +846,14 @@ updateLoadedFromBackend cmds msg model =
                                 (Types.mapCache (\a -> { a | profileImage = profileImage }))
                                 model.cachedUsers
                       }
-                    , cmds.none
+                    , FrontendEffect.None
                     )
 
                 LoginStatusPending ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
                 NotLoggedIn _ ->
-                    ( model, cmds.none )
+                    ( model, FrontendEffect.None )
 
         GetMyGroupsResponse myGroups ->
             ( case model.loginStatus of
@@ -901,7 +875,7 @@ updateLoadedFromBackend cmds msg model =
 
                 LoginStatusPending ->
                     model
-            , cmds.none
+            , FrontendEffect.None
             )
 
         SearchGroupsResponse _ groups ->
@@ -915,7 +889,7 @@ updateLoadedFromBackend cmds msg model =
                         groups
                 , searchList = List.map Tuple.first groups
               }
-            , cmds.none
+            , FrontendEffect.None
             )
 
         ChangeGroupNameResponse groupId groupName ->
@@ -926,7 +900,7 @@ updateLoadedFromBackend cmds msg model =
                         model.cachedGroups
                 , groupPage = Dict.updateJust groupId GroupPage.savedName model.groupPage
               }
-            , cmds.none
+            , FrontendEffect.None
             )
 
         ChangeGroupDescriptionResponse groupId description ->
@@ -937,7 +911,7 @@ updateLoadedFromBackend cmds msg model =
                         model.cachedGroups
                 , groupPage = Dict.updateJust groupId GroupPage.savedDescription model.groupPage
               }
-            , cmds.none
+            , FrontendEffect.None
             )
 
         CreateEventResponse groupId result ->
@@ -953,7 +927,7 @@ updateLoadedFromBackend cmds msg model =
                             model.cachedGroups
                 , groupPage = Dict.updateJust groupId (GroupPage.addedNewEvent result) model.groupPage
               }
-            , cmds.none
+            , FrontendEffect.None
             )
 
         JoinEventResponse groupId eventId result ->
@@ -996,7 +970,7 @@ updateLoadedFromBackend cmds msg model =
 
                 NotLoggedIn _ ->
                     model
-            , cmds.none
+            , FrontendEffect.None
             )
 
         LeaveEventResponse groupId eventId result ->
@@ -1030,7 +1004,7 @@ updateLoadedFromBackend cmds msg model =
 
                 NotLoggedIn _ ->
                     model
-            , cmds.none
+            , FrontendEffect.None
             )
 
         EditEventResponse groupId eventId result backendTime ->
@@ -1056,7 +1030,7 @@ updateLoadedFromBackend cmds msg model =
                 , groupPage =
                     Dict.updateJust groupId (GroupPage.editEventResponse result) model.groupPage
               }
-            , cmds.none
+            , FrontendEffect.None
             )
 
         ChangeEventCancellationStatusResponse groupId eventId result backendTime ->
@@ -1088,7 +1062,7 @@ updateLoadedFromBackend cmds msg model =
                 , groupPage =
                     Dict.updateJust groupId (GroupPage.editCancellationStatusResponse eventId result) model.groupPage
               }
-            , cmds.none
+            , FrontendEffect.None
             )
 
         ChangeGroupVisibilityResponse groupId visibility ->
@@ -1097,12 +1071,12 @@ updateLoadedFromBackend cmds msg model =
                     Dict.updateJust groupId (Types.mapCache (Group.withVisibility visibility)) model.cachedGroups
                 , groupPage = Dict.updateJust groupId (GroupPage.changeVisibilityResponse visibility) model.groupPage
               }
-            , cmds.none
+            , FrontendEffect.None
             )
 
         DeleteGroupAdminResponse groupId ->
             ( { model | cachedGroups = Dict.updateJust groupId (\_ -> ItemDoesNotExist) model.cachedGroups }
-            , cmds.none
+            , FrontendEffect.None
             )
 
 

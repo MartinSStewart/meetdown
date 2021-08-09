@@ -6,6 +6,7 @@ import Element exposing (Element)
 import Element.Font
 import Element.Input
 import EmailAddress exposing (EmailAddress)
+import FrontendEffect exposing (FrontendEffect)
 import Group exposing (EventId, Group)
 import GroupName
 import Html.Attributes
@@ -124,20 +125,19 @@ validateEmail text =
 
 
 submitForm :
-    { a | none : cmd, sendToBackend : ToBackend -> cmd }
-    -> Route
+    Route
     -> Maybe ( Id GroupId, EventId )
     -> LoginForm
-    -> ( LoginForm, cmd )
-submitForm cmds route maybeJoinEvent loginForm =
+    -> ( LoginForm, FrontendEffect ToBackend FrontendMsg )
+submitForm route maybeJoinEvent loginForm =
     case validateEmail loginForm.email of
         Ok email ->
             ( { loginForm | emailSent = Just email }
-            , GetLoginTokenRequest route (Untrusted.untrust email) maybeJoinEvent |> cmds.sendToBackend
+            , GetLoginTokenRequest route (Untrusted.untrust email) maybeJoinEvent |> FrontendEffect.SendToBackend
             )
 
         Err _ ->
-            ( { loginForm | pressedSubmitEmail = True }, cmds.none )
+            ( { loginForm | pressedSubmitEmail = True }, FrontendEffect.None )
 
 
 typedEmail : String -> LoginForm -> LoginForm

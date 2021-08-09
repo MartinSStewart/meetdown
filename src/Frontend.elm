@@ -7,10 +7,13 @@ import Duration exposing (Duration)
 import Element
 import File
 import File.Select
-import FrontendLogic exposing (Effects, Subscriptions)
+import FrontendEffect exposing (FrontendEffect)
+import FrontendLogic exposing (Subscriptions)
+import FrontendSub exposing (FrontendSub)
 import Html
 import Lamdera
 import MockFile
+import NavigationKey exposing (NavigationKey(..))
 import Pixels exposing (Pixels)
 import Process
 import Route exposing (Route(..))
@@ -39,50 +42,50 @@ port martinsstewart_crop_image_to_js :
 port martinsstewart_crop_image_from_js : ({ requestId : Int, croppedImageUrl : String } -> msg) -> Sub msg
 
 
-allEffects : Effects (Cmd FrontendMsg)
-allEffects =
-    { batch = Cmd.batch
-    , none = Cmd.none
-    , sendToBackend = Lamdera.sendToBackend
-    , navigationPushUrl =
-        \navigationKey string ->
+toCmd : FrontendEffect ToBackend FrontendMsg -> Cmd FrontendMsg
+toCmd effect =
+    case effect of
+        FrontendEffect.Batch effects ->
+            List.map toCmd effects |> Cmd.batch
+
+        FrontendEffect.None ->
+            Cmd.none
+
+        FrontendEffect.SendToBackend toBackend ->
+            Lamdera.sendToBackend toBackend
+
+        FrontendEffect.NavigationPushUrl navigationKey string ->
             case navigationKey of
                 RealNavigationKey key ->
                     Browser.Navigation.pushUrl key string
 
                 MockNavigationKey ->
                     Cmd.none
-    , navigationReplaceUrl =
-        \navigationKey string ->
+
+        FrontendEffect.NavigationReplaceUrl navigationKey string ->
             case navigationKey of
                 RealNavigationKey key ->
                     Browser.Navigation.replaceUrl key string
 
                 MockNavigationKey ->
                     Cmd.none
-    , navigationPushRoute =
-        \navigationKey route ->
-            case navigationKey of
-                RealNavigationKey key ->
-                    Browser.Navigation.pushUrl key (Route.encode route)
 
-                MockNavigationKey ->
-                    Cmd.none
-    , navigationReplaceRoute =
-        \navigationKey route ->
-            case navigationKey of
-                RealNavigationKey key ->
-                    Browser.Navigation.replaceUrl key (Route.encode route)
+        FrontendEffect.NavigationLoad url ->
+            Browser.Navigation.load url
 
-                MockNavigationKey ->
-                    Cmd.none
-    , navigationLoad = Browser.Navigation.load
-    , getTime = \msg -> Time.now |> Task.perform msg
-    , wait = \duration msg -> Process.sleep (Duration.inMilliseconds duration) |> Task.perform (always msg)
-    , selectFile = \mimeTypes msg -> File.Select.file mimeTypes (MockFile.RealFile >> msg)
-    , copyToClipboard = supermario_copy_to_clipboard_to_js
-    , cropImage =
-        \data ->
+        FrontendEffect.GetTime msg ->
+            Time.now |> Task.perform msg
+
+        FrontendEffect.Wait duration msg ->
+            Process.sleep (Duration.inMilliseconds duration) |> Task.perform (always msg)
+
+        FrontendEffect.SelectFile mimeTypes msg ->
+            File.Select.file mimeTypes (MockFile.RealFile >> msg)
+
+        FrontendEffect.CopyToClipboard text ->
+            supermario_copy_to_clipboard_to_js text
+
+        FrontendEffect.CropImage data ->
             martinsstewart_crop_image_to_js
                 { requestId = data.requestId
                 , imageUrl = data.imageUrl
@@ -93,53 +96,61 @@ allEffects =
                 , width = Pixels.inPixels data.width
                 , height = Pixels.inPixels data.height
                 }
-    , fileToUrl =
-        \msg file ->
+
+        FrontendEffect.FileToUrl msg file ->
             case file of
                 MockFile.RealFile realFile ->
                     File.toUrl realFile |> Task.perform msg
 
                 MockFile.MockFile _ ->
                     Cmd.none
-    , getElement = \msg elementId -> Browser.Dom.getElement elementId |> Task.attempt msg
-    , getWindowSize =
-        \msg ->
+
+        FrontendEffect.GetElement msg elementId ->
+            Browser.Dom.getElement elementId |> Task.attempt msg
+
+        FrontendEffect.GetWindowSize msg ->
             Browser.Dom.getViewport
                 |> Task.perform
                     (\{ scene } ->
                         msg (Pixels.pixels (round scene.width)) (Pixels.pixels (round scene.height))
                     )
-    , getTimeZone = \msg -> TimeZone.getZone |> Task.attempt msg
-    , scrollToTop = \msg -> Browser.Dom.setViewport 0 0 |> Task.perform (\() -> msg)
-    }
+
+        FrontendEffect.GetTimeZone msg ->
+            TimeZone.getZone |> Task.attempt msg
+
+        FrontendEffect.ScrollToTop msg ->
+            Browser.Dom.setViewport 0 0 |> Task.perform (\() -> msg)
 
 
-allSubscriptions : Subscriptions (Sub FrontendMsg)
-allSubscriptions =
-    { batch = Sub.batch
-    , timeEvery = \duration msg -> Time.every (Duration.inMilliseconds duration) msg
-    , onResize = \msg -> Browser.Events.onResize (\w h -> msg (Pixels.pixels w) (Pixels.pixels h))
-    , cropImageFromJs = martinsstewart_crop_image_from_js
-    }
+toSub : FrontendSub FrontendMsg -> Sub FrontendMsg
+toSub sub =
+    case sub of
+        FrontendSub.Batch subs ->
+            List.map toSub subs |> Sub.batch
+
+        FrontendSub.TimeEvery duration msg ->
+            Time.every (Duration.inMilliseconds duration) msg
+
+        FrontendSub.OnResize msg ->
+            Browser.Events.onResize (\w h -> msg (Pixels.pixels w) (Pixels.pixels h))
+
+        FrontendSub.CropImageFromJs msg ->
+            martinsstewart_crop_image_from_js msg
 
 
 app =
-    let
-        app_ =
-            FrontendLogic.createApp allEffects allSubscriptions
-    in
     Lamdera.frontend
-        { init = \url navKey -> app_.init url (RealNavigationKey navKey)
-        , onUrlRequest = app_.onUrlRequest
-        , onUrlChange = app_.onUrlChange
-        , update = app_.update
-        , updateFromBackend = app_.updateFromBackend
-        , subscriptions = app_.subscriptions
+        { init = \url navKey -> FrontendLogic.init url (RealNavigationKey navKey) |> Tuple.mapSecond toCmd
+        , onUrlRequest = FrontendLogic.onUrlRequest
+        , onUrlChange = FrontendLogic.onUrlChange
+        , update = \msg model -> FrontendLogic.update msg model |> Tuple.mapSecond toCmd
+        , updateFromBackend = \msg model -> FrontendLogic.updateFromBackend msg model |> Tuple.mapSecond toCmd
+        , subscriptions = FrontendLogic.subscriptions >> toSub
         , view =
             \model ->
                 let
                     document =
-                        app_.view model
+                        FrontendLogic.view model
                 in
                 { document | body = Html.div [] [ Element.layout [] Element.none ] :: document.body }
         }

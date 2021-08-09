@@ -46,7 +46,7 @@ import EmailAddress exposing (EmailAddress)
 import Env
 import Event exposing (EventType)
 import Expect exposing (Expectation)
-import FrontendEffects exposing (FrontendEffect)
+import FrontendEffect exposing (FrontendEffect)
 import FrontendLogic
 import FrontendSub exposing (FrontendSub)
 import Group exposing (EventId)
@@ -57,6 +57,7 @@ import Id exposing (ButtonId(..), ClientId, DateInputId, DeleteUserToken, GroupI
 import Json.Encode
 import List.Nonempty exposing (Nonempty)
 import MockFile exposing (File(..))
+import NavigationKey exposing (NavigationKey(..))
 import Pixels
 import Quantity
 import Route exposing (Route)
@@ -65,7 +66,7 @@ import Test.Html.Query
 import Test.Html.Selector
 import Test.Runner
 import Time
-import Types exposing (BackendModel, BackendMsg, FrontendModel(..), FrontendMsg, LoadedFrontend, NavigationKey(..), ToBackend, ToFrontend)
+import Types exposing (BackendModel, BackendMsg, FrontendModel(..), FrontendMsg, LoadedFrontend, ToBackend, ToFrontend)
 import Ui
 import Url exposing (Url)
 
@@ -270,7 +271,7 @@ instructionsToState inProgress =
 type alias FrontendState =
     { model : FrontendModel
     , sessionId : SessionId
-    , pendingEffects : FrontendEffect
+    , pendingEffects : FrontendEffect ToBackend FrontendMsg
     , toFrontend : List ToFrontend
     , clipboard : String
     , timers : Dict Duration { msg : Time.Posix -> FrontendMsg, startTime : Time.Posix }
@@ -284,24 +285,20 @@ startTime =
 
 
 frontendApp =
-    let
-        app_ =
-            FrontendLogic.createApp FrontendEffects.effects FrontendSub.subscriptions
-    in
-    { init = app_.init
+    { init = FrontendLogic.init
     , update =
         \clientId msg model ->
             let
                 ( newModel, effects ) =
-                    app_.update msg model
+                    FrontendLogic.update msg model
 
                 --_ =
                 --    Debug.log "Frontend.update" ( Id.clientIdToString clientId, msg, effects )
             in
             ( newModel, effects )
-    , updateFromBackend = app_.updateFromBackend
-    , view = app_.view
-    , subscriptions = app_.subscriptions
+    , updateFromBackend = FrontendLogic.updateFromBackend
+    , view = FrontendLogic.view
+    , subscriptions = FrontendLogic.subscriptions
     }
 
 
@@ -324,7 +321,7 @@ init =
         }
 
 
-getFrontendTimers : Time.Posix -> FrontendSub -> Dict Duration { msg : Time.Posix -> FrontendMsg, startTime : Time.Posix }
+getFrontendTimers : Time.Posix -> FrontendSub FrontendMsg -> Dict Duration { msg : Time.Posix -> FrontendMsg, startTime : Time.Posix }
 getFrontendTimers currentTime frontendSub =
     case frontendSub of
         FrontendSub.Batch batch ->
@@ -709,7 +706,7 @@ simulateStep state =
                                             clientId
                                             (msg (Duration.addTo startTime newTime))
                                             frontendModel
-                                            |> Tuple.mapSecond (\a -> FrontendEffects.Batch [ effects, a ])
+                                            |> Tuple.mapSecond (\a -> FrontendEffect.Batch [ effects, a ])
                                     )
                                     ( frontend.model, frontend.pendingEffects )
                     in
@@ -774,7 +771,7 @@ runEffects state =
         , frontends =
             Dict.map
                 (\_ frontend ->
-                    { frontend | pendingEffects = flattenFrontendEffect frontend.pendingEffects |> FrontendEffects.Batch }
+                    { frontend | pendingEffects = flattenFrontendEffect frontend.pendingEffects |> FrontendEffect.Batch }
                 )
                 state4.frontends
     }
@@ -819,7 +816,7 @@ runNetwork state =
                                     --        Debug.log "Frontend.updateFromBackend" ( clientId, msg )
                                     --in
                                     frontendApp.updateFromBackend msg model
-                                        |> Tuple.mapSecond (\a -> FrontendEffects.Batch [ newEffects, a ])
+                                        |> Tuple.mapSecond (\a -> FrontendEffect.Batch [ newEffects, a ])
                                 )
                                 ( frontend.model, frontend.pendingEffects )
                                 frontend.toFrontend
@@ -851,33 +848,33 @@ clearFrontendEffects clientId state =
         | frontends =
             Dict.update
                 clientId
-                (Maybe.map (\frontend -> { frontend | pendingEffects = FrontendEffects.None }))
+                (Maybe.map (\frontend -> { frontend | pendingEffects = FrontendEffect.None }))
                 state.frontends
     }
 
 
-runFrontendEffects : SessionId -> ClientId -> FrontendEffect -> State -> State
+runFrontendEffects : SessionId -> ClientId -> FrontendEffect ToBackend FrontendMsg -> State -> State
 runFrontendEffects sessionId clientId effectsToPerform state =
     case effectsToPerform of
-        FrontendEffects.Batch nestedEffectsToPerform ->
+        FrontendEffect.Batch nestedEffectsToPerform ->
             List.foldl (runFrontendEffects sessionId clientId) state nestedEffectsToPerform
 
-        FrontendEffects.SendToBackend toBackend ->
+        FrontendEffect.SendToBackend toBackend ->
             { state | toBackend = state.toBackend ++ [ ( sessionId, clientId, toBackend ) ] }
 
-        FrontendEffects.NavigationPushUrl _ urlText ->
+        FrontendEffect.NavigationPushUrl _ urlText ->
             handleUrlChange urlText clientId state
 
-        FrontendEffects.NavigationReplaceUrl _ urlText ->
+        FrontendEffect.NavigationReplaceUrl _ urlText ->
             handleUrlChange urlText clientId state
 
-        FrontendEffects.NavigationLoad urlText ->
+        FrontendEffect.NavigationLoad urlText ->
             handleUrlChange urlText clientId state
 
-        FrontendEffects.None ->
+        FrontendEffect.None ->
             state
 
-        FrontendEffects.GetTime msg ->
+        FrontendEffect.GetTime msg ->
             case Dict.get clientId state.frontends of
                 Just frontend ->
                     let
@@ -889,7 +886,7 @@ runFrontendEffects sessionId clientId effectsToPerform state =
                             Dict.insert clientId
                                 { frontend
                                     | model = model
-                                    , pendingEffects = FrontendEffects.Batch [ frontend.pendingEffects, effects ]
+                                    , pendingEffects = FrontendEffect.Batch [ frontend.pendingEffects, effects ]
                                 }
                                 state.frontends
                     }
@@ -897,13 +894,13 @@ runFrontendEffects sessionId clientId effectsToPerform state =
                 Nothing ->
                     state
 
-        FrontendEffects.Wait duration msg ->
+        FrontendEffect.Wait duration msg ->
             state
 
-        FrontendEffects.SelectFile mimeTypes msg ->
+        FrontendEffect.SelectFile mimeTypes msg ->
             state
 
-        FrontendEffects.CopyToClipboard text ->
+        FrontendEffect.CopyToClipboard text ->
             case Dict.get clientId state.frontends of
                 Just frontend ->
                     { state | frontends = Dict.insert clientId { frontend | clipboard = text } state.frontends }
@@ -911,10 +908,10 @@ runFrontendEffects sessionId clientId effectsToPerform state =
                 Nothing ->
                     state
 
-        FrontendEffects.CropImage cropImageData ->
+        FrontendEffect.CropImage cropImageData ->
             state
 
-        FrontendEffects.FileToUrl msg file ->
+        FrontendEffect.FileToUrl msg file ->
             case file of
                 MockFile fileName ->
                     case Dict.get clientId state.frontends of
@@ -936,7 +933,7 @@ runFrontendEffects sessionId clientId effectsToPerform state =
                                     Dict.insert clientId
                                         { frontend
                                             | model = model
-                                            , pendingEffects = FrontendEffects.Batch [ frontend.pendingEffects, effects ]
+                                            , pendingEffects = FrontendEffect.Batch [ frontend.pendingEffects, effects ]
                                         }
                                         state.frontends
                             }
@@ -947,10 +944,10 @@ runFrontendEffects sessionId clientId effectsToPerform state =
                 RealFile _ ->
                     state
 
-        FrontendEffects.GetElement function string ->
+        FrontendEffect.GetElement function string ->
             state
 
-        FrontendEffects.GetWindowSize msg ->
+        FrontendEffect.GetWindowSize msg ->
             case Dict.get clientId state.frontends of
                 Just frontend ->
                     let
@@ -962,7 +959,7 @@ runFrontendEffects sessionId clientId effectsToPerform state =
                             Dict.insert clientId
                                 { frontend
                                     | model = model
-                                    , pendingEffects = FrontendEffects.Batch [ frontend.pendingEffects, effects ]
+                                    , pendingEffects = FrontendEffect.Batch [ frontend.pendingEffects, effects ]
                                 }
                                 state.frontends
                     }
@@ -970,7 +967,7 @@ runFrontendEffects sessionId clientId effectsToPerform state =
                 Nothing ->
                     state
 
-        FrontendEffects.GetTimeZone msg ->
+        FrontendEffect.GetTimeZone msg ->
             case Dict.get clientId state.frontends of
                 Just frontend ->
                     let
@@ -985,7 +982,7 @@ runFrontendEffects sessionId clientId effectsToPerform state =
                             Dict.insert clientId
                                 { frontend
                                     | model = model
-                                    , pendingEffects = FrontendEffects.Batch [ frontend.pendingEffects, effects ]
+                                    , pendingEffects = FrontendEffect.Batch [ frontend.pendingEffects, effects ]
                                 }
                                 state.frontends
                     }
@@ -993,7 +990,7 @@ runFrontendEffects sessionId clientId effectsToPerform state =
                 Nothing ->
                     state
 
-        FrontendEffects.ScrollToTop _ ->
+        FrontendEffect.ScrollToTop _ ->
             state
 
 
@@ -1020,7 +1017,7 @@ handleUrlChange urlText clientId state =
                             Dict.insert clientId
                                 { frontend
                                     | model = model
-                                    , pendingEffects = FrontendEffects.Batch [ frontend.pendingEffects, effects ]
+                                    , pendingEffects = FrontendEffect.Batch [ frontend.pendingEffects, effects ]
                                     , url = url
                                 }
                                 state.frontends
@@ -1033,13 +1030,13 @@ handleUrlChange urlText clientId state =
             state
 
 
-flattenFrontendEffect : FrontendEffect -> List FrontendEffect
+flattenFrontendEffect : FrontendEffect ToBackend FrontendMsg -> List (FrontendEffect ToBackend FrontendMsg)
 flattenFrontendEffect effect =
     case effect of
-        FrontendEffects.Batch effects ->
+        FrontendEffect.Batch effects ->
             List.concatMap flattenFrontendEffect effects
 
-        FrontendEffects.None ->
+        FrontendEffect.None ->
             []
 
         _ ->

@@ -23,22 +23,17 @@ import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionI
 import List.Nonempty exposing (Nonempty)
 import MaxAttendees exposing (MaxAttendees)
 import Name exposing (Name)
+import NavigationKey exposing (NavigationKey)
 import Pixels exposing (Pixels)
 import Postmark
 import ProfileImage exposing (ProfileImage)
 import ProfilePage
 import Quantity exposing (Quantity)
 import Route exposing (Route)
-import SendGrid exposing (Email)
 import Time
 import TimeZone
 import Untrusted exposing (Untrusted)
 import Url exposing (Url)
-
-
-type NavigationKey
-    = RealNavigationKey Browser.Navigation.Key
-    | MockNavigationKey
 
 
 type FrontendModel
