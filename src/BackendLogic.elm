@@ -190,6 +190,11 @@ addLog log model =
     { model | logs = Array.push log model.logs }
 
 
+sendToFrontends : List ClientId -> ToFrontend -> BackendEffect ToFrontend backendMsg
+sendToFrontends clientIds toFrontend =
+    List.map (\clientId -> BackendEffect.SendToFrontend clientId toFrontend) clientIds |> BackendEffect.Batch
+
+
 updateFromFrontend : SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, BackendEffect ToFrontend BackendMsg )
 updateFromFrontend sessionId clientId msg model =
     let
@@ -313,7 +318,7 @@ updateFromFrontend sessionId clientId msg model =
             ( { model | sessions = BiDict.remove sessionId model.sessions }
             , case Dict.get sessionId model.connections of
                 Just clientIds ->
-                    BackendEffect.SendToFrontends (List.Nonempty.toList clientIds) LogoutResponse
+                    sendToFrontends (List.Nonempty.toList clientIds) LogoutResponse
 
                 Nothing ->
                     BackendEffect.None
@@ -344,7 +349,7 @@ updateFromFrontend sessionId clientId msg model =
                         model
                         (\( userId, user ) ->
                             ( { model | users = Dict.insert userId { user | name = name } model.users }
-                            , BackendEffect.SendToFrontends
+                            , sendToFrontends
                                 (getClientIdsForUser userId model)
                                 (ChangeNameResponse name)
                             )
@@ -361,7 +366,7 @@ updateFromFrontend sessionId clientId msg model =
                         model
                         (\( userId, user ) ->
                             ( { model | users = Dict.insert userId { user | description = description } model.users }
-                            , BackendEffect.SendToFrontends
+                            , sendToFrontends
                                 (getClientIdsForUser userId model)
                                 (ChangeDescriptionResponse description)
                             )
@@ -384,7 +389,7 @@ updateFromFrontend sessionId clientId msg model =
                                         { user | emailAddress = emailAddress }
                                         model.users
                               }
-                            , BackendEffect.SendToFrontends
+                            , sendToFrontends
                                 (getClientIdsForUser userId model)
                                 (ChangeEmailAddressResponse emailAddress)
                             )
@@ -455,7 +460,7 @@ updateFromFrontend sessionId clientId msg model =
                                         { user | profileImage = profileImage }
                                         model.users
                               }
-                            , BackendEffect.SendToFrontends (getClientIdsForUser userId model) response
+                            , sendToFrontends (getClientIdsForUser userId model) response
                             )
 
                         Nothing ->
@@ -523,7 +528,7 @@ updateFromFrontend sessionId clientId msg model =
                                 | groups =
                                     Dict.insert groupId (Group.withName name group) model.groups
                               }
-                            , BackendEffect.SendToFrontends
+                            , sendToFrontends
                                 (getClientIdsForUser userId model)
                                 (ChangeGroupNameResponse groupId name)
                             )
@@ -544,7 +549,7 @@ updateFromFrontend sessionId clientId msg model =
                                 | groups =
                                     Dict.insert groupId (Group.withDescription description group) model.groups
                               }
-                            , BackendEffect.SendToFrontends
+                            , sendToFrontends
                                 (getClientIdsForUser userId model)
                                 (ChangeGroupDescriptionResponse groupId description)
                             )
@@ -597,7 +602,7 @@ updateFromFrontend sessionId clientId msg model =
                                 case Group.addEvent newEvent group of
                                     Ok newGroup ->
                                         ( { model | groups = Dict.insert groupId newGroup model.groups }
-                                        , BackendEffect.SendToFrontends
+                                        , sendToFrontends
                                             (getClientIdsForUser userId model)
                                             (CreateEventResponse groupId (Ok newEvent))
                                         )
@@ -630,7 +635,7 @@ updateFromFrontend sessionId clientId msg model =
                                 | groups =
                                     Dict.insert groupId (Group.leaveEvent userId eventId group) model.groups
                               }
-                            , BackendEffect.SendToFrontends
+                            , sendToFrontends
                                 (getClientIdsForUser userId model)
                                 (LeaveEventResponse groupId eventId (Ok ()))
                             )
@@ -672,7 +677,7 @@ updateFromFrontend sessionId clientId msg model =
                             of
                                 Ok ( newEvent, newGroup ) ->
                                     ( { model | groups = Dict.insert groupId newGroup model.groups }
-                                    , BackendEffect.SendToFrontends
+                                    , sendToFrontends
                                         (getClientIdsForUser userId model)
                                         (EditEventResponse groupId eventId (Ok newEvent) model.time)
                                     )
@@ -697,7 +702,7 @@ updateFromFrontend sessionId clientId msg model =
                     case Group.editCancellationStatus model.time eventId cancellationStatus group of
                         Ok newGroup ->
                             ( { model | groups = Dict.insert groupId newGroup model.groups }
-                            , BackendEffect.SendToFrontends
+                            , sendToFrontends
                                 (getClientIdsForUser userId model)
                                 (ChangeEventCancellationStatusResponse
                                     groupId
@@ -722,7 +727,7 @@ updateFromFrontend sessionId clientId msg model =
                 model
                 (\( userId, _, group ) ->
                     ( { model | groups = Dict.insert groupId (Group.withVisibility groupVisibility group) model.groups }
-                    , BackendEffect.SendToFrontends
+                    , sendToFrontends
                         (getClientIdsForUser userId model)
                         (ChangeGroupVisibilityResponse groupId groupVisibility)
                     )
@@ -739,7 +744,7 @@ updateFromFrontend sessionId clientId msg model =
                                 | groups = Dict.remove groupId model.groups
                                 , deletedGroups = Dict.insert groupId group model.deletedGroups
                               }
-                            , BackendEffect.SendToFrontends
+                            , sendToFrontends
                                 (getClientIdsForUser userId model)
                                 (DeleteGroupAdminResponse groupId)
                             )
@@ -784,7 +789,7 @@ handleDeleteUserRequest clientId maybeDeleteUserTokenData model =
         Just { creationTime, userId } ->
             if Duration.from creationTime model.time |> Quantity.lessThan Duration.hour then
                 ( deleteUser userId model
-                , BackendEffect.SendToFrontends (getClientIdsForUser userId model) (DeleteUserResponse (Ok ()))
+                , sendToFrontends (getClientIdsForUser userId model) (DeleteUserResponse (Ok ()))
                 )
 
             else
@@ -834,7 +839,7 @@ loginWithToken sessionId clientId maybeJoinEvent maybeLoginTokenData model =
                     { userId = userId, user = userEntry, isAdmin = isAdmin userEntry }
                         |> Ok
                         |> LoginWithTokenResponse
-                        |> BackendEffect.SendToFrontends (List.Nonempty.toList clientIds)
+                        |> sendToFrontends (List.Nonempty.toList clientIds)
 
                 Nothing ->
                     BackendEffect.None
@@ -903,7 +908,7 @@ joinEvent clientId userId ( groupId, eventId ) model =
             case Group.joinEvent userId eventId group of
                 Ok newGroup ->
                     ( { model | groups = Dict.insert groupId newGroup model.groups }
-                    , BackendEffect.SendToFrontends
+                    , sendToFrontends
                         (getClientIdsForUser userId model)
                         (JoinEventResponse groupId eventId (Ok ()))
                     )

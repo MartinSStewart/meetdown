@@ -1207,20 +1207,6 @@ runBackendEffects backendApp effect state =
                 , emailInboxes = state.emailInboxes ++ [ ( emailAddress, EventReminderEmail groupId groupName event timezone ) ]
             }
 
-        BackendEffect.SendToFrontends clientIds toFrontend ->
-            List.foldl
-                (\clientId state_ ->
-                    { state_
-                        | frontends =
-                            Dict.update
-                                clientId
-                                (Maybe.map (\frontend -> { frontend | toFrontend = frontend.toFrontend ++ [ toFrontend ] }))
-                                state_.frontends
-                    }
-                )
-                state
-                clientIds
-
 
 postmarkResponse =
     { to = ""
