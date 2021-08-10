@@ -7,9 +7,7 @@ module TestFramework exposing
     , andThen
     , checkBackend
     , checkFrontend
-    , checkLoadedFrontend
     , checkState
-    , checkView
     , connectFrontend
     , continueWith
     , disconnectFrontend
@@ -58,13 +56,13 @@ import Test.Html.Query
 import Test.Html.Selector
 import Test.Runner
 import Time
-import Types exposing (BackendModel, FrontendModel(..), FrontendMsg, LoadedFrontend, ToBackend)
+import Types exposing (FrontendModel(..), FrontendMsg, ToBackend)
 import Ui
 import Url exposing (Url)
 
 
-type alias State toFrontend backendMsg =
-    { backend : BackendModel
+type alias State toFrontend backendMsg backendModel =
+    { backend : backendModel
     , pendingEffects : BackendEffect toFrontend backendMsg
     , frontends : Dict ClientId (FrontendState toFrontend)
     , counter : Int
@@ -76,10 +74,10 @@ type alias State toFrontend backendMsg =
     }
 
 
-type Instructions toFrontend backendMsg
-    = NextStep String (State toFrontend backendMsg -> State toFrontend backendMsg) (Instructions toFrontend backendMsg)
-    | AndThen (State toFrontend backendMsg -> Instructions toFrontend backendMsg) (Instructions toFrontend backendMsg)
-    | Start (State toFrontend backendMsg)
+type Instructions toFrontend backendMsg backendModel
+    = NextStep String (State toFrontend backendMsg backendModel -> State toFrontend backendMsg backendModel) (Instructions toFrontend backendMsg backendModel)
+    | AndThen (State toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel) (Instructions toFrontend backendMsg backendModel)
+    | Start (State toFrontend backendMsg backendModel)
 
 
 type EmailType
@@ -108,7 +106,10 @@ isDeleteAccountEmail emailType =
             False
 
 
-checkState : (State toFrontend backendMsg -> Result String ()) -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
+checkState :
+    (State toFrontend backendMsg backendModel -> Result String ())
+    -> Instructions toFrontend backendMsg backendModel
+    -> Instructions toFrontend backendMsg backendModel
 checkState checkFunc =
     NextStep
         "Check state"
@@ -122,7 +123,10 @@ checkState checkFunc =
         )
 
 
-checkBackend : (BackendModel -> Result String ()) -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
+checkBackend :
+    (backendModel -> Result String ())
+    -> Instructions toFrontend backendMsg backendModel
+    -> Instructions toFrontend backendMsg backendModel
 checkBackend checkFunc =
     NextStep
         "Check backend"
@@ -136,7 +140,7 @@ checkBackend checkFunc =
         )
 
 
-checkFrontend : ClientId -> (FrontendModel -> Result String ()) -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
+checkFrontend : ClientId -> (FrontendModel -> Result String ()) -> Instructions toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel
 checkFrontend clientId checkFunc =
     NextStep
         "Check frontend"
@@ -158,7 +162,7 @@ checkFrontend clientId checkFunc =
         )
 
 
-addTestError : String -> State toFrontend backendMsg -> State toFrontend backendMsg
+addTestError : String -> State toFrontend backendMsg backendModel -> State toFrontend backendMsg backendModel
 addTestError error state =
     { state | testErrors = state.testErrors ++ [ error ] }
 
@@ -167,8 +171,8 @@ checkView :
     FrontendApp toFrontend
     -> ClientId
     -> (Test.Html.Query.Single FrontendMsg -> Expectation)
-    -> Instructions toFrontend backendMsg
-    -> Instructions toFrontend backendMsg
+    -> Instructions toFrontend backendMsg backendModel
+    -> Instructions toFrontend backendMsg backendModel
 checkView frontendApp clientId query =
     NextStep
         "Check view"
@@ -197,22 +201,7 @@ checkView frontendApp clientId query =
         )
 
 
-checkLoadedFrontend : ClientId -> (LoadedFrontend -> Result String ()) -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
-checkLoadedFrontend clientId checkFunc state =
-    checkFrontend
-        clientId
-        (\frontend ->
-            case frontend of
-                Loaded loaded ->
-                    checkFunc loaded
-
-                Loading _ ->
-                    Err "Frontend is still loading"
-        )
-        state
-
-
-toExpectation : Instructions toFrontend backendMsg -> Expectation
+toExpectation : Instructions toFrontend backendMsg backendModel -> Expectation
 toExpectation inProgress =
     let
         state =
@@ -225,7 +214,7 @@ toExpectation inProgress =
         Expect.fail <| String.join "," state.testErrors
 
 
-flatten : Instructions toFrontend backendMsg -> Nonempty ( String, State toFrontend backendMsg )
+flatten : Instructions toFrontend backendMsg backendModel -> Nonempty ( String, State toFrontend backendMsg backendModel )
 flatten inProgress =
     case inProgress of
         NextStep name stepFunc inProgress_ ->
@@ -252,7 +241,7 @@ flatten inProgress =
             List.Nonempty.fromElement ( "Start", state )
 
 
-instructionsToState : Instructions toFrontend backendMsg -> State toFrontend backendMsg
+instructionsToState : Instructions toFrontend backendMsg backendModel -> State toFrontend backendMsg backendModel
 instructionsToState inProgress =
     case inProgress of
         NextStep _ stateFunc inProgress_ ->
@@ -316,35 +305,35 @@ type alias FrontendApp toFrontend =
     }
 
 
-type alias BackendApp toFrontend backendMsg =
-    { init : ( BackendModel, BackendEffect toFrontend backendMsg )
-    , update : backendMsg -> BackendModel -> ( BackendModel, BackendEffect toFrontend backendMsg )
-    , updateFromFrontend : SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, BackendEffect toFrontend backendMsg )
-    , subscriptions : BackendModel -> BackendSub backendMsg
+type alias BackendApp toFrontend backendMsg backendModel =
+    { init : ( backendModel, BackendEffect toFrontend backendMsg )
+    , update : backendMsg -> backendModel -> ( backendModel, BackendEffect toFrontend backendMsg )
+    , updateFromFrontend : SessionId -> ClientId -> ToBackend -> backendModel -> ( backendModel, BackendEffect toFrontend backendMsg )
+    , subscriptions : backendModel -> BackendSub backendMsg
     }
 
 
-type alias TestApp toFrontend backendMsg =
-    { init : Instructions toFrontend backendMsg
-    , simulateTime : Duration -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
+type alias TestApp toFrontend backendMsg backendModel =
+    { init : Instructions toFrontend backendMsg backendModel
+    , simulateTime : Duration -> Instructions toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel
     , connectFrontend :
         SessionId
         -> Url
-        -> (( Instructions toFrontend backendMsg, ClientId ) -> Instructions toFrontend backendMsg)
-        -> Instructions toFrontend backendMsg
-        -> Instructions toFrontend backendMsg
-    , clickButton : ClientId -> HtmlId ButtonId -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
-    , clickRadioButton : ClientId -> HtmlId RadioButtonId -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
-    , inputText : ClientId -> HtmlId TextInputId -> String -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
-    , inputNumber : ClientId -> HtmlId NumberInputId -> String -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
-    , inputDate : ClientId -> HtmlId DateInputId -> Date -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
-    , inputTime : ClientId -> HtmlId TimeInputId -> Int -> Int -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
-    , clickLink : ClientId -> Route -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
-    , checkView : ClientId -> (Test.Html.Query.Single FrontendMsg -> Expectation) -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
+        -> (( Instructions toFrontend backendMsg backendModel, ClientId ) -> Instructions toFrontend backendMsg backendModel)
+        -> Instructions toFrontend backendMsg backendModel
+        -> Instructions toFrontend backendMsg backendModel
+    , clickButton : ClientId -> HtmlId ButtonId -> Instructions toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel
+    , clickRadioButton : ClientId -> HtmlId RadioButtonId -> Instructions toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel
+    , inputText : ClientId -> HtmlId TextInputId -> String -> Instructions toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel
+    , inputNumber : ClientId -> HtmlId NumberInputId -> String -> Instructions toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel
+    , inputDate : ClientId -> HtmlId DateInputId -> Date -> Instructions toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel
+    , inputTime : ClientId -> HtmlId TimeInputId -> Int -> Int -> Instructions toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel
+    , clickLink : ClientId -> Route -> Instructions toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel
+    , checkView : ClientId -> (Test.Html.Query.Single FrontendMsg -> Expectation) -> Instructions toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel
     }
 
 
-testApp : FrontendApp toFrontend -> BackendApp toFrontend backendMsg -> TestApp toFrontend backendMsg
+testApp : FrontendApp toFrontend -> BackendApp toFrontend backendMsg backendModel -> TestApp toFrontend backendMsg backendModel
 testApp frontendApp backendApp =
     { init =
         let
@@ -432,12 +421,12 @@ getClientConnectSubs backendSub =
 
 connectFrontend :
     FrontendApp toFrontend
-    -> BackendApp toFrontend backendMsg
+    -> BackendApp toFrontend backendMsg backendModel
     -> SessionId
     -> Url
-    -> (( Instructions toFrontend backendMsg, ClientId ) -> Instructions toFrontend backendMsg)
-    -> Instructions toFrontend backendMsg
-    -> Instructions toFrontend backendMsg
+    -> (( Instructions toFrontend backendMsg backendModel, ClientId ) -> Instructions toFrontend backendMsg backendModel)
+    -> Instructions toFrontend backendMsg backendModel
+    -> Instructions toFrontend backendMsg backendModel
 connectFrontend frontendApp backendApp sessionId url andThenFunc =
     AndThen
         (\state ->
@@ -460,7 +449,7 @@ connectFrontend frontendApp backendApp sessionId url andThenFunc =
                             )
                             ( state.backend, state.pendingEffects )
 
-                state2 : State toFrontend backendMsg
+                state2 : State toFrontend backendMsg backendModel
                 state2 =
                     { state
                         | frontends =
@@ -487,7 +476,7 @@ connectFrontend frontendApp backendApp sessionId url andThenFunc =
         )
 
 
-keyDownEvent : FrontendApp toFrontend -> ClientId -> HtmlId any -> Int -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
+keyDownEvent : FrontendApp toFrontend -> ClientId -> HtmlId any -> Int -> Instructions toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel
 keyDownEvent frontendApp clientId htmlId keyCode state =
     userEvent
         frontendApp
@@ -498,27 +487,27 @@ keyDownEvent frontendApp clientId htmlId keyCode state =
         state
 
 
-clickButton : FrontendApp toFrontend -> ClientId -> HtmlId ButtonId -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
+clickButton : FrontendApp toFrontend -> ClientId -> HtmlId ButtonId -> Instructions toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel
 clickButton frontendApp clientId htmlId state =
     userEvent frontendApp "Click button" clientId htmlId Test.Html.Event.click state
 
 
-clickRadioButton : FrontendApp toFrontend -> ClientId -> HtmlId RadioButtonId -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
+clickRadioButton : FrontendApp toFrontend -> ClientId -> HtmlId RadioButtonId -> Instructions toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel
 clickRadioButton frontendApp clientId htmlId state =
     userEvent frontendApp "Click radio button" clientId htmlId Test.Html.Event.click state
 
 
-inputText : FrontendApp toFrontend -> ClientId -> HtmlId TextInputId -> String -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
+inputText : FrontendApp toFrontend -> ClientId -> HtmlId TextInputId -> String -> Instructions toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel
 inputText frontendApp clientId htmlId text state =
     userEvent frontendApp ("Input text \"" ++ text ++ "\"") clientId htmlId (Test.Html.Event.input text) state
 
 
-inputNumber : FrontendApp toFrontend -> ClientId -> HtmlId NumberInputId -> String -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
+inputNumber : FrontendApp toFrontend -> ClientId -> HtmlId NumberInputId -> String -> Instructions toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel
 inputNumber frontendApp clientId htmlId value state =
     userEvent frontendApp ("Input number " ++ value) clientId htmlId (Test.Html.Event.input value) state
 
 
-inputDate : FrontendApp toFrontend -> ClientId -> HtmlId DateInputId -> Date -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
+inputDate : FrontendApp toFrontend -> ClientId -> HtmlId DateInputId -> Date -> Instructions toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel
 inputDate frontendApp clientId htmlId date state =
     userEvent
         frontendApp
@@ -529,7 +518,7 @@ inputDate frontendApp clientId htmlId date state =
         state
 
 
-inputTime : FrontendApp toFrontend -> ClientId -> HtmlId TimeInputId -> Int -> Int -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
+inputTime : FrontendApp toFrontend -> ClientId -> HtmlId TimeInputId -> Int -> Int -> Instructions toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel
 inputTime frontendApp clientId htmlId hour minute state =
     let
         input =
@@ -548,8 +537,8 @@ clickLink :
     FrontendApp toFrontend
     -> ClientId
     -> Route
-    -> Instructions toFrontend backendMsg
-    -> Instructions toFrontend backendMsg
+    -> Instructions toFrontend backendMsg backendModel
+    -> Instructions toFrontend backendMsg backendModel
 clickLink frontendApp clientId route =
     let
         href : String
@@ -604,8 +593,8 @@ userEvent :
     -> ClientId
     -> HtmlId any
     -> ( String, Json.Encode.Value )
-    -> Instructions toFrontend backendMsg
-    -> Instructions toFrontend backendMsg
+    -> Instructions toFrontend backendMsg backendModel
+    -> Instructions toFrontend backendMsg backendModel
 userEvent frontendApp name clientId htmlId event =
     NextStep
         (Id.clientIdToString clientId ++ ": " ++ name ++ " for " ++ Id.htmlIdToString htmlId)
@@ -670,7 +659,11 @@ formatHtmlError description =
             description
 
 
-disconnectFrontend : BackendApp toFrontend backendMsg -> ClientId -> State toFrontend backendMsg -> ( State toFrontend backendMsg, FrontendState toFrontend )
+disconnectFrontend :
+    BackendApp toFrontend backendMsg backendModel
+    -> ClientId
+    -> State toFrontend backendMsg backendModel
+    -> ( State toFrontend backendMsg backendModel, FrontendState toFrontend )
 disconnectFrontend backendApp clientId state =
     case Dict.get clientId state.frontends of
         Just frontend ->
@@ -690,7 +683,11 @@ disconnectFrontend backendApp clientId state =
             Debug.todo "Invalid clientId"
 
 
-reconnectFrontend : BackendApp toFrontend backendMsg -> FrontendState toFrontend -> State toFrontend backendMsg -> ( State toFrontend backendMsg, ClientId )
+reconnectFrontend :
+    BackendApp toFrontend backendMsg backendModel
+    -> FrontendState toFrontend
+    -> State toFrontend backendMsg backendModel
+    -> ( State toFrontend backendMsg backendModel, ClientId )
 reconnectFrontend backendApp frontendState state =
     let
         clientId =
@@ -715,7 +712,7 @@ reconnectFrontend backendApp frontendState state =
     )
 
 
-sendToBackend : SessionId -> ClientId -> ToBackend -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
+sendToBackend : SessionId -> ClientId -> ToBackend -> Instructions toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel
 sendToBackend sessionId clientId toBackend =
     NextStep "Send to backend"
         (\state ->
@@ -727,7 +724,11 @@ animationFrame =
     Duration.seconds (1 / 60)
 
 
-simulateStep : FrontendApp toFrontend -> BackendApp toFrontend backendMsg -> State toFrontend backendMsg -> State toFrontend backendMsg
+simulateStep :
+    FrontendApp toFrontend
+    -> BackendApp toFrontend backendMsg backendModel
+    -> State toFrontend backendMsg backendModel
+    -> State toFrontend backendMsg backendModel
 simulateStep frontendApp backendApp state =
     let
         newTime =
@@ -794,10 +795,10 @@ simulateStep frontendApp backendApp state =
 
 simulateTime :
     FrontendApp toFrontend
-    -> BackendApp toFrontend backendMsg
+    -> BackendApp toFrontend backendMsg backendModel
     -> Duration
-    -> Instructions toFrontend backendMsg
-    -> Instructions toFrontend backendMsg
+    -> Instructions toFrontend backendMsg backendModel
+    -> Instructions toFrontend backendMsg backendModel
 simulateTime frontendApp backendApp duration =
     NextStep
         ("Simulate time " ++ String.fromFloat (Duration.inSeconds duration) ++ "s")
@@ -806,10 +807,10 @@ simulateTime frontendApp backendApp duration =
 
 simulateTimeHelper :
     FrontendApp toFrontend
-    -> BackendApp toFrontend backendMsg
+    -> BackendApp toFrontend backendMsg backendModel
     -> Duration
-    -> State toFrontend backendMsg
-    -> State toFrontend backendMsg
+    -> State toFrontend backendMsg backendModel
+    -> State toFrontend backendMsg backendModel
 simulateTimeHelper frontendApp backendApp duration state =
     if duration |> Quantity.lessThan Quantity.zero then
         state
@@ -818,7 +819,10 @@ simulateTimeHelper frontendApp backendApp duration state =
         simulateTimeHelper frontendApp backendApp (duration |> Quantity.minus animationFrame) (simulateStep frontendApp backendApp state)
 
 
-fastForward : Duration -> Instructions toFrontend backendMsg -> Instructions toFrontend backendMsg
+fastForward :
+    Duration
+    -> Instructions toFrontend backendMsg backendModel
+    -> Instructions toFrontend backendMsg backendModel
 fastForward duration =
     NextStep
         ("Fast forward " ++ String.fromFloat (Duration.inSeconds duration) ++ "s")
@@ -826,19 +830,23 @@ fastForward duration =
 
 
 andThen :
-    (State toFrontend backendMsg -> Instructions toFrontend backendMsg)
-    -> Instructions toFrontend backendMsg
-    -> Instructions toFrontend backendMsg
+    (State toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel)
+    -> Instructions toFrontend backendMsg backendModel
+    -> Instructions toFrontend backendMsg backendModel
 andThen =
     AndThen
 
 
-continueWith : State toFrontend backendMsg -> Instructions toFrontend backendMsg
+continueWith : State toFrontend backendMsg backendModel -> Instructions toFrontend backendMsg backendModel
 continueWith state =
     Start state
 
 
-runEffects : FrontendApp toFrontend -> BackendApp toFrontend backendMsg -> State toFrontend backendMsg -> State toFrontend backendMsg
+runEffects :
+    FrontendApp toFrontend
+    -> BackendApp toFrontend backendMsg backendModel
+    -> State toFrontend backendMsg backendModel
+    -> State toFrontend backendMsg backendModel
 runEffects frontendApp backendApp state =
     let
         state2 =
@@ -881,9 +889,9 @@ runEffects frontendApp backendApp state =
 
 runNetwork :
     FrontendApp toFrontend
-    -> BackendApp toFrontend backendMsg
-    -> State toFrontend backendMsg
-    -> State toFrontend backendMsg
+    -> BackendApp toFrontend backendMsg backendModel
+    -> State toFrontend backendMsg backendModel
+    -> State toFrontend backendMsg backendModel
 runNetwork frontendApp backendApp state =
     let
         ( backendModel, effects ) =
@@ -932,12 +940,12 @@ runNetwork frontendApp backendApp state =
     }
 
 
-clearBackendEffects : State toFrontend backendMsg -> State toFrontend backendMsg
+clearBackendEffects : State toFrontend backendMsg backendModel -> State toFrontend backendMsg backendModel
 clearBackendEffects state =
     { state | pendingEffects = BackendEffect.None }
 
 
-clearFrontendEffects : ClientId -> State toFrontend backendMsg -> State toFrontend backendMsg
+clearFrontendEffects : ClientId -> State toFrontend backendMsg backendModel -> State toFrontend backendMsg backendModel
 clearFrontendEffects clientId state =
     { state
         | frontends =
@@ -953,8 +961,8 @@ runFrontendEffects :
     -> SessionId
     -> ClientId
     -> FrontendEffect ToBackend FrontendMsg
-    -> State toFrontend backendMsg
-    -> State toFrontend backendMsg
+    -> State toFrontend backendMsg backendModel
+    -> State toFrontend backendMsg backendModel
 runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
     case effectsToPerform of
         FrontendEffect.Batch nestedEffectsToPerform ->
@@ -1095,7 +1103,7 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
             state
 
 
-handleUrlChange : FrontendApp toFrontend -> String -> ClientId -> State toFrontend backendMsg -> State toFrontend backendMsg
+handleUrlChange : FrontendApp toFrontend -> String -> ClientId -> State toFrontend backendMsg backendModel -> State toFrontend backendMsg backendModel
 handleUrlChange frontendApp urlText clientId state =
     let
         urlText_ =
@@ -1158,10 +1166,10 @@ flattenBackendEffect effect =
 
 
 runBackendEffects :
-    BackendApp toFrontend backendMsg
+    BackendApp toFrontend backendMsg backendModel
     -> BackendEffect toFrontend backendMsg
-    -> State toFrontend backendMsg
-    -> State toFrontend backendMsg
+    -> State toFrontend backendMsg backendModel
+    -> State toFrontend backendMsg backendModel
 runBackendEffects backendApp effect state =
     case effect of
         BackendEffect.Batch effects ->
