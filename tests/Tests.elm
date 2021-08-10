@@ -24,9 +24,9 @@ import Route
 import Test exposing (..)
 import Test.Html.Query
 import Test.Html.Selector
-import TestFramework as TF exposing (EmailType(..), Instructions)
+import TestFramework as TF exposing (EmailType(..))
 import Time
-import Types exposing (BackendModel, BackendMsg, FrontendModel(..), LoadedFrontend, LoginStatus(..), ToBackend(..), ToFrontend)
+import Types exposing (BackendModel, BackendMsg, FrontendModel(..), FrontendMsg(..), LoadedFrontend, LoginStatus(..), ToBackend(..), ToFrontend)
 import Ui
 import Unsafe
 import Untrusted
@@ -35,13 +35,15 @@ import Untrusted
 frontendApp =
     { init = FrontendLogic.init
     , update = FrontendLogic.update
+    , onUrlRequest = UrlClicked
+    , onUrlChange = UrlChanged
     , updateFromBackend = FrontendLogic.updateFromBackend
     , subscriptions = FrontendLogic.subscriptions
     , view = FrontendLogic.view
     }
 
 
-testApp : TF.TestApp FrontendModel ToFrontend BackendMsg BackendModel
+testApp : TF.TestApp FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 testApp =
     TF.testApp
         frontendApp
@@ -55,8 +57,8 @@ testApp =
 checkLoadedFrontend :
     ClientId
     -> (LoadedFrontend -> Result String ())
-    -> Instructions FrontendModel toFrontend backendMsg backendModel
-    -> Instructions FrontendModel toFrontend backendMsg backendModel
+    -> TF.Instructions FrontendMsg FrontendModel toFrontend backendMsg backendModel
+    -> TF.Instructions FrontendMsg FrontendModel toFrontend backendMsg backendModel
 checkLoadedFrontend clientId checkFunc state =
     TF.checkFrontend
         clientId
@@ -77,11 +79,11 @@ loginFromHomepage :
     -> Id.SessionId
     -> EmailAddress.EmailAddress
     ->
-        ({ instructions : TF.Instructions FrontendModel ToFrontend BackendMsg BackendModel, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId }
-         -> TF.Instructions FrontendModel ToFrontend BackendMsg BackendModel
+        ({ instructions : TF.Instructions FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId }
+         -> TF.Instructions FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
         )
-    -> TF.Instructions FrontendModel ToFrontend BackendMsg BackendModel
-    -> TF.Instructions FrontendModel ToFrontend BackendMsg BackendModel
+    -> TF.Instructions FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+    -> TF.Instructions FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 loginFromHomepage loginWithEnterKey sessionId sessionIdFromEmail emailAddress stateFunc =
     testApp.connectFrontend sessionId
         (Unsafe.url Env.domain)
@@ -99,11 +101,11 @@ handleLoginForm :
     -> Id.SessionId
     -> EmailAddress
     ->
-        ({ instructions : TF.Instructions FrontendModel ToFrontend BackendMsg BackendModel, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId }
-         -> TF.Instructions FrontendModel ToFrontend BackendMsg BackendModel
+        ({ instructions : TF.Instructions FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId }
+         -> TF.Instructions FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
         )
-    -> TF.Instructions FrontendModel ToFrontend BackendMsg BackendModel
-    -> TF.Instructions FrontendModel ToFrontend BackendMsg BackendModel
+    -> TF.Instructions FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+    -> TF.Instructions FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress andThenFunc state =
     state
         |> testApp.simulateTime Duration.second
@@ -787,9 +789,12 @@ suite =
 
 
 findSingleGroup :
-    (Id GroupId -> TF.Instructions FrontendModel ToFrontend BackendMsg BackendModel -> TF.Instructions FrontendModel ToFrontend BackendMsg BackendModel)
-    -> TF.Instructions FrontendModel ToFrontend BackendMsg BackendModel
-    -> TF.Instructions FrontendModel ToFrontend BackendMsg BackendModel
+    (Id GroupId
+     -> TF.Instructions FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+     -> TF.Instructions FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+    )
+    -> TF.Instructions FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+    -> TF.Instructions FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 findSingleGroup continueWith inProgress =
     inProgress
         |> TF.andThen
@@ -810,7 +815,7 @@ findSingleGroup continueWith inProgress =
             )
 
 
-createEventAndAnotherUserNotLoggedInJoinsIt : TF.Instructions FrontendModel ToFrontend BackendMsg BackendModel
+createEventAndAnotherUserNotLoggedInJoinsIt : TF.Instructions FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 createEventAndAnotherUserNotLoggedInJoinsIt =
     let
         session0 =
@@ -877,7 +882,7 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
             )
 
 
-createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt : TF.Instructions FrontendModel ToFrontend BackendMsg BackendModel
+createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt : TF.Instructions FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
     let
         session0 =
@@ -967,8 +972,8 @@ createGroup :
     Id.ClientId
     -> String
     -> String
-    -> TF.Instructions FrontendModel ToFrontend BackendMsg BackendModel
-    -> TF.Instructions FrontendModel ToFrontend BackendMsg BackendModel
+    -> TF.Instructions FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+    -> TF.Instructions FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 createGroup loggedInClient groupName groupDescription state =
     state
         |> testApp.clickLink loggedInClient Route.CreateGroupRoute
@@ -992,8 +997,8 @@ createGroupAndEvent :
         , eventMinute : Int
         , eventDuration : String
         }
-    -> TF.Instructions FrontendModel ToFrontend BackendMsg BackendModel
-    -> TF.Instructions FrontendModel ToFrontend BackendMsg BackendModel
+    -> TF.Instructions FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+    -> TF.Instructions FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 createGroupAndEvent loggedInClient { groupName, groupDescription, eventName, eventDescription, eventDate, eventHour, eventMinute, eventDuration } state =
     createGroup loggedInClient groupName groupDescription state
         |> testApp.clickButton loggedInClient GroupPage.createNewEventId
