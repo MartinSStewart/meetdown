@@ -1,6 +1,5 @@
 module FrontendLogic exposing
-    ( Subscriptions
-    , groupSearchId
+    ( groupSearchId
     , init
     , logOutButtonId
     , onUrlChange
@@ -52,14 +51,6 @@ import Untrusted
 import Url exposing (Url)
 import Url.Parser exposing ((</>))
 import UserPage
-
-
-type alias Subscriptions sub =
-    { batch : List sub -> sub
-    , timeEvery : Duration -> (Time.Posix -> FrontendMsg) -> sub
-    , onResize : (Quantity Int Pixels -> Quantity Int Pixels -> FrontendMsg) -> sub
-    , cropImageFromJs : ({ requestId : Int, croppedImageUrl : String } -> FrontendMsg) -> sub
-    }
 
 
 subscriptions : FrontendModel -> FrontendSub FrontendMsg
