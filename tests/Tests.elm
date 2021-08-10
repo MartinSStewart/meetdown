@@ -22,15 +22,25 @@ import Test.Html.Query
 import Test.Html.Selector
 import TestFramework as TF exposing (EmailType(..))
 import Time
-import Types exposing (BackendMsg, FrontendModel(..), LoginStatus(..), ToBackend(..))
+import Types exposing (BackendMsg, FrontendModel(..), LoginStatus(..), ToBackend(..), ToFrontend)
 import Ui
 import Unsafe
 import Untrusted
 
 
-testApp : TF.TestApp BackendMsg
+frontendApp =
+    { init = FrontendLogic.init
+    , update = FrontendLogic.update
+    , updateFromBackend = FrontendLogic.updateFromBackend
+    , subscriptions = FrontendLogic.subscriptions
+    , view = FrontendLogic.view
+    }
+
+
+testApp : TF.TestApp ToFrontend BackendMsg
 testApp =
     TF.testApp
+        frontendApp
         { init = BackendLogic.init
         , update = BackendLogic.update
         , updateFromFrontend = BackendLogic.updateFromFrontend
@@ -43,16 +53,19 @@ loginFromHomepage :
     -> Id.SessionId
     -> Id.SessionId
     -> EmailAddress.EmailAddress
-    -> ({ instructions : TF.Instructions BackendMsg, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId } -> TF.Instructions BackendMsg)
-    -> TF.Instructions BackendMsg
-    -> TF.Instructions BackendMsg
+    ->
+        ({ instructions : TF.Instructions ToFrontend BackendMsg, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId }
+         -> TF.Instructions ToFrontend BackendMsg
+        )
+    -> TF.Instructions ToFrontend BackendMsg
+    -> TF.Instructions ToFrontend BackendMsg
 loginFromHomepage loginWithEnterKey sessionId sessionIdFromEmail emailAddress stateFunc =
     testApp.connectFrontend sessionId
         (Unsafe.url Env.domain)
         (\( state3, clientId ) ->
             state3
                 |> testApp.simulateTime Duration.second
-                |> TF.clickButton clientId FrontendLogic.signUpOrLoginButtonId
+                |> testApp.clickButton clientId FrontendLogic.signUpOrLoginButtonId
                 |> handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress stateFunc
         )
 
@@ -62,19 +75,22 @@ handleLoginForm :
     -> Id.ClientId
     -> Id.SessionId
     -> EmailAddress
-    -> ({ instructions : TF.Instructions BackendMsg, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId } -> TF.Instructions BackendMsg)
-    -> TF.Instructions BackendMsg
-    -> TF.Instructions BackendMsg
+    ->
+        ({ instructions : TF.Instructions ToFrontend BackendMsg, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId }
+         -> TF.Instructions ToFrontend BackendMsg
+        )
+    -> TF.Instructions ToFrontend BackendMsg
+    -> TF.Instructions ToFrontend BackendMsg
 handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress andThenFunc state =
     state
         |> testApp.simulateTime Duration.second
-        |> TF.inputText clientId LoginForm.emailAddressInputId (EmailAddress.toString emailAddress)
+        |> testApp.inputText clientId LoginForm.emailAddressInputId (EmailAddress.toString emailAddress)
         |> testApp.simulateTime Duration.second
         |> (if loginWithEnterKey then
-                TF.keyDownEvent clientId LoginForm.emailAddressInputId Ui.enterKeyCode
+                TF.keyDownEvent frontendApp clientId LoginForm.emailAddressInputId Ui.enterKeyCode
 
             else
-                TF.clickButton clientId LoginForm.submitButtonId
+                testApp.clickButton clientId LoginForm.submitButtonId
            )
         |> testApp.simulateTime Duration.second
         |> TF.andThen
@@ -318,7 +334,7 @@ suite =
                                             Loading _ ->
                                                 Err "Somehow we ended up in the loading state"
                                     )
-                                |> TF.checkView
+                                |> testApp.checkView
                                     clientIdFromEmail
                                     (Test.Html.Query.has
                                         [ Test.Html.Selector.text groupName
@@ -461,12 +477,12 @@ suite =
                             findSingleGroup
                                 (\groupId inProgress2 ->
                                     inProgress2
-                                        |> TF.inputText clientId FrontendLogic.groupSearchId "my group!"
-                                        |> TF.keyDownEvent clientId FrontendLogic.groupSearchId Ui.enterKeyCode
+                                        |> testApp.inputText clientId FrontendLogic.groupSearchId "my group!"
+                                        |> TF.keyDownEvent frontendApp clientId FrontendLogic.groupSearchId Ui.enterKeyCode
                                         |> testApp.simulateTime Duration.second
-                                        |> TF.clickLink clientId (Route.GroupRoute groupId groupName)
+                                        |> testApp.clickLink clientId (Route.GroupRoute groupId groupName)
                                         |> testApp.simulateTime Duration.second
-                                        |> TF.clickButton clientId GroupPage.joinEventButtonId
+                                        |> testApp.clickButton clientId GroupPage.joinEventButtonId
                                         |> testApp.simulateTime Duration.second
                                         |> TF.fastForward (Duration.hours 14)
                                         |> testApp.simulateTime (Duration.seconds 30)
@@ -497,9 +513,9 @@ suite =
                             (\( state, clientId ) ->
                                 state
                                     |> testApp.simulateTime Duration.second
-                                    |> TF.clickButton clientId FrontendLogic.signUpOrLoginButtonId
-                                    |> TF.inputText clientId LoginForm.emailAddressInputId "my+good@email.eu"
-                                    |> TF.clickButton clientId LoginForm.submitButtonId
+                                    |> testApp.clickButton clientId FrontendLogic.signUpOrLoginButtonId
+                                    |> testApp.inputText clientId LoginForm.emailAddressInputId "my+good@email.eu"
+                                    |> testApp.clickButton clientId LoginForm.submitButtonId
                                     |> testApp.simulateTime Duration.second
                             )
                 in
@@ -540,21 +556,21 @@ suite =
                         (\( state, clientId ) ->
                             state
                                 |> testApp.simulateTime Duration.second
-                                |> TF.clickButton clientId FrontendLogic.signUpOrLoginButtonId
-                                |> TF.inputText clientId LoginForm.emailAddressInputId "a@email.eu"
-                                |> TF.clickButton clientId LoginForm.submitButtonId
+                                |> testApp.clickButton clientId FrontendLogic.signUpOrLoginButtonId
+                                |> testApp.inputText clientId LoginForm.emailAddressInputId "a@email.eu"
+                                |> testApp.clickButton clientId LoginForm.submitButtonId
                                 |> testApp.simulateTime Duration.second
-                                |> TF.inputText clientId LoginForm.emailAddressInputId "b@email.eu"
-                                |> TF.clickButton clientId LoginForm.submitButtonId
+                                |> testApp.inputText clientId LoginForm.emailAddressInputId "b@email.eu"
+                                |> testApp.clickButton clientId LoginForm.submitButtonId
                                 |> testApp.simulateTime Duration.second
-                                |> TF.inputText clientId LoginForm.emailAddressInputId "c@email.eu"
-                                |> TF.clickButton clientId LoginForm.submitButtonId
+                                |> testApp.inputText clientId LoginForm.emailAddressInputId "c@email.eu"
+                                |> testApp.clickButton clientId LoginForm.submitButtonId
                                 |> testApp.simulateTime Duration.second
-                                |> TF.inputText clientId LoginForm.emailAddressInputId "d@email.eu"
-                                |> TF.clickButton clientId LoginForm.submitButtonId
+                                |> testApp.inputText clientId LoginForm.emailAddressInputId "d@email.eu"
+                                |> testApp.clickButton clientId LoginForm.submitButtonId
                                 |> testApp.simulateTime Duration.second
-                                |> TF.inputText clientId LoginForm.emailAddressInputId "e@email.eu"
-                                |> TF.clickButton clientId LoginForm.submitButtonId
+                                |> testApp.inputText clientId LoginForm.emailAddressInputId "e@email.eu"
+                                |> testApp.clickButton clientId LoginForm.submitButtonId
                                 |> testApp.simulateTime Duration.second
                                 |> TF.checkState
                                     (\state2 ->
@@ -572,8 +588,8 @@ suite =
                                                 |> Err
                                     )
                                 |> testApp.simulateTime Duration.minute
-                                |> TF.inputText clientId LoginForm.emailAddressInputId "e@email.eu"
-                                |> TF.clickButton clientId LoginForm.submitButtonId
+                                |> testApp.inputText clientId LoginForm.emailAddressInputId "e@email.eu"
+                                |> testApp.clickButton clientId LoginForm.submitButtonId
                                 |> testApp.simulateTime Duration.second
                                 |> TF.checkState
                                     (\state2 ->
@@ -610,14 +626,14 @@ suite =
                         (\{ instructions, clientId, clientIdFromEmail } ->
                             instructions
                                 |> testApp.simulateTime Duration.second
-                                |> TF.clickLink clientId Route.MyProfileRoute
-                                |> TF.clickButton clientId ProfilePage.deleteAccountButtonId
+                                |> testApp.clickLink clientId Route.MyProfileRoute
+                                |> testApp.clickButton clientId ProfilePage.deleteAccountButtonId
                                 |> testApp.simulateTime Duration.second
-                                |> TF.clickButton clientId ProfilePage.deleteAccountButtonId
+                                |> testApp.clickButton clientId ProfilePage.deleteAccountButtonId
                                 |> testApp.simulateTime Duration.second
-                                |> TF.clickButton clientId ProfilePage.deleteAccountButtonId
+                                |> testApp.clickButton clientId ProfilePage.deleteAccountButtonId
                                 |> testApp.simulateTime Duration.second
-                                |> TF.clickButton clientId ProfilePage.deleteAccountButtonId
+                                |> testApp.clickButton clientId ProfilePage.deleteAccountButtonId
                                 |> testApp.simulateTime Duration.second
                                 |> TF.checkState
                                     (\state2 ->
@@ -639,7 +655,7 @@ suite =
                                                 |> Err
                                     )
                                 |> testApp.simulateTime (Duration.minutes 1.5)
-                                |> TF.clickButton clientId ProfilePage.deleteAccountButtonId
+                                |> testApp.clickButton clientId ProfilePage.deleteAccountButtonId
                                 |> testApp.simulateTime Duration.second
                                 |> TF.checkState
                                     (\state2 ->
@@ -747,7 +763,10 @@ suite =
         ]
 
 
-findSingleGroup : (Id GroupId -> TF.Instructions BackendMsg -> TF.Instructions BackendMsg) -> TF.Instructions BackendMsg -> TF.Instructions BackendMsg
+findSingleGroup :
+    (Id GroupId -> TF.Instructions ToFrontend BackendMsg -> TF.Instructions ToFrontend BackendMsg)
+    -> TF.Instructions ToFrontend BackendMsg
+    -> TF.Instructions ToFrontend BackendMsg
 findSingleGroup continueWith inProgress =
     inProgress
         |> TF.andThen
@@ -768,7 +787,7 @@ findSingleGroup continueWith inProgress =
             )
 
 
-createEventAndAnotherUserNotLoggedInJoinsIt : TF.Instructions BackendMsg
+createEventAndAnotherUserNotLoggedInJoinsIt : TF.Instructions ToFrontend BackendMsg
 createEventAndAnotherUserNotLoggedInJoinsIt =
     let
         session0 =
@@ -812,12 +831,12 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
                     (\groupId inProgress2 ->
                         inProgress2
                             |> testApp.simulateTime Duration.second
-                            |> TF.inputText clientId FrontendLogic.groupSearchId "my group!"
-                            |> TF.keyDownEvent clientId FrontendLogic.groupSearchId Ui.enterKeyCode
+                            |> testApp.inputText clientId FrontendLogic.groupSearchId "my group!"
+                            |> TF.keyDownEvent frontendApp clientId FrontendLogic.groupSearchId Ui.enterKeyCode
                             |> testApp.simulateTime Duration.second
-                            |> TF.clickLink clientId (Route.GroupRoute groupId groupName)
+                            |> testApp.clickLink clientId (Route.GroupRoute groupId groupName)
                             |> testApp.simulateTime Duration.second
-                            |> TF.clickButton clientId GroupPage.joinEventButtonId
+                            |> testApp.clickButton clientId GroupPage.joinEventButtonId
                             |> testApp.simulateTime Duration.second
                             |> handleLoginForm
                                 True
@@ -828,14 +847,14 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
                                     a.instructions
                                         |> testApp.simulateTime Duration.second
                                         -- We are just clicking the leave button to test that we had joined the event.
-                                        |> TF.clickButton a.clientIdFromEmail GroupPage.leaveEventButtonId
+                                        |> testApp.clickButton a.clientIdFromEmail GroupPage.leaveEventButtonId
                                 )
                     )
                     instructions
             )
 
 
-createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt : TF.Instructions BackendMsg
+createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt : TF.Instructions ToFrontend BackendMsg
 createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
     let
         session0 =
@@ -879,7 +898,7 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
             (\{ instructions, clientIdFromEmail } ->
                 instructions
                     |> testApp.simulateTime Duration.second
-                    |> TF.clickButton clientIdFromEmail FrontendLogic.logOutButtonId
+                    |> testApp.clickButton clientIdFromEmail FrontendLogic.logOutButtonId
                     |> testApp.simulateTime Duration.minute
             )
         |> testApp.connectFrontend session1
@@ -889,12 +908,12 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
                     (\groupId inProgress2 ->
                         inProgress2
                             |> testApp.simulateTime Duration.second
-                            |> TF.inputText clientId FrontendLogic.groupSearchId "my group!"
-                            |> TF.keyDownEvent clientId FrontendLogic.groupSearchId Ui.enterKeyCode
+                            |> testApp.inputText clientId FrontendLogic.groupSearchId "my group!"
+                            |> TF.keyDownEvent frontendApp clientId FrontendLogic.groupSearchId Ui.enterKeyCode
                             |> testApp.simulateTime Duration.second
-                            |> TF.clickLink clientId (Route.GroupRoute groupId groupName)
+                            |> testApp.clickLink clientId (Route.GroupRoute groupId groupName)
                             |> testApp.simulateTime Duration.second
-                            |> TF.clickButton clientId GroupPage.joinEventButtonId
+                            |> testApp.clickButton clientId GroupPage.joinEventButtonId
                             |> testApp.simulateTime Duration.second
                             |> handleLoginForm
                                 True
@@ -905,7 +924,7 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
                                     a.instructions
                                         |> testApp.simulateTime Duration.second
                                         -- We are just clicking the leave button to test that we had joined the event.
-                                        |> TF.clickButton a.clientIdFromEmail GroupPage.leaveEventButtonId
+                                        |> testApp.clickButton a.clientIdFromEmail GroupPage.leaveEventButtonId
                                 )
                     )
                     instructions
@@ -921,15 +940,15 @@ gotReminder emailAddress model =
         model.emailInboxes
 
 
-createGroup : Id.ClientId -> String -> String -> TF.Instructions BackendMsg -> TF.Instructions BackendMsg
+createGroup : Id.ClientId -> String -> String -> TF.Instructions ToFrontend BackendMsg -> TF.Instructions ToFrontend BackendMsg
 createGroup loggedInClient groupName groupDescription state =
     state
-        |> TF.clickLink loggedInClient Route.CreateGroupRoute
+        |> testApp.clickLink loggedInClient Route.CreateGroupRoute
         |> testApp.simulateTime Duration.second
-        |> TF.inputText loggedInClient CreateGroupPage.nameInputId groupName
-        |> TF.inputText loggedInClient CreateGroupPage.descriptionInputId groupDescription
-        |> TF.clickRadioButton loggedInClient (CreateGroupPage.groupVisibilityId Group.PublicGroup)
-        |> TF.clickButton loggedInClient CreateGroupPage.submitButtonId
+        |> testApp.inputText loggedInClient CreateGroupPage.nameInputId groupName
+        |> testApp.inputText loggedInClient CreateGroupPage.descriptionInputId groupDescription
+        |> testApp.clickRadioButton loggedInClient (CreateGroupPage.groupVisibilityId Group.PublicGroup)
+        |> testApp.clickButton loggedInClient CreateGroupPage.submitButtonId
         |> testApp.simulateTime Duration.second
 
 
@@ -945,16 +964,16 @@ createGroupAndEvent :
         , eventMinute : Int
         , eventDuration : String
         }
-    -> TF.Instructions BackendMsg
-    -> TF.Instructions BackendMsg
+    -> TF.Instructions ToFrontend BackendMsg
+    -> TF.Instructions ToFrontend BackendMsg
 createGroupAndEvent loggedInClient { groupName, groupDescription, eventName, eventDescription, eventDate, eventHour, eventMinute, eventDuration } state =
     createGroup loggedInClient groupName groupDescription state
-        |> TF.clickButton loggedInClient GroupPage.createNewEventId
-        |> TF.inputText loggedInClient GroupPage.eventNameInputId eventName
-        |> TF.inputText loggedInClient GroupPage.eventDescriptionInputId eventDescription
-        |> TF.clickRadioButton loggedInClient (GroupPage.eventMeetingTypeId GroupPage.MeetOnline)
-        |> TF.inputDate loggedInClient GroupPage.createEventStartDateId eventDate
-        |> TF.inputTime loggedInClient GroupPage.createEventStartTimeId eventHour eventMinute
-        |> TF.inputNumber loggedInClient GroupPage.eventDurationId eventDuration
-        |> TF.clickButton loggedInClient GroupPage.createEventSubmitId
+        |> testApp.clickButton loggedInClient GroupPage.createNewEventId
+        |> testApp.inputText loggedInClient GroupPage.eventNameInputId eventName
+        |> testApp.inputText loggedInClient GroupPage.eventDescriptionInputId eventDescription
+        |> testApp.clickRadioButton loggedInClient (GroupPage.eventMeetingTypeId GroupPage.MeetOnline)
+        |> testApp.inputDate loggedInClient GroupPage.createEventStartDateId eventDate
+        |> testApp.inputTime loggedInClient GroupPage.createEventStartTimeId eventHour eventMinute
+        |> testApp.inputNumber loggedInClient GroupPage.eventDurationId eventDuration
+        |> testApp.clickButton loggedInClient GroupPage.createEventSubmitId
         |> testApp.simulateTime Duration.second
