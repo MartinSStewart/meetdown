@@ -511,7 +511,7 @@ updateFromFrontend sessionId clientId msg model =
             else
                 ( model, BackendEffect.None )
 
-        ChangeGroupNameRequest groupId untrustedName ->
+        GroupRequest groupId (GroupPage.ChangeGroupNameRequest untrustedName) ->
             case Untrusted.validateGroupName untrustedName of
                 Just name ->
                     userWithGroupAuthorization
@@ -532,7 +532,7 @@ updateFromFrontend sessionId clientId msg model =
                 Nothing ->
                     logUntrusted
 
-        ChangeGroupDescriptionRequest groupId untrustedDescription ->
+        GroupRequest groupId (GroupPage.ChangeGroupDescriptionRequest untrustedDescription) ->
             case Untrusted.description untrustedDescription of
                 Just description ->
                     userWithGroupAuthorization
@@ -553,7 +553,7 @@ updateFromFrontend sessionId clientId msg model =
                 Nothing ->
                     logUntrusted
 
-        CreateEventRequest groupId eventName_ description_ eventType_ startTime eventDuration_ maxAttendees_ ->
+        GroupRequest groupId (GroupPage.CreateEventRequest eventName_ description_ eventType_ startTime eventDuration_ maxAttendees_) ->
             case
                 T5
                     (Untrusted.eventName eventName_)
@@ -613,13 +613,13 @@ updateFromFrontend sessionId clientId msg model =
                 _ ->
                     logUntrusted
 
-        JoinEventRequest groupId eventId ->
+        GroupRequest groupId (GroupPage.JoinEventRequest eventId) ->
             userAuthorization
                 sessionId
                 model
                 (\( userId, _ ) -> joinEvent clientId userId ( groupId, eventId ) model)
 
-        LeaveEventRequest groupId eventId ->
+        GroupRequest groupId (GroupPage.LeaveEventRequest eventId) ->
             userAuthorization
                 sessionId
                 model
@@ -643,7 +643,7 @@ updateFromFrontend sessionId clientId msg model =
                             )
                 )
 
-        EditEventRequest groupId eventId eventName_ description_ eventType_ startTime eventDuration_ maxAttendees_ ->
+        GroupRequest groupId (GroupPage.EditEventRequest eventId eventName_ description_ eventType_ startTime eventDuration_ maxAttendees_) ->
             case
                 T5
                     (Untrusted.eventName eventName_)
@@ -688,7 +688,7 @@ updateFromFrontend sessionId clientId msg model =
                 _ ->
                     logUntrusted
 
-        ChangeEventCancellationStatusRequest groupId eventId cancellationStatus ->
+        GroupRequest groupId (GroupPage.ChangeEventCancellationStatusRequest eventId cancellationStatus) ->
             userWithGroupAuthorization
                 sessionId
                 groupId
@@ -715,7 +715,7 @@ updateFromFrontend sessionId clientId msg model =
                             )
                 )
 
-        ChangeGroupVisibilityRequest groupId groupVisibility ->
+        GroupRequest groupId (GroupPage.ChangeGroupVisibilityRequest groupVisibility) ->
             userWithGroupAuthorization
                 sessionId
                 groupId
@@ -728,7 +728,7 @@ updateFromFrontend sessionId clientId msg model =
                     )
                 )
 
-        DeleteGroupAdminRequest groupId ->
+        GroupRequest groupId GroupPage.DeleteGroupAdminRequest ->
             adminAuthorization
                 sessionId
                 model

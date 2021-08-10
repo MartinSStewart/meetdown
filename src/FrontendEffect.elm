@@ -1,4 +1,4 @@
-module FrontendEffect exposing (FrontendEffect(..))
+module FrontendEffect exposing (FrontendEffect(..), map)
 
 import Browser.Dom
 import Duration exposing (Duration)
@@ -27,6 +27,62 @@ type FrontendEffect toBackend frontendMsg
     | GetWindowSize (Quantity Int Pixels -> Quantity Int Pixels -> frontendMsg)
     | GetTimeZone (Result TimeZone.Error ( String, Time.Zone ) -> frontendMsg)
     | ScrollToTop frontendMsg
+
+
+map :
+    (toBackendA -> toBackendB)
+    -> (frontendMsgA -> frontendMsgB)
+    -> FrontendEffect toBackendA frontendMsgA
+    -> FrontendEffect toBackendB frontendMsgB
+map mapToBackend mapFrontendMsg frontendEffect =
+    case frontendEffect of
+        Batch frontendEffects ->
+            List.map (map mapToBackend mapFrontendMsg) frontendEffects |> Batch
+
+        None ->
+            None
+
+        SendToBackend toBackend ->
+            mapToBackend toBackend |> SendToBackend
+
+        NavigationPushUrl navigationKey url ->
+            NavigationPushUrl navigationKey url
+
+        NavigationReplaceUrl navigationKey url ->
+            NavigationReplaceUrl navigationKey url
+
+        NavigationLoad url ->
+            NavigationLoad url
+
+        GetTime msg ->
+            GetTime (msg >> mapFrontendMsg)
+
+        Wait duration msg ->
+            Wait duration (mapFrontendMsg msg)
+
+        SelectFile mimeTypes msg ->
+            SelectFile mimeTypes (msg >> mapFrontendMsg)
+
+        CopyToClipboard text ->
+            CopyToClipboard text
+
+        CropImage cropImageData ->
+            CropImage cropImageData
+
+        FileToUrl msg file ->
+            FileToUrl (msg >> mapFrontendMsg) file
+
+        GetElement msg string ->
+            GetElement (msg >> mapFrontendMsg) string
+
+        GetWindowSize msg ->
+            GetWindowSize (\w h -> msg w h |> mapFrontendMsg)
+
+        GetTimeZone msg ->
+            GetTimeZone (msg >> mapFrontendMsg)
+
+        ScrollToTop msg ->
+            ScrollToTop (mapFrontendMsg msg)
 
 
 type alias CropImageData =

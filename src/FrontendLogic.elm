@@ -17,7 +17,6 @@ import AdminStatus exposing (AdminStatus(..))
 import AssocList as Dict
 import AssocSet as Set
 import Browser exposing (UrlRequest(..))
-import Browser.Dom
 import Colors
 import CreateGroupPage
 import DictExtra as Dict
@@ -37,7 +36,6 @@ import GroupPage
 import Html.Attributes
 import Id exposing (ButtonId(..), GroupId, Id, UserId)
 import LoginForm
-import MockFile
 import NavigationKey exposing (NavigationKey)
 import Pixels exposing (Pixels)
 import Privacy
@@ -48,7 +46,6 @@ import Route exposing (Route(..))
 import SearchPage
 import Terms
 import Time
-import TimeZone
 import Types exposing (..)
 import Ui
 import Untrusted
@@ -392,7 +389,7 @@ updateLoaded msg model =
             case model.loginStatus of
                 LoggedIn loggedIn ->
                     case loggedIn.myGroups of
-                        Just myGroups ->
+                        Just _ ->
                             let
                                 ( newModel, outMsg ) =
                                     CreateGroupPage.update groupFormMsg model.groupForm
@@ -494,21 +491,6 @@ updateLoaded msg model =
                             let
                                 ( newModel, effects, { joinEvent } ) =
                                     GroupPage.update
-                                        { none = FrontendEffect.None
-                                        , changeName = ChangeGroupNameRequest groupId >> FrontendEffect.SendToBackend
-                                        , changeDescription =
-                                            ChangeGroupDescriptionRequest groupId >> FrontendEffect.SendToBackend
-                                        , createEvent =
-                                            \a b c d e f -> CreateEventRequest groupId a b c d e f |> FrontendEffect.SendToBackend
-                                        , leaveEvent = \eventId -> LeaveEventRequest groupId eventId |> FrontendEffect.SendToBackend
-                                        , joinEvent = \eventId -> JoinEventRequest groupId eventId |> FrontendEffect.SendToBackend
-                                        , editEvent =
-                                            \a b c d e f g -> EditEventRequest groupId a b c d e f g |> FrontendEffect.SendToBackend
-                                        , changeCancellationStatus =
-                                            \a b -> ChangeEventCancellationStatusRequest groupId a b |> FrontendEffect.SendToBackend
-                                        , changeVisibility = ChangeGroupVisibilityRequest groupId >> FrontendEffect.SendToBackend
-                                        , deleteGroup = DeleteGroupAdminRequest groupId |> FrontendEffect.SendToBackend
-                                        }
                                         model
                                         group
                                         (case model.loginStatus of
@@ -539,7 +521,7 @@ updateLoaded msg model =
                                         _ ->
                                             model.loginStatus
                               }
-                            , effects
+                            , FrontendEffect.map (GroupRequest groupId) GroupPageMsg effects
                             )
 
                         _ ->

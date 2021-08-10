@@ -720,7 +720,7 @@ suite =
                                         |> TF.sendToBackend
                                             sessionId
                                             clientId
-                                            (DeleteGroupAdminRequest groupId)
+                                            (GroupRequest groupId GroupPage.DeleteGroupAdminRequest)
                                 )
                                 instructions
                         )

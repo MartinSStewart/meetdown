@@ -320,15 +320,7 @@ type ToBackend
     | ChangeProfileImageRequest (Untrusted ProfileImage)
     | GetMyGroupsRequest
     | SearchGroupsRequest String
-    | ChangeGroupNameRequest (Id GroupId) (Untrusted GroupName)
-    | ChangeGroupDescriptionRequest (Id GroupId) (Untrusted Description)
-    | ChangeGroupVisibilityRequest (Id GroupId) GroupVisibility
-    | CreateEventRequest (Id GroupId) (Untrusted EventName) (Untrusted Description) (Untrusted EventType) Time.Posix (Untrusted EventDuration) (Untrusted MaxAttendees)
-    | EditEventRequest (Id GroupId) EventId (Untrusted EventName) (Untrusted Description) (Untrusted EventType) Time.Posix (Untrusted EventDuration) (Untrusted MaxAttendees)
-    | JoinEventRequest (Id GroupId) EventId
-    | LeaveEventRequest (Id GroupId) EventId
-    | ChangeEventCancellationStatusRequest (Id GroupId) EventId CancellationStatus
-    | DeleteGroupAdminRequest (Id GroupId)
+    | GroupRequest (Id GroupId) GroupPage.ToBackend
 
 
 type BackendMsg
