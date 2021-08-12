@@ -19,15 +19,13 @@ module TestFramework exposing
     , reconnectFrontend
     , runEffects
     , sendToBackend
-    , simulateStep
-    , simulateTime
     , startTime
     , testApp
     , toExpectation
     )
 
 import AssocList as Dict exposing (Dict)
-import BackendEffect exposing (BackendEffect)
+import BackendEffect exposing (BackendEffect, SimulatedTask(..))
 import BackendSub exposing (BackendSub)
 import Basics.Extra as Basics
 import Browser exposing (UrlRequest(..))
@@ -43,6 +41,7 @@ import Group exposing (EventId)
 import GroupName exposing (GroupName)
 import Html exposing (Html)
 import Html.Attributes
+import Http
 import Id exposing (ButtonId(..), ClientId, DateInputId, DeleteUserToken, GroupId, HtmlId, Id, LoginToken, NumberInputId, RadioButtonId, SessionId, TextInputId, TimeInputId)
 import Json.Encode
 import List.Nonempty exposing (Nonempty)
@@ -70,6 +69,16 @@ type alias State toBackend frontendMsg frontendModel toFrontend backendMsg backe
     , timers : Dict Duration { msg : Time.Posix -> backendMsg, startTime : Time.Posix }
     , testErrors : List String
     , emailInboxes : List ( EmailAddress, EmailType )
+    , httpRequests : List HttpRequest
+    , handleHttpRequest : { currentRequest : HttpRequest, httpRequests : List HttpRequest } -> Http.Response String
+    }
+
+
+type alias HttpRequest =
+    { method : String
+    , url : String
+    , body : String
+    , headers : List ( String, String )
     }
 
 
@@ -313,8 +322,9 @@ type alias TestApp toBackend frontendMsg frontendModel toFrontend backendMsg bac
 testApp :
     FrontendApp toBackend frontendMsg frontendModel toFrontend
     -> BackendApp toBackend toFrontend backendMsg backendModel
+    -> ({ currentRequest : HttpRequest, httpRequests : List HttpRequest } -> Response String)
     -> TestApp toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
-testApp frontendApp backendApp =
+testApp frontendApp backendApp handleHttpRequest =
     { init =
         let
             ( backend, effects ) =
@@ -330,6 +340,8 @@ testApp frontendApp backendApp =
             , timers = getBackendTimers startTime (backendApp.subscriptions backend)
             , testErrors = []
             , emailInboxes = []
+            , httpRequests = []
+            , handleHttpRequest = handleHttpRequest
             }
     , simulateTime = simulateTime frontendApp backendApp
     , connectFrontend = connectFrontend frontendApp backendApp
@@ -1206,6 +1218,48 @@ runBackendEffects backendApp effect state =
                 , pendingEffects = BackendEffect.Batch [ state.pendingEffects, effects ]
                 , emailInboxes = state.emailInboxes ++ [ ( emailAddress, EventReminderEmail groupId groupName event timezone ) ]
             }
+
+        BackendEffect.Task task ->
+            let
+                ( newState, msg ) =
+                    runBackendTask state task
+
+                ( model, effects ) =
+                    backendApp.update msg newState.backend
+            in
+            { newState
+                | backend = model
+                , pendingEffects = BackendEffect.Batch [ newState.pendingEffects, effects ]
+            }
+
+
+runBackendTask :
+    State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
+    -> SimulatedTask x x
+    -> ( State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel, x )
+runBackendTask state task =
+    case task of
+        Succeed value ->
+            ( state, value )
+
+        Fail value ->
+            ( state, value )
+
+        HttpTask httpRequest ->
+            let
+                request =
+                    { method = httpRequest.method
+                    , url = httpRequest.url
+                    , body = httpRequest.body
+                    , headers = httpRequest.headers
+                    }
+            in
+            state.handleHttpRequest { currentRequest = request, httpRequests = state.httpRequests }
+                |> httpRequest.onRequestComplete
+                |> runBackendTask { state | httpRequests = request :: state.httpRequests }
+
+        SleepTask duration function ->
+            Debug.todo ""
 
 
 postmarkResponse =
