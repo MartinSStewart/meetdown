@@ -1,7 +1,7 @@
 module BackendHttpEffect exposing
     ( get, post, request
     , Header, header
-    , Body, emptyBody, stringBody, jsonBody
+    , emptyBody, stringBody, jsonBody
     , Expect, expectString, expectJson, expectWhatever, Error
     , expectStringResponse, Response
     , task, Resolver, stringResolver
@@ -45,17 +45,15 @@ to help you implement the function to provide when using [`ProgramTest.withBacke
 
 -}
 
+import BackendEffect exposing (BackendEffect, HttpBody(..), SimulatedTask)
+import Duration exposing (Duration)
 import Http
 import Json.Decode exposing (Decoder)
 import Json.Encode
-import BackendEffect exposing (BackendEffect, SimulatedTask)
-import BackendEffect
 
 
 {-| Create a `GET` request.
 -}
-import BackendEffect
-import BackendEffect exposing (SimulatedTask)
 get :
     { url : String
     , expect : Expect msg
@@ -77,7 +75,7 @@ get r =
 -}
 post :
     { url : String
-    , body : Body
+    , body : HttpBody
     , expect : Expect msg
     }
     -> BackendEffect toFrontend msg
@@ -99,9 +97,9 @@ request :
     { method : String
     , headers : List Header
     , url : String
-    , body : Body
+    , body : HttpBody
     , expect : Expect msg
-    , timeout : Maybe Float
+    , timeout : Maybe Duration
     , tracker : Maybe String
     }
     -> BackendEffect toFrontend msg
@@ -113,23 +111,19 @@ request r =
     BackendEffect.HttpTask
         { method = r.method
         , url = r.url
-        , headers =
-            case r.body of
-                EmptyBody ->
-                    r.headers
-
-                StringBody body ->
-                    header "Content-Type" body.contentType :: r.headers
-        , body =
-            case r.body of
-                EmptyBody ->
-                    ""
-
-                StringBody body ->
-                    body.content
+        , headers = r.headers
+        , body = r.body
         , onRequestComplete = onResult >> BackendEffect.Succeed
+        , timeout = r.timeout
         }
         |> BackendEffect.Task
+
+
+
+--type HttpBody =
+--    JsonBody Json.Encode.Value
+--    | StringBody String
+--    | BytesBody Bytes
 
 
 {-| An HTTP header for configuring requests.
@@ -145,19 +139,9 @@ header =
     Tuple.pair
 
 
-{-| Represents the body of a `Request`.
--}
-type Body
-    = EmptyBody
-    | StringBody
-        { contentType : String
-        , content : String
-        }
-
-
 {-| Create an empty body for your `Request`.
 -}
-emptyBody : Body
+emptyBody : HttpBody
 emptyBody =
     EmptyBody
 
@@ -165,7 +149,7 @@ emptyBody =
 {-| Put some JSON value in the body of your `Request`. This will automatically
 add the `Content-Type: application/json` header.
 -}
-jsonBody : Json.Encode.Value -> Body
+jsonBody : Json.Encode.Value -> HttpBody
 jsonBody value =
     StringBody
         { contentType = "application/json"
@@ -175,7 +159,7 @@ jsonBody value =
 
 {-| Put some string in the body of your `Request`.
 -}
-stringBody : String -> String -> Body
+stringBody : String -> String -> HttpBody
 stringBody contentType content =
     StringBody
         { contentType = contentType
@@ -286,9 +270,9 @@ task :
     { method : String
     , headers : List Header
     , url : String
-    , body : Body
+    , body : HttpBody
     , resolver : Resolver x a
-    , timeout : Maybe Float
+    , timeout : Maybe Duration
     }
     -> SimulatedTask x a
 task r =
@@ -296,17 +280,12 @@ task r =
         { method = r.method
         , url = r.url
         , headers = r.headers
-        , body =
-            case r.body of
-                EmptyBody ->
-                    ""
-
-                StringBody body ->
-                    body.content
+        , body = r.body
         , onRequestComplete =
             case r.resolver of
                 StringResolver f ->
                     f
+        , timeout = r.timeout
         }
 
 

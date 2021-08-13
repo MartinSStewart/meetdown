@@ -8,6 +8,7 @@ import AssocList as Dict
 import BackendLogic
 import CreateGroupPage
 import Date
+import Dict as RegularDict
 import Duration
 import EmailAddress exposing (EmailAddress)
 import Env
@@ -15,6 +16,7 @@ import FrontendLogic
 import Group
 import GroupName exposing (GroupName)
 import GroupPage
+import Http
 import Id exposing (ClientId, GroupId, Id)
 import List.Extra as List
 import LoginForm
@@ -24,7 +26,7 @@ import Route
 import Test exposing (..)
 import Test.Html.Query
 import Test.Html.Selector
-import TestFramework as TF exposing (EmailType(..))
+import TestFramework as TF
 import Time
 import Types exposing (BackendModel, BackendMsg, FrontendModel(..), FrontendMsg(..), LoadedFrontend, LoginStatus(..), ToBackend(..), ToFrontend)
 import Ui
@@ -52,6 +54,18 @@ testApp =
         , updateFromFrontend = BackendLogic.updateFromFrontend
         , subscriptions = BackendLogic.subscriptions
         }
+        handleHttpRequests
+
+
+handleHttpRequests : { currentRequest : TF.HttpRequest, httpRequests : List TF.HttpRequest } -> Http.Response String
+handleHttpRequests { currentRequest, httpRequests } =
+    Http.GoodStatus_
+        { url = currentRequest.url
+        , statusCode = 200
+        , statusText = "OK"
+        , headers = RegularDict.empty
+        }
+        ""
 
 
 checkLoadedFrontend :

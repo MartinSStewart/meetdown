@@ -1,14 +1,8 @@
-module BackendEffect exposing (BackendEffect(..), HttpRequest, SimulatedTask(..), map, taskAndThen, taskAttempt, taskFail, taskMap, taskMap2, taskMap3, taskMap4, taskMap5, taskMapError, taskOnError, taskPerform, taskSucceed)
+module BackendEffect exposing (BackendEffect(..), HttpBody(..), SimulatedTask(..), map, taskAndThen, taskAttempt, taskFail, taskMap, taskMap2, taskMap3, taskMap4, taskMap5, taskMapError, taskOnError, taskPerform, taskSucceed)
 
 import Duration exposing (Duration)
-import EmailAddress exposing (EmailAddress)
-import Event exposing (Event)
-import Group exposing (EventId)
-import GroupName exposing (GroupName)
 import Http
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken)
-import Postmark
-import Route exposing (Route)
 import Time
 
 
@@ -16,9 +10,6 @@ type BackendEffect toFrontend backendMsg
     = Batch (List (BackendEffect toFrontend backendMsg))
     | None
     | SendToFrontend ClientId toFrontend
-    | SendLoginEmail (Result Http.Error Postmark.PostmarkSendResponse -> backendMsg) EmailAddress Route (Id LoginToken) (Maybe ( Id GroupId, EventId ))
-    | SendDeleteUserEmail (Result Http.Error Postmark.PostmarkSendResponse -> backendMsg) EmailAddress (Id DeleteUserToken)
-    | SendEventReminderEmail (Result Http.Error Postmark.PostmarkSendResponse -> backendMsg) (Id GroupId) GroupName Event Time.Zone EmailAddress
     | GetTime (Time.Posix -> backendMsg)
     | Task (SimulatedTask backendMsg backendMsg)
 
@@ -33,10 +24,21 @@ type SimulatedTask x a
 type alias HttpRequest x a =
     { method : String
     , url : String
-    , body : String
+    , body : HttpBody
     , headers : List ( String, String )
     , onRequestComplete : Http.Response String -> SimulatedTask x a
+    , timeout : Maybe Duration
     }
+
+
+{-| Represents the body of a `Request`.
+-}
+type HttpBody
+    = EmptyBody
+    | StringBody
+        { contentType : String
+        , content : String
+        }
 
 
 map :
@@ -54,15 +56,6 @@ map mapToFrontend mapBackendMsg backendEffect =
 
         SendToFrontend clientId toFrontend ->
             SendToFrontend clientId (mapToFrontend toFrontend)
-
-        SendLoginEmail msg emailAddress route id maybe ->
-            SendLoginEmail (msg >> mapBackendMsg) emailAddress route id maybe
-
-        SendDeleteUserEmail msg emailAddress id ->
-            SendDeleteUserEmail (msg >> mapBackendMsg) emailAddress id
-
-        SendEventReminderEmail msg id groupName event zone emailAddress ->
-            SendEventReminderEmail (msg >> mapBackendMsg) id groupName event zone emailAddress
 
         GetTime msg ->
             GetTime (msg >> mapBackendMsg)
@@ -108,6 +101,7 @@ taskAndThen f task =
                 , body = request.body
                 , headers = request.headers
                 , onRequestComplete = request.onRequestComplete >> taskAndThen f
+                , timeout = request.timeout
                 }
 
         SleepTask delay onResult ->
@@ -238,6 +232,7 @@ taskMapError f task =
                 , body = request.body
                 , headers = request.headers
                 , onRequestComplete = request.onRequestComplete >> taskMapError f
+                , timeout = request.timeout
                 }
 
         SleepTask delay onResult ->
@@ -262,6 +257,7 @@ taskOnError f task =
                 , body = request.body
                 , headers = request.headers
                 , onRequestComplete = request.onRequestComplete >> taskOnError f
+                , timeout = request.timeout
                 }
 
         SleepTask delay onResult ->

@@ -1,6 +1,6 @@
 module TestFramework exposing
     ( BackendApp
-    , EmailType(..)
+    , HttpRequest
     , Instructions
     , State
     , TestApp
@@ -13,8 +13,6 @@ module TestFramework exposing
     , disconnectFrontend
     , fastForward
     , flatten
-    , isDeleteAccountEmail
-    , isEventReminderEmail
     , keyDownEvent
     , reconnectFrontend
     , runEffects
@@ -31,14 +29,10 @@ import Basics.Extra as Basics
 import Browser exposing (UrlRequest(..))
 import Date exposing (Date)
 import Duration exposing (Duration)
-import EmailAddress exposing (EmailAddress)
 import Env
-import Event exposing (EventType)
 import Expect exposing (Expectation)
 import FrontendEffect exposing (FrontendEffect)
 import FrontendSub exposing (FrontendSub)
-import Group exposing (EventId)
-import GroupName exposing (GroupName)
 import Html exposing (Html)
 import Html.Attributes
 import Http
@@ -68,7 +62,6 @@ type alias State toBackend frontendMsg frontendModel toFrontend backendMsg backe
     , toBackend : List ( SessionId, ClientId, toBackend )
     , timers : Dict Duration { msg : Time.Posix -> backendMsg, startTime : Time.Posix }
     , testErrors : List String
-    , emailInboxes : List ( EmailAddress, EmailType )
     , httpRequests : List HttpRequest
     , handleHttpRequest : { currentRequest : HttpRequest, httpRequests : List HttpRequest } -> Http.Response String
     }
@@ -77,7 +70,7 @@ type alias State toBackend frontendMsg frontendModel toFrontend backendMsg backe
 type alias HttpRequest =
     { method : String
     , url : String
-    , body : String
+    , body : BackendEffect.HttpBody
     , headers : List ( String, String )
     }
 
@@ -86,32 +79,6 @@ type Instructions toBackend frontendMsg frontendModel toFrontend backendMsg back
     = NextStep String (State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel -> State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel) (Instructions toBackend frontendMsg frontendModel toFrontend backendMsg backendModel)
     | AndThen (State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel -> Instructions toBackend frontendMsg frontendModel toFrontend backendMsg backendModel) (Instructions toBackend frontendMsg frontendModel toFrontend backendMsg backendModel)
     | Start (State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel)
-
-
-type EmailType
-    = LoginEmail Route (Id LoginToken) (Maybe ( Id GroupId, EventId ))
-    | DeleteAccountEmail (Id DeleteUserToken)
-    | EventReminderEmail (Id GroupId) GroupName Event.Event Time.Zone
-
-
-isEventReminderEmail : EmailType -> Bool
-isEventReminderEmail emailType =
-    case emailType of
-        EventReminderEmail _ _ _ _ ->
-            True
-
-        _ ->
-            False
-
-
-isDeleteAccountEmail : EmailType -> Bool
-isDeleteAccountEmail emailType =
-    case emailType of
-        DeleteAccountEmail _ ->
-            True
-
-        _ ->
-            False
 
 
 checkState :
@@ -322,7 +289,7 @@ type alias TestApp toBackend frontendMsg frontendModel toFrontend backendMsg bac
 testApp :
     FrontendApp toBackend frontendMsg frontendModel toFrontend
     -> BackendApp toBackend toFrontend backendMsg backendModel
-    -> ({ currentRequest : HttpRequest, httpRequests : List HttpRequest } -> Response String)
+    -> ({ currentRequest : HttpRequest, httpRequests : List HttpRequest } -> Http.Response String)
     -> TestApp toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
 testApp frontendApp backendApp handleHttpRequest =
     { init =
@@ -339,7 +306,6 @@ testApp frontendApp backendApp handleHttpRequest =
             , toBackend = []
             , timers = getBackendTimers startTime (backendApp.subscriptions backend)
             , testErrors = []
-            , emailInboxes = []
             , httpRequests = []
             , handleHttpRequest = handleHttpRequest
             }
@@ -1186,39 +1152,6 @@ runBackendEffects backendApp effect state =
         BackendEffect.None ->
             state
 
-        BackendEffect.SendLoginEmail msg emailAddress route loginToken maybeJoinEvent ->
-            let
-                ( model, effects ) =
-                    backendApp.update (msg (Ok postmarkResponse)) state.backend
-            in
-            { state
-                | backend = model
-                , pendingEffects = BackendEffect.Batch [ state.pendingEffects, effects ]
-                , emailInboxes = state.emailInboxes ++ [ ( emailAddress, LoginEmail route loginToken maybeJoinEvent ) ]
-            }
-
-        BackendEffect.SendDeleteUserEmail msg emailAddress deleteToken ->
-            let
-                ( model, effects ) =
-                    backendApp.update (msg (Ok postmarkResponse)) state.backend
-            in
-            { state
-                | backend = model
-                , pendingEffects = BackendEffect.Batch [ state.pendingEffects, effects ]
-                , emailInboxes = state.emailInboxes ++ [ ( emailAddress, DeleteAccountEmail deleteToken ) ]
-            }
-
-        BackendEffect.SendEventReminderEmail msg groupId groupName event timezone emailAddress ->
-            let
-                ( model, effects ) =
-                    backendApp.update (msg (Ok postmarkResponse)) state.backend
-            in
-            { state
-                | backend = model
-                , pendingEffects = BackendEffect.Batch [ state.pendingEffects, effects ]
-                , emailInboxes = state.emailInboxes ++ [ ( emailAddress, EventReminderEmail groupId groupName event timezone ) ]
-            }
-
         BackendEffect.Task task ->
             let
                 ( newState, msg ) =
@@ -1247,6 +1180,7 @@ runBackendTask state task =
 
         HttpTask httpRequest ->
             let
+                request : HttpRequest
                 request =
                     { method = httpRequest.method
                     , url = httpRequest.url

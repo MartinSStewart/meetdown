@@ -8,7 +8,7 @@ import Element
 import File
 import File.Select
 import FrontendEffect exposing (FrontendEffect)
-import FrontendLogic exposing (Subscriptions)
+import FrontendLogic
 import FrontendSub exposing (FrontendSub)
 import Html
 import Lamdera
@@ -16,7 +16,6 @@ import MockFile
 import NavigationKey exposing (NavigationKey(..))
 import Pixels exposing (Pixels)
 import Process
-import Route exposing (Route(..))
 import Task
 import Time
 import TimeZone

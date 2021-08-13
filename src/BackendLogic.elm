@@ -32,11 +32,13 @@ import EventName
 import Group exposing (EventId, Group, GroupVisibility)
 import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError(..))
+import Http
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
 import Link
 import List.Extra as List
 import List.Nonempty
 import Name
+import Postmark
 import ProfileImage
 import Quantity
 import Route exposing (Route(..))
@@ -110,7 +112,7 @@ handleNotifications lastCheck currentTime backendModel =
                                     (\userId ->
                                         case getUser userId backendModel of
                                             Just user ->
-                                                BackendEffect.SendEventReminderEmail
+                                                sendEventReminderEmail
                                                     (SentEventReminderEmail userId groupId eventId)
                                                     groupId
                                                     (Group.name group)
@@ -193,6 +195,59 @@ addLog log model =
 sendToFrontends : List ClientId -> ToFrontend -> BackendEffect ToFrontend backendMsg
 sendToFrontends clientIds toFrontend =
     List.map (\clientId -> BackendEffect.SendToFrontend clientId toFrontend) clientIds |> BackendEffect.Batch
+
+
+noReplyEmailAddress : Maybe EmailAddress
+noReplyEmailAddress =
+    EmailAddress.fromString "no-reply@meetdown.app"
+
+
+sendLoginEmail : (Result Http.Error Postmark.PostmarkSendResponse -> backendMsg) -> EmailAddress -> Route -> Id LoginToken -> Maybe ( Id GroupId, EventId ) -> BackendEffect toFrontend backendMsg
+sendLoginEmail msg emailAddress route loginToken maybeJoinEvent =
+    case noReplyEmailAddress of
+        Just sender ->
+            { from = { name = "Meetdown", email = sender }
+            , to = List.Nonempty.fromElement { name = "", email = emailAddress }
+            , subject = loginEmailSubject
+            , body = Postmark.BodyHtml <| loginEmailContent route loginToken maybeJoinEvent
+            , messageStream = "outbound"
+            }
+                |> Postmark.sendEmail msg Env.postmarkServerToken
+
+        Nothing ->
+            BackendEffect.None
+
+
+sendDeleteUserEmail : (Result Http.Error Postmark.PostmarkSendResponse -> backendMsg) -> EmailAddress -> Id DeleteUserToken -> BackendEffect toFrontend backendMsg
+sendDeleteUserEmail msg emailAddress deleteUserToken =
+    case noReplyEmailAddress of
+        Just sender ->
+            { from = { name = "Meetdown", email = sender }
+            , to = List.Nonempty.fromElement { name = "", email = emailAddress }
+            , subject = deleteAccountEmailSubject
+            , body = Postmark.BodyHtml <| deleteAccountEmailContent deleteUserToken
+            , messageStream = "outbound"
+            }
+                |> Postmark.sendEmail msg Env.postmarkServerToken
+
+        Nothing ->
+            BackendEffect.None
+
+
+sendEventReminderEmail : (Result Http.Error Postmark.PostmarkSendResponse -> backendMsg) -> Id GroupId -> GroupName -> Event -> Time.Zone -> EmailAddress -> BackendEffect toFrontend backendMsg
+sendEventReminderEmail msg groupId groupName event timezone emailAddress =
+    case noReplyEmailAddress of
+        Just sender ->
+            { from = { name = "Meetdown", email = sender }
+            , to = List.Nonempty.fromElement { name = "", email = emailAddress }
+            , subject = eventReminderEmailSubject groupName event timezone
+            , body = Postmark.BodyHtml <| eventReminderEmailContent groupId groupName event
+            , messageStream = "broadcast"
+            }
+                |> Postmark.sendEmail msg Env.postmarkServerToken
+
+        Nothing ->
+            BackendEffect.None
 
 
 updateFromFrontend : SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, BackendEffect ToFrontend BackendMsg )
@@ -288,7 +343,7 @@ updateFromFrontend sessionId clientId msg model =
                                     )
                                     model.loginAttempts
                           }
-                        , BackendEffect.SendLoginEmail (SentLoginEmail email) email route loginToken maybeJoinEvent
+                        , sendLoginEmail (SentLoginEmail email) email route loginToken maybeJoinEvent
                         )
 
                 Nothing ->
@@ -432,7 +487,7 @@ updateFromFrontend sessionId clientId msg model =
                                     { creationTime = model.time, userId = userId }
                                     model2.pendingDeleteUserTokens
                           }
-                        , BackendEffect.SendDeleteUserEmail
+                        , sendDeleteUserEmail
                             (SentDeleteUserEmail userId)
                             user.emailAddress
                             deleteUserToken

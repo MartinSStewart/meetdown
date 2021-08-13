@@ -1,16 +1,15 @@
 module Postmark exposing (..)
 
+import BackendEffect exposing (BackendEffect, SimulatedTask)
+import BackendHttpEffect
 import Email.Html
 import EmailAddress exposing (EmailAddress)
-import Html.String
-import Html.String.Attributes as Html
 import Http
 import Json.Decode as D
 import Json.Decode.Pipeline exposing (..)
 import Json.Encode as E
 import List.Nonempty
 import String.Nonempty exposing (NonemptyString)
-import Task exposing (Task)
 
 
 endpoint =
@@ -40,11 +39,12 @@ type alias PostmarkSend =
     }
 
 
-sendEmailTask : PostmarkServerToken -> PostmarkSend -> Task Http.Error PostmarkSendResponse
+sendEmailTask : PostmarkServerToken -> PostmarkSend -> SimulatedTask Http.Error PostmarkSendResponse
 sendEmailTask token d =
     let
+        httpBody : BackendEffect.HttpBody
         httpBody =
-            Http.jsonBody <|
+            BackendHttpEffect.jsonBody <|
                 E.object <|
                     [ ( "From", E.string <| emailToString d.from )
                     , ( "To", E.string <| emailsToString d.to )
@@ -53,9 +53,9 @@ sendEmailTask token d =
                     ]
                         ++ bodyToJsonValues d.body
     in
-    Http.task
+    BackendHttpEffect.task
         { method = "POST"
-        , headers = [ Http.header "X-Postmark-Server-Token" token ]
+        , headers = [ BackendHttpEffect.header "X-Postmark-Server-Token" token ]
         , url = endpoint ++ "/email"
         , body = httpBody
         , resolver = jsonResolver decodePostmarkSendResponse
@@ -63,9 +63,9 @@ sendEmailTask token d =
         }
 
 
-sendEmail : (Result Http.Error PostmarkSendResponse -> msg) -> PostmarkServerToken -> PostmarkSend -> Cmd msg
+sendEmail : (Result Http.Error PostmarkSendResponse -> msg) -> PostmarkServerToken -> PostmarkSend -> BackendEffect toFrontend msg
 sendEmail msg token d =
-    sendEmailTask token d |> Task.attempt msg
+    sendEmailTask token d |> BackendEffect.taskAttempt msg
 
 
 emailsToString : List.Nonempty.Nonempty { name : String, email : EmailAddress } -> String
@@ -117,11 +117,11 @@ type alias PostmarkTemplateSend =
     }
 
 
-sendTemplateEmail : PostmarkTemplateSend -> Task Http.Error PostmarkTemplateSendResponse
+sendTemplateEmail : PostmarkTemplateSend -> SimulatedTask Http.Error PostmarkTemplateSendResponse
 sendTemplateEmail d =
     let
         httpBody =
-            Http.jsonBody <|
+            BackendHttpEffect.jsonBody <|
                 E.object <|
                     [ ( "From", E.string d.from )
                     , ( "To", E.string d.to )
@@ -130,9 +130,9 @@ sendTemplateEmail d =
                     , ( "TemplateModel", d.templateModel )
                     ]
     in
-    Http.task
+    BackendHttpEffect.task
         { method = "POST"
-        , headers = [ Http.header "X-Postmark-Server-Token" d.token ]
+        , headers = [ BackendHttpEffect.header "X-Postmark-Server-Token" d.token ]
         , url = endpoint ++ "/email/withTemplate"
         , body = httpBody
         , resolver = jsonResolver decodePostmarkTemplateSendResponse
@@ -177,9 +177,9 @@ bodyToJsonValues body =
             ]
 
 
-jsonResolver : D.Decoder a -> Http.Resolver Http.Error a
+jsonResolver : D.Decoder a -> BackendHttpEffect.Resolver Http.Error a
 jsonResolver decoder =
-    Http.stringResolver <|
+    BackendHttpEffect.stringResolver <|
         \response ->
             case response of
                 Http.GoodStatus_ _ body ->

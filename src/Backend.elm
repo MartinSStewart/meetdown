@@ -1,15 +1,18 @@
 module Backend exposing (app)
 
 import BackendEffect exposing (BackendEffect)
+import BackendHttpEffect
 import BackendLogic
 import BackendSub exposing (BackendSub)
 import Duration exposing (Duration)
 import EmailAddress exposing (EmailAddress)
 import Env
+import Http
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
 import Lamdera
 import List.Nonempty
 import Postmark
+import Process
 import Task
 import Time
 import Types exposing (..)
@@ -48,55 +51,51 @@ toCmd effect =
         BackendEffect.SendToFrontend clientId toFrontend ->
             Lamdera.sendToFrontend (Id.clientIdToString clientId) toFrontend
 
-        BackendEffect.SendToFrontends clientIds toFrontend ->
-            clientIds
-                |> List.map (\clientId -> Lamdera.sendToFrontend (Id.clientIdToString clientId) toFrontend)
-                |> Cmd.batch
-
-        BackendEffect.SendLoginEmail msg emailAddress route loginToken maybeJoinEvent ->
-            case noReplyEmailAddress of
-                Just sender ->
-                    { from = { name = "Meetdown", email = sender }
-                    , to = List.Nonempty.fromElement { name = "", email = emailAddress }
-                    , subject = BackendLogic.loginEmailSubject
-                    , body = Postmark.BodyHtml <| BackendLogic.loginEmailContent route loginToken maybeJoinEvent
-                    , messageStream = "outbound"
-                    }
-                        |> Postmark.sendEmail msg Env.postmarkServerToken
-
-                Nothing ->
-                    Cmd.none
-
-        BackendEffect.SendDeleteUserEmail msg emailAddress deleteUserToken ->
-            case noReplyEmailAddress of
-                Just sender ->
-                    { from = { name = "Meetdown", email = sender }
-                    , to = List.Nonempty.fromElement { name = "", email = emailAddress }
-                    , subject = BackendLogic.deleteAccountEmailSubject
-                    , body = Postmark.BodyHtml <| BackendLogic.deleteAccountEmailContent deleteUserToken
-                    , messageStream = "outbound"
-                    }
-                        |> Postmark.sendEmail msg Env.postmarkServerToken
-
-                Nothing ->
-                    Cmd.none
-
-        BackendEffect.SendEventReminderEmail msg groupId groupName event timezone emailAddress ->
-            case noReplyEmailAddress of
-                Just sender ->
-                    { from = { name = "Meetdown", email = sender }
-                    , to = List.Nonempty.fromElement { name = "", email = emailAddress }
-                    , subject = BackendLogic.eventReminderEmailSubject groupName event timezone
-                    , body = Postmark.BodyHtml <| BackendLogic.eventReminderEmailContent groupId groupName event
-                    , messageStream = "broadcast"
-                    }
-                        |> Postmark.sendEmail msg Env.postmarkServerToken
-
-                Nothing ->
-                    Cmd.none
-
         BackendEffect.GetTime msg ->
             Time.now |> Task.perform msg
+
+        BackendEffect.Task simulatedTask ->
+            toTask simulatedTask
+                |> Task.attempt
+                    (\result ->
+                        case result of
+                            Ok ok ->
+                                ok
+
+                            Err err ->
+                                err
+                    )
+
+
+toTask : BackendEffect.SimulatedTask x b -> Task.Task x b
+toTask simulatedTask =
+    case simulatedTask of
+        BackendEffect.Succeed a ->
+            Task.succeed a
+
+        BackendEffect.Fail x ->
+            Task.fail x
+
+        BackendEffect.HttpTask httpRequest ->
+            Http.task
+                { method = httpRequest.method
+                , headers = List.map (\( key, value ) -> Http.header key value) httpRequest.headers
+                , url = httpRequest.url
+                , body =
+                    case httpRequest.body of
+                        BackendEffect.EmptyBody ->
+                            Http.emptyBody
+
+                        BackendEffect.StringBody { contentType, content } ->
+                            Http.stringBody contentType content
+                , resolver = Http.stringResolver Ok
+                , timeout = Maybe.map Duration.inMilliseconds httpRequest.timeout
+                }
+                |> Task.andThen (\response -> httpRequest.onRequestComplete response |> toTask)
+
+        BackendEffect.SleepTask duration function ->
+            Process.sleep (Duration.inMilliseconds duration)
+                |> Task.andThen (\() -> toTask (function ()))
 
 
 toSub : BackendSub BackendMsg -> Sub BackendMsg
