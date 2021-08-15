@@ -5,7 +5,7 @@ module Tests exposing
     )
 
 import AssocList as Dict
-import BackendLogic
+import Backend
 import Codec
 import CreateGroupPage
 import Date
@@ -57,10 +57,10 @@ testApp : TF.TestApp ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg B
 testApp =
     TF.testApp
         frontendApp
-        { init = BackendLogic.init
-        , update = BackendLogic.update
-        , updateFromFrontend = BackendLogic.updateFromFrontend
-        , subscriptions = BackendLogic.subscriptions
+        { init = Backend.init
+        , update = Backend.update
+        , updateFromFrontend = Backend.updateFromFrontend
+        , subscriptions = Backend.subscriptions
         }
         handleHttpRequests
         handlePortToJs
@@ -168,7 +168,7 @@ handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress andTh
                             TF.continueWith state3
                                 |> testApp.connectFrontend
                                     sessionIdFromEmail
-                                    (Unsafe.url (BackendLogic.loginEmailLink loginEmail.route loginEmail.loginToken loginEmail.maybeJoinEvent))
+                                    (Unsafe.url (Backend.loginEmailLink loginEmail.route loginEmail.loginToken loginEmail.maybeJoinEvent))
                                     (\( state4, clientIdFromEmail ) ->
                                         andThenFunc
                                             { instructions = state4 |> testApp.simulateTime Duration.second
@@ -519,7 +519,7 @@ suite =
                                                     |> testApp.connectFrontend
                                                         (Id.sessionIdFromString "session1")
                                                         (Unsafe.url
-                                                            (BackendLogic.loginEmailLink
+                                                            (Backend.loginEmailLink
                                                                 loginEmail.route
                                                                 loginEmail.loginToken
                                                                 loginEmail.maybeJoinEvent
