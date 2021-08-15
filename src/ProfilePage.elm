@@ -1,7 +1,20 @@
-module ProfilePage exposing (CurrentValues, Form, Model, Msg, ToBackend(..), cancelImageButtonId, cropImageResponse, deleteAccountButtonId, imageEditorIsActive, init, update, uploadImageButtonId, view)
+module ProfilePage exposing
+    ( CurrentValues
+    , Form
+    , Model
+    , Msg
+    , ToBackend(..)
+    , cancelImageButtonId
+    , deleteAccountButtonId
+    , imageEditorIsActive
+    , init
+    , subscriptions
+    , update
+    , uploadImageButtonId
+    , view
+    )
 
 import Browser.Dom
-import Codec
 import Colors exposing (..)
 import Description exposing (Description, Error(..))
 import Duration exposing (Duration)
@@ -12,6 +25,7 @@ import Element.Font
 import Element.Input
 import EmailAddress exposing (EmailAddress)
 import FrontendEffect exposing (FrontendEffect)
+import FrontendSub exposing (FrontendSub)
 import Html
 import Html.Attributes
 import Html.Events
@@ -22,7 +36,7 @@ import List.Extra as List
 import MockFile exposing (File)
 import Name exposing (Error(..), Name)
 import Pixels exposing (Pixels)
-import Ports
+import Ports exposing (CropImageDataResponse)
 import ProfileImage exposing (ProfileImage)
 import Quantity exposing (Quantity)
 import SimulatedTask
@@ -44,6 +58,7 @@ type Msg
     | PressedConfirmImage
     | PressedCancelImage
     | GotImageSize (Result Browser.Dom.Error Browser.Dom.Element)
+    | CroppedImage (Result String CropImageDataResponse)
 
 
 type alias ImageEdit =
@@ -336,6 +351,32 @@ update windowSize msg model =
                 _ ->
                     ( model, FrontendEffect.none )
 
+        CroppedImage result ->
+            case result of
+                Ok imageData ->
+                    case ProfileImage.customImage imageData.croppedImageUrl of
+                        Ok profileImage ->
+                            let
+                                newModel =
+                                    { model | profileImage = Unchanged }
+                            in
+                            ( newModel
+                            , Untrusted.untrust profileImage
+                                |> ChangeProfileImageRequest
+                                |> FrontendEffect.SendToBackend
+                            )
+
+                        Err _ ->
+                            ( model, FrontendEffect.None )
+
+                Err _ ->
+                    ( model, FrontendEffect.None )
+
+
+subscriptions : (Msg -> msg) -> FrontendSub msg
+subscriptions msgMap =
+    Ports.cropImageFromJs (CroppedImage >> msgMap)
+
 
 updateDragState : Float -> Float -> ImageEdit -> ImageEdit
 updateDragState tx ty imageData =
@@ -459,11 +500,6 @@ getActualImageState imageData =
 
         Nothing ->
             imageData
-
-
-cropImageResponse : { requestId : Int, croppedImageUrl : String } -> Model -> Model
-cropImageResponse imageData model =
-    { model | profileImage = Unchanged }
 
 
 pixelToT : { a | windowWidth : Quantity Int Pixels, windowHeight : Quantity Int Pixels } -> Float -> Float

@@ -1,4 +1,4 @@
-module FrontendSub exposing (FrontendSub(..), fromJs, toSub)
+module FrontendSub exposing (FrontendSub(..), fromJs, none, toSub)
 
 import Browser.Events
 import Duration exposing (Duration)
@@ -10,9 +10,37 @@ import Time
 
 type FrontendSub frontendMsg
     = Batch (List (FrontendSub frontendMsg))
+    | None
     | TimeEvery Duration (Time.Posix -> frontendMsg)
     | OnResize (Quantity Int Pixels -> Quantity Int Pixels -> frontendMsg)
     | Port String ((Json.Decode.Value -> frontendMsg) -> Sub frontendMsg) (Json.Decode.Value -> frontendMsg)
+
+
+none : FrontendSub frontendMsg
+none =
+    None
+
+
+
+--map : (a -> b) -> FrontendSub a -> FrontendSub b
+--map mapFunc subscription =
+--    case subscription of
+--        Batch subscriptions ->
+--            List.map (map mapFunc) subscriptions |> Batch
+--
+--        TimeEvery duration msg ->
+--            TimeEvery duration (msg >> mapFunc)
+--
+--        OnResize msg ->
+--            OnResize (\w h -> msg w h |> mapFunc)
+--
+--        Port portName portFunction msg ->
+--            let
+--                portFunction_ : (Json.Decode.Value -> b) -> Sub b
+--                portFunction_ msg_ =
+--                    portFunction msg_ |> Sub.map mapFunc
+--            in
+--            Port portName portFunction_ (msg >> mapFunc)
 
 
 toSub : FrontendSub frontendMsg -> Sub frontendMsg
@@ -20,6 +48,9 @@ toSub sub =
     case sub of
         Batch subs ->
             List.map toSub subs |> Sub.batch
+
+        None ->
+            Sub.none
 
         TimeEvery duration msg ->
             Time.every (Duration.inMilliseconds duration) msg

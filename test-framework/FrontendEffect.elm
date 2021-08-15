@@ -1,6 +1,5 @@
 module FrontendEffect exposing (FrontendEffect(..), PortToJs, batch, fileToUrl, map, none, selectFile, sendToBackend, sendToJs, taskAttempt, taskPerform)
 
-import Browser.Dom
 import Json.Encode
 import MockFile
 import NavigationKey exposing (NavigationKey(..))

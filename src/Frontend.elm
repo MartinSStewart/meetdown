@@ -45,9 +45,7 @@ import LoginForm
 import MockFile
 import NavigationKey exposing (NavigationKey(..))
 import Pixels exposing (Pixels)
-import Ports
 import Privacy
-import ProfileImage
 import ProfilePage
 import Quantity exposing (Quantity)
 import Route exposing (Route(..))
@@ -141,9 +139,14 @@ toCmd effect =
 
 
 subscriptions : FrontendModel -> FrontendSub FrontendMsg
-subscriptions _ =
+subscriptions model =
     FrontendSub.Batch
-        [ Ports.cropImageFromJs CroppedImage
+        [ case model of
+            Loaded _ ->
+                ProfilePage.subscriptions ProfileFormMsg
+
+            Loading _ ->
+                FrontendSub.none
         , FrontendSub.OnResize GotWindowSize
         , FrontendSub.TimeEvery Duration.minute GotTime
         ]
@@ -520,36 +523,6 @@ updateLoaded msg model =
                     ( model, FrontendEffect.None )
 
                 LoginStatusPending ->
-                    ( model, FrontendEffect.None )
-
-        CroppedImage result ->
-            case result of
-                Ok imageData ->
-                    case model.loginStatus of
-                        LoggedIn loggedIn ->
-                            case ProfileImage.customImage imageData.croppedImageUrl of
-                                Ok profileImage ->
-                                    let
-                                        newModel =
-                                            ProfilePage.cropImageResponse imageData loggedIn.profileForm
-                                    in
-                                    ( { model | loginStatus = LoggedIn { loggedIn | profileForm = newModel } }
-                                    , Untrusted.untrust profileImage
-                                        |> ProfilePage.ChangeProfileImageRequest
-                                        |> ProfileFormRequest
-                                        |> FrontendEffect.SendToBackend
-                                    )
-
-                                Err _ ->
-                                    ( model, FrontendEffect.None )
-
-                        NotLoggedIn _ ->
-                            ( model, FrontendEffect.None )
-
-                        LoginStatusPending ->
-                            ( model, FrontendEffect.None )
-
-                Err _ ->
                     ( model, FrontendEffect.None )
 
         TypedSearchText searchText ->

@@ -292,7 +292,6 @@ type FrontendMsg
     | PressedCreateGroup
     | CreateGroupPageMsg CreateGroupPage.Msg
     | ProfileFormMsg ProfilePage.Msg
-    | CroppedImage (Result String { requestId : Int, croppedImageUrl : String })
     | TypedSearchText String
     | SubmittedSearchBox
     | GroupPageMsg GroupPage.Msg
