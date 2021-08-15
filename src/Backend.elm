@@ -25,7 +25,7 @@ app =
                     toBackend
                     model
                     |> Tuple.mapSecond toCmd
-        , subscriptions = \model -> BackendLogic.subscriptions model |> toSub
+        , subscriptions = \model -> BackendLogic.subscriptions model |> BackendSub.toSub
         }
 
 
@@ -57,21 +57,3 @@ toCmd effect =
                             Err err ->
                                 err
                     )
-
-
-toSub : BackendSub BackendMsg -> Sub BackendMsg
-toSub backendSub =
-    case backendSub of
-        BackendSub.Batch subs ->
-            List.map toSub subs |> Sub.batch
-
-        BackendSub.TimeEvery duration msg ->
-            Time.every (Duration.inMilliseconds duration) msg
-
-        BackendSub.OnConnect msg ->
-            Lamdera.onConnect
-                (\sessionId clientId -> msg (Id.sessionIdFromString sessionId) (Id.clientIdFromString clientId))
-
-        BackendSub.OnDisconnect msg ->
-            Lamdera.onDisconnect
-                (\sessionId clientId -> msg (Id.sessionIdFromString sessionId) (Id.clientIdFromString clientId))

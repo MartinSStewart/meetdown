@@ -6,13 +6,15 @@ module Tests exposing
 
 import AssocList as Dict
 import BackendLogic
+import Codec
 import CreateGroupPage
 import Date
 import Dict as RegularDict
 import Duration
 import EmailAddress exposing (EmailAddress)
 import Env
-import FrontendLogic
+import Frontend
+import FrontendEffect exposing (PortToJs)
 import Group exposing (EventId)
 import GroupName exposing (GroupName)
 import GroupPage
@@ -20,6 +22,7 @@ import Html.Parser
 import Http
 import Id exposing (ClientId, GroupId, Id)
 import Json.Decode
+import Json.Encode
 import List.Extra as List
 import LoginForm
 import Postmark
@@ -40,13 +43,13 @@ import Url
 
 
 frontendApp =
-    { init = FrontendLogic.init
-    , update = FrontendLogic.update
+    { init = Frontend.init
+    , update = Frontend.update
     , onUrlRequest = UrlClicked
     , onUrlChange = UrlChanged
-    , updateFromBackend = FrontendLogic.updateFromBackend
-    , subscriptions = FrontendLogic.subscriptions
-    , view = FrontendLogic.view
+    , updateFromBackend = Frontend.updateFromBackend
+    , subscriptions = Frontend.subscriptions
+    , view = Frontend.view
     }
 
 
@@ -60,6 +63,7 @@ testApp =
         , subscriptions = BackendLogic.subscriptions
         }
         handleHttpRequests
+        handlePortToJs
 
 
 handleHttpRequests : { currentRequest : TF.HttpRequest, httpRequests : List TF.HttpRequest } -> Http.Response String
@@ -71,6 +75,25 @@ handleHttpRequests { currentRequest, httpRequests } =
         , headers = RegularDict.empty
         }
         ""
+
+
+handlePortToJs :
+    { currentRequest : PortToJs, portRequests : List PortToJs }
+    -> Maybe ( String, Json.Decode.Value )
+handlePortToJs { currentRequest, portRequests } =
+    case Codec.decodeValue Frontend.cropImageDataCodec currentRequest.value of
+        Ok request ->
+            Just
+                ( ""
+                , Codec.encodeToValue
+                    Frontend.cropImageDataResponseCodec
+                    { requestId = request.requestId
+                    , croppedImageUrl = request.imageUrl
+                    }
+                )
+
+        Err _ ->
+            Nothing
 
 
 checkLoadedFrontend :
@@ -109,7 +132,7 @@ loginFromHomepage loginWithEnterKey sessionId sessionIdFromEmail emailAddress st
         (\( state3, clientId ) ->
             state3
                 |> testApp.simulateTime Duration.second
-                |> testApp.clickButton clientId FrontendLogic.signUpOrLoginButtonId
+                |> testApp.clickButton clientId Frontend.signUpOrLoginButtonId
                 |> handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress stateFunc
         )
 
@@ -706,8 +729,8 @@ suite =
                             findSingleGroup
                                 (\groupId inProgress2 ->
                                     inProgress2
-                                        |> testApp.inputText clientId FrontendLogic.groupSearchId "my group!"
-                                        |> TF.keyDownEvent frontendApp clientId FrontendLogic.groupSearchId Ui.enterKeyCode
+                                        |> testApp.inputText clientId Frontend.groupSearchId "my group!"
+                                        |> TF.keyDownEvent frontendApp clientId Frontend.groupSearchId Ui.enterKeyCode
                                         |> testApp.simulateTime Duration.second
                                         |> testApp.clickLink clientId (Route.GroupRoute groupId groupName)
                                         |> testApp.simulateTime Duration.second
@@ -741,7 +764,7 @@ suite =
                             (\( state, clientId ) ->
                                 state
                                     |> testApp.simulateTime Duration.second
-                                    |> testApp.clickButton clientId FrontendLogic.signUpOrLoginButtonId
+                                    |> testApp.clickButton clientId Frontend.signUpOrLoginButtonId
                                     |> testApp.inputText clientId LoginForm.emailAddressInputId "my+good@email.eu"
                                     |> testApp.clickButton clientId LoginForm.submitButtonId
                                     |> testApp.simulateTime Duration.second
@@ -784,7 +807,7 @@ suite =
                         (\( state, clientId ) ->
                             state
                                 |> testApp.simulateTime Duration.second
-                                |> testApp.clickButton clientId FrontendLogic.signUpOrLoginButtonId
+                                |> testApp.clickButton clientId Frontend.signUpOrLoginButtonId
                                 |> testApp.inputText clientId LoginForm.emailAddressInputId "a@email.eu"
                                 |> testApp.clickButton clientId LoginForm.submitButtonId
                                 |> testApp.simulateTime Duration.second
@@ -1072,8 +1095,8 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
                     (\groupId inProgress2 ->
                         inProgress2
                             |> testApp.simulateTime Duration.second
-                            |> testApp.inputText clientId FrontendLogic.groupSearchId "my group!"
-                            |> TF.keyDownEvent frontendApp clientId FrontendLogic.groupSearchId Ui.enterKeyCode
+                            |> testApp.inputText clientId Frontend.groupSearchId "my group!"
+                            |> TF.keyDownEvent frontendApp clientId Frontend.groupSearchId Ui.enterKeyCode
                             |> testApp.simulateTime Duration.second
                             |> testApp.clickLink clientId (Route.GroupRoute groupId groupName)
                             |> testApp.simulateTime Duration.second
@@ -1139,7 +1162,7 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
             (\{ instructions, clientIdFromEmail } ->
                 instructions
                     |> testApp.simulateTime Duration.second
-                    |> testApp.clickButton clientIdFromEmail FrontendLogic.logOutButtonId
+                    |> testApp.clickButton clientIdFromEmail Frontend.logOutButtonId
                     |> testApp.simulateTime Duration.minute
             )
         |> testApp.connectFrontend session1
@@ -1149,8 +1172,8 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
                     (\groupId inProgress2 ->
                         inProgress2
                             |> testApp.simulateTime Duration.second
-                            |> testApp.inputText clientId FrontendLogic.groupSearchId "my group!"
-                            |> TF.keyDownEvent frontendApp clientId FrontendLogic.groupSearchId Ui.enterKeyCode
+                            |> testApp.inputText clientId Frontend.groupSearchId "my group!"
+                            |> TF.keyDownEvent frontendApp clientId Frontend.groupSearchId Ui.enterKeyCode
                             |> testApp.simulateTime Duration.second
                             |> testApp.clickLink clientId (Route.GroupRoute groupId groupName)
                             |> testApp.simulateTime Duration.second

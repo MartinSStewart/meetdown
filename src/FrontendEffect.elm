@@ -1,8 +1,9 @@
-module FrontendEffect exposing (FrontendEffect(..), map, taskAttempt, taskPerform)
+module FrontendEffect exposing (FrontendEffect(..), PortToJs, map, taskAttempt, taskPerform)
 
 import Browser.Dom
+import Json.Encode
 import MockFile
-import NavigationKey exposing (NavigationKey)
+import NavigationKey exposing (NavigationKey(..))
 import Pixels exposing (Pixels)
 import Quantity exposing (Quantity)
 import SimulatedTask exposing (FrontendOnly, SimulatedTask)
@@ -16,12 +17,15 @@ type FrontendEffect toBackend frontendMsg
     | NavigationReplaceUrl NavigationKey String
     | NavigationLoad String
     | SelectFile (List String) (MockFile.File -> frontendMsg)
-    | CopyToClipboard String
-    | CropImage CropImageData
     | FileToUrl (String -> frontendMsg) MockFile.File
     | GetElement (Result Browser.Dom.Error Browser.Dom.Element -> frontendMsg) String
     | GetWindowSize (Quantity Int Pixels -> Quantity Int Pixels -> frontendMsg)
     | Task (SimulatedTask FrontendOnly frontendMsg frontendMsg)
+    | Port String (Json.Encode.Value -> Cmd frontendMsg) Json.Encode.Value
+
+
+type alias PortToJs =
+    { portName : String, value : Json.Encode.Value }
 
 
 map :
@@ -52,12 +56,6 @@ map mapToBackend mapFrontendMsg frontendEffect =
         SelectFile mimeTypes msg ->
             SelectFile mimeTypes (msg >> mapFrontendMsg)
 
-        CopyToClipboard text ->
-            CopyToClipboard text
-
-        CropImage cropImageData ->
-            CropImage cropImageData
-
         FileToUrl msg file ->
             FileToUrl (msg >> mapFrontendMsg) file
 
@@ -72,17 +70,8 @@ map mapToBackend mapFrontendMsg frontendEffect =
                 |> SimulatedTask.taskMapError mapFrontendMsg
                 |> Task
 
-
-type alias CropImageData =
-    { requestId : Int
-    , imageUrl : String
-    , cropX : Quantity Int Pixels
-    , cropY : Quantity Int Pixels
-    , cropWidth : Quantity Int Pixels
-    , cropHeight : Quantity Int Pixels
-    , width : Quantity Int Pixels
-    , height : Quantity Int Pixels
-    }
+        Port portName function value ->
+            Port portName (function >> Cmd.map mapFrontendMsg) value
 
 
 {-| -}

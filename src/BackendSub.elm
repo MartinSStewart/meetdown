@@ -1,7 +1,8 @@
-module BackendSub exposing (BackendSub(..), map)
+module BackendSub exposing (BackendSub(..), map, toSub)
 
 import Duration exposing (Duration)
 import Id exposing (ClientId, SessionId)
+import Lamdera
 import Time
 
 
@@ -26,3 +27,21 @@ map mapFunc backendSub =
 
         OnDisconnect msg ->
             OnDisconnect (\sessionId clientId -> msg sessionId clientId |> mapFunc)
+
+
+toSub : BackendSub backendMsg -> Sub backendMsg
+toSub backendSub =
+    case backendSub of
+        Batch subs ->
+            List.map toSub subs |> Sub.batch
+
+        TimeEvery duration msg ->
+            Time.every (Duration.inMilliseconds duration) msg
+
+        OnConnect msg ->
+            Lamdera.onConnect
+                (\sessionId clientId -> msg (Id.sessionIdFromString sessionId) (Id.clientIdFromString clientId))
+
+        OnDisconnect msg ->
+            Lamdera.onDisconnect
+                (\sessionId clientId -> msg (Id.sessionIdFromString sessionId) (Id.clientIdFromString clientId))

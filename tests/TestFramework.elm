@@ -31,12 +31,13 @@ import Date exposing (Date)
 import Duration exposing (Duration)
 import Env
 import Expect exposing (Expectation)
-import FrontendEffect exposing (FrontendEffect)
+import FrontendEffect exposing (FrontendEffect, PortToJs)
 import FrontendSub exposing (FrontendSub)
 import Html exposing (Html)
 import Html.Attributes
 import Http
 import Id exposing (ButtonId(..), ClientId, DateInputId, DeleteUserToken, GroupId, HtmlId, Id, LoginToken, NumberInputId, RadioButtonId, SessionId, TextInputId, TimeInputId)
+import Json.Decode
 import Json.Encode
 import List.Nonempty exposing (Nonempty)
 import MockFile exposing (File(..))
@@ -65,6 +66,10 @@ type alias State toBackend frontendMsg frontendModel toFrontend backendMsg backe
     , testErrors : List String
     , httpRequests : List HttpRequest
     , handleHttpRequest : { currentRequest : HttpRequest, httpRequests : List HttpRequest } -> Http.Response String
+    , handlePortToJs :
+        { currentRequest : PortToJs, portRequests : List PortToJs }
+        -> Maybe ( String, Json.Decode.Value )
+    , portRequests : List PortToJs
     }
 
 
@@ -291,8 +296,12 @@ testApp :
     FrontendApp toBackend frontendMsg frontendModel toFrontend
     -> BackendApp toBackend toFrontend backendMsg backendModel
     -> ({ currentRequest : HttpRequest, httpRequests : List HttpRequest } -> Http.Response String)
+    ->
+        ({ currentRequest : PortToJs, portRequests : List PortToJs }
+         -> Maybe ( String, Json.Decode.Value )
+        )
     -> TestApp toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
-testApp frontendApp backendApp handleHttpRequest =
+testApp frontendApp backendApp handleHttpRequest handlePortToJs =
     { init =
         let
             ( backend, effects ) =
@@ -309,6 +318,8 @@ testApp frontendApp backendApp handleHttpRequest =
             , testErrors = []
             , httpRequests = []
             , handleHttpRequest = handleHttpRequest
+            , handlePortToJs = handlePortToJs
+            , portRequests = []
             }
     , simulateTime = simulateTime frontendApp backendApp
     , connectFrontend = connectFrontend frontendApp backendApp
@@ -940,17 +951,6 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
         FrontendEffect.SelectFile mimeTypes msg ->
             state
 
-        FrontendEffect.CopyToClipboard text ->
-            case Dict.get clientId state.frontends of
-                Just frontend ->
-                    { state | frontends = Dict.insert clientId { frontend | clipboard = text } state.frontends }
-
-                Nothing ->
-                    state
-
-        FrontendEffect.CropImage cropImageData ->
-            state
-
         FrontendEffect.FileToUrl msg file ->
             case file of
                 MockFile fileName ->
@@ -1030,6 +1030,75 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
 
                 Nothing ->
                     state
+
+        FrontendEffect.Port portName _ value ->
+            let
+                portRequest =
+                    { portName = portName, value = value }
+
+                newState =
+                    { state | portRequests = portRequest :: state.portRequests }
+            in
+            case
+                newState.handlePortToJs
+                    { currentRequest = portRequest
+                    , portRequests = state.portRequests
+                    }
+            of
+                Just ( responsePortName, responseValue ) ->
+                    case Dict.get clientId state.frontends of
+                        Just frontend ->
+                            let
+                                msgs : List (Json.Decode.Value -> frontendMsg)
+                                msgs =
+                                    frontendApp.subscriptions frontend.model
+                                        |> getPortSubscriptions
+                                        |> List.filterMap
+                                            (\sub ->
+                                                if sub.portName == responsePortName then
+                                                    Just sub.msg
+
+                                                else
+                                                    Nothing
+                                            )
+
+                                ( model, effects ) =
+                                    List.foldl
+                                        (\msg ( model_, effects_ ) ->
+                                            let
+                                                ( newModel, newEffects ) =
+                                                    frontendApp.update (msg responseValue) model_
+                                            in
+                                            ( newModel, FrontendEffect.Batch [ effects_, newEffects ] )
+                                        )
+                                        ( frontend.model, frontend.pendingEffects )
+                                        msgs
+                            in
+                            { newState
+                                | frontends =
+                                    Dict.insert clientId
+                                        { frontend | model = model, pendingEffects = effects }
+                                        newState.frontends
+                            }
+
+                        Nothing ->
+                            newState
+
+                Nothing ->
+                    newState
+
+
+getPortSubscriptions : FrontendSub frontendMsg -> List { portName : String, msg : Json.Decode.Value -> frontendMsg }
+getPortSubscriptions subscription =
+    case subscription of
+        FrontendSub.Batch subscriptions ->
+            List.concatMap getPortSubscriptions subscriptions
+
+        FrontendSub.Port portName _ msg ->
+            [ { portName = portName, msg = msg } ]
+
+        _ ->
+            []
 
 
 handleUrlChange :
