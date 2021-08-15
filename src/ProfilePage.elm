@@ -1,6 +1,7 @@
-module ProfilePage exposing (CurrentValues, Effects, Form, Model, Msg, cancelImageButtonId, cropImageResponse, deleteAccountButtonId, imageEditorIsActive, init, update, uploadImageButtonId, view)
+module ProfilePage exposing (CurrentValues, Form, Model, Msg, ToBackend(..), cancelImageButtonId, cropImageResponse, deleteAccountButtonId, imageEditorIsActive, init, update, uploadImageButtonId, view)
 
 import Browser.Dom
+import Codec
 import Colors exposing (..)
 import Description exposing (Description, Error(..))
 import Duration exposing (Duration)
@@ -10,6 +11,7 @@ import Element.Border
 import Element.Font
 import Element.Input
 import EmailAddress exposing (EmailAddress)
+import FrontendEffect exposing (FrontendEffect)
 import Html
 import Html.Attributes
 import Html.Events
@@ -20,8 +22,10 @@ import List.Extra as List
 import MockFile exposing (File)
 import Name exposing (Error(..), Name)
 import Pixels exposing (Pixels)
+import Ports
 import ProfileImage exposing (ProfileImage)
 import Quantity exposing (Quantity)
+import SimulatedTask
 import Ui
 import Untrusted exposing (Untrusted)
 
@@ -112,42 +116,25 @@ init =
     }
 
 
-type alias Effects cmd =
-    { wait : Duration -> Msg -> cmd
-    , none : cmd
-    , changeName : Untrusted Name -> cmd
-    , changeDescription : Untrusted Description -> cmd
-    , changeEmailAddress : Untrusted EmailAddress -> cmd
-    , selectFile : List String -> (File -> Msg) -> cmd
-    , getFileContents : (String -> Msg) -> File -> cmd
-    , setCanvasImage :
-        { requestId : Int
-        , imageUrl : String
-        , cropX : Quantity Int Pixels
-        , cropY : Quantity Int Pixels
-        , cropWidth : Quantity Int Pixels
-        , cropHeight : Quantity Int Pixels
-        , width : Quantity Int Pixels
-        , height : Quantity Int Pixels
-        }
-        -> cmd
-    , sendDeleteAccountEmail : cmd
-    , getElement : (Result Browser.Dom.Error Browser.Dom.Element -> Msg) -> String -> cmd
-    , batch : List cmd -> cmd
-    }
+type ToBackend
+    = ChangeNameRequest (Untrusted Name)
+    | ChangeDescriptionRequest (Untrusted Description)
+    | ChangeEmailAddressRequest (Untrusted EmailAddress)
+    | SendDeleteUserEmailRequest
+    | ChangeProfileImageRequest (Untrusted ProfileImage)
 
 
 update :
     { c | windowWidth : Quantity Int Pixels, windowHeight : Quantity Int Pixels }
-    -> Effects cmd
     -> Msg
     -> Model
-    -> ( Model, cmd )
-update windowSize effects msg model =
+    -> ( Model, FrontendEffect ToBackend Msg )
+update windowSize msg model =
     case msg of
         FormChanged newForm ->
             ( { model | form = newForm, changeCounter = model.changeCounter + 1 }
-            , effects.wait (Duration.seconds 2) (SleepFinished (model.changeCounter + 1))
+            , SimulatedTask.wait (Duration.seconds 2)
+                |> FrontendEffect.taskPerform (\() -> SleepFinished (model.changeCounter + 1))
             )
 
         SleepFinished changeCount ->
@@ -164,37 +151,45 @@ update windowSize effects msg model =
             ( model
             , if changeCount == model.changeCounter then
                 [ validate
-                    (Name.fromString >> Result.toMaybe >> Maybe.map (Untrusted.untrust >> effects.changeName))
+                    (Name.fromString
+                        >> Result.toMaybe
+                        >> Maybe.map (Untrusted.untrust >> ChangeNameRequest >> FrontendEffect.sendToBackend)
+                    )
                     model.form.name
                 , validate
-                    (Description.fromString >> Result.toMaybe >> Maybe.map (Untrusted.untrust >> effects.changeDescription))
+                    (Description.fromString
+                        >> Result.toMaybe
+                        >> Maybe.map (Untrusted.untrust >> ChangeDescriptionRequest >> FrontendEffect.sendToBackend)
+                    )
                     model.form.description
                 , validate
-                    (EmailAddress.fromString >> Maybe.map (Untrusted.untrust >> effects.changeEmailAddress))
+                    (EmailAddress.fromString
+                        >> Maybe.map (Untrusted.untrust >> ChangeEmailAddressRequest >> FrontendEffect.sendToBackend)
+                    )
                     model.form.emailAddress
                 ]
                     |> List.filterMap identity
-                    |> effects.batch
+                    |> FrontendEffect.batch
 
               else
-                effects.none
+                FrontendEffect.none
             )
 
         PressedProfileImage ->
-            ( model, effects.selectFile [ "image/png", "image/jpg", "image/jpeg" ] SelectedImage )
+            ( model, FrontendEffect.selectFile [ "image/png", "image/jpg", "image/jpeg" ] SelectedImage )
 
         SelectedImage file ->
-            ( model, effects.getFileContents GotImageUrl file )
+            ( model, FrontendEffect.fileToUrl GotImageUrl file )
 
         PressedDeleteAccount ->
-            ( { model | pressedDeleteAccount = True }, effects.sendDeleteAccountEmail )
+            ( { model | pressedDeleteAccount = True }, FrontendEffect.sendToBackend SendDeleteUserEmailRequest )
 
         GotImageUrl imageUrl ->
             ( { model
                 | profileImage =
                     Editting (Just { x = 0.1, y = 0.1, size = 0.8, imageUrl = imageUrl, dragState = Nothing, imageSize = Nothing })
               }
-            , effects.getElement GotImageSize profileImagePlaceholderId
+            , SimulatedTask.getElement profileImagePlaceholderId |> FrontendEffect.taskAttempt GotImageSize
             )
 
         MouseDownImageEditor x y ->
@@ -238,11 +233,11 @@ update windowSize effects msg model =
                     ( { model
                         | profileImage = Editting (Just { imageData | dragState = Just newDragState })
                       }
-                    , effects.none
+                    , FrontendEffect.none
                     )
 
                 _ ->
-                    ( model, effects.none )
+                    ( model, FrontendEffect.none )
 
         MovedImageEditor x y ->
             case model.profileImage of
@@ -251,11 +246,11 @@ update windowSize effects msg model =
                         | profileImage =
                             Editting (Just (updateDragState (pixelToT windowSize x) (pixelToT windowSize y) imageData))
                       }
-                    , effects.none
+                    , FrontendEffect.none
                     )
 
                 _ ->
-                    ( model, effects.none )
+                    ( model, FrontendEffect.none )
 
         MouseUpImageEditor x y ->
             case model.profileImage of
@@ -267,11 +262,11 @@ update windowSize effects msg model =
                                 |> (\a -> { a | dragState = Nothing })
                     in
                     ( { model | profileImage = Editting (Just newImageData) }
-                    , effects.none
+                    , FrontendEffect.none
                     )
 
                 _ ->
-                    ( model, effects.none )
+                    ( model, FrontendEffect.none )
 
         TouchEndImageEditor ->
             case model.profileImage of
@@ -282,11 +277,11 @@ update windowSize effects msg model =
                                 |> (\a -> { a | dragState = Nothing })
                     in
                     ( { model | profileImage = Editting (Just newImageData) }
-                    , effects.none
+                    , FrontendEffect.none
                     )
 
                 _ ->
-                    ( model, effects.none )
+                    ( model, FrontendEffect.none )
 
         PressedConfirmImage ->
             case model.profileImage of
@@ -294,7 +289,7 @@ update windowSize effects msg model =
                     case imageData.imageSize of
                         Just ( w, _ ) ->
                             ( model
-                            , effects.setCanvasImage
+                            , Ports.cropImageToJs
                                 { requestId = 0
                                 , imageUrl = imageData.imageUrl
                                 , cropX = imageData.x * toFloat w |> round |> Pixels.pixels
@@ -307,19 +302,21 @@ update windowSize effects msg model =
                             )
 
                         Nothing ->
-                            ( model, effects.none )
+                            ( model, FrontendEffect.none )
 
                 _ ->
-                    ( model, effects.none )
+                    ( model, FrontendEffect.none )
 
         PressedCancelImage ->
-            ( { model | profileImage = Unchanged }, effects.none )
+            ( { model | profileImage = Unchanged }, FrontendEffect.none )
 
         GotImageSize result ->
             case ( result, model.profileImage ) of
                 ( Ok { element }, Editting (Just imageData) ) ->
                     if element.height <= 0 then
-                        ( model, effects.getElement GotImageSize profileImagePlaceholderId )
+                        ( model
+                        , SimulatedTask.getElement profileImagePlaceholderId |> FrontendEffect.taskAttempt GotImageSize
+                        )
 
                     else
                         ( { model
@@ -333,11 +330,11 @@ update windowSize effects msg model =
                                     |> Just
                                     |> Editting
                           }
-                        , effects.none
+                        , FrontendEffect.none
                         )
 
                 _ ->
-                    ( model, effects.none )
+                    ( model, FrontendEffect.none )
 
 
 updateDragState : Float -> Float -> ImageEdit -> ImageEdit

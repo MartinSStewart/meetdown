@@ -24,6 +24,7 @@ import Id exposing (ClientId, GroupId, Id)
 import Json.Decode
 import List.Extra as List
 import LoginForm
+import Ports
 import Postmark
 import ProfilePage
 import Quantity
@@ -80,19 +81,23 @@ handlePortToJs :
     { currentRequest : PortToJs, portRequests : List PortToJs }
     -> Maybe ( String, Json.Decode.Value )
 handlePortToJs { currentRequest, portRequests } =
-    case Codec.decodeValue Frontend.cropImageDataCodec currentRequest.value of
-        Ok request ->
-            Just
-                ( ""
-                , Codec.encodeToValue
-                    Frontend.cropImageDataResponseCodec
-                    { requestId = request.requestId
-                    , croppedImageUrl = request.imageUrl
-                    }
-                )
+    if currentRequest.portName == Ports.cropImageToJsName then
+        case Codec.decodeValue Ports.cropImageDataCodec currentRequest.value of
+            Ok request ->
+                Just
+                    ( Ports.cropImageFromJsName
+                    , Codec.encodeToValue
+                        Ports.cropImageDataResponseCodec
+                        { requestId = request.requestId
+                        , croppedImageUrl = request.imageUrl
+                        }
+                    )
 
-        Err _ ->
-            Nothing
+            Err _ ->
+                Nothing
+
+    else
+        Nothing
 
 
 checkLoadedFrontend :

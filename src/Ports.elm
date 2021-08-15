@@ -1,0 +1,85 @@
+port module Ports exposing (CropImageData, CropImageDataResponse, cropImageDataCodec, cropImageDataResponseCodec, cropImageFromJs, cropImageFromJsName, cropImageToJs, cropImageToJsName)
+
+import Codec exposing (Codec)
+import FrontendEffect
+import FrontendSub
+import Json.Decode
+import Json.Encode
+import Pixels exposing (Pixels)
+import Quantity exposing (Quantity)
+
+
+port martinsstewart_crop_image_to_js : Json.Encode.Value -> Cmd msg
+
+
+port martinsstewart_crop_image_from_js : (Json.Decode.Value -> msg) -> Sub msg
+
+
+cropImageToJsName : String
+cropImageToJsName =
+    "martinsstewart_crop_image_to_js"
+
+
+cropImageToJs : CropImageData -> FrontendEffect.FrontendEffect toBackend msg
+cropImageToJs =
+    Codec.encodeToValue cropImageDataCodec
+        >> FrontendEffect.sendToJs cropImageToJsName martinsstewart_crop_image_to_js
+
+
+cropImageFromJsName : String
+cropImageFromJsName =
+    "martinsstewart_crop_image_from_js"
+
+
+cropImageFromJs : (Result String CropImageDataResponse -> msg) -> FrontendSub.FrontendSub msg
+cropImageFromJs msg =
+    FrontendSub.fromJs
+        cropImageFromJsName
+        martinsstewart_crop_image_from_js
+        (Codec.decodeValue cropImageDataResponseCodec
+            >> Result.mapError Json.Decode.errorToString
+            >> msg
+        )
+
+
+type alias CropImageData =
+    { requestId : Int
+    , imageUrl : String
+    , cropX : Quantity Int Pixels
+    , cropY : Quantity Int Pixels
+    , cropWidth : Quantity Int Pixels
+    , cropHeight : Quantity Int Pixels
+    , width : Quantity Int Pixels
+    , height : Quantity Int Pixels
+    }
+
+
+cropImageDataCodec : Codec CropImageData
+cropImageDataCodec =
+    Codec.object CropImageData
+        |> Codec.field "requestId" .requestId Codec.int
+        |> Codec.field "imageUrl" .imageUrl Codec.string
+        |> Codec.field "cropX" .cropX quantityCodec
+        |> Codec.field "cropY" .cropY quantityCodec
+        |> Codec.field "cropWidth" .cropWidth quantityCodec
+        |> Codec.field "cropHeight" .cropHeight quantityCodec
+        |> Codec.field "width" .width quantityCodec
+        |> Codec.field "height" .height quantityCodec
+        |> Codec.buildObject
+
+
+type alias CropImageDataResponse =
+    { requestId : Int, croppedImageUrl : String }
+
+
+cropImageDataResponseCodec : Codec CropImageDataResponse
+cropImageDataResponseCodec =
+    Codec.object CropImageDataResponse
+        |> Codec.field "requestId" .requestId Codec.int
+        |> Codec.field "croppedImageUrl" .croppedImageUrl Codec.string
+        |> Codec.buildObject
+
+
+quantityCodec : Codec (Quantity Int units)
+quantityCodec =
+    Codec.map Quantity.unsafe Quantity.unwrap Codec.int

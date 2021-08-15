@@ -312,15 +312,11 @@ type ToBackend
     | GetAdminDataRequest
     | LogoutRequest
     | CreateGroupRequest (Untrusted GroupName) (Untrusted Description) GroupVisibility
-    | ChangeNameRequest (Untrusted Name)
-    | ChangeDescriptionRequest (Untrusted Description)
-    | ChangeEmailAddressRequest (Untrusted EmailAddress)
-    | SendDeleteUserEmailRequest
     | DeleteUserRequest (Id DeleteUserToken)
-    | ChangeProfileImageRequest (Untrusted ProfileImage)
     | GetMyGroupsRequest
     | SearchGroupsRequest String
     | GroupRequest (Id GroupId) GroupPage.ToBackend
+    | ProfileFormRequest ProfilePage.ToBackend
 
 
 type BackendMsg

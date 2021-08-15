@@ -1,9 +1,5 @@
-port module Frontend exposing
-    ( CropImageData
-    , CropImageDataResponse
-    , app
-    , cropImageDataCodec
-    , cropImageDataResponseCodec
+module Frontend exposing
+    ( app
     , groupSearchId
     , init
     , logOutButtonId
@@ -23,7 +19,6 @@ import AssocSet as Set
 import Browser exposing (UrlRequest(..))
 import Browser.Dom
 import Browser.Navigation
-import Codec exposing (Codec)
 import Colors
 import CreateGroupPage
 import DictExtra as Dict
@@ -45,13 +40,12 @@ import GroupPage
 import Html
 import Html.Attributes
 import Id exposing (ButtonId(..), GroupId, Id, UserId)
-import Json.Decode
-import Json.Encode
 import Lamdera
 import LoginForm
 import MockFile
 import NavigationKey exposing (NavigationKey(..))
 import Pixels exposing (Pixels)
+import Ports
 import Privacy
 import ProfileImage
 import ProfilePage
@@ -68,12 +62,6 @@ import Ui
 import Untrusted
 import Url exposing (Url)
 import UserPage
-
-
-port martinsstewart_crop_image_to_js : Json.Encode.Value -> Cmd msg
-
-
-port martinsstewart_crop_image_from_js : (Json.Decode.Value -> msg) -> Sub msg
 
 
 app =
@@ -152,59 +140,10 @@ toCmd effect =
             portFunction value
 
 
-type alias CropImageData =
-    { requestId : Int
-    , imageUrl : String
-    , cropX : Quantity Int Pixels
-    , cropY : Quantity Int Pixels
-    , cropWidth : Quantity Int Pixels
-    , cropHeight : Quantity Int Pixels
-    , width : Quantity Int Pixels
-    , height : Quantity Int Pixels
-    }
-
-
-cropImageDataCodec : Codec CropImageData
-cropImageDataCodec =
-    Codec.object CropImageData
-        |> Codec.field "requestId" .requestId Codec.int
-        |> Codec.field "imageUrl" .imageUrl Codec.string
-        |> Codec.field "cropX" .cropX quantityCodec
-        |> Codec.field "cropY" .cropY quantityCodec
-        |> Codec.field "cropWidth" .cropWidth quantityCodec
-        |> Codec.field "cropHeight" .cropHeight quantityCodec
-        |> Codec.field "width" .width quantityCodec
-        |> Codec.field "height" .height quantityCodec
-        |> Codec.buildObject
-
-
-type alias CropImageDataResponse =
-    { requestId : Int, croppedImageUrl : String }
-
-
-cropImageDataResponseCodec : Codec CropImageDataResponse
-cropImageDataResponseCodec =
-    Codec.object CropImageDataResponse
-        |> Codec.field "requestId" .requestId Codec.int
-        |> Codec.field "croppedImageUrl" .croppedImageUrl Codec.string
-        |> Codec.buildObject
-
-
-quantityCodec : Codec (Quantity Int units)
-quantityCodec =
-    Codec.map Quantity.unsafe Quantity.unwrap Codec.int
-
-
 subscriptions : FrontendModel -> FrontendSub FrontendMsg
 subscriptions _ =
     FrontendSub.Batch
-        [ FrontendSub.Port
-            "martinsstewart_crop_image_from_js"
-            martinsstewart_crop_image_from_js
-            (Codec.decodeValue cropImageDataResponseCodec
-                >> Result.mapError Json.Decode.errorToString
-                >> CroppedImage
-            )
+        [ Ports.cropImageFromJs CroppedImage
         , FrontendSub.OnResize GotWindowSize
         , FrontendSub.TimeEvery Duration.minute GotTime
         ]
@@ -570,33 +509,8 @@ updateLoaded msg model =
                 LoggedIn loggedIn ->
                     let
                         ( newModel, effects ) =
-                            ProfilePage.update
-                                model
-                                { wait =
-                                    \duration waitMsg ->
-                                        SimulatedTask.wait duration
-                                            |> FrontendEffect.taskPerform (\() -> ProfileFormMsg waitMsg)
-                                , none = FrontendEffect.None
-                                , changeName = ChangeNameRequest >> FrontendEffect.SendToBackend
-                                , changeDescription = ChangeDescriptionRequest >> FrontendEffect.SendToBackend
-                                , changeEmailAddress = ChangeEmailAddressRequest >> FrontendEffect.SendToBackend
-                                , selectFile =
-                                    \mimeTypes fileMsg ->
-                                        FrontendEffect.SelectFile mimeTypes (fileMsg >> ProfileFormMsg)
-                                , getFileContents =
-                                    \fileMsg file -> FrontendEffect.FileToUrl (fileMsg >> ProfileFormMsg) file
-                                , setCanvasImage =
-                                    Codec.encodeToValue cropImageDataCodec
-                                        >> FrontendEffect.Port "martinsstewart_crop_image_to_js" martinsstewart_crop_image_to_js
-                                , sendDeleteAccountEmail = FrontendEffect.SendToBackend SendDeleteUserEmailRequest
-                                , getElement =
-                                    \getElementMsg id ->
-                                        SimulatedTask.getElement id
-                                            |> FrontendEffect.taskAttempt (getElementMsg >> ProfileFormMsg)
-                                , batch = FrontendEffect.Batch
-                                }
-                                profileFormMsg
-                                loggedIn.profileForm
+                            ProfilePage.update model profileFormMsg loggedIn.profileForm
+                                |> Tuple.mapSecond (FrontendEffect.map ProfileFormRequest ProfileFormMsg)
                     in
                     ( { model | loginStatus = LoggedIn { loggedIn | profileForm = newModel } }
                     , effects
@@ -621,7 +535,8 @@ updateLoaded msg model =
                                     in
                                     ( { model | loginStatus = LoggedIn { loggedIn | profileForm = newModel } }
                                     , Untrusted.untrust profileImage
-                                        |> ChangeProfileImageRequest
+                                        |> ProfilePage.ChangeProfileImageRequest
+                                        |> ProfileFormRequest
                                         |> FrontendEffect.SendToBackend
                                     )
 

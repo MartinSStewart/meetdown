@@ -35,6 +35,7 @@ import List.Nonempty
 import Name
 import Postmark
 import ProfileImage
+import ProfilePage
 import Quantity
 import Route exposing (Route(..))
 import SimulatedTask
@@ -428,7 +429,7 @@ updateFromFrontend sessionId clientId msg model =
                             logUntrusted
                 )
 
-        ChangeNameRequest untrustedName ->
+        ProfileFormRequest (ProfilePage.ChangeNameRequest untrustedName) ->
             case Untrusted.validateName untrustedName of
                 Just name ->
                     userAuthorization
@@ -445,7 +446,7 @@ updateFromFrontend sessionId clientId msg model =
                 Nothing ->
                     logUntrusted
 
-        ChangeDescriptionRequest untrustedDescription ->
+        ProfileFormRequest (ProfilePage.ChangeDescriptionRequest untrustedDescription) ->
             case Untrusted.description untrustedDescription of
                 Just description ->
                     userAuthorization
@@ -462,7 +463,7 @@ updateFromFrontend sessionId clientId msg model =
                 Nothing ->
                     logUntrusted
 
-        ChangeEmailAddressRequest untrustedEmailAddress ->
+        ProfileFormRequest (ProfilePage.ChangeEmailAddressRequest untrustedEmailAddress) ->
             case Untrusted.validateEmailAddress untrustedEmailAddress of
                 Just emailAddress ->
                     userAuthorization
@@ -485,7 +486,7 @@ updateFromFrontend sessionId clientId msg model =
                 Nothing ->
                     logUntrusted
 
-        SendDeleteUserEmailRequest ->
+        ProfileFormRequest ProfilePage.SendDeleteUserEmailRequest ->
             userAuthorization
                 sessionId
                 model
@@ -529,7 +530,7 @@ updateFromFrontend sessionId clientId msg model =
         DeleteUserRequest deleteUserToken ->
             getAndRemoveDeleteUserToken (handleDeleteUserRequest clientId) deleteUserToken model
 
-        ChangeProfileImageRequest untrustedProfileImage ->
+        ProfileFormRequest (ProfilePage.ChangeProfileImageRequest untrustedProfileImage) ->
             userAuthorization
                 sessionId
                 model

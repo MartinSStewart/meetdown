@@ -1,4 +1,4 @@
-module FrontendEffect exposing (FrontendEffect(..), PortToJs, map, taskAttempt, taskPerform)
+module FrontendEffect exposing (FrontendEffect(..), PortToJs, batch, fileToUrl, map, none, selectFile, sendToBackend, sendToJs, taskAttempt, taskPerform)
 
 import Browser.Dom
 import Json.Encode
@@ -18,6 +18,36 @@ type FrontendEffect toBackend frontendMsg
     | FileToUrl (String -> frontendMsg) MockFile.File
     | Task (SimulatedTask FrontendOnly frontendMsg frontendMsg)
     | Port String (Json.Encode.Value -> Cmd frontendMsg) Json.Encode.Value
+
+
+batch : List (FrontendEffect toBackend frontendMsg) -> FrontendEffect toBackend frontendMsg
+batch =
+    Batch
+
+
+none : FrontendEffect toBackend frontendMsg
+none =
+    None
+
+
+sendToBackend : toBackend -> FrontendEffect toBackend frontendMsg
+sendToBackend =
+    SendToBackend
+
+
+selectFile : List String -> (MockFile.File -> frontendMsg) -> FrontendEffect toBackend frontendMsg
+selectFile =
+    SelectFile
+
+
+fileToUrl : (String -> frontendMsg) -> MockFile.File -> FrontendEffect toBackend frontendMsg
+fileToUrl =
+    FileToUrl
+
+
+sendToJs : String -> (Json.Encode.Value -> Cmd frontendMsg) -> Json.Encode.Value -> FrontendEffect toBackend frontendMsg
+sendToJs =
+    Port
 
 
 type alias PortToJs =

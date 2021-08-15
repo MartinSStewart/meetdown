@@ -1,4 +1,4 @@
-module FrontendSub exposing (FrontendSub(..), toSub)
+module FrontendSub exposing (FrontendSub(..), fromJs, toSub)
 
 import Browser.Events
 import Duration exposing (Duration)
@@ -29,3 +29,8 @@ toSub sub =
 
         Port _ portFunction msg ->
             portFunction msg
+
+
+fromJs : String -> ((Json.Decode.Value -> frontendMsg) -> Sub frontendMsg) -> (Json.Decode.Value -> frontendMsg) -> FrontendSub frontendMsg
+fromJs =
+    Port
