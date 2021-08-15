@@ -62,7 +62,7 @@ getViewport =
     GetViewport Succeed
 
 
-getElement : String -> SimulatedTask restriction Browser.Dom.Error Browser.Dom.Element
+getElement : String -> SimulatedTask FrontendOnly Browser.Dom.Error Browser.Dom.Element
 getElement htmlId =
     GetElement
         (\result ->
