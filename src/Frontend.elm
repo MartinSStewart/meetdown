@@ -15,7 +15,7 @@ import Lamdera
 import MockFile
 import NavigationKey exposing (NavigationKey(..))
 import Pixels exposing (Pixels)
-import Process
+import SimulatedTask
 import Task
 import Time
 import TimeZone
@@ -72,12 +72,6 @@ toCmd effect =
         FrontendEffect.NavigationLoad url ->
             Browser.Navigation.load url
 
-        FrontendEffect.GetTime msg ->
-            Time.now |> Task.perform msg
-
-        FrontendEffect.Wait duration msg ->
-            Process.sleep (Duration.inMilliseconds duration) |> Task.perform (always msg)
-
         FrontendEffect.SelectFile mimeTypes msg ->
             File.Select.file mimeTypes (MockFile.RealFile >> msg)
 
@@ -119,6 +113,18 @@ toCmd effect =
 
         FrontendEffect.ScrollToTop msg ->
             Browser.Dom.setViewport 0 0 |> Task.perform (\() -> msg)
+
+        FrontendEffect.Task simulatedTask ->
+            SimulatedTask.toTask simulatedTask
+                |> Task.attempt
+                    (\result ->
+                        case result of
+                            Ok ok ->
+                                ok
+
+                            Err err ->
+                                err
+                    )
 
 
 toSub : FrontendSub FrontendMsg -> Sub FrontendMsg

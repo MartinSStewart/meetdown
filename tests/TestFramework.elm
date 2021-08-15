@@ -23,7 +23,7 @@ module TestFramework exposing
     )
 
 import AssocList as Dict exposing (Dict)
-import BackendEffect exposing (BackendEffect, SimulatedTask(..))
+import BackendEffect exposing (BackendEffect)
 import BackendSub exposing (BackendSub)
 import Basics.Extra as Basics
 import Browser exposing (UrlRequest(..))
@@ -44,6 +44,7 @@ import NavigationKey exposing (NavigationKey(..))
 import Pixels
 import Quantity
 import Route exposing (Route)
+import SimulatedTask exposing (BackendOnly, SimulatedTask(..))
 import Test.Html.Event
 import Test.Html.Query
 import Test.Html.Selector
@@ -70,7 +71,7 @@ type alias State toBackend frontendMsg frontendModel toFrontend backendMsg backe
 type alias HttpRequest =
     { method : String
     , url : String
-    , body : BackendEffect.HttpBody
+    , body : SimulatedTask.HttpBody
     , headers : List ( String, String )
     }
 
@@ -936,29 +937,6 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
         FrontendEffect.None ->
             state
 
-        FrontendEffect.GetTime msg ->
-            case Dict.get clientId state.frontends of
-                Just frontend ->
-                    let
-                        ( model, effects ) =
-                            frontendApp.update (msg (Duration.addTo startTime state.elapsedTime)) frontend.model
-                    in
-                    { state
-                        | frontends =
-                            Dict.insert clientId
-                                { frontend
-                                    | model = model
-                                    , pendingEffects = FrontendEffect.Batch [ frontend.pendingEffects, effects ]
-                                }
-                                state.frontends
-                    }
-
-                Nothing ->
-                    state
-
-        FrontendEffect.Wait duration msg ->
-            state
-
         FrontendEffect.SelectFile mimeTypes msg ->
             state
 
@@ -1055,6 +1033,30 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
         FrontendEffect.ScrollToTop _ ->
             state
 
+        FrontendEffect.Task task ->
+            let
+                ( newState, msg ) =
+                    runTask state task
+            in
+            case Dict.get clientId newState.frontends of
+                Just frontend ->
+                    let
+                        ( model, effects ) =
+                            frontendApp.update msg frontend.model
+                    in
+                    { newState
+                        | frontends =
+                            Dict.insert clientId
+                                { frontend
+                                    | model = model
+                                    , pendingEffects = FrontendEffect.Batch [ frontend.pendingEffects, effects ]
+                                }
+                                state.frontends
+                    }
+
+                Nothing ->
+                    state
+
 
 handleUrlChange :
     FrontendApp toBackend frontendMsg frontendModel toFrontend
@@ -1148,7 +1150,7 @@ runBackendEffects backendApp effect state =
         BackendEffect.Task task ->
             let
                 ( newState, msg ) =
-                    runBackendTask state task
+                    runTask state task
 
                 ( model, effects ) =
                     backendApp.update msg newState.backend
@@ -1159,11 +1161,11 @@ runBackendEffects backendApp effect state =
             }
 
 
-runBackendTask :
+runTask :
     State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
-    -> SimulatedTask x x
+    -> SimulatedTask restriction x x
     -> ( State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel, x )
-runBackendTask state task =
+runTask state task =
     case task of
         Succeed value ->
             ( state, value )
@@ -1183,13 +1185,13 @@ runBackendTask state task =
             in
             state.handleHttpRequest { currentRequest = request, httpRequests = state.httpRequests }
                 |> httpRequest.onRequestComplete
-                |> runBackendTask { state | httpRequests = request :: state.httpRequests }
+                |> runTask { state | httpRequests = request :: state.httpRequests }
 
         SleepTask duration function ->
             Debug.todo ""
 
         GetTime gotTime ->
-            gotTime (Duration.addTo startTime state.elapsedTime) |> runBackendTask state
+            gotTime (Duration.addTo startTime state.elapsedTime) |> runTask state
 
 
 postmarkResponse =

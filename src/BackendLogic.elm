@@ -35,6 +35,7 @@ import Postmark
 import ProfileImage
 import Quantity
 import Route exposing (Route(..))
+import SimulatedTask
 import String.Nonempty exposing (NonemptyString(..))
 import Time
 import Toop exposing (T3(..), T4(..), T5(..))
@@ -61,7 +62,7 @@ init =
       , pendingLoginTokens = Dict.empty
       , pendingDeleteUserTokens = Dict.empty
       }
-    , BackendEffect.getTime |> BackendEffect.taskPerform BackendGotTime
+    , SimulatedTask.getTime |> BackendEffect.taskPerform BackendGotTime
     )
 
 

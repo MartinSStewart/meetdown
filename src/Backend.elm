@@ -1,18 +1,13 @@
 module Backend exposing (app)
 
 import BackendEffect exposing (BackendEffect)
-import BackendHttpEffect
 import BackendLogic
 import BackendSub exposing (BackendSub)
 import Duration exposing (Duration)
 import EmailAddress exposing (EmailAddress)
-import Env
-import Http
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
 import Lamdera
-import List.Nonempty
-import Postmark
-import Process
+import SimulatedTask exposing (SimulatedTask)
 import Task
 import Time
 import Types exposing (..)
@@ -52,7 +47,7 @@ toCmd effect =
             Lamdera.sendToFrontend (Id.clientIdToString clientId) toFrontend
 
         BackendEffect.Task simulatedTask ->
-            toTask simulatedTask
+            SimulatedTask.toTask simulatedTask
                 |> Task.attempt
                     (\result ->
                         case result of
@@ -62,43 +57,6 @@ toCmd effect =
                             Err err ->
                                 err
                     )
-
-
-toTask : BackendEffect.SimulatedTask x b -> Task.Task x b
-toTask simulatedTask =
-    case simulatedTask of
-        BackendEffect.Succeed a ->
-            Task.succeed a
-
-        BackendEffect.Fail x ->
-            Task.fail x
-
-        BackendEffect.HttpTask httpRequest ->
-            Http.task
-                { method = httpRequest.method
-                , headers = List.map (\( key, value ) -> Http.header key value) httpRequest.headers
-                , url = httpRequest.url
-                , body =
-                    case httpRequest.body of
-                        BackendEffect.EmptyBody ->
-                            Http.emptyBody
-
-                        BackendEffect.StringBody { contentType, content } ->
-                            Http.stringBody contentType content
-
-                        BackendEffect.JsonBody value ->
-                            Http.jsonBody value
-                , resolver = Http.stringResolver Ok
-                , timeout = Maybe.map Duration.inMilliseconds httpRequest.timeout
-                }
-                |> Task.andThen (\response -> httpRequest.onRequestComplete response |> toTask)
-
-        BackendEffect.SleepTask duration function ->
-            Process.sleep (Duration.inMilliseconds duration)
-                |> Task.andThen (\() -> toTask (function ()))
-
-        BackendEffect.GetTime gotTime ->
-            Time.now |> Task.andThen (\time -> toTask (gotTime time))
 
 
 toSub : BackendSub BackendMsg -> Sub BackendMsg

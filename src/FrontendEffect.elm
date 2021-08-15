@@ -1,4 +1,4 @@
-module FrontendEffect exposing (FrontendEffect(..), map)
+module FrontendEffect exposing (FrontendEffect(..), map, taskAttempt, taskPerform)
 
 import Browser.Dom
 import Duration exposing (Duration)
@@ -6,6 +6,7 @@ import MockFile
 import NavigationKey exposing (NavigationKey)
 import Pixels exposing (Pixels)
 import Quantity exposing (Quantity)
+import SimulatedTask exposing (FrontendOnly, SimulatedTask)
 import Time
 import TimeZone
 
@@ -17,8 +18,6 @@ type FrontendEffect toBackend frontendMsg
     | NavigationPushUrl NavigationKey String
     | NavigationReplaceUrl NavigationKey String
     | NavigationLoad String
-    | GetTime (Time.Posix -> frontendMsg)
-    | Wait Duration frontendMsg
     | SelectFile (List String) (MockFile.File -> frontendMsg)
     | CopyToClipboard String
     | CropImage CropImageData
@@ -27,6 +26,7 @@ type FrontendEffect toBackend frontendMsg
     | GetWindowSize (Quantity Int Pixels -> Quantity Int Pixels -> frontendMsg)
     | GetTimeZone (Result TimeZone.Error ( String, Time.Zone ) -> frontendMsg)
     | ScrollToTop frontendMsg
+    | Task (SimulatedTask FrontendOnly frontendMsg frontendMsg)
 
 
 map :
@@ -54,12 +54,6 @@ map mapToBackend mapFrontendMsg frontendEffect =
         NavigationLoad url ->
             NavigationLoad url
 
-        GetTime msg ->
-            GetTime (msg >> mapFrontendMsg)
-
-        Wait duration msg ->
-            Wait duration (mapFrontendMsg msg)
-
         SelectFile mimeTypes msg ->
             SelectFile mimeTypes (msg >> mapFrontendMsg)
 
@@ -84,6 +78,11 @@ map mapToBackend mapFrontendMsg frontendEffect =
         ScrollToTop msg ->
             ScrollToTop (mapFrontendMsg msg)
 
+        Task simulatedTask ->
+            SimulatedTask.taskMap mapFrontendMsg simulatedTask
+                |> SimulatedTask.taskMapError mapFrontendMsg
+                |> Task
+
 
 type alias CropImageData =
     { requestId : Int
@@ -95,3 +94,22 @@ type alias CropImageData =
     , width : Quantity Int Pixels
     , height : Quantity Int Pixels
     }
+
+
+{-| -}
+taskPerform : (a -> msg) -> SimulatedTask FrontendOnly Never a -> FrontendEffect toBackend msg
+taskPerform f task =
+    task
+        |> SimulatedTask.taskMap f
+        |> SimulatedTask.taskMapError never
+        |> Task
+
+
+{-| This is very similar to [`perform`](#perform) except it can handle failures!
+-}
+taskAttempt : (Result x a -> msg) -> SimulatedTask FrontendOnly x a -> FrontendEffect toBackend msg
+taskAttempt f task =
+    task
+        |> SimulatedTask.taskMap (Ok >> f)
+        |> SimulatedTask.taskMapError (Err >> f)
+        |> Task

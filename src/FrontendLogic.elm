@@ -43,6 +43,7 @@ import ProfilePage
 import Quantity exposing (Quantity)
 import Route exposing (Route(..))
 import SearchPage
+import SimulatedTask
 import Terms
 import Time
 import Types exposing (..)
@@ -87,7 +88,7 @@ init url key =
         , timezone = Nothing
         }
     , FrontendEffect.Batch
-        [ FrontendEffect.GetTime GotTime
+        [ SimulatedTask.getTime |> FrontendEffect.taskPerform GotTime
         , FrontendEffect.GetWindowSize GotWindowSize
         , FrontendEffect.GetTimeZone GotTimeZone
         ]
@@ -415,7 +416,10 @@ updateLoaded msg model =
                         ( newModel, effects ) =
                             ProfilePage.update
                                 model
-                                { wait = \duration waitMsg -> FrontendEffect.Wait duration (ProfileFormMsg waitMsg)
+                                { wait =
+                                    \duration waitMsg ->
+                                        SimulatedTask.wait duration
+                                            |> FrontendEffect.taskPerform (\() -> ProfileFormMsg waitMsg)
                                 , none = FrontendEffect.None
                                 , changeName = ChangeNameRequest >> FrontendEffect.SendToBackend
                                 , changeDescription = ChangeDescriptionRequest >> FrontendEffect.SendToBackend

@@ -1,69 +1,24 @@
 module BackendEffect exposing
     ( BackendEffect(..)
-    , HttpBody(..)
-    , SimulatedTask(..)
-    , getTime
+    , get
     , map
-    , taskAndThen
+    , post
+    , request
     , taskAttempt
-    , taskFail
-    , taskMap
-    , taskMap2
-    , taskMap3
-    , taskMap4
-    , taskMap5
-    , taskMapError
-    , taskOnError
     , taskPerform
-    , taskSucceed
     )
 
+import BackendHttpEffect
 import Duration exposing (Duration)
-import Http
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken)
-import Json.Encode
-import Time
+import SimulatedTask exposing (BackendOnly, SimulatedTask)
 
 
 type BackendEffect toFrontend backendMsg
     = Batch (List (BackendEffect toFrontend backendMsg))
     | None
     | SendToFrontend ClientId toFrontend
-    | Task (SimulatedTask backendMsg backendMsg)
-
-
-type SimulatedTask x a
-    = Succeed a
-    | Fail x
-    | HttpTask (HttpRequest x a)
-    | SleepTask Duration (() -> SimulatedTask x a)
-    | GetTime (Time.Posix -> SimulatedTask x a)
-
-
-getTime : SimulatedTask x Time.Posix
-getTime =
-    GetTime Succeed
-
-
-type alias HttpRequest x a =
-    { method : String
-    , url : String
-    , body : HttpBody
-    , headers : List ( String, String )
-    , onRequestComplete : Http.Response String -> SimulatedTask x a
-    , timeout : Maybe Duration
-    }
-
-
-{-| Represents the body of a `Request`.
--}
-type HttpBody
-    = EmptyBody
-    | StringBody
-        { contentType : String
-        , content : String
-        }
-    | JsonBody Json.Encode.Value
+    | Task (SimulatedTask BackendOnly backendMsg backendMsg)
 
 
 map :
@@ -83,213 +38,92 @@ map mapToFrontend mapBackendMsg backendEffect =
             SendToFrontend clientId (mapToFrontend toFrontend)
 
         Task simulatedTask ->
-            taskMap mapBackendMsg simulatedTask |> taskMapError mapBackendMsg |> Task
+            SimulatedTask.taskMap mapBackendMsg simulatedTask
+                |> SimulatedTask.taskMapError mapBackendMsg
+                |> Task
 
 
 {-| -}
-taskPerform : (a -> msg) -> SimulatedTask Never a -> BackendEffect toFrontend msg
+taskPerform : (a -> msg) -> SimulatedTask BackendOnly Never a -> BackendEffect toFrontend msg
 taskPerform f task =
     task
-        |> taskMap f
-        |> taskMapError never
+        |> SimulatedTask.taskMap f
+        |> SimulatedTask.taskMapError never
         |> Task
 
 
 {-| This is very similar to [`perform`](#perform) except it can handle failures!
 -}
-taskAttempt : (Result x a -> msg) -> SimulatedTask x a -> BackendEffect toFrontend msg
+taskAttempt : (Result x a -> msg) -> SimulatedTask BackendOnly x a -> BackendEffect toFrontend msg
 taskAttempt f task =
     task
-        |> taskMap (Ok >> f)
-        |> taskMapError (Err >> f)
+        |> SimulatedTask.taskMap (Ok >> f)
+        |> SimulatedTask.taskMapError (Err >> f)
         |> Task
 
 
-{-| Chain together a task and a callback.
+{-| Create a `GET` request.
 -}
-taskAndThen : (a -> SimulatedTask x b) -> SimulatedTask x a -> SimulatedTask x b
-taskAndThen f task =
-    case task of
-        Succeed a ->
-            f a
-
-        Fail x ->
-            Fail x
-
-        HttpTask request ->
-            HttpTask
-                { method = request.method
-                , url = request.url
-                , body = request.body
-                , headers = request.headers
-                , onRequestComplete = request.onRequestComplete >> taskAndThen f
-                , timeout = request.timeout
-                }
-
-        SleepTask delay onResult ->
-            SleepTask delay (onResult >> taskAndThen f)
-
-        GetTime gotTime ->
-            GetTime (gotTime >> taskAndThen f)
+get :
+    { url : String
+    , expect : BackendHttpEffect.Expect msg
+    }
+    -> BackendEffect toFrontend msg
+get r =
+    request
+        { method = "GET"
+        , headers = []
+        , url = r.url
+        , body = BackendHttpEffect.emptyBody
+        , expect = r.expect
+        , timeout = Nothing
+        , tracker = Nothing
+        }
 
 
-{-| A task that succeeds immediately when run.
+{-| Create a `POST` request.
 -}
-taskSucceed : a -> SimulatedTask x a
-taskSucceed =
-    Succeed
+post :
+    { url : String
+    , body : SimulatedTask.HttpBody
+    , expect : BackendHttpEffect.Expect msg
+    }
+    -> BackendEffect toFrontend msg
+post r =
+    request
+        { method = "POST"
+        , headers = []
+        , url = r.url
+        , body = r.body
+        , expect = r.expect
+        , timeout = Nothing
+        , tracker = Nothing
+        }
 
 
-{-| A task that fails immediately when run.
+{-| Create a custom request.
 -}
-taskFail : x -> SimulatedTask x a
-taskFail =
-    Fail
-
-
-{-| Transform a task.
--}
-taskMap : (a -> b) -> SimulatedTask x a -> SimulatedTask x b
-taskMap f =
-    taskAndThen (f >> Succeed)
-
-
-{-| Put the results of two tasks together.
--}
-taskMap2 : (a -> b -> result) -> SimulatedTask x a -> SimulatedTask x b -> SimulatedTask x result
-taskMap2 func taskA taskB =
-    taskA
-        |> taskAndThen
-            (\a ->
-                taskB
-                    |> taskAndThen (\b -> taskSucceed (func a b))
-            )
-
-
-{-| Put the results of three tasks together.
--}
-taskMap3 : (a -> b -> c -> result) -> SimulatedTask x a -> SimulatedTask x b -> SimulatedTask x c -> SimulatedTask x result
-taskMap3 func taskA taskB taskC =
-    taskA
-        |> taskAndThen
-            (\a ->
-                taskB
-                    |> taskAndThen
-                        (\b ->
-                            taskC
-                                |> taskAndThen (\c -> taskSucceed (func a b c))
-                        )
-            )
-
-
-{-| Put the results of four tasks together.
--}
-taskMap4 :
-    (a -> b -> c -> d -> result)
-    -> SimulatedTask x a
-    -> SimulatedTask x b
-    -> SimulatedTask x c
-    -> SimulatedTask x d
-    -> SimulatedTask x result
-taskMap4 func taskA taskB taskC taskD =
-    taskA
-        |> taskAndThen
-            (\a ->
-                taskB
-                    |> taskAndThen
-                        (\b ->
-                            taskC
-                                |> taskAndThen
-                                    (\c ->
-                                        taskD
-                                            |> taskAndThen (\d -> taskSucceed (func a b c d))
-                                    )
-                        )
-            )
-
-
-{-| Put the results of five tasks together.
--}
-taskMap5 :
-    (a -> b -> c -> d -> e -> result)
-    -> SimulatedTask x a
-    -> SimulatedTask x b
-    -> SimulatedTask x c
-    -> SimulatedTask x d
-    -> SimulatedTask x e
-    -> SimulatedTask x result
-taskMap5 func taskA taskB taskC taskD taskE =
-    taskA
-        |> taskAndThen
-            (\a ->
-                taskB
-                    |> taskAndThen
-                        (\b ->
-                            taskC
-                                |> taskAndThen
-                                    (\c ->
-                                        taskD
-                                            |> taskAndThen
-                                                (\d ->
-                                                    taskE
-                                                        |> taskAndThen (\e -> taskSucceed (func a b c d e))
-                                                )
-                                    )
-                        )
-            )
-
-
-{-| Transform the error value.
--}
-taskMapError : (x -> y) -> SimulatedTask x a -> SimulatedTask y a
-taskMapError f task =
-    case task of
-        Succeed a ->
-            Succeed a
-
-        Fail x ->
-            Fail (f x)
-
-        HttpTask request ->
-            HttpTask
-                { method = request.method
-                , url = request.url
-                , body = request.body
-                , headers = request.headers
-                , onRequestComplete = request.onRequestComplete >> taskMapError f
-                , timeout = request.timeout
-                }
-
-        SleepTask delay onResult ->
-            SleepTask delay (onResult >> taskMapError f)
-
-        GetTime gotTime ->
-            GetTime (gotTime >> taskMapError f)
-
-
-{-| Recover from a failure in a task.
--}
-taskOnError : (x -> SimulatedTask y a) -> SimulatedTask x a -> SimulatedTask y a
-taskOnError f task =
-    case task of
-        Succeed a ->
-            Succeed a
-
-        Fail x ->
-            f x
-
-        HttpTask request ->
-            HttpTask
-                { method = request.method
-                , url = request.url
-                , body = request.body
-                , headers = request.headers
-                , onRequestComplete = request.onRequestComplete >> taskOnError f
-                , timeout = request.timeout
-                }
-
-        SleepTask delay onResult ->
-            SleepTask delay (onResult >> taskOnError f)
-
-        GetTime gotTime ->
-            GetTime (gotTime >> taskOnError f)
+request :
+    { method : String
+    , headers : List BackendHttpEffect.Header
+    , url : String
+    , body : SimulatedTask.HttpBody
+    , expect : BackendHttpEffect.Expect msg
+    , timeout : Maybe Duration
+    , tracker : Maybe String
+    }
+    -> BackendEffect toFrontend msg
+request r =
+    let
+        (BackendHttpEffect.Expect onResult) =
+            r.expect
+    in
+    SimulatedTask.HttpTask
+        { method = r.method
+        , url = r.url
+        , headers = r.headers
+        , body = r.body
+        , onRequestComplete = onResult >> SimulatedTask.Succeed
+        , timeout = r.timeout
+        }
+        |> Task

@@ -5,7 +5,6 @@ module Tests exposing
     )
 
 import AssocList as Dict
-import BackendEffect exposing (HttpBody(..))
 import BackendLogic
 import CreateGroupPage
 import Date
@@ -27,6 +26,7 @@ import Postmark
 import ProfilePage
 import Quantity
 import Route exposing (Route)
+import SimulatedTask exposing (HttpBody(..))
 import Test exposing (..)
 import Test.Html.Query
 import Test.Html.Selector

@@ -1,8 +1,7 @@
 module BackendHttpEffect exposing
-    ( get, post, request
-    , Header, header
+    ( Header, header
     , emptyBody, stringBody, jsonBody
-    , Expect, expectString, expectJson, expectWhatever, Error
+    , Expect(..), expectString, expectJson, expectWhatever, Error
     , expectStringResponse, Response
     , task, Resolver, stringResolver
     )
@@ -45,78 +44,11 @@ to help you implement the function to provide when using [`ProgramTest.withBacke
 
 -}
 
-import BackendEffect exposing (BackendEffect, HttpBody(..), SimulatedTask)
 import Duration exposing (Duration)
 import Http
 import Json.Decode exposing (Decoder)
 import Json.Encode
-
-
-{-| Create a `GET` request.
--}
-get :
-    { url : String
-    , expect : Expect msg
-    }
-    -> BackendEffect toFrontend msg
-get r =
-    request
-        { method = "GET"
-        , headers = []
-        , url = r.url
-        , body = emptyBody
-        , expect = r.expect
-        , timeout = Nothing
-        , tracker = Nothing
-        }
-
-
-{-| Create a `POST` request.
--}
-post :
-    { url : String
-    , body : HttpBody
-    , expect : Expect msg
-    }
-    -> BackendEffect toFrontend msg
-post r =
-    request
-        { method = "POST"
-        , headers = []
-        , url = r.url
-        , body = r.body
-        , expect = r.expect
-        , timeout = Nothing
-        , tracker = Nothing
-        }
-
-
-{-| Create a custom request.
--}
-request :
-    { method : String
-    , headers : List Header
-    , url : String
-    , body : HttpBody
-    , expect : Expect msg
-    , timeout : Maybe Duration
-    , tracker : Maybe String
-    }
-    -> BackendEffect toFrontend msg
-request r =
-    let
-        (Expect onResult) =
-            r.expect
-    in
-    BackendEffect.HttpTask
-        { method = r.method
-        , url = r.url
-        , headers = r.headers
-        , body = r.body
-        , onRequestComplete = onResult >> BackendEffect.Succeed
-        , timeout = r.timeout
-        }
-        |> BackendEffect.Task
+import SimulatedTask exposing (HttpBody(..), SimulatedTask)
 
 
 
@@ -268,12 +200,12 @@ task :
     , headers : List Header
     , url : String
     , body : HttpBody
-    , resolver : Resolver x a
+    , resolver : Resolver restriction x a
     , timeout : Maybe Duration
     }
-    -> SimulatedTask x a
+    -> SimulatedTask restriction x a
 task r =
-    BackendEffect.HttpTask
+    SimulatedTask.HttpTask
         { method = r.method
         , url = r.url
         , headers = r.headers
@@ -288,21 +220,21 @@ task r =
 
 {-| Describes how to resolve an HTTP task.
 -}
-type Resolver x a
-    = StringResolver (Response String -> SimulatedTask x a)
+type Resolver restriction x a
+    = StringResolver (Response String -> SimulatedTask restriction x a)
 
 
 {-| Turn a response with a `String` body into a result.
 -}
-stringResolver : (Response String -> Result x a) -> Resolver x a
+stringResolver : (Response String -> Result x a) -> Resolver restriction x a
 stringResolver f =
     let
         fromResult result =
             case result of
                 Err x ->
-                    BackendEffect.Fail x
+                    SimulatedTask.Fail x
 
                 Ok a ->
-                    BackendEffect.Succeed a
+                    SimulatedTask.Succeed a
     in
     StringResolver (f >> fromResult)
