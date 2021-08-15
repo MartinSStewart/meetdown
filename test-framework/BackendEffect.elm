@@ -8,8 +8,8 @@ module BackendEffect exposing
     , taskPerform
     )
 
-import BackendHttpEffect
 import Duration exposing (Duration)
+import HttpEffect
 import Id exposing (ClientId)
 import SimulatedTask exposing (BackendOnly, SimulatedTask)
 
@@ -38,8 +38,8 @@ map mapToFrontend mapBackendMsg backendEffect =
             SendToFrontend clientId (mapToFrontend toFrontend)
 
         Task simulatedTask ->
-            SimulatedTask.taskMap mapBackendMsg simulatedTask
-                |> SimulatedTask.taskMapError mapBackendMsg
+            SimulatedTask.map mapBackendMsg simulatedTask
+                |> SimulatedTask.mapError mapBackendMsg
                 |> Task
 
 
@@ -47,8 +47,8 @@ map mapToFrontend mapBackendMsg backendEffect =
 taskPerform : (a -> msg) -> SimulatedTask BackendOnly Never a -> BackendEffect toFrontend msg
 taskPerform f task =
     task
-        |> SimulatedTask.taskMap f
-        |> SimulatedTask.taskMapError never
+        |> SimulatedTask.map f
+        |> SimulatedTask.mapError never
         |> Task
 
 
@@ -57,8 +57,8 @@ taskPerform f task =
 taskAttempt : (Result x a -> msg) -> SimulatedTask BackendOnly x a -> BackendEffect toFrontend msg
 taskAttempt f task =
     task
-        |> SimulatedTask.taskMap (Ok >> f)
-        |> SimulatedTask.taskMapError (Err >> f)
+        |> SimulatedTask.map (Ok >> f)
+        |> SimulatedTask.mapError (Err >> f)
         |> Task
 
 
@@ -66,7 +66,7 @@ taskAttempt f task =
 -}
 get :
     { url : String
-    , expect : BackendHttpEffect.Expect msg
+    , expect : HttpEffect.Expect msg
     }
     -> BackendEffect toFrontend msg
 get r =
@@ -74,7 +74,7 @@ get r =
         { method = "GET"
         , headers = []
         , url = r.url
-        , body = BackendHttpEffect.emptyBody
+        , body = HttpEffect.emptyBody
         , expect = r.expect
         , timeout = Nothing
         , tracker = Nothing
@@ -86,7 +86,7 @@ get r =
 post :
     { url : String
     , body : SimulatedTask.HttpBody
-    , expect : BackendHttpEffect.Expect msg
+    , expect : HttpEffect.Expect msg
     }
     -> BackendEffect toFrontend msg
 post r =
@@ -105,17 +105,17 @@ post r =
 -}
 request :
     { method : String
-    , headers : List BackendHttpEffect.Header
+    , headers : List HttpEffect.Header
     , url : String
     , body : SimulatedTask.HttpBody
-    , expect : BackendHttpEffect.Expect msg
+    , expect : HttpEffect.Expect msg
     , timeout : Maybe Duration
     , tracker : Maybe String
     }
     -> BackendEffect toFrontend msg
 request r =
     let
-        (BackendHttpEffect.Expect onResult) =
+        (HttpEffect.Expect onResult) =
             r.expect
     in
     SimulatedTask.HttpTask

@@ -1,10 +1,10 @@
 module Postmark exposing (..)
 
 import BackendEffect exposing (BackendEffect)
-import BackendHttpEffect
 import Email.Html
 import EmailAddress exposing (EmailAddress)
 import Http
+import HttpEffect
 import Json.Decode as D
 import Json.Decode.Pipeline exposing (..)
 import Json.Encode as E
@@ -45,7 +45,7 @@ sendEmailTask token d =
     let
         httpBody : SimulatedTask.HttpBody
         httpBody =
-            BackendHttpEffect.jsonBody <|
+            HttpEffect.jsonBody <|
                 E.object <|
                     [ ( "From", E.string <| emailToString d.from )
                     , ( "To", E.string <| emailsToString d.to )
@@ -54,9 +54,9 @@ sendEmailTask token d =
                     ]
                         ++ bodyToJsonValues d.body
     in
-    BackendHttpEffect.task
+    HttpEffect.task
         { method = "POST"
-        , headers = [ BackendHttpEffect.header "X-Postmark-Server-Token" token ]
+        , headers = [ HttpEffect.header "X-Postmark-Server-Token" token ]
         , url = endpoint ++ "/email"
         , body = httpBody
         , resolver = jsonResolver decodePostmarkSendResponse
@@ -122,7 +122,7 @@ sendTemplateEmail : PostmarkTemplateSend -> SimulatedTask BackendOnly Http.Error
 sendTemplateEmail d =
     let
         httpBody =
-            BackendHttpEffect.jsonBody <|
+            HttpEffect.jsonBody <|
                 E.object <|
                     [ ( "From", E.string d.from )
                     , ( "To", E.string d.to )
@@ -131,9 +131,9 @@ sendTemplateEmail d =
                     , ( "TemplateModel", d.templateModel )
                     ]
     in
-    BackendHttpEffect.task
+    HttpEffect.task
         { method = "POST"
-        , headers = [ BackendHttpEffect.header "X-Postmark-Server-Token" d.token ]
+        , headers = [ HttpEffect.header "X-Postmark-Server-Token" d.token ]
         , url = endpoint ++ "/email/withTemplate"
         , body = httpBody
         , resolver = jsonResolver decodePostmarkTemplateSendResponse
@@ -178,9 +178,9 @@ bodyToJsonValues body =
             ]
 
 
-jsonResolver : D.Decoder a -> BackendHttpEffect.Resolver BackendOnly Http.Error a
+jsonResolver : D.Decoder a -> HttpEffect.Resolver BackendOnly Http.Error a
 jsonResolver decoder =
-    BackendHttpEffect.stringResolver <|
+    HttpEffect.stringResolver <|
         \response ->
             case response of
                 Http.GoodStatus_ _ body ->

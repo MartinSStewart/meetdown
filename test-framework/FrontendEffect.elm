@@ -85,8 +85,8 @@ map mapToBackend mapFrontendMsg frontendEffect =
             FileToUrl (msg >> mapFrontendMsg) file
 
         Task simulatedTask ->
-            SimulatedTask.taskMap mapFrontendMsg simulatedTask
-                |> SimulatedTask.taskMapError mapFrontendMsg
+            SimulatedTask.map mapFrontendMsg simulatedTask
+                |> SimulatedTask.mapError mapFrontendMsg
                 |> Task
 
         Port portName function value ->
@@ -97,8 +97,8 @@ map mapToBackend mapFrontendMsg frontendEffect =
 taskPerform : (a -> msg) -> SimulatedTask FrontendOnly Never a -> FrontendEffect toBackend msg
 taskPerform f task =
     task
-        |> SimulatedTask.taskMap f
-        |> SimulatedTask.taskMapError never
+        |> SimulatedTask.map f
+        |> SimulatedTask.mapError never
         |> Task
 
 
@@ -107,6 +107,6 @@ taskPerform f task =
 taskAttempt : (Result x a -> msg) -> SimulatedTask FrontendOnly x a -> FrontendEffect toBackend msg
 taskAttempt f task =
     task
-        |> SimulatedTask.taskMap (Ok >> f)
-        |> SimulatedTask.taskMapError (Err >> f)
+        |> SimulatedTask.map (Ok >> f)
+        |> SimulatedTask.mapError (Err >> f)
         |> Task

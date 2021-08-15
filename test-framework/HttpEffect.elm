@@ -1,4 +1,4 @@
-module BackendHttpEffect exposing
+module HttpEffect exposing
     ( Header, header
     , emptyBody, stringBody, jsonBody
     , Expect(..), expectString, expectJson, expectWhatever, Error
