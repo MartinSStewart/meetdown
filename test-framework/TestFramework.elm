@@ -634,7 +634,7 @@ disconnectFrontend :
     BackendApp toBackend toFrontend backendMsg backendModel
     -> ClientId
     -> State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
-    -> ( State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel, FrontendState toBackend frontendMsg frontendModel toFrontend )
+    -> ( State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel, Maybe (FrontendState toBackend frontendMsg frontendModel toFrontend) )
 disconnectFrontend backendApp clientId state =
     case Dict.get clientId state.frontends of
         Just frontend ->
@@ -648,10 +648,12 @@ disconnectFrontend backendApp clientId state =
                             )
                             ( state.backend, state.pendingEffects )
             in
-            ( { state | backend = backend, pendingEffects = effects, frontends = Dict.remove clientId state.frontends }, { frontend | toFrontend = [] } )
+            ( { state | backend = backend, pendingEffects = effects, frontends = Dict.remove clientId state.frontends }
+            , Just { frontend | toFrontend = [] }
+            )
 
         Nothing ->
-            Debug.todo "Invalid clientId"
+            ( state, Nothing )
 
 
 reconnectFrontend :
@@ -1211,8 +1213,9 @@ runTask maybeClientId frontendApp state task =
                 |> httpRequest.onRequestComplete
                 |> runTask maybeClientId frontendApp { state | httpRequests = request :: state.httpRequests }
 
-        SleepTask duration function ->
-            Debug.todo ""
+        SleepTask _ function ->
+            -- TODO: Implement actual delays in tasks
+            runTask maybeClientId frontendApp state (function ())
 
         GetTime gotTime ->
             gotTime (Duration.addTo startTime state.elapsedTime) |> runTask maybeClientId frontendApp state
