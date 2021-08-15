@@ -88,6 +88,9 @@ toTask simulatedTask =
 
                         BackendEffect.StringBody { contentType, content } ->
                             Http.stringBody contentType content
+
+                        BackendEffect.JsonBody value ->
+                            Http.jsonBody value
                 , resolver = Http.stringResolver Ok
                 , timeout = Maybe.map Duration.inMilliseconds httpRequest.timeout
                 }

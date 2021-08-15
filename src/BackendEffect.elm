@@ -1,8 +1,26 @@
-module BackendEffect exposing (BackendEffect(..), HttpBody(..), SimulatedTask(..), map, taskAndThen, taskAttempt, taskFail, taskMap, taskMap2, taskMap3, taskMap4, taskMap5, taskMapError, taskOnError, taskPerform, taskSucceed)
+module BackendEffect exposing
+    ( BackendEffect(..)
+    , HttpBody(..)
+    , SimulatedTask(..)
+    , map
+    , taskAndThen
+    , taskAttempt
+    , taskFail
+    , taskMap
+    , taskMap2
+    , taskMap3
+    , taskMap4
+    , taskMap5
+    , taskMapError
+    , taskOnError
+    , taskPerform
+    , taskSucceed
+    )
 
 import Duration exposing (Duration)
 import Http
 import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken)
+import Json.Encode
 import Time
 
 
@@ -39,6 +57,7 @@ type HttpBody
         { contentType : String
         , content : String
         }
+    | JsonBody Json.Encode.Value
 
 
 map :

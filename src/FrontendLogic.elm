@@ -76,7 +76,7 @@ init : Url -> NavigationKey -> ( FrontendModel, FrontendEffect ToBackend Fronten
 init url key =
     let
         ( route, token ) =
-            Url.Parser.parse Route.decode url |> Maybe.withDefault ( HomepageRoute, Route.NoToken )
+            Route.decode url |> Maybe.withDefault ( HomepageRoute, Route.NoToken )
     in
     ( Loading
         { navigationKey = key
@@ -313,7 +313,7 @@ updateLoaded msg model =
                 Internal url ->
                     let
                         route =
-                            Url.Parser.parse Route.decode url
+                            Route.decode url
                                 |> Maybe.map Tuple.first
                                 |> Maybe.withDefault HomepageRoute
                     in
@@ -327,7 +327,7 @@ updateLoaded msg model =
         UrlChanged url ->
             let
                 route =
-                    Url.Parser.parse Route.decode url
+                    Route.decode url
                         |> Maybe.map Tuple.first
                         |> Maybe.withDefault HomepageRoute
             in

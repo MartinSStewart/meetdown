@@ -151,10 +151,7 @@ add the `Content-Type: application/json` header.
 -}
 jsonBody : Json.Encode.Value -> HttpBody
 jsonBody value =
-    StringBody
-        { contentType = "application/json"
-        , content = Json.Encode.encode 0 value
-        }
+    JsonBody value
 
 
 {-| Put some string in the body of your `Request`.

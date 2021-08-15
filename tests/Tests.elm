@@ -5,6 +5,7 @@ module Tests exposing
     )
 
 import AssocList as Dict
+import BackendEffect exposing (HttpBody(..))
 import BackendLogic
 import CreateGroupPage
 import Date
@@ -13,16 +14,19 @@ import Duration
 import EmailAddress exposing (EmailAddress)
 import Env
 import FrontendLogic
-import Group
+import Group exposing (EventId)
 import GroupName exposing (GroupName)
 import GroupPage
+import Html.Parser
 import Http
 import Id exposing (ClientId, GroupId, Id)
+import Json.Decode
 import List.Extra as List
 import LoginForm
+import Postmark
 import ProfilePage
 import Quantity
-import Route
+import Route exposing (Route)
 import Test exposing (..)
 import Test.Html.Query
 import Test.Html.Selector
@@ -32,6 +36,7 @@ import Types exposing (BackendModel, BackendMsg, FrontendModel(..), FrontendMsg(
 import Ui
 import Unsafe
 import Untrusted
+import Url
 
 
 frontendApp =
@@ -134,23 +139,205 @@ handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress andTh
         |> testApp.simulateTime Duration.second
         |> TF.andThen
             (\state3 ->
-                case List.filter (Tuple.first >> (==) emailAddress) state3.emailInboxes |> List.reverse |> List.head of
-                    Just ( _, LoginEmail route loginToken maybeJoinEvent ) ->
-                        TF.continueWith state3
-                            |> testApp.connectFrontend
-                                sessionIdFromEmail
-                                (Unsafe.url (BackendLogic.loginEmailLink route loginToken maybeJoinEvent))
-                                (\( state4, clientIdFromEmail ) ->
-                                    andThenFunc
-                                        { instructions = state4 |> testApp.simulateTime Duration.second
-                                        , clientId = clientId
-                                        , clientIdFromEmail = clientIdFromEmail
-                                        }
-                                )
+                case List.filterMap isLoginEmail state3.httpRequests |> List.head of
+                    Just loginEmail ->
+                        if loginEmail.emailAddress == emailAddress then
+                            TF.continueWith state3
+                                |> testApp.connectFrontend
+                                    sessionIdFromEmail
+                                    (Unsafe.url (BackendLogic.loginEmailLink loginEmail.route loginEmail.loginToken loginEmail.maybeJoinEvent))
+                                    (\( state4, clientIdFromEmail ) ->
+                                        andThenFunc
+                                            { instructions = state4 |> testApp.simulateTime Duration.second
+                                            , clientId = clientId
+                                            , clientIdFromEmail = clientIdFromEmail
+                                            }
+                                    )
+
+                        else
+                            TF.continueWith state3 |> TF.checkState (\_ -> Err "Got a login email but it was to the wrong address")
 
                     _ ->
                         TF.continueWith state3 |> TF.checkState (\_ -> Err "Should have gotten a login email")
             )
+
+
+decodePostmark : Json.Decode.Decoder ( String, EmailAddress, List Html.Parser.Node )
+decodePostmark =
+    Json.Decode.map3 (\subject to body -> ( subject, to, body ))
+        (Json.Decode.field "Subject" Json.Decode.string)
+        (Json.Decode.field "To" Json.Decode.string
+            |> Json.Decode.andThen
+                (\to ->
+                    case EmailAddress.fromString to of
+                        Just emailAddress ->
+                            Json.Decode.succeed emailAddress
+
+                        Nothing ->
+                            Json.Decode.fail "Invalid email address"
+                )
+        )
+        (Json.Decode.field "HtmlBody" Json.Decode.string
+            |> Json.Decode.andThen
+                (\html ->
+                    case Html.Parser.run html of
+                        Ok nodes ->
+                            Json.Decode.succeed nodes
+
+                        Err _ ->
+                            Json.Decode.fail "Failed to parse html"
+                )
+        )
+
+
+isLoginEmail :
+    TF.HttpRequest
+    ->
+        Maybe
+            { emailAddress : EmailAddress
+            , route : Route
+            , loginToken : Id Id.LoginToken
+            , maybeJoinEvent : Maybe ( Id GroupId, EventId )
+            }
+isLoginEmail httpRequest =
+    if String.startsWith (Postmark.endpoint ++ "/email") httpRequest.url then
+        case httpRequest.body of
+            JsonBody value ->
+                case Json.Decode.decodeValue decodePostmark value of
+                    Ok ( subject, to, body ) ->
+                        case ( subject, getRoutesFromHtml body ) of
+                            ( "Meetdown login link", [ ( route, Route.LoginToken loginToken maybeJoinEvent ) ] ) ->
+                                { emailAddress = to
+                                , route = route
+                                , loginToken = loginToken
+                                , maybeJoinEvent = maybeJoinEvent
+                                }
+                                    |> Just
+
+                            _ ->
+                                Nothing
+
+                    Err _ ->
+                        Nothing
+
+            _ ->
+                Nothing
+
+    else
+        Nothing
+
+
+isReminderEmail :
+    TF.HttpRequest
+    -> Maybe { emailAddress : EmailAddress, groupId : Id GroupId, groupName : GroupName }
+isReminderEmail httpRequest =
+    if String.startsWith (Postmark.endpoint ++ "/email") httpRequest.url then
+        case httpRequest.body of
+            JsonBody value ->
+                case Json.Decode.decodeValue decodePostmark value of
+                    Ok ( subject, to, body ) ->
+                        case getRoutesFromHtml body of
+                            [ ( Route.GroupRoute groupId groupName, Route.NoToken ) ] ->
+                                { emailAddress = to
+                                , groupId = groupId
+                                , groupName = groupName
+                                }
+                                    |> Just
+
+                            _ ->
+                                Nothing
+
+                    Err _ ->
+                        Nothing
+
+            _ ->
+                Nothing
+
+    else
+        Nothing
+
+
+gotReminder : EmailAddress -> List TF.HttpRequest -> Bool
+gotReminder emailAddress httpRequests =
+    List.filterMap isReminderEmail httpRequests
+        |> List.any (\reminder -> reminder.emailAddress == emailAddress)
+
+
+isDeleteUserEmail :
+    TF.HttpRequest
+    ->
+        Maybe
+            { emailAddress : EmailAddress
+            , route : Route
+            , deleteUserToken : Id Id.DeleteUserToken
+            }
+isDeleteUserEmail httpRequest =
+    if String.startsWith (Postmark.endpoint ++ "/email") httpRequest.url then
+        case httpRequest.body of
+            JsonBody value ->
+                case Json.Decode.decodeValue decodePostmark value of
+                    Ok ( subject, to, body ) ->
+                        case ( subject, getRoutesFromHtml body ) of
+                            ( "Confirm account deletion", [ ( route, Route.DeleteUserToken deleteUserToken ) ] ) ->
+                                { emailAddress = to
+                                , route = route
+                                , deleteUserToken = deleteUserToken
+                                }
+                                    |> Just
+
+                            _ ->
+                                Nothing
+
+                    Err _ ->
+                        Nothing
+
+            _ ->
+                Nothing
+
+    else
+        Nothing
+
+
+getRoutesFromHtml : List Html.Parser.Node -> List ( Route, Route.Token )
+getRoutesFromHtml nodes =
+    List.filterMap
+        (\( attributes, _ ) ->
+            let
+                maybeHref =
+                    List.filterMap
+                        (\( name, value ) ->
+                            if name == "href" then
+                                Just value
+
+                            else
+                                Nothing
+                        )
+                        attributes
+                        |> List.head
+            in
+            maybeHref |> Maybe.andThen Url.fromString |> Maybe.andThen Route.decode
+        )
+        (findNodesByTag "a" nodes)
+
+
+findNodesByTag : String -> List Html.Parser.Node -> List ( List Html.Parser.Attribute, List Html.Parser.Node )
+findNodesByTag tagName nodes =
+    List.concatMap
+        (\node ->
+            case node of
+                Html.Parser.Element name attributes children ->
+                    (if name == tagName then
+                        [ ( attributes, children ) ]
+
+                     else
+                        []
+                    )
+                        ++ findNodesByTag tagName children
+
+                _ ->
+                    []
+        )
+        nodes
 
 
 suite : Test
@@ -303,12 +490,18 @@ suite =
                             instructions
                                 |> TF.andThen
                                     (\state ->
-                                        case List.filter (Tuple.first >> (==) emailAddress) state.emailInboxes of
-                                            [ ( _, LoginEmail route loginToken maybeJoinEvent ) ] ->
+                                        case List.filterMap isLoginEmail state.httpRequests of
+                                            [ loginEmail ] ->
                                                 TF.continueWith state
                                                     |> testApp.connectFrontend
                                                         (Id.sessionIdFromString "session1")
-                                                        (Unsafe.url (BackendLogic.loginEmailLink route loginToken maybeJoinEvent))
+                                                        (Unsafe.url
+                                                            (BackendLogic.loginEmailLink
+                                                                loginEmail.route
+                                                                loginEmail.loginToken
+                                                                loginEmail.maybeJoinEvent
+                                                            )
+                                                        )
                                                         (\( state2, clientId3 ) ->
                                                             state2
                                                                 |> testApp.simulateTime Duration.second
@@ -412,22 +605,20 @@ suite =
                                 |> TF.fastForward (Duration.days 1.999 |> Quantity.plus (Duration.hours 14))
                                 |> TF.checkState
                                     (\model ->
-                                        case gotReminder emailAddress model of
-                                            Just _ ->
-                                                Err "Shouldn't have gotten an event notification yet"
+                                        if gotReminder emailAddress model.httpRequests then
+                                            Err "Shouldn't have gotten an event notification yet"
 
-                                            Nothing ->
-                                                Ok ()
+                                        else
+                                            Ok ()
                                     )
                                 |> testApp.simulateTime (Duration.days 0.002)
                                 |> TF.checkState
                                     (\model ->
-                                        case gotReminder emailAddress model of
-                                            Just _ ->
-                                                Ok ()
+                                        if gotReminder emailAddress model.httpRequests then
+                                            Ok ()
 
-                                            Nothing ->
-                                                Err "Should have gotten an event notification"
+                                        else
+                                            Err "Should have gotten an event notification"
                                     )
                         )
                     |> TF.toExpectation
@@ -462,12 +653,11 @@ suite =
                                 |> testApp.simulateTime (Duration.hours 0.02)
                                 |> TF.checkState
                                     (\model ->
-                                        case gotReminder emailAddress model of
-                                            Just _ ->
-                                                Err "Shouldn't have gotten an event notification"
+                                        if gotReminder emailAddress model.httpRequests then
+                                            Err "Shouldn't have gotten an event notification"
 
-                                            Nothing ->
-                                                Ok ()
+                                        else
+                                            Ok ()
                                     )
                         )
                     |> TF.toExpectation
@@ -527,12 +717,11 @@ suite =
                                         |> testApp.simulateTime (Duration.seconds 30)
                                         |> TF.checkState
                                             (\model ->
-                                                case gotReminder emailAddress1 model of
-                                                    Just _ ->
-                                                        Ok ()
+                                                if gotReminder emailAddress1 model.httpRequests then
+                                                    Ok ()
 
-                                                    Nothing ->
-                                                        Err "Should have gotten an event notification"
+                                                else
+                                                    Err "Should have gotten an event notification"
                                             )
                                 )
                                 instructions
@@ -565,7 +754,7 @@ suite =
                     |> connectAndLogin 4
                     |> TF.checkState
                         (\state2 ->
-                            if List.length state2.emailInboxes == 1 then
+                            if List.filterMap isLoginEmail state2.httpRequests |> List.length |> (==) 1 then
                                 Ok ()
 
                             else
@@ -575,7 +764,7 @@ suite =
                     |> connectAndLogin 5
                     |> TF.checkState
                         (\state2 ->
-                            if List.length state2.emailInboxes == 2 then
+                            if List.filterMap isLoginEmail state2.httpRequests |> List.length |> (==) 2 then
                                 Ok ()
 
                             else
@@ -615,7 +804,7 @@ suite =
                                     (\state2 ->
                                         let
                                             count =
-                                                List.length state2.emailInboxes
+                                                List.filterMap isLoginEmail state2.httpRequests |> List.length
                                         in
                                         if count == 1 then
                                             Ok ()
@@ -634,7 +823,7 @@ suite =
                                     (\state2 ->
                                         let
                                             count =
-                                                List.length state2.emailInboxes
+                                                List.filterMap isLoginEmail state2.httpRequests |> List.length
                                         in
                                         if count == 2 then
                                             Ok ()
@@ -679,10 +868,15 @@ suite =
                                         let
                                             count =
                                                 List.count
-                                                    (\( address, email ) ->
-                                                        address == emailAddress && TF.isDeleteAccountEmail email
+                                                    (\httpRequest ->
+                                                        case isDeleteUserEmail httpRequest of
+                                                            Just deleteUserEmail ->
+                                                                deleteUserEmail.emailAddress == emailAddress
+
+                                                            Nothing ->
+                                                                False
                                                     )
-                                                    state2.emailInboxes
+                                                    state2.httpRequests
                                         in
                                         if count == 1 then
                                             Ok ()
@@ -701,10 +895,15 @@ suite =
                                         let
                                             count =
                                                 List.count
-                                                    (\( address, email ) ->
-                                                        address == emailAddress && TF.isDeleteAccountEmail email
+                                                    (\httpRequest ->
+                                                        case isDeleteUserEmail httpRequest of
+                                                            Just deleteUserEmail ->
+                                                                deleteUserEmail.emailAddress == emailAddress
+
+                                                            Nothing ->
+                                                                False
                                                     )
-                                                    state2.emailInboxes
+                                                    state2.httpRequests
                                         in
                                         if count == 2 then
                                             Ok ()
@@ -971,15 +1170,6 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
                     )
                     instructions
             )
-
-
-gotReminder : a -> { b | emailInboxes : List ( a, EmailType ) } -> Maybe ( a, EmailType )
-gotReminder emailAddress model =
-    List.find
-        (\( address, emailType ) ->
-            address == emailAddress && TF.isEventReminderEmail emailType
-        )
-        model.emailInboxes
 
 
 createGroup :

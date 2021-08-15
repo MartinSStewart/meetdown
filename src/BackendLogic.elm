@@ -1,13 +1,6 @@
 module BackendLogic exposing
-    ( deleteAccountEmailContent
-    , deleteAccountEmailSubject
-    , eventReminderEmailContent
-    , eventReminderEmailSubject
-    , init
-    , loginEmailContent
+    ( init
     , loginEmailLink
-    , loginEmailSubject
-    , sendGridApiKey
     , subscriptions
     , update
     , updateFromFrontend
@@ -42,17 +35,11 @@ import Postmark
 import ProfileImage
 import Quantity
 import Route exposing (Route(..))
-import SendGrid
 import String.Nonempty exposing (NonemptyString(..))
 import Time
 import Toop exposing (T3(..), T4(..), T5(..))
 import Types exposing (..)
 import Untrusted
-
-
-sendGridApiKey : SendGrid.ApiKey
-sendGridApiKey =
-    SendGrid.apiKey Env.sendGridApiKey_
 
 
 loginEmailLink : Route -> Id LoginToken -> Maybe ( Id GroupId, EventId ) -> String

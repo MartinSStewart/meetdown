@@ -4,7 +4,7 @@ import Group exposing (EventId)
 import GroupName exposing (GroupName)
 import Id exposing (DeleteUserToken, GroupId, Id, LoginToken, UserId)
 import Name exposing (Name)
-import Url
+import Url exposing (Url)
 import Url.Builder
 import Url.Parser exposing ((</>), (<?>))
 import Url.Parser.Query
@@ -25,8 +25,8 @@ type Route
     | FrequentQuestionsRoute
 
 
-decode : Url.Parser.Parser (( Route, Token ) -> c) c
-decode =
+decode : Url -> Maybe ( Route, Token )
+decode url =
     Url.Parser.oneOf
         [ Url.Parser.top |> Url.Parser.map HomepageRoute
         , Url.Parser.s "group"
@@ -68,6 +68,7 @@ decode =
         ]
         <?> decodeToken
         |> Url.Parser.map Tuple.pair
+        |> (\a -> Url.Parser.parse a url)
 
 
 decodeToken : Url.Parser.Query.Parser Token
