@@ -51,13 +51,6 @@ import Json.Encode
 import SimulatedTask exposing (HttpBody(..), SimulatedTask)
 
 
-
---type HttpBody =
---    JsonBody Json.Encode.Value
---    | StringBody String
---    | BytesBody Bytes
-
-
 {-| An HTTP header for configuring requests.
 -}
 type alias Header =

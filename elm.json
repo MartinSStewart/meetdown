@@ -3,7 +3,8 @@
     "source-directories": [
         "src",
         "send-grid",
-        "justinmimbs/timezone-data/4.0.2/src"
+        "justinmimbs/timezone-data/4.0.2/src",
+        "test-framework"
     ],
     "elm-version": "0.19.1",
     "dependencies": {
@@ -42,7 +43,8 @@
             "mpizenberg/elm-pointer-events": "4.0.2",
             "noahzgordon/elm-color-extra": "1.0.2",
             "pzp1997/assoc-list": "1.0.0",
-            "zwilias/elm-html-string": "2.0.2"
+            "zwilias/elm-html-string": "2.0.2",
+            "elm-explorations/test": "1.2.2"
         },
         "indirect": {
             "NoRedInk/elm-string-conversions": "1.0.1",
@@ -56,9 +58,7 @@
         }
     },
     "test-dependencies": {
-        "direct": {
-            "elm-explorations/test": "1.2.2"
-        },
+        "direct": {},
         "indirect": {}
     }
 }

@@ -22,7 +22,6 @@ import Html.Parser
 import Http
 import Id exposing (ClientId, GroupId, Id)
 import Json.Decode
-import Json.Encode
 import List.Extra as List
 import LoginForm
 import Postmark
