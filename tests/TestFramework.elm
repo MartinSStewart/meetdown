@@ -1142,13 +1142,6 @@ runBackendEffects backendApp effect state =
                         state.frontends
             }
 
-        BackendEffect.GetTime msg ->
-            let
-                ( model, effects ) =
-                    backendApp.update (msg (Duration.addTo startTime state.elapsedTime)) state.backend
-            in
-            { state | backend = model, pendingEffects = BackendEffect.Batch [ state.pendingEffects, effects ] }
-
         BackendEffect.None ->
             state
 
@@ -1194,6 +1187,9 @@ runBackendTask state task =
 
         SleepTask duration function ->
             Debug.todo ""
+
+        GetTime gotTime ->
+            gotTime (Duration.addTo startTime state.elapsedTime) |> runBackendTask state
 
 
 postmarkResponse =

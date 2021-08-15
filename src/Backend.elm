@@ -51,9 +51,6 @@ toCmd effect =
         BackendEffect.SendToFrontend clientId toFrontend ->
             Lamdera.sendToFrontend (Id.clientIdToString clientId) toFrontend
 
-        BackendEffect.GetTime msg ->
-            Time.now |> Task.perform msg
-
         BackendEffect.Task simulatedTask ->
             toTask simulatedTask
                 |> Task.attempt
@@ -99,6 +96,9 @@ toTask simulatedTask =
         BackendEffect.SleepTask duration function ->
             Process.sleep (Duration.inMilliseconds duration)
                 |> Task.andThen (\() -> toTask (function ()))
+
+        BackendEffect.GetTime gotTime ->
+            Time.now |> Task.andThen (\time -> toTask (gotTime time))
 
 
 toSub : BackendSub BackendMsg -> Sub BackendMsg

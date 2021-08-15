@@ -235,7 +235,7 @@ isReminderEmail httpRequest =
         case httpRequest.body of
             JsonBody value ->
                 case Json.Decode.decodeValue decodePostmark value of
-                    Ok ( subject, to, body ) ->
+                    Ok ( _, to, body ) ->
                         case getRoutesFromHtml body of
                             [ ( Route.GroupRoute groupId groupName, Route.NoToken ) ] ->
                                 { emailAddress = to

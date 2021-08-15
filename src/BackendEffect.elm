@@ -2,6 +2,7 @@ module BackendEffect exposing
     ( BackendEffect(..)
     , HttpBody(..)
     , SimulatedTask(..)
+    , getTime
     , map
     , taskAndThen
     , taskAttempt
@@ -28,7 +29,6 @@ type BackendEffect toFrontend backendMsg
     = Batch (List (BackendEffect toFrontend backendMsg))
     | None
     | SendToFrontend ClientId toFrontend
-    | GetTime (Time.Posix -> backendMsg)
     | Task (SimulatedTask backendMsg backendMsg)
 
 
@@ -37,6 +37,12 @@ type SimulatedTask x a
     | Fail x
     | HttpTask (HttpRequest x a)
     | SleepTask Duration (() -> SimulatedTask x a)
+    | GetTime (Time.Posix -> SimulatedTask x a)
+
+
+getTime : SimulatedTask x Time.Posix
+getTime =
+    GetTime Succeed
 
 
 type alias HttpRequest x a =
@@ -75,9 +81,6 @@ map mapToFrontend mapBackendMsg backendEffect =
 
         SendToFrontend clientId toFrontend ->
             SendToFrontend clientId (mapToFrontend toFrontend)
-
-        GetTime msg ->
-            GetTime (msg >> mapBackendMsg)
 
         Task simulatedTask ->
             taskMap mapBackendMsg simulatedTask |> taskMapError mapBackendMsg |> Task
@@ -125,6 +128,9 @@ taskAndThen f task =
 
         SleepTask delay onResult ->
             SleepTask delay (onResult >> taskAndThen f)
+
+        GetTime gotTime ->
+            GetTime (gotTime >> taskAndThen f)
 
 
 {-| A task that succeeds immediately when run.
@@ -257,6 +263,9 @@ taskMapError f task =
         SleepTask delay onResult ->
             SleepTask delay (onResult >> taskMapError f)
 
+        GetTime gotTime ->
+            GetTime (gotTime >> taskMapError f)
+
 
 {-| Recover from a failure in a task.
 -}
@@ -281,3 +290,6 @@ taskOnError f task =
 
         SleepTask delay onResult ->
             SleepTask delay (onResult >> taskOnError f)
+
+        GetTime gotTime ->
+            GetTime (gotTime >> taskOnError f)

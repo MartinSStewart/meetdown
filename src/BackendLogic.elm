@@ -61,7 +61,7 @@ init =
       , pendingLoginTokens = Dict.empty
       , pendingDeleteUserTokens = Dict.empty
       }
-    , BackendEffect.GetTime BackendGotTime
+    , BackendEffect.getTime |> BackendEffect.taskPerform BackendGotTime
     )
 
 
