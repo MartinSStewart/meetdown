@@ -1,4 +1,4 @@
-module SimulatedTask exposing (BackendOnly, FrontendOnly, HttpBody(..), HttpRequest, SimulatedTask(..), getTime, getTimeZone, getTimeZoneName, getViewport, setViewport, taskAndThen, taskFail, taskMap, taskMap2, taskMap3, taskMap4, taskMap5, taskMapError, taskOnError, taskSucceed, toTask, wait)
+module SimulatedTask exposing (BackendOnly, FrontendOnly, HttpBody(..), HttpRequest, SimulatedTask(..), getElement, getTime, getTimeZone, getTimeZoneName, getViewport, setViewport, taskAndThen, taskFail, taskMap, taskMap2, taskMap3, taskMap4, taskMap5, taskMapError, taskOnError, taskSucceed, toTask, wait)
 
 import Browser.Dom
 import Duration exposing (Duration)
@@ -29,6 +29,7 @@ type SimulatedTask restriction x a
     | GetTimeZoneName (Time.ZoneName -> SimulatedTask restriction x a)
     | GetViewport (Browser.Dom.Viewport -> SimulatedTask restriction x a)
     | SetViewport (Quantity Float Pixels) (Quantity Float Pixels) (() -> SimulatedTask restriction x a)
+    | GetElement (Result Browser.Dom.Error Browser.Dom.Element -> SimulatedTask restriction x a) String
 
 
 getTime : SimulatedTask restriction x Time.Posix
@@ -59,6 +60,20 @@ setViewport x y =
 getViewport : SimulatedTask FrontendOnly x Browser.Dom.Viewport
 getViewport =
     GetViewport Succeed
+
+
+getElement : String -> SimulatedTask restriction Browser.Dom.Error Browser.Dom.Element
+getElement htmlId =
+    GetElement
+        (\result ->
+            case result of
+                Ok ok ->
+                    Succeed ok
+
+                Err err ->
+                    Fail err
+        )
+        htmlId
 
 
 type alias HttpRequest restriction x a =
@@ -120,6 +135,9 @@ taskAndThen f task =
 
         GetViewport function ->
             GetViewport (function >> taskAndThen f)
+
+        GetElement function string ->
+            GetElement (function >> taskAndThen f) string
 
 
 {-| A task that succeeds immediately when run.
@@ -267,6 +285,9 @@ taskMapError f task =
         GetViewport function ->
             GetViewport (function >> taskMapError f)
 
+        GetElement function string ->
+            GetElement (function >> taskMapError f) string
+
 
 {-| Recover from a failure in a task.
 -}
@@ -306,6 +327,9 @@ taskOnError f task =
 
         GetViewport function ->
             GetViewport (function >> taskOnError f)
+
+        GetElement function string ->
+            GetElement (function >> taskOnError f) string
 
 
 toTask : SimulatedTask restriction x b -> Task.Task x b
@@ -355,3 +379,9 @@ toTask simulatedTask =
 
         GetViewport function ->
             Browser.Dom.getViewport |> Task.andThen (\viewport -> toTask (function viewport))
+
+        GetElement function string ->
+            Browser.Dom.getElement string
+                |> Task.map Ok
+                |> Task.onError (Err >> Task.succeed)
+                |> Task.andThen (\result -> toTask (function result))

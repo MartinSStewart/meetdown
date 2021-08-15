@@ -27,6 +27,7 @@ import BackendEffect exposing (BackendEffect)
 import BackendSub exposing (BackendSub)
 import Basics.Extra as Basics
 import Browser exposing (UrlRequest(..))
+import Browser.Dom
 import Date exposing (Date)
 import Duration exposing (Duration)
 import Env
@@ -820,7 +821,7 @@ runEffects :
 runEffects frontendApp backendApp state =
     let
         state2 =
-            runBackendEffects backendApp state.pendingEffects (clearBackendEffects state)
+            runBackendEffects frontendApp backendApp state.pendingEffects (clearBackendEffects state)
 
         state4 =
             Dict.foldl
@@ -984,13 +985,10 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
                 RealFile _ ->
                     state
 
-        FrontendEffect.GetElement function string ->
-            state
-
         FrontendEffect.Task task ->
             let
                 ( newState, msg ) =
-                    runTask state task
+                    runTask (Just clientId) frontendApp state task
             in
             case Dict.get clientId newState.frontends of
                 Just frontend ->
@@ -1149,14 +1147,15 @@ flattenBackendEffect effect =
 
 
 runBackendEffects :
-    BackendApp toBackend toFrontend backendMsg backendModel
+    FrontendApp toBackend frontendMsg frontendModel toFrontend
+    -> BackendApp toBackend toFrontend backendMsg backendModel
     -> BackendEffect toFrontend backendMsg
     -> State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
     -> State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
-runBackendEffects backendApp effect state =
+runBackendEffects frontendApp backendApp effect state =
     case effect of
         BackendEffect.Batch effects ->
-            List.foldl (runBackendEffects backendApp) state effects
+            List.foldl (runBackendEffects frontendApp backendApp) state effects
 
         BackendEffect.SendToFrontend clientId toFrontend ->
             { state
@@ -1173,7 +1172,7 @@ runBackendEffects backendApp effect state =
         BackendEffect.Task task ->
             let
                 ( newState, msg ) =
-                    runTask state task
+                    runTask Nothing frontendApp state task
 
                 ( model, effects ) =
                     backendApp.update msg newState.backend
@@ -1185,10 +1184,12 @@ runBackendEffects backendApp effect state =
 
 
 runTask :
-    State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
+    Maybe ClientId
+    -> FrontendApp toBackend frontendMsg frontendModel toFrontend
+    -> State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
     -> SimulatedTask restriction x x
     -> ( State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel, x )
-runTask state task =
+runTask maybeClientId frontendApp state task =
     case task of
         Succeed value ->
             ( state, value )
@@ -1208,23 +1209,50 @@ runTask state task =
             in
             state.handleHttpRequest { currentRequest = request, httpRequests = state.httpRequests }
                 |> httpRequest.onRequestComplete
-                |> runTask { state | httpRequests = request :: state.httpRequests }
+                |> runTask maybeClientId frontendApp { state | httpRequests = request :: state.httpRequests }
 
         SleepTask duration function ->
             Debug.todo ""
 
         GetTime gotTime ->
-            gotTime (Duration.addTo startTime state.elapsedTime) |> runTask state
+            gotTime (Duration.addTo startTime state.elapsedTime) |> runTask maybeClientId frontendApp state
 
         GetTimeZone gotTimeZone ->
-            gotTimeZone Time.utc |> runTask state
+            gotTimeZone Time.utc |> runTask maybeClientId frontendApp state
 
         GetTimeZoneName getTimeZoneName ->
-            getTimeZoneName (Time.Offset 0) |> runTask state
+            getTimeZoneName (Time.Offset 0) |> runTask maybeClientId frontendApp state
 
         GetViewport function ->
             function { scene = { width = 1920, height = 1080 }, viewport = { x = 0, y = 0, width = 1920, height = 1080 } }
-                |> runTask state
+                |> runTask maybeClientId frontendApp state
 
         SetViewport _ _ function ->
-            function () |> runTask state
+            function () |> runTask maybeClientId frontendApp state
+
+        GetElement function htmlId ->
+            (case Maybe.andThen (\clientId -> Dict.get clientId state.frontends) maybeClientId of
+                Just frontend ->
+                    frontendApp.view frontend.model
+                        |> .body
+                        |> Html.div []
+                        |> Test.Html.Query.fromHtml
+                        |> Test.Html.Query.has [ Test.Html.Selector.id htmlId ]
+                        |> Test.Runner.getFailureReason
+                        |> (\a ->
+                                if a == Nothing then
+                                    Browser.Dom.NotFound htmlId |> Err
+
+                                else
+                                    { scene = { width = 100, height = 100 }
+                                    , viewport = { x = 0, y = 0, width = 100, height = 100 }
+                                    , element = { x = 0, y = 0, width = 100, height = 100 }
+                                    }
+                                        |> Ok
+                           )
+
+                Nothing ->
+                    Browser.Dom.NotFound htmlId |> Err
+            )
+                |> function
+                |> runTask maybeClientId frontendApp state

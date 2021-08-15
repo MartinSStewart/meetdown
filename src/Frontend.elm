@@ -136,9 +136,6 @@ toCmd effect =
                 MockFile.MockFile _ ->
                     Cmd.none
 
-        FrontendEffect.GetElement msg elementId ->
-            Browser.Dom.getElement elementId |> Task.attempt msg
-
         FrontendEffect.Task simulatedTask ->
             SimulatedTask.toTask simulatedTask
                 |> Task.attempt
@@ -593,7 +590,9 @@ updateLoaded msg model =
                                         >> FrontendEffect.Port "martinsstewart_crop_image_to_js" martinsstewart_crop_image_to_js
                                 , sendDeleteAccountEmail = FrontendEffect.SendToBackend SendDeleteUserEmailRequest
                                 , getElement =
-                                    \getElementMsg id -> FrontendEffect.GetElement (getElementMsg >> ProfileFormMsg) id
+                                    \getElementMsg id ->
+                                        SimulatedTask.getElement id
+                                            |> FrontendEffect.taskAttempt (getElementMsg >> ProfileFormMsg)
                                 , batch = FrontendEffect.Batch
                                 }
                                 profileFormMsg

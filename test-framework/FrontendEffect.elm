@@ -16,7 +16,6 @@ type FrontendEffect toBackend frontendMsg
     | NavigationLoad String
     | SelectFile (List String) (MockFile.File -> frontendMsg)
     | FileToUrl (String -> frontendMsg) MockFile.File
-    | GetElement (Result Browser.Dom.Error Browser.Dom.Element -> frontendMsg) String
     | Task (SimulatedTask FrontendOnly frontendMsg frontendMsg)
     | Port String (Json.Encode.Value -> Cmd frontendMsg) Json.Encode.Value
 
@@ -55,9 +54,6 @@ map mapToBackend mapFrontendMsg frontendEffect =
 
         FileToUrl msg file ->
             FileToUrl (msg >> mapFrontendMsg) file
-
-        GetElement msg string ->
-            GetElement (msg >> mapFrontendMsg) string
 
         Task simulatedTask ->
             SimulatedTask.taskMap mapFrontendMsg simulatedTask
