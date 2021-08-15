@@ -24,7 +24,6 @@ type FrontendEffect toBackend frontendMsg
     | FileToUrl (String -> frontendMsg) MockFile.File
     | GetElement (Result Browser.Dom.Error Browser.Dom.Element -> frontendMsg) String
     | GetWindowSize (Quantity Int Pixels -> Quantity Int Pixels -> frontendMsg)
-    | GetTimeZone (Result TimeZone.Error ( String, Time.Zone ) -> frontendMsg)
     | ScrollToTop frontendMsg
     | Task (SimulatedTask FrontendOnly frontendMsg frontendMsg)
 
@@ -71,9 +70,6 @@ map mapToBackend mapFrontendMsg frontendEffect =
 
         GetWindowSize msg ->
             GetWindowSize (\w h -> msg w h |> mapFrontendMsg)
-
-        GetTimeZone msg ->
-            GetTimeZone (msg >> mapFrontendMsg)
 
         ScrollToTop msg ->
             ScrollToTop (mapFrontendMsg msg)

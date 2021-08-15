@@ -1007,29 +1007,6 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
                 Nothing ->
                     state
 
-        FrontendEffect.GetTimeZone msg ->
-            case Dict.get clientId state.frontends of
-                Just frontend ->
-                    let
-                        timezone =
-                            Ok ( "utc", Time.utc )
-
-                        ( model, effects ) =
-                            frontendApp.update (msg timezone) frontend.model
-                    in
-                    { state
-                        | frontends =
-                            Dict.insert clientId
-                                { frontend
-                                    | model = model
-                                    , pendingEffects = FrontendEffect.Batch [ frontend.pendingEffects, effects ]
-                                }
-                                state.frontends
-                    }
-
-                Nothing ->
-                    state
-
         FrontendEffect.ScrollToTop _ ->
             state
 
@@ -1192,6 +1169,12 @@ runTask state task =
 
         GetTime gotTime ->
             gotTime (Duration.addTo startTime state.elapsedTime) |> runTask state
+
+        GetTimeZone gotTimeZone ->
+            gotTimeZone Time.utc |> runTask state
+
+        GetTimeZoneName getTimeZoneName ->
+            getTimeZoneName (Time.Offset 0) |> runTask state
 
 
 postmarkResponse =

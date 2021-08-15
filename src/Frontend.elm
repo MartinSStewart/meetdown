@@ -108,9 +108,6 @@ toCmd effect =
                         msg (Pixels.pixels (round scene.width)) (Pixels.pixels (round scene.height))
                     )
 
-        FrontendEffect.GetTimeZone msg ->
-            TimeZone.getZone |> Task.attempt msg
-
         FrontendEffect.ScrollToTop msg ->
             Browser.Dom.setViewport 0 0 |> Task.perform (\() -> msg)
 

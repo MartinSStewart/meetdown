@@ -46,6 +46,7 @@ import SearchPage
 import SimulatedTask
 import Terms
 import Time
+import TimeZone
 import Types exposing (..)
 import Ui
 import Untrusted
@@ -90,7 +91,7 @@ init url key =
     , FrontendEffect.Batch
         [ SimulatedTask.getTime |> FrontendEffect.taskPerform GotTime
         , FrontendEffect.GetWindowSize GotWindowSize
-        , FrontendEffect.GetTimeZone GotTimeZone
+        , TimeZone.getZone |> FrontendEffect.taskAttempt GotTimeZone
         ]
     )
 

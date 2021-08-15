@@ -1,4 +1,4 @@
-module SimulatedTask exposing (BackendOnly, FrontendOnly, HttpBody(..), HttpRequest, SimulatedTask(..), getTime, taskAndThen, taskFail, taskMap, taskMap2, taskMap3, taskMap4, taskMap5, taskMapError, taskOnError, taskSucceed, toTask, wait)
+module SimulatedTask exposing (BackendOnly, FrontendOnly, HttpBody(..), HttpRequest, SimulatedTask(..), getTime, getTimeZone, getTimeZoneName, taskAndThen, taskFail, taskMap, taskMap2, taskMap3, taskMap4, taskMap5, taskMapError, taskOnError, taskSucceed, toTask, wait)
 
 import Duration exposing (Duration)
 import Http
@@ -22,6 +22,8 @@ type SimulatedTask restriction x a
     | HttpTask (HttpRequest restriction x a)
     | SleepTask Duration (() -> SimulatedTask restriction x a)
     | GetTime (Time.Posix -> SimulatedTask restriction x a)
+    | GetTimeZone (Time.Zone -> SimulatedTask restriction x a)
+    | GetTimeZoneName (Time.ZoneName -> SimulatedTask restriction x a)
 
 
 getTime : SimulatedTask restriction x Time.Posix
@@ -32,6 +34,16 @@ getTime =
 wait : Duration -> SimulatedTask restriction x ()
 wait duration =
     SleepTask duration Succeed
+
+
+getTimeZone : SimulatedTask FrontendOnly x Time.Zone
+getTimeZone =
+    GetTimeZone Succeed
+
+
+getTimeZoneName : SimulatedTask FrontendOnly x Time.ZoneName
+getTimeZoneName =
+    GetTimeZoneName Succeed
 
 
 type alias HttpRequest restriction x a =
@@ -81,6 +93,12 @@ taskAndThen f task =
 
         GetTime gotTime ->
             GetTime (gotTime >> taskAndThen f)
+
+        GetTimeZone gotTimeZone ->
+            GetTimeZone (gotTimeZone >> taskAndThen f)
+
+        GetTimeZoneName gotTimeZoneName ->
+            GetTimeZoneName (gotTimeZoneName >> taskAndThen f)
 
 
 {-| A task that succeeds immediately when run.
@@ -216,6 +234,12 @@ taskMapError f task =
         GetTime gotTime ->
             GetTime (gotTime >> taskMapError f)
 
+        GetTimeZone gotTimeZone ->
+            GetTimeZone (gotTimeZone >> taskMapError f)
+
+        GetTimeZoneName gotTimeZoneName ->
+            GetTimeZoneName (gotTimeZoneName >> taskMapError f)
+
 
 {-| Recover from a failure in a task.
 -}
@@ -243,6 +267,12 @@ taskOnError f task =
 
         GetTime gotTime ->
             GetTime (gotTime >> taskOnError f)
+
+        GetTimeZone gotTimeZone ->
+            GetTimeZone (gotTimeZone >> taskOnError f)
+
+        GetTimeZoneName gotTimeZoneName ->
+            GetTimeZoneName (gotTimeZoneName >> taskOnError f)
 
 
 toTask : SimulatedTask restriction x b -> Task.Task x b
@@ -280,3 +310,9 @@ toTask simulatedTask =
 
         GetTime gotTime ->
             Time.now |> Task.andThen (\time -> toTask (gotTime time))
+
+        GetTimeZone gotTimeZone ->
+            Time.here |> Task.andThen (\time -> toTask (gotTimeZone time))
+
+        GetTimeZoneName gotTimeZoneName ->
+            Time.getZoneName |> Task.andThen (\time -> toTask (gotTimeZoneName time))

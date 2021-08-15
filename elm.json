@@ -2,7 +2,8 @@
     "type": "application",
     "source-directories": [
         "src",
-        "send-grid"
+        "send-grid",
+        "justinmimbs/timezone-data/4.0.2/src"
     ],
     "elm-version": "0.19.1",
     "dependencies": {
@@ -33,7 +34,6 @@
             "ianmackenzie/elm-units": "2.9.0",
             "justinmimbs/date": "3.2.1",
             "justinmimbs/time-extra": "1.1.0",
-            "justinmimbs/timezone-data": "4.0.2",
             "lamdera/codecs": "1.0.0",
             "lamdera/core": "1.0.0",
             "mdgriffith/elm-ui": "1.1.7",
