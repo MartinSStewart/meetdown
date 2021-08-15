@@ -1007,9 +1007,6 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
                 Nothing ->
                     state
 
-        FrontendEffect.ScrollToTop _ ->
-            state
-
         FrontendEffect.Task task ->
             let
                 ( newState, msg ) =
@@ -1175,6 +1172,13 @@ runTask state task =
 
         GetTimeZoneName getTimeZoneName ->
             getTimeZoneName (Time.Offset 0) |> runTask state
+
+        GetViewport function ->
+            function { scene = { width = 1920, height = 1080 }, viewport = { x = 0, y = 0, width = 1920, height = 1080 } }
+                |> runTask state
+
+        SetViewport _ _ function ->
+            function () |> runTask state
 
 
 postmarkResponse =

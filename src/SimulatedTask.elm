@@ -1,9 +1,12 @@
-module SimulatedTask exposing (BackendOnly, FrontendOnly, HttpBody(..), HttpRequest, SimulatedTask(..), getTime, getTimeZone, getTimeZoneName, taskAndThen, taskFail, taskMap, taskMap2, taskMap3, taskMap4, taskMap5, taskMapError, taskOnError, taskSucceed, toTask, wait)
+module SimulatedTask exposing (BackendOnly, FrontendOnly, HttpBody(..), HttpRequest, SimulatedTask(..), getTime, getTimeZone, getTimeZoneName, getViewport, setViewport, taskAndThen, taskFail, taskMap, taskMap2, taskMap3, taskMap4, taskMap5, taskMapError, taskOnError, taskSucceed, toTask, wait)
 
+import Browser.Dom
 import Duration exposing (Duration)
 import Http
 import Json.Encode
+import Pixels exposing (Pixels)
 import Process
+import Quantity exposing (Quantity)
 import Task
 import Time
 
@@ -24,6 +27,8 @@ type SimulatedTask restriction x a
     | GetTime (Time.Posix -> SimulatedTask restriction x a)
     | GetTimeZone (Time.Zone -> SimulatedTask restriction x a)
     | GetTimeZoneName (Time.ZoneName -> SimulatedTask restriction x a)
+    | GetViewport (Browser.Dom.Viewport -> SimulatedTask restriction x a)
+    | SetViewport (Quantity Float Pixels) (Quantity Float Pixels) (() -> SimulatedTask restriction x a)
 
 
 getTime : SimulatedTask restriction x Time.Posix
@@ -44,6 +49,16 @@ getTimeZone =
 getTimeZoneName : SimulatedTask FrontendOnly x Time.ZoneName
 getTimeZoneName =
     GetTimeZoneName Succeed
+
+
+setViewport : Quantity Float Pixels -> Quantity Float Pixels -> SimulatedTask FrontendOnly x ()
+setViewport x y =
+    SetViewport x y Succeed
+
+
+getViewport : SimulatedTask FrontendOnly x Browser.Dom.Viewport
+getViewport =
+    GetViewport Succeed
 
 
 type alias HttpRequest restriction x a =
@@ -99,6 +114,12 @@ taskAndThen f task =
 
         GetTimeZoneName gotTimeZoneName ->
             GetTimeZoneName (gotTimeZoneName >> taskAndThen f)
+
+        SetViewport x y function ->
+            SetViewport x y (function >> taskAndThen f)
+
+        GetViewport function ->
+            GetViewport (function >> taskAndThen f)
 
 
 {-| A task that succeeds immediately when run.
@@ -240,6 +261,12 @@ taskMapError f task =
         GetTimeZoneName gotTimeZoneName ->
             GetTimeZoneName (gotTimeZoneName >> taskMapError f)
 
+        SetViewport x y function ->
+            SetViewport x y (function >> taskMapError f)
+
+        GetViewport function ->
+            GetViewport (function >> taskMapError f)
+
 
 {-| Recover from a failure in a task.
 -}
@@ -273,6 +300,12 @@ taskOnError f task =
 
         GetTimeZoneName gotTimeZoneName ->
             GetTimeZoneName (gotTimeZoneName >> taskOnError f)
+
+        SetViewport x y function ->
+            SetViewport x y (function >> taskOnError f)
+
+        GetViewport function ->
+            GetViewport (function >> taskOnError f)
 
 
 toTask : SimulatedTask restriction x b -> Task.Task x b
@@ -316,3 +349,9 @@ toTask simulatedTask =
 
         GetTimeZoneName gotTimeZoneName ->
             Time.getZoneName |> Task.andThen (\time -> toTask (gotTimeZoneName time))
+
+        SetViewport x y function ->
+            Browser.Dom.setViewport (Pixels.inPixels x) (Pixels.inPixels y) |> Task.andThen (\() -> toTask (function ()))
+
+        GetViewport function ->
+            Browser.Dom.getViewport |> Task.andThen (\viewport -> toTask (function viewport))

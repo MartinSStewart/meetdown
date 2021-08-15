@@ -1,14 +1,11 @@
 module FrontendEffect exposing (FrontendEffect(..), map, taskAttempt, taskPerform)
 
 import Browser.Dom
-import Duration exposing (Duration)
 import MockFile
 import NavigationKey exposing (NavigationKey)
 import Pixels exposing (Pixels)
 import Quantity exposing (Quantity)
 import SimulatedTask exposing (FrontendOnly, SimulatedTask)
-import Time
-import TimeZone
 
 
 type FrontendEffect toBackend frontendMsg
@@ -24,7 +21,6 @@ type FrontendEffect toBackend frontendMsg
     | FileToUrl (String -> frontendMsg) MockFile.File
     | GetElement (Result Browser.Dom.Error Browser.Dom.Element -> frontendMsg) String
     | GetWindowSize (Quantity Int Pixels -> Quantity Int Pixels -> frontendMsg)
-    | ScrollToTop frontendMsg
     | Task (SimulatedTask FrontendOnly frontendMsg frontendMsg)
 
 
@@ -70,9 +66,6 @@ map mapToBackend mapFrontendMsg frontendEffect =
 
         GetWindowSize msg ->
             GetWindowSize (\w h -> msg w h |> mapFrontendMsg)
-
-        ScrollToTop msg ->
-            ScrollToTop (mapFrontendMsg msg)
 
         Task simulatedTask ->
             SimulatedTask.taskMap mapFrontendMsg simulatedTask

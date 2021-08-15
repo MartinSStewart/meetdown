@@ -51,7 +51,6 @@ import Types exposing (..)
 import Ui
 import Untrusted
 import Url exposing (Url)
-import Url.Parser exposing ((</>))
 import UserPage
 
 
@@ -334,7 +333,14 @@ updateLoaded msg model =
                         |> Maybe.withDefault HomepageRoute
             in
             routeRequest route { model | route = route }
-                |> Tuple.mapSecond (\a -> FrontendEffect.Batch [ a, FrontendEffect.ScrollToTop ScrolledToTop ])
+                |> Tuple.mapSecond
+                    (\a ->
+                        FrontendEffect.Batch
+                            [ a
+                            , SimulatedTask.setViewport Quantity.zero Quantity.zero
+                                |> FrontendEffect.taskPerform (\() -> ScrolledToTop)
+                            ]
+                    )
 
         GotTime time ->
             ( { model | time = time }, FrontendEffect.None )

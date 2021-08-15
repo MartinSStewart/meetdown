@@ -18,7 +18,6 @@ import Pixels exposing (Pixels)
 import SimulatedTask
 import Task
 import Time
-import TimeZone
 import Types exposing (..)
 
 
@@ -107,9 +106,6 @@ toCmd effect =
                     (\{ scene } ->
                         msg (Pixels.pixels (round scene.width)) (Pixels.pixels (round scene.height))
                     )
-
-        FrontendEffect.ScrollToTop msg ->
-            Browser.Dom.setViewport 0 0 |> Task.perform (\() -> msg)
 
         FrontendEffect.Task simulatedTask ->
             SimulatedTask.toTask simulatedTask
