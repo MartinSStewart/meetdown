@@ -139,13 +139,6 @@ toCmd effect =
         FrontendEffect.GetElement msg elementId ->
             Browser.Dom.getElement elementId |> Task.attempt msg
 
-        FrontendEffect.GetWindowSize msg ->
-            Browser.Dom.getViewport
-                |> Task.perform
-                    (\{ scene } ->
-                        msg (Pixels.pixels (round scene.width)) (Pixels.pixels (round scene.height))
-                    )
-
         FrontendEffect.Task simulatedTask ->
             SimulatedTask.toTask simulatedTask
                 |> Task.attempt
@@ -246,7 +239,9 @@ init url key =
         }
     , FrontendEffect.Batch
         [ SimulatedTask.getTime |> FrontendEffect.taskPerform GotTime
-        , FrontendEffect.GetWindowSize GotWindowSize
+        , SimulatedTask.getViewport
+            |> FrontendEffect.taskPerform
+                (\{ scene } -> GotWindowSize (Pixels.pixels (round scene.width)) (Pixels.pixels (round scene.height)))
         , TimeZone.getZone |> FrontendEffect.taskAttempt GotTimeZone
         ]
     )

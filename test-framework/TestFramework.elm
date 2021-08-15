@@ -987,26 +987,6 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
         FrontendEffect.GetElement function string ->
             state
 
-        FrontendEffect.GetWindowSize msg ->
-            case Dict.get clientId state.frontends of
-                Just frontend ->
-                    let
-                        ( model, effects ) =
-                            frontendApp.update (msg (Pixels.pixels 1920) (Pixels.pixels 1080)) frontend.model
-                    in
-                    { state
-                        | frontends =
-                            Dict.insert clientId
-                                { frontend
-                                    | model = model
-                                    , pendingEffects = FrontendEffect.Batch [ frontend.pendingEffects, effects ]
-                                }
-                                state.frontends
-                    }
-
-                Nothing ->
-                    state
-
         FrontendEffect.Task task ->
             let
                 ( newState, msg ) =
@@ -1248,12 +1228,3 @@ runTask state task =
 
         SetViewport _ _ function ->
             function () |> runTask state
-
-
-postmarkResponse =
-    { to = ""
-    , submittedAt = ""
-    , messageID = ""
-    , errorCode = 0
-    , message = ""
-    }

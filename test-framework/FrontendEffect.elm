@@ -4,8 +4,6 @@ import Browser.Dom
 import Json.Encode
 import MockFile
 import NavigationKey exposing (NavigationKey(..))
-import Pixels exposing (Pixels)
-import Quantity exposing (Quantity)
 import SimulatedTask exposing (FrontendOnly, SimulatedTask)
 
 
@@ -19,7 +17,6 @@ type FrontendEffect toBackend frontendMsg
     | SelectFile (List String) (MockFile.File -> frontendMsg)
     | FileToUrl (String -> frontendMsg) MockFile.File
     | GetElement (Result Browser.Dom.Error Browser.Dom.Element -> frontendMsg) String
-    | GetWindowSize (Quantity Int Pixels -> Quantity Int Pixels -> frontendMsg)
     | Task (SimulatedTask FrontendOnly frontendMsg frontendMsg)
     | Port String (Json.Encode.Value -> Cmd frontendMsg) Json.Encode.Value
 
@@ -61,9 +58,6 @@ map mapToBackend mapFrontendMsg frontendEffect =
 
         GetElement msg string ->
             GetElement (msg >> mapFrontendMsg) string
-
-        GetWindowSize msg ->
-            GetWindowSize (\w h -> msg w h |> mapFrontendMsg)
 
         Task simulatedTask ->
             SimulatedTask.taskMap mapFrontendMsg simulatedTask
