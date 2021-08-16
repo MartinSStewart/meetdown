@@ -1,4 +1,4 @@
-module FrontendSub exposing (FrontendSub(..), fromJs, none, toSub)
+module FrontendSub exposing (FrontendSub(..), batch, fromJs, none, onResize, timeEvery, toSub)
 
 import Browser.Events
 import Duration exposing (Duration)
@@ -16,9 +16,24 @@ type FrontendSub frontendMsg
     | Port String ((Json.Decode.Value -> frontendMsg) -> Sub frontendMsg) (Json.Decode.Value -> frontendMsg)
 
 
+batch : List (FrontendSub frontendMsg) -> FrontendSub frontendMsg
+batch =
+    Batch
+
+
 none : FrontendSub frontendMsg
 none =
     None
+
+
+timeEvery : Duration -> (Time.Posix -> frontendMsg) -> FrontendSub frontendMsg
+timeEvery =
+    TimeEvery
+
+
+onResize : (Quantity Int Pixels -> Quantity Int Pixels -> frontendMsg) -> FrontendSub frontendMsg
+onResize =
+    OnResize
 
 
 

@@ -43,7 +43,6 @@ import Json.Encode
 import List.Nonempty exposing (Nonempty)
 import MockFile exposing (File(..))
 import NavigationKey exposing (NavigationKey(..))
-import Pixels
 import Quantity
 import Route exposing (Route)
 import SimulatedTask exposing (BackendOnly, SimulatedTask(..))
@@ -71,6 +70,7 @@ type alias State toBackend frontendMsg frontendModel toFrontend backendMsg backe
         { currentRequest : PortToJs, portRequests : List PortToJs }
         -> Maybe ( String, Json.Decode.Value )
     , portRequests : List PortToJs
+    , handleFileRequest : { mimeTypes : List String } -> Maybe MockFile.File
     }
 
 
@@ -301,8 +301,9 @@ testApp :
         ({ currentRequest : PortToJs, portRequests : List PortToJs }
          -> Maybe ( String, Json.Decode.Value )
         )
+    -> ({ mimeTypes : List String } -> Maybe MockFile.File)
     -> TestApp toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
-testApp frontendApp backendApp handleHttpRequest handlePortToJs =
+testApp frontendApp backendApp handleHttpRequest handlePortToJs handleFileRequest =
     { init =
         let
             ( backend, effects ) =
@@ -321,6 +322,7 @@ testApp frontendApp backendApp handleHttpRequest handlePortToJs =
             , handleHttpRequest = handleHttpRequest
             , handlePortToJs = handlePortToJs
             , portRequests = []
+            , handleFileRequest = handleFileRequest
             }
     , simulateTime = simulateTime frontendApp backendApp
     , connectFrontend = connectFrontend frontendApp backendApp
@@ -952,24 +954,39 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
             state
 
         FrontendEffect.SelectFile mimeTypes msg ->
-            state
-
-        FrontendEffect.FileToUrl msg file ->
-            case file of
-                MockFile fileName ->
+            case state.handleFileRequest { mimeTypes = mimeTypes } of
+                Just file ->
                     case Dict.get clientId state.frontends of
                         Just frontend ->
                             let
-                                fileContent =
-                                    case fileName of
-                                        "profile.png" ->
-                                            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAABhWlDQ1BJQ0MgcHJvZmlsZQAAKJF9kT1Iw0AcxV9Ta0UqgnYQcchQnayIijhKFYtgobQVWnUwufRDaNKQpLg4Cq4FBz8Wqw4uzro6uAqC4AeIm5uToouU+L+k0CLGg+N+vLv3uHsHCPUyU82OcUDVLCMVj4nZ3IoYfEUn/OhDAGMSM/VEeiEDz/F1Dx9f76I8y/vcn6NHyZsM8InEs0w3LOJ14ulNS+e8TxxmJUkhPiceNeiCxI9cl11+41x0WOCZYSOTmiMOE4vFNpbbmJUMlXiKOKKoGuULWZcVzluc1XKVNe/JXxjKa8tprtMcQhyLSCAJETKq2EAZFqK0aqSYSNF+zMM/6PiT5JLJtQFGjnlUoEJy/OB/8LtbszA54SaFYkDgxbY/hoHgLtCo2fb3sW03TgD/M3CltfyVOjDzSXqtpUWOgN5t4OK6pcl7wOUOMPCkS4bkSH6aQqEAvJ/RN+WA/luge9XtrbmP0wcgQ10t3QAHh8BIkbLXPN7d1d7bv2ea/f0AT2FymQ2GVEYAAAAJcEhZcwAALiMAAC4jAXilP3YAAAAHdElNRQflBgMSBgvJgnPPAAAAGXRFWHRDb21tZW50AENyZWF0ZWQgd2l0aCBHSU1QV4EOFwAAAAxJREFUCNdjmH36PwAEagJmf/sZfAAAAABJRU5ErkJggg=="
-
-                                        _ ->
-                                            "uninteresting file"
-
                                 ( model, effects ) =
-                                    frontendApp.update (msg fileContent) frontend.model
+                                    frontendApp.update (msg file) frontend.model
+                            in
+                            { state
+                                | frontends =
+                                    Dict.insert clientId
+                                        { frontend
+                                            | model = model
+                                            , pendingEffects = FrontendEffect.Batch [ frontend.pendingEffects, effects ]
+                                        }
+                                        state.frontends
+                            }
+
+                        Nothing ->
+                            state
+
+                Nothing ->
+                    state
+
+        FrontendEffect.FileToUrl msg file ->
+            case file of
+                MockFile { name, content } ->
+                    case Dict.get clientId state.frontends of
+                        Just frontend ->
+                            let
+                                ( model, effects ) =
+                                    -- TODO: Right now we assume that the file is already formatted as a data url.
+                                    frontendApp.update (msg content) frontend.model
                             in
                             { state
                                 | frontends =
@@ -1200,6 +1217,7 @@ runTask maybeClientId frontendApp state task =
             ( state, value )
 
         HttpTask httpRequest ->
+            -- TODO: Implement actual delays to http requests
             let
                 request : HttpRequest
                 request =
