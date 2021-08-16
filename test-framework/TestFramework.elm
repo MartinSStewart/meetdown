@@ -741,7 +741,7 @@ simulateStep frontendApp backendApp state =
                                         frontendApp.update
                                             (msg (Duration.addTo startTime newTime))
                                             frontendModel
-                                            |> Tuple.mapSecond (\a -> Effect.Batch [ effects, a ])
+                                            |> Tuple.mapSecond (\a -> Effect.batch [ effects, a ])
                                     )
                                     ( frontend.model, frontend.pendingEffects )
                     in
@@ -829,7 +829,7 @@ runEffects frontendApp backendApp state =
         , frontends =
             Dict.map
                 (\_ frontend ->
-                    { frontend | pendingEffects = flattenEffects frontend.pendingEffects |> Effect.Batch }
+                    { frontend | pendingEffects = flattenEffects frontend.pendingEffects |> Effect.batch }
                 )
                 state4.frontends
     }
@@ -860,7 +860,7 @@ runNetwork frontendApp backendApp state =
                             List.foldl
                                 (\msg ( model, newEffects ) ->
                                     frontendApp.updateFromBackend msg model
-                                        |> Tuple.mapSecond (\a -> Effect.Batch [ newEffects, a ])
+                                        |> Tuple.mapSecond (\a -> Effect.batch [ newEffects, a ])
                                 )
                                 ( frontend.model, frontend.pendingEffects )
                                 frontend.toFrontend
@@ -943,7 +943,7 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
                                     Dict.insert clientId
                                         { frontend
                                             | model = model
-                                            , pendingEffects = Effect.Batch [ frontend.pendingEffects, effects ]
+                                            , pendingEffects = Effect.batch [ frontend.pendingEffects, effects ]
                                         }
                                         state.frontends
                             }
@@ -969,7 +969,7 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
                                     Dict.insert clientId
                                         { frontend
                                             | model = model
-                                            , pendingEffects = Effect.Batch [ frontend.pendingEffects, effects ]
+                                            , pendingEffects = Effect.batch [ frontend.pendingEffects, effects ]
                                         }
                                         state.frontends
                             }
@@ -996,7 +996,7 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
                             Dict.insert clientId
                                 { frontend
                                     | model = model
-                                    , pendingEffects = Effect.Batch [ frontend.pendingEffects, effects ]
+                                    , pendingEffects = Effect.batch [ frontend.pendingEffects, effects ]
                                 }
                                 state.frontends
                     }
@@ -1042,7 +1042,7 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
                                                 ( newModel, newEffects ) =
                                                     frontendApp.update (msg responseValue) model_
                                             in
-                                            ( newModel, Effect.Batch [ effects_, newEffects ] )
+                                            ( newModel, Effect.batch [ effects_, newEffects ] )
                                         )
                                         ( frontend.model, frontend.pendingEffects )
                                         msgs
@@ -1107,7 +1107,7 @@ handleUrlChange frontendApp urlText clientId state =
                             Dict.insert clientId
                                 { frontend
                                     | model = model
-                                    , pendingEffects = Effect.Batch [ frontend.pendingEffects, effects ]
+                                    , pendingEffects = Effect.batch [ frontend.pendingEffects, effects ]
                                     , url = url
                                 }
                                 state.frontends

@@ -70,7 +70,7 @@ sendEmail :
     -> PostmarkSend
     -> Effect restriction toMsg msg
 sendEmail msg token d =
-    sendEmailTask token d |> Effect.taskAttempt msg
+    sendEmailTask token d |> Effect.attempt msg
 
 
 emailsToString : List.Nonempty.Nonempty { name : String, email : EmailAddress } -> String

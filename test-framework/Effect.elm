@@ -1,4 +1,4 @@
-module Effect exposing (Effect(..), PortToJs, batch, fileToUrl, get, map, none, post, request, selectFile, sendToBackend, sendToFrontend, sendToJs, taskAttempt, taskPerform)
+module Effect exposing (Effect(..), PortToJs, attempt, batch, fileToUrl, get, map, navigationLoad, navigationPushUrl, navigationReplaceUrl, none, perform, post, request, selectFile, sendToBackend, sendToFrontend, sendToJs)
 
 import Duration exposing (Duration)
 import HttpEffect
@@ -36,6 +36,21 @@ none =
 sendToBackend : toMsg -> Effect FrontendOnly toMsg msg
 sendToBackend =
     SendToBackend
+
+
+navigationPushUrl : NavigationKey -> String -> Effect restriction toMsg msg
+navigationPushUrl =
+    NavigationPushUrl
+
+
+navigationReplaceUrl : NavigationKey -> String -> Effect restriction toMsg msg
+navigationReplaceUrl =
+    NavigationReplaceUrl
+
+
+navigationLoad : String -> Effect restriction toMsg msg
+navigationLoad =
+    NavigationLoad
 
 
 selectFile : List String -> (MockFile.File -> msg) -> Effect FrontendOnly toMsg msg
@@ -106,8 +121,8 @@ map mapToMsg mapMsg frontendEffect =
 
 
 {-| -}
-taskPerform : (a -> msg) -> SimulatedTask restriction Never a -> Effect restriction toMsg msg
-taskPerform f task =
+perform : (a -> msg) -> SimulatedTask restriction Never a -> Effect restriction toMsg msg
+perform f task =
     task
         |> SimulatedTask.map f
         |> SimulatedTask.mapError never
@@ -116,8 +131,8 @@ taskPerform f task =
 
 {-| This is very similar to [`perform`](#perform) except it can handle failures!
 -}
-taskAttempt : (Result x a -> msg) -> SimulatedTask restriction x a -> Effect restriction toMsg msg
-taskAttempt f task =
+attempt : (Result x a -> msg) -> SimulatedTask restriction x a -> Effect restriction toMsg msg
+attempt f task =
     task
         |> SimulatedTask.map (Ok >> f)
         |> SimulatedTask.mapError (Err >> f)

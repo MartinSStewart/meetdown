@@ -149,7 +149,7 @@ update windowSize msg model =
         FormChanged newForm ->
             ( { model | form = newForm, changeCounter = model.changeCounter + 1 }
             , SimulatedTask.wait (Duration.seconds 2)
-                |> Effect.taskPerform (\() -> SleepFinished (model.changeCounter + 1))
+                |> Effect.perform (\() -> SleepFinished (model.changeCounter + 1))
             )
 
         SleepFinished changeCount ->
@@ -204,7 +204,7 @@ update windowSize msg model =
                 | profileImage =
                     Editting (Just { x = 0.1, y = 0.1, size = 0.8, imageUrl = imageUrl, dragState = Nothing, imageSize = Nothing })
               }
-            , SimulatedTask.getElement profileImagePlaceholderId |> Effect.taskAttempt GotImageSize
+            , SimulatedTask.getElement profileImagePlaceholderId |> Effect.attempt GotImageSize
             )
 
         MouseDownImageEditor x y ->
@@ -330,7 +330,7 @@ update windowSize msg model =
                 ( Ok { element }, Editting (Just imageData) ) ->
                     if element.height <= 0 then
                         ( model
-                        , SimulatedTask.getElement profileImagePlaceholderId |> Effect.taskAttempt GotImageSize
+                        , SimulatedTask.getElement profileImagePlaceholderId |> Effect.attempt GotImageSize
                         )
 
                     else
@@ -363,14 +363,14 @@ update windowSize msg model =
                             ( newModel
                             , Untrusted.untrust profileImage
                                 |> ChangeProfileImageRequest
-                                |> Effect.SendToBackend
+                                |> Effect.sendToBackend
                             )
 
                         Err _ ->
-                            ( model, Effect.None )
+                            ( model, Effect.none )
 
                 Err _ ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
 
 subscriptions : (Msg -> msg) -> Subscription FrontendOnly msg

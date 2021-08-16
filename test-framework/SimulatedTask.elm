@@ -1,4 +1,4 @@
-module SimulatedTask exposing (BackendOnly, FrontendOnly, HttpBody(..), HttpRequest, SimulatedTask(..), fail, getElement, getTime, getTimeZone, getTimeZoneName, getViewport, map, map2, map3, map4, map5, mapError, onError, setViewport, succeed, taskAndThen, toTask, wait)
+module SimulatedTask exposing (BackendOnly, FrontendOnly, HttpBody(..), HttpRequest, SimulatedTask(..), andThen, fail, getElement, getTime, getTimeZone, getTimeZoneName, getViewport, map, map2, map3, map4, map5, mapError, onError, setViewport, succeed, toTask, wait)
 
 import Browser.Dom
 import Duration exposing (Duration)
@@ -99,8 +99,8 @@ type HttpBody
 
 {-| Chain together a task and a callback.
 -}
-taskAndThen : (a -> SimulatedTask restriction x b) -> SimulatedTask restriction x a -> SimulatedTask restriction x b
-taskAndThen f task =
+andThen : (a -> SimulatedTask restriction x b) -> SimulatedTask restriction x a -> SimulatedTask restriction x b
+andThen f task =
     case task of
         Succeed a ->
             f a
@@ -114,30 +114,30 @@ taskAndThen f task =
                 , url = request.url
                 , body = request.body
                 , headers = request.headers
-                , onRequestComplete = request.onRequestComplete >> taskAndThen f
+                , onRequestComplete = request.onRequestComplete >> andThen f
                 , timeout = request.timeout
                 }
 
         SleepTask delay onResult ->
-            SleepTask delay (onResult >> taskAndThen f)
+            SleepTask delay (onResult >> andThen f)
 
         GetTime gotTime ->
-            GetTime (gotTime >> taskAndThen f)
+            GetTime (gotTime >> andThen f)
 
         GetTimeZone gotTimeZone ->
-            GetTimeZone (gotTimeZone >> taskAndThen f)
+            GetTimeZone (gotTimeZone >> andThen f)
 
         GetTimeZoneName gotTimeZoneName ->
-            GetTimeZoneName (gotTimeZoneName >> taskAndThen f)
+            GetTimeZoneName (gotTimeZoneName >> andThen f)
 
         SetViewport x y function ->
-            SetViewport x y (function >> taskAndThen f)
+            SetViewport x y (function >> andThen f)
 
         GetViewport function ->
-            GetViewport (function >> taskAndThen f)
+            GetViewport (function >> andThen f)
 
         GetElement function string ->
-            GetElement (function >> taskAndThen f) string
+            GetElement (function >> andThen f) string
 
 
 {-| A task that succeeds immediately when run.
@@ -158,7 +158,7 @@ fail =
 -}
 map : (a -> b) -> SimulatedTask restriction x a -> SimulatedTask restriction x b
 map f =
-    taskAndThen (f >> Succeed)
+    andThen (f >> Succeed)
 
 
 {-| Put the results of two tasks together.
@@ -166,10 +166,10 @@ map f =
 map2 : (a -> b -> result) -> SimulatedTask restriction x a -> SimulatedTask restriction x b -> SimulatedTask restriction x result
 map2 func taskA taskB =
     taskA
-        |> taskAndThen
+        |> andThen
             (\a ->
                 taskB
-                    |> taskAndThen (\b -> succeed (func a b))
+                    |> andThen (\b -> succeed (func a b))
             )
 
 
@@ -178,13 +178,13 @@ map2 func taskA taskB =
 map3 : (a -> b -> c -> result) -> SimulatedTask restriction x a -> SimulatedTask restriction x b -> SimulatedTask restriction x c -> SimulatedTask restriction x result
 map3 func taskA taskB taskC =
     taskA
-        |> taskAndThen
+        |> andThen
             (\a ->
                 taskB
-                    |> taskAndThen
+                    |> andThen
                         (\b ->
                             taskC
-                                |> taskAndThen (\c -> succeed (func a b c))
+                                |> andThen (\c -> succeed (func a b c))
                         )
             )
 
@@ -200,16 +200,16 @@ map4 :
     -> SimulatedTask restriction x result
 map4 func taskA taskB taskC taskD =
     taskA
-        |> taskAndThen
+        |> andThen
             (\a ->
                 taskB
-                    |> taskAndThen
+                    |> andThen
                         (\b ->
                             taskC
-                                |> taskAndThen
+                                |> andThen
                                     (\c ->
                                         taskD
-                                            |> taskAndThen (\d -> succeed (func a b c d))
+                                            |> andThen (\d -> succeed (func a b c d))
                                     )
                         )
             )
@@ -227,19 +227,19 @@ map5 :
     -> SimulatedTask restriction x result
 map5 func taskA taskB taskC taskD taskE =
     taskA
-        |> taskAndThen
+        |> andThen
             (\a ->
                 taskB
-                    |> taskAndThen
+                    |> andThen
                         (\b ->
                             taskC
-                                |> taskAndThen
+                                |> andThen
                                     (\c ->
                                         taskD
-                                            |> taskAndThen
+                                            |> andThen
                                                 (\d ->
                                                     taskE
-                                                        |> taskAndThen (\e -> succeed (func a b c d e))
+                                                        |> andThen (\e -> succeed (func a b c d e))
                                                 )
                                     )
                         )

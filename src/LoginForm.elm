@@ -135,11 +135,11 @@ submitForm route maybeJoinEvent loginForm =
     case validateEmail loginForm.email of
         Ok email ->
             ( { loginForm | emailSent = Just email }
-            , GetLoginTokenRequest route (Untrusted.untrust email) maybeJoinEvent |> Effect.SendToBackend
+            , GetLoginTokenRequest route (Untrusted.untrust email) maybeJoinEvent |> Effect.sendToBackend
             )
 
         Err _ ->
-            ( { loginForm | pressedSubmitEmail = True }, Effect.None )
+            ( { loginForm | pressedSubmitEmail = True }, Effect.none )
 
 
 typedEmail : String -> LoginForm -> LoginForm

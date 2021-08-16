@@ -310,13 +310,13 @@ update config group maybeLoggedIn msg model =
             canEdit group maybeLoggedIn
 
         noChange =
-            ( model, Effect.None, { joinEvent = Nothing } )
+            ( model, Effect.none, { joinEvent = Nothing } )
     in
     case msg of
         PressedEditName ->
             if canEdit_ then
                 ( { model | name = Group.name group |> GroupName.toString |> Editting }
-                , Effect.None
+                , Effect.none
                 , { joinEvent = Nothing }
                 )
 
@@ -333,7 +333,7 @@ update config group maybeLoggedIn msg model =
                         case GroupName.fromString nameText of
                             Ok name ->
                                 ( { model | name = Submitting name }
-                                , Untrusted.untrust name |> ChangeGroupNameRequest |> Effect.SendToBackend
+                                , Untrusted.untrust name |> ChangeGroupNameRequest |> Effect.sendToBackend
                                 , { joinEvent = Nothing }
                                 )
 
@@ -348,7 +348,7 @@ update config group maybeLoggedIn msg model =
 
         PressedResetName ->
             if canEdit_ then
-                ( { model | name = Unchanged }, Effect.None, { joinEvent = Nothing } )
+                ( { model | name = Unchanged }, Effect.none, { joinEvent = Nothing } )
 
             else
                 noChange
@@ -357,7 +357,7 @@ update config group maybeLoggedIn msg model =
             if canEdit_ then
                 case model.name of
                     Editting _ ->
-                        ( { model | name = Editting name }, Effect.None, { joinEvent = Nothing } )
+                        ( { model | name = Editting name }, Effect.none, { joinEvent = Nothing } )
 
                     _ ->
                         noChange
@@ -368,7 +368,7 @@ update config group maybeLoggedIn msg model =
         PressedEditDescription ->
             if canEdit_ then
                 ( { model | description = Group.description group |> Description.toString |> Editting }
-                , Effect.None
+                , Effect.none
                 , { joinEvent = Nothing }
                 )
 
@@ -387,7 +387,7 @@ update config group maybeLoggedIn msg model =
                                 ( { model | description = Submitting description }
                                 , Untrusted.untrust description
                                     |> ChangeGroupDescriptionRequest
-                                    |> Effect.SendToBackend
+                                    |> Effect.sendToBackend
                                 , { joinEvent = Nothing }
                                 )
 
@@ -402,7 +402,7 @@ update config group maybeLoggedIn msg model =
 
         PressedResetDescription ->
             if canEdit_ then
-                ( { model | description = Unchanged }, Effect.None, { joinEvent = Nothing } )
+                ( { model | description = Unchanged }, Effect.none, { joinEvent = Nothing } )
 
             else
                 noChange
@@ -412,7 +412,7 @@ update config group maybeLoggedIn msg model =
                 case model.description of
                     Editting _ ->
                         ( { model | description = Editting description }
-                        , Effect.None
+                        , Effect.none
                         , { joinEvent = Nothing }
                         )
 
@@ -424,20 +424,20 @@ update config group maybeLoggedIn msg model =
 
         PressedAddEvent ->
             if canEdit_ && model.eventOverlay == Nothing then
-                ( { model | eventOverlay = Just AddingNewEvent }, Effect.None, { joinEvent = Nothing } )
+                ( { model | eventOverlay = Just AddingNewEvent }, Effect.none, { joinEvent = Nothing } )
 
             else
                 noChange
 
         PressedShowAllFutureEvents ->
-            ( { model | showAllFutureEvents = True }, Effect.None, { joinEvent = Nothing } )
+            ( { model | showAllFutureEvents = True }, Effect.none, { joinEvent = Nothing } )
 
         PressedShowFirstFutureEvents ->
-            ( { model | showAllFutureEvents = False }, Effect.None, { joinEvent = Nothing } )
+            ( { model | showAllFutureEvents = False }, Effect.none, { joinEvent = Nothing } )
 
         ChangedNewEvent newEvent ->
             if canEdit_ then
-                ( { model | newEvent = newEvent }, Effect.None, { joinEvent = Nothing } )
+                ( { model | newEvent = newEvent }, Effect.none, { joinEvent = Nothing } )
 
             else
                 noChange
@@ -446,7 +446,7 @@ update config group maybeLoggedIn msg model =
             if canEdit_ then
                 case model.eventOverlay of
                     Just AddingNewEvent ->
-                        ( { model | eventOverlay = Nothing }, Effect.None, { joinEvent = Nothing } )
+                        ( { model | eventOverlay = Nothing }, Effect.none, { joinEvent = Nothing } )
 
                     _ ->
                         noChange
@@ -490,7 +490,7 @@ update config group maybeLoggedIn msg model =
                             startTime
                             (Untrusted.untrust duration)
                             (Untrusted.untrust maxAttendees)
-                            |> Effect.SendToBackend
+                            |> Effect.sendToBackend
                         , { joinEvent = Nothing }
                         )
                     )
@@ -504,7 +504,7 @@ update config group maybeLoggedIn msg model =
                     )
                     |> Maybe.withDefault
                         ( { model | newEvent = pressSubmit model.newEvent }
-                        , Effect.None
+                        , Effect.none
                         , { joinEvent = Nothing }
                         )
 
@@ -518,7 +518,7 @@ update config group maybeLoggedIn msg model =
 
                 _ ->
                     ( { model | pendingJoinOrLeave = Dict.insert eventId JoinOrLeavePending model.pendingJoinOrLeave }
-                    , LeaveEventRequest eventId |> Effect.SendToBackend
+                    , LeaveEventRequest eventId |> Effect.sendToBackend
                     , { joinEvent = Nothing }
                     )
 
@@ -531,12 +531,12 @@ update config group maybeLoggedIn msg model =
 
                         _ ->
                             ( { model | pendingJoinOrLeave = Dict.insert eventId JoinOrLeavePending model.pendingJoinOrLeave }
-                            , JoinEventRequest eventId |> Effect.SendToBackend
+                            , JoinEventRequest eventId |> Effect.sendToBackend
                             , { joinEvent = Nothing }
                             )
 
                 Nothing ->
-                    ( model, Effect.None, { joinEvent = Just eventId } )
+                    ( model, Effect.none, { joinEvent = Just eventId } )
 
         PressedEditEvent eventId ->
             if canEdit_ && model.eventOverlay == Nothing then
@@ -600,7 +600,7 @@ update config group maybeLoggedIn msg model =
                                     }
                                     |> Just
                           }
-                        , Effect.None
+                        , Effect.none
                         , { joinEvent = Nothing }
                         )
 
@@ -617,7 +617,7 @@ update config group maybeLoggedIn msg model =
                         _ ->
                             model.eventOverlay
               }
-            , Effect.None
+            , Effect.none
             , { joinEvent = Nothing }
             )
 
@@ -669,7 +669,7 @@ update config group maybeLoggedIn msg model =
                                             startTime
                                             (Untrusted.untrust duration)
                                             (Untrusted.untrust maxAttendees)
-                                            |> Effect.SendToBackend
+                                            |> Effect.sendToBackend
                                         , { joinEvent = Nothing }
                                         )
                                     )
@@ -685,7 +685,7 @@ update config group maybeLoggedIn msg model =
                                         ( { model
                                             | eventOverlay = EdittingEvent eventId (pressSubmit editEvent) |> Just
                                           }
-                                        , Effect.None
+                                        , Effect.none
                                         , { joinEvent = Nothing }
                                         )
 
@@ -701,7 +701,7 @@ update config group maybeLoggedIn msg model =
         PressedCancelEditEvent ->
             case model.eventOverlay of
                 Just (EdittingEvent _ _) ->
-                    ( { model | eventOverlay = Nothing }, Effect.None, { joinEvent = Nothing } )
+                    ( { model | eventOverlay = Nothing }, Effect.none, { joinEvent = Nothing } )
 
                 _ ->
                     noChange
@@ -711,7 +711,7 @@ update config group maybeLoggedIn msg model =
                 Just (EdittingEvent eventId _) ->
                     ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
                     , ChangeEventCancellationStatusRequest eventId Event.EventCancelled
-                        |> Effect.SendToBackend
+                        |> Effect.sendToBackend
                     , { joinEvent = Nothing }
                     )
 
@@ -723,7 +723,7 @@ update config group maybeLoggedIn msg model =
                 Just (EdittingEvent eventId _) ->
                     ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
                     , ChangeEventCancellationStatusRequest eventId Event.EventUncancelled
-                        |> Effect.SendToBackend
+                        |> Effect.sendToBackend
                     , { joinEvent = Nothing }
                     )
 
@@ -735,7 +735,7 @@ update config group maybeLoggedIn msg model =
                 Just (EdittingEvent eventId _) ->
                     ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
                     , ChangeEventCancellationStatusRequest eventId Event.EventCancelled
-                        |> Effect.SendToBackend
+                        |> Effect.sendToBackend
                     , { joinEvent = Nothing }
                     )
 
@@ -745,7 +745,7 @@ update config group maybeLoggedIn msg model =
         PressedMakeGroupPublic ->
             if canEdit_ && not model.pendingToggleVisibility then
                 ( { model | pendingToggleVisibility = True }
-                , ChangeGroupVisibilityRequest Group.PublicGroup |> Effect.SendToBackend
+                , ChangeGroupVisibilityRequest Group.PublicGroup |> Effect.sendToBackend
                 , { joinEvent = Nothing }
                 )
 
@@ -755,7 +755,7 @@ update config group maybeLoggedIn msg model =
         PressedMakeGroupUnlisted ->
             if canEdit_ && not model.pendingToggleVisibility then
                 ( { model | pendingToggleVisibility = True }
-                , ChangeGroupVisibilityRequest Group.UnlistedGroup |> Effect.SendToBackend
+                , ChangeGroupVisibilityRequest Group.UnlistedGroup |> Effect.sendToBackend
                 , { joinEvent = Nothing }
                 )
 
@@ -765,7 +765,7 @@ update config group maybeLoggedIn msg model =
         PressedDeleteGroup ->
             case Maybe.map (.adminStatus >> AdminStatus.isAdminEnabled) maybeLoggedIn of
                 Just True ->
-                    ( model, Effect.SendToBackend DeleteGroupAdminRequest, { joinEvent = Nothing } )
+                    ( model, Effect.sendToBackend DeleteGroupAdminRequest, { joinEvent = Nothing } )
 
                 _ ->
                     noChange
@@ -779,7 +779,7 @@ update config group maybeLoggedIn msg model =
                                 | newEvent =
                                     fillInEmptyNewEventInputs config.timezone latestEvent_ model.newEvent
                               }
-                            , Effect.None
+                            , Effect.none
                             , { joinEvent = Nothing }
                             )
 

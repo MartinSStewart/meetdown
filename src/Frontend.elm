@@ -138,7 +138,7 @@ toCmd effect =
         Effect.Port _ portFunction value ->
             portFunction value
 
-        Effect.SendToFrontend clientId toMsg ->
+        Effect.SendToFrontend _ _ ->
             Cmd.none
 
 
@@ -180,12 +180,12 @@ init url key =
         , time = Nothing
         , timezone = Nothing
         }
-    , Effect.Batch
-        [ SimulatedTask.getTime |> Effect.taskPerform GotTime
+    , Effect.batch
+        [ SimulatedTask.getTime |> Effect.perform GotTime
         , SimulatedTask.getViewport
-            |> Effect.taskPerform
+            |> Effect.perform
                 (\{ scene } -> GotWindowSize (Pixels.pixels (round scene.width)) (Pixels.pixels (round scene.height)))
-        , TimeZone.getZone |> Effect.taskAttempt GotTimeZone
+        , TimeZone.getZone |> Effect.attempt GotTimeZone
         ]
     )
 
@@ -243,9 +243,9 @@ initLoadedFrontend navigationKey windowWidth windowHeight route maybeLoginToken 
             routeRequest route model
     in
     ( model2
-    , Effect.Batch
-        [ Effect.Batch [ Effect.SendToBackend login, cmd ]
-        , Effect.NavigationReplaceUrl navigationKey (Route.encode route)
+    , Effect.batch
+        [ Effect.batch [ Effect.sendToBackend login, cmd ]
+        , Effect.navigationReplaceUrl navigationKey (Route.encode route)
         ]
     )
 
@@ -267,7 +267,7 @@ tryInitLoadedFrontend loading =
         loading.windowSize
         loading.time
         loading.timezone
-        |> Maybe.withDefault ( Loading loading, Effect.None )
+        |> Maybe.withDefault ( Loading loading, Effect.none )
 
 
 gotTimeZone : Result error ( a, Time.Zone ) -> { b | timezone : Maybe Time.Zone } -> { b | timezone : Maybe Time.Zone }
@@ -295,7 +295,7 @@ update msg model =
                     gotTimeZone result loading |> tryInitLoadedFrontend
 
                 _ ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
         Loaded loaded ->
             updateLoaded msg loaded |> Tuple.mapFirst Loaded
@@ -305,7 +305,7 @@ routeRequest : Route -> LoadedFrontend -> ( LoadedFrontend, Effect FrontendOnly 
 routeRequest route model =
     case route of
         MyGroupsRoute ->
-            ( model, Effect.SendToBackend GetMyGroupsRequest )
+            ( model, Effect.sendToBackend GetMyGroupsRequest )
 
         GroupRoute groupId _ ->
             case Dict.get groupId model.cachedGroups of
@@ -316,62 +316,62 @@ routeRequest route model =
                     in
                     case Dict.get ownerId model.cachedUsers of
                         Just _ ->
-                            ( model, Effect.None )
+                            ( model, Effect.none )
 
                         Nothing ->
                             ( { model | cachedUsers = Dict.insert ownerId ItemRequestPending model.cachedUsers }
-                            , Effect.SendToBackend (GetUserRequest ownerId)
+                            , Effect.sendToBackend (GetUserRequest ownerId)
                             )
 
                 Just ItemRequestPending ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
                 Just ItemDoesNotExist ->
                     ( { model | cachedGroups = Dict.insert groupId ItemRequestPending model.cachedGroups }
-                    , Effect.SendToBackend (GetGroupRequest groupId)
+                    , Effect.sendToBackend (GetGroupRequest groupId)
                     )
 
                 Nothing ->
                     ( { model | cachedGroups = Dict.insert groupId ItemRequestPending model.cachedGroups }
-                    , Effect.SendToBackend (GetGroupRequest groupId)
+                    , Effect.sendToBackend (GetGroupRequest groupId)
                     )
 
         HomepageRoute ->
-            ( model, Effect.None )
+            ( model, Effect.none )
 
         AdminRoute ->
             checkAdminState model
 
         CreateGroupRoute ->
-            ( model, Effect.SendToBackend GetMyGroupsRequest )
+            ( model, Effect.sendToBackend GetMyGroupsRequest )
 
         MyProfileRoute ->
-            ( model, Effect.None )
+            ( model, Effect.none )
 
         SearchGroupsRoute searchText ->
-            ( model, Effect.SendToBackend (SearchGroupsRequest searchText) )
+            ( model, Effect.sendToBackend (SearchGroupsRequest searchText) )
 
         UserRoute userId _ ->
             case Dict.get userId model.cachedUsers of
                 Just _ ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
                 Nothing ->
                     ( { model | cachedUsers = Dict.insert userId ItemRequestPending model.cachedUsers }
-                    , Effect.SendToBackend (GetUserRequest userId)
+                    , Effect.sendToBackend (GetUserRequest userId)
                     )
 
         PrivacyRoute ->
-            ( model, Effect.None )
+            ( model, Effect.none )
 
         TermsOfServiceRoute ->
-            ( model, Effect.None )
+            ( model, Effect.none )
 
         CodeOfConductRoute ->
-            ( model, Effect.None )
+            ( model, Effect.none )
 
         FrequentQuestionsRoute ->
-            ( model, Effect.None )
+            ( model, Effect.none )
 
 
 checkAdminState : LoadedFrontend -> ( LoadedFrontend, Effect FrontendOnly ToBackend FrontendMsg )
@@ -380,25 +380,25 @@ checkAdminState model =
         LoggedIn loggedIn_ ->
             if loggedIn_.adminState == AdminCacheNotRequested && loggedIn_.adminStatus /= IsNotAdmin then
                 ( { model | loginStatus = LoggedIn { loggedIn_ | adminState = AdminCachePending } }
-                , Effect.SendToBackend GetAdminDataRequest
+                , Effect.sendToBackend GetAdminDataRequest
                 )
 
             else
-                ( model, Effect.None )
+                ( model, Effect.none )
 
         NotLoggedIn _ ->
-            ( model, Effect.None )
+            ( model, Effect.none )
 
         LoginStatusPending ->
-            ( model, Effect.None )
+            ( model, Effect.none )
 
 
 navigationReplaceRoute navKey route =
-    Route.encode route |> Effect.NavigationReplaceUrl navKey
+    Route.encode route |> Effect.navigationReplaceUrl navKey
 
 
 navigationPushRoute navKey route =
-    Route.encode route |> Effect.NavigationPushUrl navKey
+    Route.encode route |> Effect.navigationPushUrl navKey
 
 
 updateLoaded : FrontendMsg -> LoadedFrontend -> ( LoadedFrontend, Effect FrontendOnly ToBackend FrontendMsg )
@@ -414,11 +414,11 @@ updateLoaded msg model =
                                 |> Maybe.withDefault HomepageRoute
                     in
                     ( { model | route = route, hasLoginTokenError = False } |> closeLoginForm
-                    , Effect.NavigationPushUrl model.navigationKey (Route.encode route)
+                    , Effect.navigationPushUrl model.navigationKey (Route.encode route)
                     )
 
                 External url ->
-                    ( model, Effect.NavigationLoad url )
+                    ( model, Effect.navigationLoad url )
 
         UrlChanged url ->
             let
@@ -430,39 +430,39 @@ updateLoaded msg model =
             routeRequest route { model | route = route }
                 |> Tuple.mapSecond
                     (\a ->
-                        Effect.Batch
+                        Effect.batch
                             [ a
                             , SimulatedTask.setViewport Quantity.zero Quantity.zero
-                                |> Effect.taskPerform (\() -> ScrolledToTop)
+                                |> Effect.perform (\() -> ScrolledToTop)
                             ]
                     )
 
         GotTime time ->
-            ( { model | time = time }, Effect.None )
+            ( { model | time = time }, Effect.none )
 
         PressedLogin ->
             case model.loginStatus of
                 LoginStatusPending ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
                 NotLoggedIn notLoggedIn ->
                     ( { model
                         | loginStatus = NotLoggedIn { notLoggedIn | showLogin = True }
                         , hasLoginTokenError = False
                       }
-                    , Effect.None
+                    , Effect.none
                     )
 
                 LoggedIn _ ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
         PressedLogout ->
             ( { model | loginStatus = NotLoggedIn { showLogin = False, joiningEvent = Nothing } }
-            , Effect.SendToBackend LogoutRequest
+            , Effect.sendToBackend LogoutRequest
             )
 
         TypedEmail text ->
-            ( { model | loginForm = LoginForm.typedEmail text model.loginForm }, Effect.None )
+            ( { model | loginForm = LoginForm.typedEmail text model.loginForm }, Effect.none )
 
         PressedSubmitLogin ->
             case model.loginStatus of
@@ -471,10 +471,10 @@ updateLoaded msg model =
                         |> Tuple.mapFirst (\a -> { model | loginForm = a })
 
                 LoginStatusPending ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
                 LoggedIn _ ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
         PressedCreateGroup ->
             ( model, navigationPushRoute model.navigationKey CreateGroupRoute )
@@ -496,20 +496,20 @@ updateLoaded msg model =
                                         (Untrusted.untrust submitted.name)
                                         (Untrusted.untrust submitted.description)
                                         submitted.visibility
-                                        |> Effect.SendToBackend
+                                        |> Effect.sendToBackend
                                     )
 
                                 CreateGroupPage.NoChange ->
-                                    ( newModel, Effect.None )
+                                    ( newModel, Effect.none )
 
                         Nothing ->
-                            ( model, Effect.None )
+                            ( model, Effect.none )
 
                 NotLoggedIn _ ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
                 LoginStatusPending ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
         ProfileFormMsg profileFormMsg ->
             case model.loginStatus of
@@ -524,13 +524,13 @@ updateLoaded msg model =
                     )
 
                 NotLoggedIn _ ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
                 LoginStatusPending ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
         TypedSearchText searchText ->
-            ( { model | searchText = searchText }, Effect.None )
+            ( { model | searchText = searchText }, Effect.none )
 
         SubmittedSearchBox ->
             ( closeLoginForm model, navigationPushRoute model.navigationKey (SearchGroupsRoute model.searchText) )
@@ -577,22 +577,22 @@ updateLoaded msg model =
                             )
 
                         _ ->
-                            ( model, Effect.None )
+                            ( model, Effect.none )
 
                 _ ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
         GotWindowSize width height ->
-            ( { model | windowWidth = width, windowHeight = height }, Effect.None )
+            ( { model | windowWidth = width, windowHeight = height }, Effect.none )
 
         GotTimeZone _ ->
-            ( model, Effect.None )
+            ( model, Effect.none )
 
         PressedCancelLogin ->
-            ( closeLoginForm model, Effect.None )
+            ( closeLoginForm model, Effect.none )
 
         ScrolledToTop ->
-            ( model, Effect.None )
+            ( model, Effect.none )
 
         PressedEnableAdmin ->
             ( case model.loginStatus of
@@ -609,7 +609,7 @@ updateLoaded msg model =
 
                 _ ->
                     model
-            , Effect.None
+            , Effect.none
             )
 
         PressedDisableAdmin ->
@@ -627,7 +627,7 @@ updateLoaded msg model =
 
                 _ ->
                     model
-            , Effect.None
+            , Effect.none
             )
 
 
@@ -651,7 +651,7 @@ updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Effect Front
 updateFromBackend msg model =
     case model of
         Loading _ ->
-            ( model, Effect.None )
+            ( model, Effect.none )
 
         Loaded loaded ->
             updateLoadedFromBackend msg loaded |> Tuple.mapFirst Loaded
@@ -687,7 +687,7 @@ updateLoadedFromBackend msg model =
                         (GroupRoute groupId (Group.name groupData))
 
                 GroupNotFound_ ->
-                    Effect.None
+                    Effect.none
             )
 
         GetUserResponse userId result ->
@@ -704,7 +704,7 @@ updateLoadedFromBackend msg model =
                         )
                         model.cachedUsers
               }
-            , Effect.None
+            , Effect.none
             )
 
         LoginWithTokenResponse result ->
@@ -734,7 +734,7 @@ updateLoadedFromBackend msg model =
                         | hasLoginTokenError = True
                         , loginStatus = NotLoggedIn { showLogin = True, joiningEvent = Nothing }
                       }
-                    , Effect.None
+                    , Effect.none
                     )
 
         CheckLoginResponse loginStatus ->
@@ -761,21 +761,21 @@ updateLoadedFromBackend msg model =
 
                 Nothing ->
                     ( { model | loginStatus = NotLoggedIn { showLogin = False, joiningEvent = Nothing } }
-                    , Effect.None
+                    , Effect.none
                     )
 
         GetAdminDataResponse adminData ->
             case model.loginStatus of
                 LoggedIn loggedIn_ ->
                     ( { model | loginStatus = LoggedIn { loggedIn_ | adminState = AdminCached adminData } }
-                    , Effect.None
+                    , Effect.none
                     )
 
                 LoginStatusPending ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
                 NotLoggedIn _ ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
         CreateGroupResponse result ->
             case model.loginStatus of
@@ -794,17 +794,17 @@ updateLoadedFromBackend msg model =
 
                         Err error ->
                             ( { model | groupForm = CreateGroupPage.submitFailed error model.groupForm }
-                            , Effect.None
+                            , Effect.none
                             )
 
                 NotLoggedIn _ ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
                 LoginStatusPending ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
         LogoutResponse ->
-            ( { model | loginStatus = NotLoggedIn { showLogin = False, joiningEvent = Nothing } }, Effect.None )
+            ( { model | loginStatus = NotLoggedIn { showLogin = False, joiningEvent = Nothing } }, Effect.none )
 
         ChangeNameResponse name ->
             case model.loginStatus of
@@ -816,14 +816,14 @@ updateLoadedFromBackend msg model =
                                 (Types.mapCache (\a -> { a | name = name }))
                                 model.cachedUsers
                       }
-                    , Effect.None
+                    , Effect.none
                     )
 
                 LoginStatusPending ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
                 NotLoggedIn _ ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
         ChangeDescriptionResponse description ->
             case model.loginStatus of
@@ -835,27 +835,27 @@ updateLoadedFromBackend msg model =
                                 (Types.mapCache (\a -> { a | description = description }))
                                 model.cachedUsers
                       }
-                    , Effect.None
+                    , Effect.none
                     )
 
                 LoginStatusPending ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
                 NotLoggedIn _ ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
         ChangeEmailAddressResponse emailAddress ->
             case model.loginStatus of
                 LoggedIn loggedIn ->
                     ( { model | loginStatus = LoggedIn { loggedIn | emailAddress = emailAddress } }
-                    , Effect.None
+                    , Effect.none
                     )
 
                 LoginStatusPending ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
                 NotLoggedIn _ ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
         DeleteUserResponse result ->
             case result of
@@ -864,11 +864,11 @@ updateLoadedFromBackend msg model =
                         | loginStatus = NotLoggedIn { showLogin = False, joiningEvent = Nothing }
                         , accountDeletedResult = Just result
                       }
-                    , Effect.None
+                    , Effect.none
                     )
 
                 Err () ->
-                    ( { model | accountDeletedResult = Just result }, Effect.None )
+                    ( { model | accountDeletedResult = Just result }, Effect.none )
 
         ChangeProfileImageResponse profileImage ->
             case model.loginStatus of
@@ -880,14 +880,14 @@ updateLoadedFromBackend msg model =
                                 (Types.mapCache (\a -> { a | profileImage = profileImage }))
                                 model.cachedUsers
                       }
-                    , Effect.None
+                    , Effect.none
                     )
 
                 LoginStatusPending ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
                 NotLoggedIn _ ->
-                    ( model, Effect.None )
+                    ( model, Effect.none )
 
         GetMyGroupsResponse myGroups ->
             ( case model.loginStatus of
@@ -909,7 +909,7 @@ updateLoadedFromBackend msg model =
 
                 LoginStatusPending ->
                     model
-            , Effect.None
+            , Effect.none
             )
 
         SearchGroupsResponse _ groups ->
@@ -923,7 +923,7 @@ updateLoadedFromBackend msg model =
                         groups
                 , searchList = List.map Tuple.first groups
               }
-            , Effect.None
+            , Effect.none
             )
 
         ChangeGroupNameResponse groupId groupName ->
@@ -934,7 +934,7 @@ updateLoadedFromBackend msg model =
                         model.cachedGroups
                 , groupPage = Dict.updateJust groupId GroupPage.savedName model.groupPage
               }
-            , Effect.None
+            , Effect.none
             )
 
         ChangeGroupDescriptionResponse groupId description ->
@@ -945,7 +945,7 @@ updateLoadedFromBackend msg model =
                         model.cachedGroups
                 , groupPage = Dict.updateJust groupId GroupPage.savedDescription model.groupPage
               }
-            , Effect.None
+            , Effect.none
             )
 
         CreateEventResponse groupId result ->
@@ -961,7 +961,7 @@ updateLoadedFromBackend msg model =
                             model.cachedGroups
                 , groupPage = Dict.updateJust groupId (GroupPage.addedNewEvent result) model.groupPage
               }
-            , Effect.None
+            , Effect.none
             )
 
         JoinEventResponse groupId eventId result ->
@@ -1004,7 +1004,7 @@ updateLoadedFromBackend msg model =
 
                 NotLoggedIn _ ->
                     model
-            , Effect.None
+            , Effect.none
             )
 
         LeaveEventResponse groupId eventId result ->
@@ -1038,7 +1038,7 @@ updateLoadedFromBackend msg model =
 
                 NotLoggedIn _ ->
                     model
-            , Effect.None
+            , Effect.none
             )
 
         EditEventResponse groupId eventId result backendTime ->
@@ -1064,7 +1064,7 @@ updateLoadedFromBackend msg model =
                 , groupPage =
                     Dict.updateJust groupId (GroupPage.editEventResponse result) model.groupPage
               }
-            , Effect.None
+            , Effect.none
             )
 
         ChangeEventCancellationStatusResponse groupId eventId result backendTime ->
@@ -1096,7 +1096,7 @@ updateLoadedFromBackend msg model =
                 , groupPage =
                     Dict.updateJust groupId (GroupPage.editCancellationStatusResponse eventId result) model.groupPage
               }
-            , Effect.None
+            , Effect.none
             )
 
         ChangeGroupVisibilityResponse groupId visibility ->
@@ -1105,12 +1105,12 @@ updateLoadedFromBackend msg model =
                     Dict.updateJust groupId (Types.mapCache (Group.withVisibility visibility)) model.cachedGroups
                 , groupPage = Dict.updateJust groupId (GroupPage.changeVisibilityResponse visibility) model.groupPage
               }
-            , Effect.None
+            , Effect.none
             )
 
         DeleteGroupAdminResponse groupId ->
             ( { model | cachedGroups = Dict.updateJust groupId (\_ -> ItemDoesNotExist) model.cachedGroups }
-            , Effect.None
+            , Effect.none
             )
 
 

@@ -76,19 +76,19 @@ name along with the `Time.Zone`.
 getZone : SimulatedTask FrontendOnly Error ( String, Time.Zone )
 getZone =
     SimulatedTask.getTimeZoneName
-        |> SimulatedTask.taskAndThen
+        |> SimulatedTask.andThen
             (\nameOrOffset ->
                 case nameOrOffset of
                     Time.Name zoneName ->
                         case Dict.get zoneName zones of
                             Just zone ->
-                                SimulatedTask.Succeed ( zoneName, zone () )
+                                SimulatedTask.succeed ( zoneName, zone () )
 
                             Nothing ->
-                                SimulatedTask.Fail (NoDataForZoneName zoneName)
+                                SimulatedTask.fail (NoDataForZoneName zoneName)
 
                     Time.Offset _ ->
-                        SimulatedTask.Fail NoZoneName
+                        SimulatedTask.fail NoZoneName
             )
 
 

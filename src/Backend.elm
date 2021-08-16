@@ -129,7 +129,7 @@ init =
       , pendingLoginTokens = Dict.empty
       , pendingDeleteUserTokens = Dict.empty
       }
-    , SimulatedTask.getTime |> Effect.taskPerform BackendGotTime
+    , SimulatedTask.getTime |> Effect.perform BackendGotTime
     )
 
 
