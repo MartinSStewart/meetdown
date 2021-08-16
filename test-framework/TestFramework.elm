@@ -23,15 +23,14 @@ module TestFramework exposing
     )
 
 import AssocList as Dict exposing (Dict)
-import BackendEffect exposing (BackendEffect)
 import Basics.Extra as Basics
 import Browser exposing (UrlRequest(..))
 import Browser.Dom
 import Date exposing (Date)
 import Duration exposing (Duration)
+import Effect exposing (Effect, PortToJs)
 import Env
 import Expect exposing (Expectation)
-import FrontendEffect exposing (FrontendEffect, PortToJs)
 import Html exposing (Html)
 import Html.Attributes
 import Http
@@ -57,7 +56,7 @@ import Url exposing (Url)
 
 type alias State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel =
     { backend : backendModel
-    , pendingEffects : BackendEffect toFrontend backendMsg
+    , pendingEffects : Effect BackendOnly toFrontend backendMsg
     , frontends : Dict ClientId (FrontendState toBackend frontendMsg frontendModel toFrontend)
     , counter : Int
     , elapsedTime : Duration
@@ -196,7 +195,9 @@ toExpectation inProgress =
         Expect.fail <| String.join "," state.testErrors
 
 
-flatten : Instructions toBackend frontendMsg frontendModel toFrontend backendMsg backendModel -> Nonempty ( String, State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel )
+flatten :
+    Instructions toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
+    -> Nonempty ( String, State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel )
 flatten inProgress =
     case inProgress of
         NextStep name stepFunc inProgress_ ->
@@ -241,7 +242,7 @@ instructionsToState inProgress =
 type alias FrontendState toBackend frontendMsg frontendModel toFrontend =
     { model : frontendModel
     , sessionId : SessionId
-    , pendingEffects : FrontendEffect toBackend frontendMsg
+    , pendingEffects : Effect FrontendOnly toBackend frontendMsg
     , toFrontend : List toFrontend
     , clipboard : String
     , timers : Dict Duration { msg : Time.Posix -> frontendMsg, startTime : Time.Posix }
@@ -255,20 +256,20 @@ startTime =
 
 
 type alias FrontendApp toBackend frontendMsg frontendModel toFrontend =
-    { init : Url -> NavigationKey -> ( frontendModel, FrontendEffect toBackend frontendMsg )
+    { init : Url -> NavigationKey -> ( frontendModel, Effect FrontendOnly toBackend frontendMsg )
     , onUrlRequest : UrlRequest -> frontendMsg
     , onUrlChange : Url -> frontendMsg
-    , update : frontendMsg -> frontendModel -> ( frontendModel, FrontendEffect toBackend frontendMsg )
-    , updateFromBackend : toFrontend -> frontendModel -> ( frontendModel, FrontendEffect toBackend frontendMsg )
+    , update : frontendMsg -> frontendModel -> ( frontendModel, Effect FrontendOnly toBackend frontendMsg )
+    , updateFromBackend : toFrontend -> frontendModel -> ( frontendModel, Effect FrontendOnly toBackend frontendMsg )
     , view : frontendModel -> Browser.Document frontendMsg
     , subscriptions : frontendModel -> Subscription FrontendOnly frontendMsg
     }
 
 
 type alias BackendApp toBackend toFrontend backendMsg backendModel =
-    { init : ( backendModel, BackendEffect toFrontend backendMsg )
-    , update : backendMsg -> backendModel -> ( backendModel, BackendEffect toFrontend backendMsg )
-    , updateFromFrontend : SessionId -> ClientId -> toBackend -> backendModel -> ( backendModel, BackendEffect toFrontend backendMsg )
+    { init : ( backendModel, Effect BackendOnly toFrontend backendMsg )
+    , update : backendMsg -> backendModel -> ( backendModel, Effect BackendOnly toFrontend backendMsg )
+    , updateFromFrontend : SessionId -> ClientId -> toBackend -> backendModel -> ( backendModel, Effect BackendOnly toFrontend backendMsg )
     , subscriptions : backendModel -> Subscription BackendOnly backendMsg
     }
 
@@ -405,7 +406,7 @@ connectFrontend frontendApp backendApp sessionId url andThenFunc =
                         |> List.foldl
                             (\msg ( newBackend, newEffects ) ->
                                 backendApp.update (msg sessionId clientId) newBackend
-                                    |> Tuple.mapSecond (\a -> BackendEffect.Batch [ newEffects, a ])
+                                    |> Tuple.mapSecond (\a -> Effect.batch [ newEffects, a ])
                             )
                             ( state.backend, state.pendingEffects )
 
@@ -633,7 +634,7 @@ disconnectFrontend backendApp clientId state =
                         |> List.foldl
                             (\msg ( newBackend, newEffects ) ->
                                 backendApp.update (msg frontend.sessionId clientId) newBackend
-                                    |> Tuple.mapSecond (\a -> BackendEffect.Batch [ newEffects, a ])
+                                    |> Tuple.mapSecond (\a -> Effect.batch [ newEffects, a ])
                             )
                             ( state.backend, state.pendingEffects )
             in
@@ -660,7 +661,7 @@ reconnectFrontend backendApp frontendState state =
                 |> List.foldl
                     (\msg ( newBackend, newEffects ) ->
                         backendApp.update (msg frontendState.sessionId clientId) newBackend
-                            |> Tuple.mapSecond (\a -> BackendEffect.Batch [ newEffects, a ])
+                            |> Tuple.mapSecond (\a -> Effect.batch [ newEffects, a ])
                     )
                     ( state.backend, state.pendingEffects )
     in
@@ -721,7 +722,7 @@ simulateStep frontendApp backendApp state =
                         backendApp.update
                             (msg (Duration.addTo startTime newTime))
                             backend
-                            |> Tuple.mapSecond (\a -> BackendEffect.Batch [ effects, a ])
+                            |> Tuple.mapSecond (\a -> Effect.batch [ effects, a ])
                     )
                     ( state.backend, state.pendingEffects )
     in
@@ -731,20 +732,16 @@ simulateStep frontendApp backendApp state =
         , backend = newBackend
         , frontends =
             Dict.map
-                (\clientId frontend ->
+                (\_ frontend ->
                     let
                         ( newFrontendModel, newFrontendEffects ) =
                             getCompletedTimers frontend.timers
                                 |> List.foldl
                                     (\( _, { msg } ) ( frontendModel, effects ) ->
-                                        --let
-                                        --    _ =
-                                        --        Debug.log "timer completed" ""
-                                        --in
                                         frontendApp.update
                                             (msg (Duration.addTo startTime newTime))
                                             frontendModel
-                                            |> Tuple.mapSecond (\a -> FrontendEffect.Batch [ effects, a ])
+                                            |> Tuple.mapSecond (\a -> Effect.Batch [ effects, a ])
                                     )
                                     ( frontend.model, frontend.pendingEffects )
                     in
@@ -828,11 +825,11 @@ runEffects frontendApp backendApp state =
                 state2.frontends
     in
     { state4
-        | pendingEffects = flattenBackendEffect state4.pendingEffects |> BackendEffect.Batch
+        | pendingEffects = flattenEffects state4.pendingEffects |> Effect.batch
         , frontends =
             Dict.map
                 (\_ frontend ->
-                    { frontend | pendingEffects = flattenFrontendEffect frontend.pendingEffects |> FrontendEffect.Batch }
+                    { frontend | pendingEffects = flattenEffects frontend.pendingEffects |> Effect.Batch }
                 )
                 state4.frontends
     }
@@ -849,29 +846,21 @@ runNetwork frontendApp backendApp state =
         ( backendModel, effects ) =
             List.foldl
                 (\( sessionId, clientId, toBackendMsg ) ( model, effects2 ) ->
-                    --let
-                    --    _ =
-                    --        Debug.log "updateFromFrontend" ( clientId, toBackendMsg )
-                    --in
                     backendApp.updateFromFrontend sessionId clientId toBackendMsg model
-                        |> Tuple.mapSecond (\a -> BackendEffect.Batch [ effects2, a ])
+                        |> Tuple.mapSecond (\a -> Effect.batch [ effects2, a ])
                 )
                 ( state.backend, state.pendingEffects )
                 state.toBackend
 
         frontends =
             Dict.map
-                (\clientId frontend ->
+                (\_ frontend ->
                     let
                         ( newModel, newEffects2 ) =
                             List.foldl
                                 (\msg ( model, newEffects ) ->
-                                    --let
-                                    --    _ =
-                                    --        Debug.log "Frontend.updateFromBackend" ( clientId, msg )
-                                    --in
                                     frontendApp.updateFromBackend msg model
-                                        |> Tuple.mapSecond (\a -> FrontendEffect.Batch [ newEffects, a ])
+                                        |> Tuple.mapSecond (\a -> Effect.Batch [ newEffects, a ])
                                 )
                                 ( frontend.model, frontend.pendingEffects )
                                 frontend.toFrontend
@@ -887,7 +876,7 @@ runNetwork frontendApp backendApp state =
     { state
         | toBackend = []
         , backend = backendModel
-        , pendingEffects = flattenBackendEffect effects |> BackendEffect.Batch
+        , pendingEffects = flattenEffects effects |> Effect.batch
         , frontends = frontends
     }
 
@@ -896,7 +885,7 @@ clearBackendEffects :
     State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
     -> State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
 clearBackendEffects state =
-    { state | pendingEffects = BackendEffect.None }
+    { state | pendingEffects = Effect.none }
 
 
 clearFrontendEffects :
@@ -908,7 +897,7 @@ clearFrontendEffects clientId state =
         | frontends =
             Dict.update
                 clientId
-                (Maybe.map (\frontend -> { frontend | pendingEffects = FrontendEffect.None }))
+                (Maybe.map (\frontend -> { frontend | pendingEffects = Effect.None }))
                 state.frontends
     }
 
@@ -917,30 +906,30 @@ runFrontendEffects :
     FrontendApp toBackend frontendMsg frontendModel toFrontend
     -> SessionId
     -> ClientId
-    -> FrontendEffect toBackend frontendMsg
+    -> Effect FrontendOnly toBackend frontendMsg
     -> State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
     -> State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
 runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
     case effectsToPerform of
-        FrontendEffect.Batch nestedEffectsToPerform ->
+        Effect.Batch nestedEffectsToPerform ->
             List.foldl (runFrontendEffects frontendApp sessionId clientId) state nestedEffectsToPerform
 
-        FrontendEffect.SendToBackend toBackend ->
+        Effect.SendToBackend toBackend ->
             { state | toBackend = state.toBackend ++ [ ( sessionId, clientId, toBackend ) ] }
 
-        FrontendEffect.NavigationPushUrl _ urlText ->
+        Effect.NavigationPushUrl _ urlText ->
             handleUrlChange frontendApp urlText clientId state
 
-        FrontendEffect.NavigationReplaceUrl _ urlText ->
+        Effect.NavigationReplaceUrl _ urlText ->
             handleUrlChange frontendApp urlText clientId state
 
-        FrontendEffect.NavigationLoad urlText ->
+        Effect.NavigationLoad urlText ->
             handleUrlChange frontendApp urlText clientId state
 
-        FrontendEffect.None ->
+        Effect.None ->
             state
 
-        FrontendEffect.SelectFile mimeTypes msg ->
+        Effect.SelectFile mimeTypes msg ->
             case state.handleFileRequest { mimeTypes = mimeTypes } of
                 Just file ->
                     case Dict.get clientId state.frontends of
@@ -954,7 +943,7 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
                                     Dict.insert clientId
                                         { frontend
                                             | model = model
-                                            , pendingEffects = FrontendEffect.Batch [ frontend.pendingEffects, effects ]
+                                            , pendingEffects = Effect.Batch [ frontend.pendingEffects, effects ]
                                         }
                                         state.frontends
                             }
@@ -965,7 +954,7 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
                 Nothing ->
                     state
 
-        FrontendEffect.FileToUrl msg file ->
+        Effect.FileToUrl msg file ->
             case file of
                 MockFile { name, content } ->
                     case Dict.get clientId state.frontends of
@@ -980,7 +969,7 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
                                     Dict.insert clientId
                                         { frontend
                                             | model = model
-                                            , pendingEffects = FrontendEffect.Batch [ frontend.pendingEffects, effects ]
+                                            , pendingEffects = Effect.Batch [ frontend.pendingEffects, effects ]
                                         }
                                         state.frontends
                             }
@@ -991,7 +980,7 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
                 RealFile _ ->
                     state
 
-        FrontendEffect.Task task ->
+        Effect.Task task ->
             let
                 ( newState, msg ) =
                     runTask (Just clientId) frontendApp state task
@@ -1007,7 +996,7 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
                             Dict.insert clientId
                                 { frontend
                                     | model = model
-                                    , pendingEffects = FrontendEffect.Batch [ frontend.pendingEffects, effects ]
+                                    , pendingEffects = Effect.Batch [ frontend.pendingEffects, effects ]
                                 }
                                 state.frontends
                     }
@@ -1015,7 +1004,7 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
                 Nothing ->
                     state
 
-        FrontendEffect.Port portName _ value ->
+        Effect.Port portName _ value ->
             let
                 portRequest =
                     { portName = portName, value = value }
@@ -1053,7 +1042,7 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
                                                 ( newModel, newEffects ) =
                                                     frontendApp.update (msg responseValue) model_
                                             in
-                                            ( newModel, FrontendEffect.Batch [ effects_, newEffects ] )
+                                            ( newModel, Effect.Batch [ effects_, newEffects ] )
                                         )
                                         ( frontend.model, frontend.pendingEffects )
                                         msgs
@@ -1070,6 +1059,9 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
 
                 Nothing ->
                     newState
+
+        Effect.SendToFrontend _ _ ->
+            state
 
 
 getPortSubscriptions :
@@ -1115,7 +1107,7 @@ handleUrlChange frontendApp urlText clientId state =
                             Dict.insert clientId
                                 { frontend
                                     | model = model
-                                    , pendingEffects = FrontendEffect.Batch [ frontend.pendingEffects, effects ]
+                                    , pendingEffects = Effect.Batch [ frontend.pendingEffects, effects ]
                                     , url = url
                                 }
                                 state.frontends
@@ -1128,26 +1120,13 @@ handleUrlChange frontendApp urlText clientId state =
             state
 
 
-flattenFrontendEffect : FrontendEffect toBackend frontendMsg -> List (FrontendEffect toBackend frontendMsg)
-flattenFrontendEffect effect =
+flattenEffects : Effect restriction toBackend frontendMsg -> List (Effect restriction toBackend frontendMsg)
+flattenEffects effect =
     case effect of
-        FrontendEffect.Batch effects ->
-            List.concatMap flattenFrontendEffect effects
+        Effect.Batch effects ->
+            List.concatMap flattenEffects effects
 
-        FrontendEffect.None ->
-            []
-
-        _ ->
-            [ effect ]
-
-
-flattenBackendEffect : BackendEffect toFrontend backendMsg -> List (BackendEffect toFrontend backendMsg)
-flattenBackendEffect effect =
-    case effect of
-        BackendEffect.Batch effects ->
-            List.concatMap flattenBackendEffect effects
-
-        BackendEffect.None ->
+        Effect.None ->
             []
 
         _ ->
@@ -1157,15 +1136,15 @@ flattenBackendEffect effect =
 runBackendEffects :
     FrontendApp toBackend frontendMsg frontendModel toFrontend
     -> BackendApp toBackend toFrontend backendMsg backendModel
-    -> BackendEffect toFrontend backendMsg
+    -> Effect BackendOnly toFrontend backendMsg
     -> State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
     -> State toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
 runBackendEffects frontendApp backendApp effect state =
     case effect of
-        BackendEffect.Batch effects ->
+        Effect.Batch effects ->
             List.foldl (runBackendEffects frontendApp backendApp) state effects
 
-        BackendEffect.SendToFrontend clientId toFrontend ->
+        Effect.SendToFrontend clientId toFrontend ->
             { state
                 | frontends =
                     Dict.update
@@ -1174,10 +1153,10 @@ runBackendEffects frontendApp backendApp effect state =
                         state.frontends
             }
 
-        BackendEffect.None ->
+        Effect.None ->
             state
 
-        BackendEffect.Task task ->
+        Effect.Task task ->
             let
                 ( newState, msg ) =
                     runTask Nothing frontendApp state task
@@ -1187,8 +1166,29 @@ runBackendEffects frontendApp backendApp effect state =
             in
             { newState
                 | backend = model
-                , pendingEffects = BackendEffect.Batch [ newState.pendingEffects, effects ]
+                , pendingEffects = Effect.batch [ newState.pendingEffects, effects ]
             }
+
+        Effect.SendToBackend _ ->
+            state
+
+        Effect.NavigationPushUrl _ _ ->
+            state
+
+        Effect.NavigationReplaceUrl _ _ ->
+            state
+
+        Effect.NavigationLoad _ ->
+            state
+
+        Effect.SelectFile _ _ ->
+            state
+
+        Effect.FileToUrl _ _ ->
+            state
+
+        Effect.Port _ _ _ ->
+            state
 
 
 runTask :

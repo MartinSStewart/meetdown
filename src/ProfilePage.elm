@@ -18,13 +18,13 @@ import Browser.Dom
 import Colors exposing (..)
 import Description exposing (Description, Error(..))
 import Duration exposing (Duration)
+import Effect exposing (Effect)
 import Element exposing (Element)
 import Element.Background
 import Element.Border
 import Element.Font
 import Element.Input
 import EmailAddress exposing (EmailAddress)
-import FrontendEffect exposing (FrontendEffect)
 import Html
 import Html.Attributes
 import Html.Events
@@ -143,13 +143,13 @@ update :
     { c | windowWidth : Quantity Int Pixels, windowHeight : Quantity Int Pixels }
     -> Msg
     -> Model
-    -> ( Model, FrontendEffect ToBackend Msg )
+    -> ( Model, Effect FrontendOnly ToBackend Msg )
 update windowSize msg model =
     case msg of
         FormChanged newForm ->
             ( { model | form = newForm, changeCounter = model.changeCounter + 1 }
             , SimulatedTask.wait (Duration.seconds 2)
-                |> FrontendEffect.taskPerform (\() -> SleepFinished (model.changeCounter + 1))
+                |> Effect.taskPerform (\() -> SleepFinished (model.changeCounter + 1))
             )
 
         SleepFinished changeCount ->
@@ -168,43 +168,43 @@ update windowSize msg model =
                 [ validate
                     (Name.fromString
                         >> Result.toMaybe
-                        >> Maybe.map (Untrusted.untrust >> ChangeNameRequest >> FrontendEffect.sendToBackend)
+                        >> Maybe.map (Untrusted.untrust >> ChangeNameRequest >> Effect.sendToBackend)
                     )
                     model.form.name
                 , validate
                     (Description.fromString
                         >> Result.toMaybe
-                        >> Maybe.map (Untrusted.untrust >> ChangeDescriptionRequest >> FrontendEffect.sendToBackend)
+                        >> Maybe.map (Untrusted.untrust >> ChangeDescriptionRequest >> Effect.sendToBackend)
                     )
                     model.form.description
                 , validate
                     (EmailAddress.fromString
-                        >> Maybe.map (Untrusted.untrust >> ChangeEmailAddressRequest >> FrontendEffect.sendToBackend)
+                        >> Maybe.map (Untrusted.untrust >> ChangeEmailAddressRequest >> Effect.sendToBackend)
                     )
                     model.form.emailAddress
                 ]
                     |> List.filterMap identity
-                    |> FrontendEffect.batch
+                    |> Effect.batch
 
               else
-                FrontendEffect.none
+                Effect.none
             )
 
         PressedProfileImage ->
-            ( model, FrontendEffect.selectFile [ "image/png", "image/jpg", "image/jpeg" ] SelectedImage )
+            ( model, Effect.selectFile [ "image/png", "image/jpg", "image/jpeg" ] SelectedImage )
 
         SelectedImage file ->
-            ( model, FrontendEffect.fileToUrl GotImageUrl file )
+            ( model, Effect.fileToUrl GotImageUrl file )
 
         PressedDeleteAccount ->
-            ( { model | pressedDeleteAccount = True }, FrontendEffect.sendToBackend SendDeleteUserEmailRequest )
+            ( { model | pressedDeleteAccount = True }, Effect.sendToBackend SendDeleteUserEmailRequest )
 
         GotImageUrl imageUrl ->
             ( { model
                 | profileImage =
                     Editting (Just { x = 0.1, y = 0.1, size = 0.8, imageUrl = imageUrl, dragState = Nothing, imageSize = Nothing })
               }
-            , SimulatedTask.getElement profileImagePlaceholderId |> FrontendEffect.taskAttempt GotImageSize
+            , SimulatedTask.getElement profileImagePlaceholderId |> Effect.taskAttempt GotImageSize
             )
 
         MouseDownImageEditor x y ->
@@ -248,11 +248,11 @@ update windowSize msg model =
                     ( { model
                         | profileImage = Editting (Just { imageData | dragState = Just newDragState })
                       }
-                    , FrontendEffect.none
+                    , Effect.none
                     )
 
                 _ ->
-                    ( model, FrontendEffect.none )
+                    ( model, Effect.none )
 
         MovedImageEditor x y ->
             case model.profileImage of
@@ -261,11 +261,11 @@ update windowSize msg model =
                         | profileImage =
                             Editting (Just (updateDragState (pixelToT windowSize x) (pixelToT windowSize y) imageData))
                       }
-                    , FrontendEffect.none
+                    , Effect.none
                     )
 
                 _ ->
-                    ( model, FrontendEffect.none )
+                    ( model, Effect.none )
 
         MouseUpImageEditor x y ->
             case model.profileImage of
@@ -277,11 +277,11 @@ update windowSize msg model =
                                 |> (\a -> { a | dragState = Nothing })
                     in
                     ( { model | profileImage = Editting (Just newImageData) }
-                    , FrontendEffect.none
+                    , Effect.none
                     )
 
                 _ ->
-                    ( model, FrontendEffect.none )
+                    ( model, Effect.none )
 
         TouchEndImageEditor ->
             case model.profileImage of
@@ -292,11 +292,11 @@ update windowSize msg model =
                                 |> (\a -> { a | dragState = Nothing })
                     in
                     ( { model | profileImage = Editting (Just newImageData) }
-                    , FrontendEffect.none
+                    , Effect.none
                     )
 
                 _ ->
-                    ( model, FrontendEffect.none )
+                    ( model, Effect.none )
 
         PressedConfirmImage ->
             case model.profileImage of
@@ -317,20 +317,20 @@ update windowSize msg model =
                             )
 
                         Nothing ->
-                            ( model, FrontendEffect.none )
+                            ( model, Effect.none )
 
                 _ ->
-                    ( model, FrontendEffect.none )
+                    ( model, Effect.none )
 
         PressedCancelImage ->
-            ( { model | profileImage = Unchanged }, FrontendEffect.none )
+            ( { model | profileImage = Unchanged }, Effect.none )
 
         GotImageSize result ->
             case ( result, model.profileImage ) of
                 ( Ok { element }, Editting (Just imageData) ) ->
                     if element.height <= 0 then
                         ( model
-                        , SimulatedTask.getElement profileImagePlaceholderId |> FrontendEffect.taskAttempt GotImageSize
+                        , SimulatedTask.getElement profileImagePlaceholderId |> Effect.taskAttempt GotImageSize
                         )
 
                     else
@@ -345,11 +345,11 @@ update windowSize msg model =
                                     |> Just
                                     |> Editting
                           }
-                        , FrontendEffect.none
+                        , Effect.none
                         )
 
                 _ ->
-                    ( model, FrontendEffect.none )
+                    ( model, Effect.none )
 
         CroppedImage result ->
             case result of
@@ -363,14 +363,14 @@ update windowSize msg model =
                             ( newModel
                             , Untrusted.untrust profileImage
                                 |> ChangeProfileImageRequest
-                                |> FrontendEffect.SendToBackend
+                                |> Effect.SendToBackend
                             )
 
                         Err _ ->
-                            ( model, FrontendEffect.None )
+                            ( model, Effect.None )
 
                 Err _ ->
-                    ( model, FrontendEffect.None )
+                    ( model, Effect.None )
 
 
 subscriptions : (Msg -> msg) -> Subscription FrontendOnly msg

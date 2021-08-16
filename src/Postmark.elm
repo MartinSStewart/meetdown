@@ -1,6 +1,6 @@
 module Postmark exposing (..)
 
-import BackendEffect exposing (BackendEffect)
+import Effect exposing (Effect)
 import Email.Html
 import EmailAddress exposing (EmailAddress)
 import Http
@@ -40,7 +40,7 @@ type alias PostmarkSend =
     }
 
 
-sendEmailTask : PostmarkServerToken -> PostmarkSend -> SimulatedTask BackendOnly Http.Error PostmarkSendResponse
+sendEmailTask : PostmarkServerToken -> PostmarkSend -> SimulatedTask restriction Http.Error PostmarkSendResponse
 sendEmailTask token d =
     let
         httpBody : SimulatedTask.HttpBody
@@ -64,9 +64,13 @@ sendEmailTask token d =
         }
 
 
-sendEmail : (Result Http.Error PostmarkSendResponse -> msg) -> PostmarkServerToken -> PostmarkSend -> BackendEffect toFrontend msg
+sendEmail :
+    (Result Http.Error PostmarkSendResponse -> msg)
+    -> PostmarkServerToken
+    -> PostmarkSend
+    -> Effect restriction toMsg msg
 sendEmail msg token d =
-    sendEmailTask token d |> BackendEffect.taskAttempt msg
+    sendEmailTask token d |> Effect.taskAttempt msg
 
 
 emailsToString : List.Nonempty.Nonempty { name : String, email : EmailAddress } -> String
@@ -178,7 +182,7 @@ bodyToJsonValues body =
             ]
 
 
-jsonResolver : D.Decoder a -> HttpEffect.Resolver BackendOnly Http.Error a
+jsonResolver : D.Decoder a -> HttpEffect.Resolver restriction Http.Error a
 jsonResolver decoder =
     HttpEffect.stringResolver <|
         \response ->

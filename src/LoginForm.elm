@@ -2,16 +2,17 @@ module LoginForm exposing (cancelButtonId, emailAddressInputId, submitButtonId, 
 
 import AssocList as Dict exposing (Dict)
 import Colors
+import Effect exposing (Effect)
 import Element exposing (Element)
 import Element.Font
 import Element.Input
 import EmailAddress exposing (EmailAddress)
-import FrontendEffect exposing (FrontendEffect)
 import Group exposing (EventId, Group)
 import GroupName
 import Html.Attributes
 import Id exposing (GroupId, Id)
 import Route exposing (Route)
+import SimulatedTask exposing (FrontendOnly)
 import TestId exposing (ButtonId, HtmlId, TextInputId)
 import Types exposing (Cache(..), FrontendMsg(..), LoginForm, ToBackend(..))
 import Ui
@@ -129,16 +130,16 @@ submitForm :
     Route
     -> Maybe ( Id GroupId, EventId )
     -> LoginForm
-    -> ( LoginForm, FrontendEffect ToBackend FrontendMsg )
+    -> ( LoginForm, Effect FrontendOnly ToBackend FrontendMsg )
 submitForm route maybeJoinEvent loginForm =
     case validateEmail loginForm.email of
         Ok email ->
             ( { loginForm | emailSent = Just email }
-            , GetLoginTokenRequest route (Untrusted.untrust email) maybeJoinEvent |> FrontendEffect.SendToBackend
+            , GetLoginTokenRequest route (Untrusted.untrust email) maybeJoinEvent |> Effect.SendToBackend
             )
 
         Err _ ->
-            ( { loginForm | pressedSubmitEmail = True }, FrontendEffect.None )
+            ( { loginForm | pressedSubmitEmail = True }, Effect.None )
 
 
 typedEmail : String -> LoginForm -> LoginForm

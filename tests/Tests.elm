@@ -11,10 +11,10 @@ import CreateGroupPage
 import Date
 import Dict as RegularDict
 import Duration
+import Effect exposing (PortToJs)
 import EmailAddress exposing (EmailAddress)
 import Env
 import Frontend
-import FrontendEffect exposing (PortToJs)
 import Group exposing (EventId)
 import GroupName exposing (GroupName)
 import GroupPage

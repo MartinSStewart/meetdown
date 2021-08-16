@@ -1,7 +1,7 @@
 port module Ports exposing (CropImageData, CropImageDataResponse, cropImageDataCodec, cropImageDataResponseCodec, cropImageFromJs, cropImageFromJsName, cropImageToJs, cropImageToJsName)
 
 import Codec exposing (Codec)
-import FrontendEffect
+import Effect exposing (Effect)
 import Json.Decode
 import Json.Encode
 import Pixels exposing (Pixels)
@@ -21,10 +21,10 @@ cropImageToJsName =
     "martinsstewart_crop_image_to_js"
 
 
-cropImageToJs : CropImageData -> FrontendEffect.FrontendEffect toBackend msg
+cropImageToJs : CropImageData -> Effect FrontendOnly toBackend msg
 cropImageToJs =
     Codec.encodeToValue cropImageDataCodec
-        >> FrontendEffect.sendToJs cropImageToJsName martinsstewart_crop_image_to_js
+        >> Effect.sendToJs cropImageToJsName martinsstewart_crop_image_to_js
 
 
 cropImageFromJsName : String
