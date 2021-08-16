@@ -24,7 +24,6 @@ module TestFramework exposing
 
 import AssocList as Dict exposing (Dict)
 import BackendEffect exposing (BackendEffect)
-import BackendSub exposing (BackendSub)
 import Basics.Extra as Basics
 import Browser exposing (UrlRequest(..))
 import Browser.Dom
@@ -33,23 +32,25 @@ import Duration exposing (Duration)
 import Env
 import Expect exposing (Expectation)
 import FrontendEffect exposing (FrontendEffect, PortToJs)
-import FrontendSub exposing (FrontendSub)
 import Html exposing (Html)
 import Html.Attributes
 import Http
-import Id exposing (ButtonId(..), ClientId, DateInputId, DeleteUserToken, GroupId, HtmlId, Id, LoginToken, NumberInputId, RadioButtonId, SessionId, TextInputId, TimeInputId)
+import Id exposing (ButtonId(..), DateInputId, DeleteUserToken, GroupId, HtmlId, Id, LoginToken, NumberInputId, RadioButtonId, TextInputId, TimeInputId)
 import Json.Decode
 import Json.Encode
+import Lamdera exposing (ClientId, SessionId)
 import List.Nonempty exposing (Nonempty)
 import MockFile exposing (File(..))
 import NavigationKey exposing (NavigationKey(..))
 import Quantity
 import Route exposing (Route)
-import SimulatedTask exposing (BackendOnly, SimulatedTask(..))
+import SimulatedTask exposing (BackendOnly, FrontendOnly, SimulatedTask(..))
+import Subscription exposing (Subscription)
 import Test.Html.Event
 import Test.Html.Query
 import Test.Html.Selector
 import Test.Runner
+import TestInternal
 import Time
 import Ui
 import Url exposing (Url)
@@ -139,7 +140,7 @@ checkFrontend clientId checkFunc =
                 Nothing ->
                     { state
                         | testErrors =
-                            state.testErrors ++ [ "ClientId \"" ++ Id.clientIdToString clientId ++ "\" not found." ]
+                            state.testErrors ++ [ "ClientId \"" ++ clientId ++ "\" not found." ]
                     }
         )
 
@@ -178,7 +179,7 @@ checkView frontendApp clientId query =
                 Nothing ->
                     { state
                         | testErrors =
-                            state.testErrors ++ [ "ClientId \"" ++ Id.clientIdToString clientId ++ "\" not found." ]
+                            state.testErrors ++ [ "ClientId \"" ++ clientId ++ "\" not found." ]
                     }
         )
 
@@ -261,7 +262,7 @@ type alias FrontendApp toBackend frontendMsg frontendModel toFrontend =
     , update : frontendMsg -> frontendModel -> ( frontendModel, FrontendEffect toBackend frontendMsg )
     , updateFromBackend : toFrontend -> frontendModel -> ( frontendModel, FrontendEffect toBackend frontendMsg )
     , view : frontendModel -> Browser.Document frontendMsg
-    , subscriptions : frontendModel -> FrontendSub frontendMsg
+    , subscriptions : frontendModel -> Subscription FrontendOnly frontendMsg
     }
 
 
@@ -269,7 +270,7 @@ type alias BackendApp toBackend toFrontend backendMsg backendModel =
     { init : ( backendModel, BackendEffect toFrontend backendMsg )
     , update : backendMsg -> backendModel -> ( backendModel, BackendEffect toFrontend backendMsg )
     , updateFromFrontend : SessionId -> ClientId -> toBackend -> backendModel -> ( backendModel, BackendEffect toFrontend backendMsg )
-    , subscriptions : backendModel -> BackendSub backendMsg
+    , subscriptions : backendModel -> Subscription BackendOnly backendMsg
     }
 
 
@@ -316,7 +317,7 @@ testApp frontendApp backendApp handleHttpRequest handlePortToJs handleFileReques
             , counter = 0
             , elapsedTime = Quantity.zero
             , toBackend = []
-            , timers = getBackendTimers startTime (backendApp.subscriptions backend)
+            , timers = getTimers startTime (backendApp.subscriptions backend)
             , testErrors = []
             , httpRequests = []
             , handleHttpRequest = handleHttpRequest
@@ -337,55 +338,42 @@ testApp frontendApp backendApp handleHttpRequest handlePortToJs handleFileReques
     }
 
 
-getFrontendTimers : Time.Posix -> FrontendSub frontendMsg -> Dict Duration { msg : Time.Posix -> frontendMsg, startTime : Time.Posix }
-getFrontendTimers currentTime frontendSub =
-    case frontendSub of
-        FrontendSub.Batch batch ->
-            List.foldl (\sub dict -> Dict.union (getFrontendTimers currentTime sub) dict) Dict.empty batch
-
-        FrontendSub.TimeEvery duration msg ->
-            Dict.singleton duration { msg = msg, startTime = currentTime }
-
-        _ ->
-            Dict.empty
-
-
-getBackendTimers :
+getTimers :
     Time.Posix
-    -> BackendSub backendMsg
+    -> Subscription restriction backendMsg
     -> Dict Duration { msg : Time.Posix -> backendMsg, startTime : Time.Posix }
-getBackendTimers currentTime backendSub =
+getTimers currentTime backendSub =
     case backendSub of
-        BackendSub.Batch batch ->
-            List.foldl (\sub dict -> Dict.union (getBackendTimers currentTime sub) dict) Dict.empty batch
+        TestInternal.Batch batch ->
+            List.foldl (\sub dict -> Dict.union (getTimers currentTime sub) dict) Dict.empty batch
 
-        BackendSub.TimeEvery duration msg ->
+        TestInternal.TimeEvery duration msg ->
             Dict.singleton duration { msg = msg, startTime = currentTime }
 
         _ ->
             Dict.empty
 
 
-getClientDisconnectSubs : BackendSub backendMsg -> List (SessionId -> ClientId -> backendMsg)
+getClientDisconnectSubs : TestInternal.Subscription BackendOnly backendMsg -> List (SessionId -> ClientId -> backendMsg)
 getClientDisconnectSubs backendSub =
     case backendSub of
-        BackendSub.Batch batch ->
+        TestInternal.Batch batch ->
             List.foldl (\sub list -> getClientDisconnectSubs sub ++ list) [] batch
 
-        BackendSub.OnDisconnect msg ->
+        TestInternal.OnDisconnect msg ->
             [ msg ]
 
         _ ->
             []
 
 
-getClientConnectSubs : BackendSub backendMsg -> List (SessionId -> ClientId -> backendMsg)
+getClientConnectSubs : TestInternal.Subscription BackendOnly backendMsg -> List (SessionId -> ClientId -> backendMsg)
 getClientConnectSubs backendSub =
     case backendSub of
-        BackendSub.Batch batch ->
+        TestInternal.Batch batch ->
             List.foldl (\sub list -> getClientConnectSubs sub ++ list) [] batch
 
-        BackendSub.OnConnect msg ->
+        TestInternal.OnConnect msg ->
             [ msg ]
 
         _ ->
@@ -405,7 +393,7 @@ connectFrontend frontendApp backendApp sessionId url andThenFunc =
         (\state ->
             let
                 clientId =
-                    "clientId " ++ String.fromInt state.counter |> Id.clientIdFromString
+                    "clientId " ++ String.fromInt state.counter
 
                 ( frontend, effects ) =
                     frontendApp.init url MockNavigationKey
@@ -433,7 +421,7 @@ connectFrontend frontendApp backendApp sessionId url andThenFunc =
                                 , pendingEffects = effects
                                 , toFrontend = []
                                 , clipboard = ""
-                                , timers = getFrontendTimers (Duration.addTo startTime state.elapsedTime) subscriptions
+                                , timers = getTimers (Duration.addTo startTime state.elapsedTime) subscriptions
                                 , url = url
                                 }
                                 state.frontends
@@ -570,7 +558,7 @@ userEvent :
     -> Instructions toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
 userEvent frontendApp name clientId htmlId event =
     NextStep
-        (Id.clientIdToString clientId ++ ": " ++ name ++ " for " ++ Id.htmlIdToString htmlId)
+        (clientId ++ ": " ++ name ++ " for " ++ Id.htmlIdToString htmlId)
         (\state ->
             case Dict.get clientId state.frontends of
                 Just frontend ->
@@ -666,7 +654,7 @@ reconnectFrontend :
 reconnectFrontend backendApp frontendState state =
     let
         clientId =
-            "clientId " ++ String.fromInt state.counter |> Id.clientIdFromString
+            "clientId " ++ String.fromInt state.counter
 
         ( backend, effects ) =
             getClientConnectSubs (backendApp.subscriptions state.backend)
@@ -1085,13 +1073,15 @@ runFrontendEffects frontendApp sessionId clientId effectsToPerform state =
                     newState
 
 
-getPortSubscriptions : FrontendSub frontendMsg -> List { portName : String, msg : Json.Decode.Value -> frontendMsg }
+getPortSubscriptions :
+    Subscription FrontendOnly frontendMsg
+    -> List { portName : String, msg : Json.Decode.Value -> frontendMsg }
 getPortSubscriptions subscription =
     case subscription of
-        FrontendSub.Batch subscriptions ->
+        TestInternal.Batch subscriptions ->
             List.concatMap getPortSubscriptions subscriptions
 
-        FrontendSub.Port portName _ msg ->
+        TestInternal.Port portName _ msg ->
             [ { portName = portName, msg = msg } ]
 
         _ ->

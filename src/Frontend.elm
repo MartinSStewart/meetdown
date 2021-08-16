@@ -33,7 +33,6 @@ import Env
 import File
 import File.Select
 import FrontendEffect exposing (FrontendEffect)
-import FrontendSub exposing (FrontendSub)
 import FrontendUser exposing (FrontendUser)
 import Group exposing (Group)
 import GroupPage
@@ -50,7 +49,8 @@ import ProfilePage
 import Quantity exposing (Quantity)
 import Route exposing (Route(..))
 import SearchPage
-import SimulatedTask
+import SimulatedTask exposing (FrontendOnly)
+import Subscription exposing (Subscription)
 import Task
 import Terms
 import Time
@@ -69,7 +69,7 @@ app =
         , onUrlChange = onUrlChange
         , update = \msg model -> update msg model |> Tuple.mapSecond toCmd
         , updateFromBackend = \msg model -> updateFromBackend msg model |> Tuple.mapSecond toCmd
-        , subscriptions = subscriptions >> FrontendSub.toSub
+        , subscriptions = subscriptions >> Subscription.toSub
         , view =
             \model ->
                 let
@@ -138,17 +138,17 @@ toCmd effect =
             portFunction value
 
 
-subscriptions : FrontendModel -> FrontendSub FrontendMsg
+subscriptions : FrontendModel -> Subscription FrontendOnly FrontendMsg
 subscriptions model =
-    FrontendSub.Batch
+    Subscription.batch
         [ case model of
             Loaded _ ->
                 ProfilePage.subscriptions ProfileFormMsg
 
             Loading _ ->
-                FrontendSub.none
-        , FrontendSub.OnResize GotWindowSize
-        , FrontendSub.TimeEvery Duration.minute GotTime
+                Subscription.none
+        , Subscription.onResize GotWindowSize
+        , Subscription.timeEvery Duration.minute GotTime
         ]
 
 

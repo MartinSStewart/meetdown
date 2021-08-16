@@ -25,7 +25,6 @@ import Element.Font
 import Element.Input
 import EmailAddress exposing (EmailAddress)
 import FrontendEffect exposing (FrontendEffect)
-import FrontendSub exposing (FrontendSub)
 import Html
 import Html.Attributes
 import Html.Events
@@ -39,7 +38,8 @@ import Pixels exposing (Pixels)
 import Ports exposing (CropImageDataResponse)
 import ProfileImage exposing (ProfileImage)
 import Quantity exposing (Quantity)
-import SimulatedTask
+import SimulatedTask exposing (FrontendOnly)
+import Subscription exposing (Subscription)
 import Ui
 import Untrusted exposing (Untrusted)
 
@@ -373,7 +373,7 @@ update windowSize msg model =
                     ( model, FrontendEffect.None )
 
 
-subscriptions : (Msg -> msg) -> FrontendSub msg
+subscriptions : (Msg -> msg) -> Subscription FrontendOnly msg
 subscriptions msgMap =
     Ports.cropImageFromJs (CroppedImage >> msgMap)
 

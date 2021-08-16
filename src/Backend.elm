@@ -12,7 +12,6 @@ import Array
 import AssocList as Dict exposing (Dict)
 import AssocSet as Set
 import BackendEffect exposing (BackendEffect)
-import BackendSub exposing (BackendSub)
 import BiDict.Assoc as BiDict
 import CreateGroupPage exposing (CreateGroupError(..))
 import Description exposing (Description)
@@ -38,8 +37,9 @@ import ProfileImage
 import ProfilePage
 import Quantity
 import Route exposing (Route(..))
-import SimulatedTask
+import SimulatedTask exposing (BackendOnly)
 import String.Nonempty exposing (NonemptyString(..))
+import Subscription exposing (Subscription)
 import Task
 import Time
 import Toop exposing (T3(..), T4(..), T5(..))
@@ -59,7 +59,7 @@ app =
                     toBackend
                     model
                     |> Tuple.mapSecond toCmd
-        , subscriptions = \model -> subscriptions model |> BackendSub.toSub
+        , subscriptions = \model -> subscriptions model |> Subscription.toSub
         }
 
 
@@ -111,12 +111,12 @@ init =
     )
 
 
-subscriptions : BackendModel -> BackendSub BackendMsg
+subscriptions : BackendModel -> Subscription BackendOnly BackendMsg
 subscriptions _ =
-    BackendSub.Batch
-        [ BackendSub.TimeEvery (Duration.seconds 15) BackendGotTime
-        , BackendSub.OnConnect Connected
-        , BackendSub.OnDisconnect Disconnected
+    Subscription.batch
+        [ Subscription.timeEvery (Duration.seconds 15) BackendGotTime
+        , Subscription.onConnect Connected
+        , Subscription.onDisconnect Disconnected
         ]
 
 

@@ -2,11 +2,12 @@ port module Ports exposing (CropImageData, CropImageDataResponse, cropImageDataC
 
 import Codec exposing (Codec)
 import FrontendEffect
-import FrontendSub
 import Json.Decode
 import Json.Encode
 import Pixels exposing (Pixels)
 import Quantity exposing (Quantity)
+import SimulatedTask exposing (FrontendOnly)
+import Subscription exposing (Subscription)
 
 
 port martinsstewart_crop_image_to_js : Json.Encode.Value -> Cmd msg
@@ -31,9 +32,9 @@ cropImageFromJsName =
     "martinsstewart_crop_image_from_js"
 
 
-cropImageFromJs : (Result String CropImageDataResponse -> msg) -> FrontendSub.FrontendSub msg
+cropImageFromJs : (Result String CropImageDataResponse -> msg) -> Subscription FrontendOnly msg
 cropImageFromJs msg =
-    FrontendSub.fromJs
+    Subscription.fromJs
         cropImageFromJsName
         martinsstewart_crop_image_from_js
         (Codec.decodeValue cropImageDataResponseCodec
