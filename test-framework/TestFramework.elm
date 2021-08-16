@@ -35,10 +35,8 @@ import FrontendEffect exposing (FrontendEffect, PortToJs)
 import Html exposing (Html)
 import Html.Attributes
 import Http
-import Id exposing (ButtonId(..), DateInputId, DeleteUserToken, GroupId, HtmlId, Id, LoginToken, NumberInputId, RadioButtonId, TextInputId, TimeInputId)
 import Json.Decode
 import Json.Encode
-import Lamdera exposing (ClientId, SessionId)
 import List.Nonempty exposing (Nonempty)
 import MockFile exposing (File(..))
 import NavigationKey exposing (NavigationKey(..))
@@ -50,6 +48,7 @@ import Test.Html.Event
 import Test.Html.Query
 import Test.Html.Selector
 import Test.Runner
+import TestId exposing (ButtonId, ClientId, DateInputId, HtmlId, NumberInputId, RadioButtonId, SessionId, TextInputId, TimeInputId)
 import TestInternal
 import Time
 import Ui
@@ -140,7 +139,7 @@ checkFrontend clientId checkFunc =
                 Nothing ->
                     { state
                         | testErrors =
-                            state.testErrors ++ [ "ClientId \"" ++ clientId ++ "\" not found." ]
+                            state.testErrors ++ [ "ClientId \"" ++ TestId.clientIdToString clientId ++ "\" not found." ]
                     }
         )
 
@@ -179,7 +178,7 @@ checkView frontendApp clientId query =
                 Nothing ->
                     { state
                         | testErrors =
-                            state.testErrors ++ [ "ClientId \"" ++ clientId ++ "\" not found." ]
+                            state.testErrors ++ [ "ClientId \"" ++ TestId.clientIdToString clientId ++ "\" not found." ]
                     }
         )
 
@@ -393,7 +392,7 @@ connectFrontend frontendApp backendApp sessionId url andThenFunc =
         (\state ->
             let
                 clientId =
-                    "clientId " ++ String.fromInt state.counter
+                    "clientId " ++ String.fromInt state.counter |> TestId.clientIdFromString
 
                 ( frontend, effects ) =
                     frontendApp.init url MockNavigationKey
@@ -558,7 +557,7 @@ userEvent :
     -> Instructions toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
 userEvent frontendApp name clientId htmlId event =
     NextStep
-        (clientId ++ ": " ++ name ++ " for " ++ Id.htmlIdToString htmlId)
+        (TestId.clientIdToString clientId ++ ": " ++ name ++ " for " ++ TestId.htmlIdToString htmlId)
         (\state ->
             case Dict.get clientId state.frontends of
                 Just frontend ->
@@ -568,7 +567,7 @@ userEvent frontendApp name clientId htmlId event =
                                 |> .body
                                 |> Html.div []
                                 |> Test.Html.Query.fromHtml
-                                |> Test.Html.Query.find [ Test.Html.Selector.id (Id.htmlIdToString htmlId) ]
+                                |> Test.Html.Query.find [ Test.Html.Selector.id (TestId.htmlIdToString htmlId) ]
                     in
                     case Test.Html.Event.simulate event query |> Test.Html.Event.toResult of
                         Ok msg ->
@@ -588,12 +587,12 @@ userEvent frontendApp name clientId htmlId event =
                             case Test.Runner.getFailureReason (Test.Html.Query.has [] query) of
                                 Just { description } ->
                                     addTestError
-                                        ("User event failed for " ++ Id.htmlIdToString htmlId ++ ": " ++ formatHtmlError description)
+                                        ("User event failed for " ++ TestId.htmlIdToString htmlId ++ ": " ++ formatHtmlError description)
                                         state
 
                                 Nothing ->
                                     addTestError
-                                        ("User event failed for " ++ Id.htmlIdToString htmlId ++ ": " ++ err)
+                                        ("User event failed for " ++ TestId.htmlIdToString htmlId ++ ": " ++ err)
                                         state
 
                 Nothing ->
@@ -654,7 +653,7 @@ reconnectFrontend :
 reconnectFrontend backendApp frontendState state =
     let
         clientId =
-            "clientId " ++ String.fromInt state.counter
+            "clientId " ++ String.fromInt state.counter |> TestId.clientIdFromString
 
         ( backend, effects ) =
             getClientConnectSubs (backendApp.subscriptions state.backend)

@@ -26,7 +26,7 @@ import Group exposing (EventId, Group, GroupVisibility)
 import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError(..))
 import Http
-import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, UserId)
+import Id exposing (DeleteUserToken, GroupId, Id, LoginToken, UserId)
 import Lamdera
 import Link
 import List.Extra as List
@@ -41,6 +41,7 @@ import SimulatedTask exposing (BackendOnly)
 import String.Nonempty exposing (NonemptyString(..))
 import Subscription exposing (Subscription)
 import Task
+import TestId exposing (ClientId, SessionId)
 import Time
 import Toop exposing (T3(..), T4(..), T5(..))
 import Types exposing (..)
@@ -54,8 +55,8 @@ app =
         , updateFromFrontend =
             \sessionId clientId toBackend model ->
                 updateFromFrontend
-                    (Id.sessionIdFromString sessionId)
-                    (Id.clientIdFromString clientId)
+                    (TestId.sessionIdFromString sessionId)
+                    (TestId.clientIdFromString clientId)
                     toBackend
                     model
                     |> Tuple.mapSecond toCmd
@@ -73,7 +74,7 @@ toCmd effect =
             Cmd.none
 
         BackendEffect.SendToFrontend clientId toFrontend ->
-            Lamdera.sendToFrontend (Id.clientIdToString clientId) toFrontend
+            Lamdera.sendToFrontend (TestId.clientIdToString clientId) toFrontend
 
         BackendEffect.Task simulatedTask ->
             SimulatedTask.toTask simulatedTask

@@ -6,22 +6,18 @@ import AssocList as Dict exposing (Dict)
 import AssocSet exposing (Set)
 import BiDict.Assoc exposing (BiDict)
 import Browser exposing (UrlRequest)
-import Browser.Navigation
 import CreateGroupPage exposing (CreateGroupError, GroupFormValidated)
 import Description exposing (Description)
 import EmailAddress exposing (EmailAddress)
 import Event exposing (CancellationStatus, Event, EventType)
-import EventDuration exposing (EventDuration)
-import EventName exposing (EventName)
 import FrontendUser exposing (FrontendUser)
 import Group exposing (EventId, Group, GroupVisibility, JoinEventError)
 import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError)
 import Http
 import HttpHelpers
-import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, SessionIdFirst4Chars, UserId)
+import Id exposing (DeleteUserToken, GroupId, Id, LoginToken, SessionIdFirst4Chars, UserId)
 import List.Nonempty exposing (Nonempty)
-import MaxAttendees exposing (MaxAttendees)
 import Name exposing (Name)
 import NavigationKey exposing (NavigationKey)
 import Pixels exposing (Pixels)
@@ -30,6 +26,7 @@ import ProfileImage exposing (ProfileImage)
 import ProfilePage
 import Quantity exposing (Quantity)
 import Route exposing (Route)
+import TestId exposing (ClientId, SessionId)
 import Time
 import TimeZone
 import Untrusted exposing (Untrusted)

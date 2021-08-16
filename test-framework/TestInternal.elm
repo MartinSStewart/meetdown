@@ -1,10 +1,10 @@
 module TestInternal exposing (Subscription(..))
 
 import Duration exposing (Duration)
-import Id exposing (ClientId, SessionId)
 import Json.Decode
 import Pixels exposing (Pixels)
 import Quantity exposing (Quantity)
+import TestId exposing (ClientId, SessionId)
 import Time
 
 

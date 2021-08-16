@@ -29,7 +29,6 @@ import Html
 import Html.Attributes
 import Html.Events
 import Html.Events.Extra.Touch
-import Id exposing (ButtonId(..))
 import Json.Decode
 import List.Extra as List
 import MockFile exposing (File)
@@ -40,6 +39,7 @@ import ProfileImage exposing (ProfileImage)
 import Quantity exposing (Quantity)
 import SimulatedTask exposing (FrontendOnly)
 import Subscription exposing (Subscription)
+import TestId exposing (ButtonId)
 import Ui
 import Untrusted exposing (Untrusted)
 
@@ -711,11 +711,11 @@ imageEditorView windowSize imageEdit =
 
 
 uploadImageButtonId =
-    Id.buttonId "profileUploadImage"
+    TestId.buttonId "profileUploadImage"
 
 
 cancelImageButtonId =
-    Id.buttonId "profileCancelImage"
+    TestId.buttonId "profileCancelImage"
 
 
 view :
@@ -804,9 +804,9 @@ view windowSize currentValues ({ form } as model) =
                 ]
 
 
-deleteAccountButtonId : Id.HtmlId ButtonId
+deleteAccountButtonId : TestId.HtmlId ButtonId
 deleteAccountButtonId =
-    Id.buttonId "profileDeleteAccount"
+    TestId.buttonId "profileDeleteAccount"
 
 
 editableTextInput :

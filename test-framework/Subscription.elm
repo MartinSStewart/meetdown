@@ -2,12 +2,12 @@ module Subscription exposing (Subscription, batch, fromJs, none, onConnect, onDi
 
 import Browser.Events
 import Duration exposing (Duration)
-import Id exposing (ClientId, SessionId)
 import Json.Decode
 import Lamdera
 import Pixels exposing (Pixels)
 import Quantity exposing (Quantity)
 import SimulatedTask exposing (BackendOnly, FrontendOnly)
+import TestId exposing (ClientId, SessionId)
 import TestInternal
 import Time
 
@@ -92,7 +92,9 @@ toSub sub =
             portFunction msg
 
         TestInternal.OnConnect msg ->
-            Lamdera.onConnect (\sessionId clientId -> msg (Id.sessionIdFromString sessionId) (Id.clientIdFromString clientId))
+            Lamdera.onConnect
+                (\sessionId clientId -> msg (TestId.sessionIdFromString sessionId) (TestId.clientIdFromString clientId))
 
         TestInternal.OnDisconnect msg ->
-            Lamdera.onDisconnect (\sessionId clientId -> msg (Id.sessionIdFromString sessionId) (Id.clientIdFromString clientId))
+            Lamdera.onDisconnect
+                (\sessionId clientId -> msg (TestId.sessionIdFromString sessionId) (TestId.clientIdFromString clientId))

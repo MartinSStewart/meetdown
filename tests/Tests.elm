@@ -20,7 +20,7 @@ import GroupName exposing (GroupName)
 import GroupPage
 import Html.Parser
 import Http
-import Id exposing (ClientId, GroupId, Id)
+import Id exposing (GroupId, Id)
 import Json.Decode
 import List.Extra as List
 import LoginForm
@@ -35,6 +35,7 @@ import Test exposing (..)
 import Test.Html.Query
 import Test.Html.Selector
 import TestFramework as TF
+import TestId
 import Time
 import Types exposing (BackendModel, BackendMsg, FrontendModel(..), FrontendMsg(..), LoadedFrontend, LoginStatus(..), ToBackend(..), ToFrontend)
 import Ui
@@ -112,7 +113,7 @@ handleFileRequest _ =
 
 
 checkLoadedFrontend :
-    ClientId
+    TestId.ClientId
     -> (LoadedFrontend -> Result String ())
     -> TF.Instructions ToBackend FrontendMsg FrontendModel toFrontend backendMsg backendModel
     -> TF.Instructions ToBackend FrontendMsg FrontendModel toFrontend backendMsg backendModel
@@ -132,11 +133,11 @@ checkLoadedFrontend clientId checkFunc state =
 
 loginFromHomepage :
     Bool
-    -> Id.SessionId
-    -> Id.SessionId
+    -> TestId.SessionId
+    -> TestId.SessionId
     -> EmailAddress.EmailAddress
     ->
-        ({ instructions : TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId }
+        ({ instructions : TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel, clientId : TestId.ClientId, clientIdFromEmail : TestId.ClientId }
          -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
         )
     -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
@@ -154,11 +155,11 @@ loginFromHomepage loginWithEnterKey sessionId sessionIdFromEmail emailAddress st
 
 handleLoginForm :
     Bool
-    -> Id.ClientId
-    -> Id.SessionId
+    -> TestId.ClientId
+    -> TestId.SessionId
     -> EmailAddress
     ->
-        ({ instructions : TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel, clientId : Id.ClientId, clientIdFromEmail : Id.ClientId }
+        ({ instructions : TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel, clientId : TestId.ClientId, clientIdFromEmail : TestId.ClientId }
          -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
         )
     -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
@@ -385,7 +386,7 @@ suite =
             \_ ->
                 let
                     sessionId =
-                        Id.sessionIdFromString "session0"
+                        TestId.sessionIdFromString "session0"
 
                     emailAddress =
                         Unsafe.emailAddress "the@email.com"
@@ -419,7 +420,7 @@ suite =
             \_ ->
                 let
                     sessionId =
-                        Id.sessionIdFromString "session0"
+                        TestId.sessionIdFromString "session0"
 
                     emailAddress =
                         Unsafe.emailAddress "the@email.com"
@@ -454,7 +455,7 @@ suite =
             \_ ->
                 let
                     sessionId =
-                        Id.sessionIdFromString "session0"
+                        TestId.sessionIdFromString "session0"
 
                     emailAddress =
                         Unsafe.emailAddress "the@email.com"
@@ -490,8 +491,8 @@ suite =
                 testApp.init
                     |> loginFromHomepage
                         True
-                        (Id.sessionIdFromString "session0")
-                        (Id.sessionIdFromString "session1")
+                        (TestId.sessionIdFromString "session0")
+                        (TestId.sessionIdFromString "session1")
                         (Unsafe.emailAddress "the@email.com")
                         (\{ instructions, clientId, clientIdFromEmail } ->
                             instructions
@@ -517,7 +518,7 @@ suite =
                         Unsafe.emailAddress "the@email.com"
 
                     sessionId =
-                        Id.sessionIdFromString "session0"
+                        TestId.sessionIdFromString "session0"
                 in
                 testApp.init
                     |> loginFromHomepage True
@@ -532,7 +533,7 @@ suite =
                                             [ loginEmail ] ->
                                                 TF.continueWith state
                                                     |> testApp.connectFrontend
-                                                        (Id.sessionIdFromString "session1")
+                                                        (TestId.sessionIdFromString "session1")
                                                         (Unsafe.url
                                                             (Backend.loginEmailLink
                                                                 loginEmail.route
@@ -571,7 +572,7 @@ suite =
             \_ ->
                 let
                     session0 =
-                        Id.sessionIdFromString "session0"
+                        TestId.sessionIdFromString "session0"
 
                     groupName =
                         "It's my Group!"
@@ -617,7 +618,7 @@ suite =
             \_ ->
                 let
                     session0 =
-                        Id.sessionIdFromString "session0"
+                        TestId.sessionIdFromString "session0"
 
                     emailAddress =
                         Unsafe.emailAddress "the@email.com"
@@ -664,7 +665,7 @@ suite =
             \_ ->
                 let
                     session0 =
-                        Id.sessionIdFromString "session0"
+                        TestId.sessionIdFromString "session0"
 
                     emailAddress =
                         Unsafe.emailAddress "the@email.com"
@@ -703,10 +704,10 @@ suite =
             \_ ->
                 let
                     session0 =
-                        Id.sessionIdFromString "session0"
+                        TestId.sessionIdFromString "session0"
 
                     session1 =
-                        Id.sessionIdFromString "session1"
+                        TestId.sessionIdFromString "session1"
 
                     emailAddress0 =
                         Unsafe.emailAddress "the@email.com"
@@ -774,7 +775,7 @@ suite =
                 let
                     connectAndLogin count =
                         testApp.connectFrontend
-                            (Id.sessionIdFromString <| "session " ++ String.fromInt count)
+                            (TestId.sessionIdFromString <| "session " ++ String.fromInt count)
                             (Unsafe.url Env.domain)
                             (\( state, clientId ) ->
                                 state
@@ -813,7 +814,7 @@ suite =
             \_ ->
                 let
                     session0 =
-                        Id.sessionIdFromString "session0"
+                        TestId.sessionIdFromString "session0"
                 in
                 testApp.init
                     |> testApp.connectFrontend
@@ -878,7 +879,7 @@ suite =
             \_ ->
                 let
                     session0 =
-                        Id.sessionIdFromString "session0"
+                        TestId.sessionIdFromString "session0"
 
                     emailAddress =
                         Unsafe.emailAddress "a@email.eu"
@@ -958,7 +959,7 @@ suite =
             \_ ->
                 let
                     sessionId =
-                        Id.sessionIdFromString "sessionId"
+                        TestId.sessionIdFromString "sessionId"
                 in
                 testApp.init
                     |> testApp.connectFrontend
@@ -989,10 +990,10 @@ suite =
             \_ ->
                 let
                     sessionId =
-                        Id.sessionIdFromString "sessionId"
+                        TestId.sessionIdFromString "sessionId"
 
                     attackerSessionId =
-                        Id.sessionIdFromString "sessionIdAttacker"
+                        TestId.sessionIdFromString "sessionIdAttacker"
 
                     emailAddress =
                         Unsafe.emailAddress "my@email.com"
@@ -1070,10 +1071,10 @@ createEventAndAnotherUserNotLoggedInJoinsIt : TF.Instructions ToBackend Frontend
 createEventAndAnotherUserNotLoggedInJoinsIt =
     let
         session0 =
-            Id.sessionIdFromString "session0"
+            TestId.sessionIdFromString "session0"
 
         session1 =
-            Id.sessionIdFromString "session1"
+            TestId.sessionIdFromString "session1"
 
         emailAddress0 =
             Unsafe.emailAddress "the@email.se"
@@ -1137,10 +1138,10 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt : TF.Instruc
 createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
     let
         session0 =
-            Id.sessionIdFromString "session0"
+            TestId.sessionIdFromString "session0"
 
         session1 =
-            Id.sessionIdFromString "session1"
+            TestId.sessionIdFromString "session1"
 
         emailAddress0 =
             Unsafe.emailAddress "the@email.com"
@@ -1211,7 +1212,7 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
 
 
 createGroup :
-    Id.ClientId
+    TestId.ClientId
     -> String
     -> String
     -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
@@ -1228,7 +1229,7 @@ createGroup loggedInClient groupName groupDescription state =
 
 
 createGroupAndEvent :
-    Id.ClientId
+    TestId.ClientId
     ->
         { groupName : String
         , groupDescription : String
