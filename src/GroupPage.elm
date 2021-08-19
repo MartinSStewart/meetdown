@@ -8,7 +8,9 @@ import Colors exposing (..)
 import Date
 import Description exposing (Description)
 import Duration exposing (Duration)
-import Effect exposing (Effect)
+import Effect.Command as Command exposing (Command, FrontendOnly)
+import Effect.Lamdera as Lamdera
+import Effect.Time
 import Element exposing (Element)
 import Element.Border
 import Element.Font
@@ -29,7 +31,6 @@ import Name
 import ProfileImage
 import Quantity exposing (Quantity)
 import Route
-import SimulatedTask exposing (FrontendOnly)
 import TestId exposing (ButtonId, HtmlId)
 import Time
 import Time.Extra as Time
@@ -303,20 +304,20 @@ update :
     -> Maybe { b | userId : Id UserId, adminStatus : AdminStatus }
     -> Msg
     -> Model
-    -> ( Model, Effect FrontendOnly ToBackend Msg, { joinEvent : Maybe EventId } )
+    -> ( Model, Command FrontendOnly ToBackend Msg, { joinEvent : Maybe EventId } )
 update config group maybeLoggedIn msg model =
     let
         canEdit_ =
             canEdit group maybeLoggedIn
 
         noChange =
-            ( model, Effect.none, { joinEvent = Nothing } )
+            ( model, Command.none, { joinEvent = Nothing } )
     in
     case msg of
         PressedEditName ->
             if canEdit_ then
                 ( { model | name = Group.name group |> GroupName.toString |> Editting }
-                , Effect.none
+                , Command.none
                 , { joinEvent = Nothing }
                 )
 
@@ -333,7 +334,7 @@ update config group maybeLoggedIn msg model =
                         case GroupName.fromString nameText of
                             Ok name ->
                                 ( { model | name = Submitting name }
-                                , Untrusted.untrust name |> ChangeGroupNameRequest |> Effect.sendToBackend
+                                , Untrusted.untrust name |> ChangeGroupNameRequest |> Lamdera.sendToBackend
                                 , { joinEvent = Nothing }
                                 )
 
@@ -348,7 +349,7 @@ update config group maybeLoggedIn msg model =
 
         PressedResetName ->
             if canEdit_ then
-                ( { model | name = Unchanged }, Effect.none, { joinEvent = Nothing } )
+                ( { model | name = Unchanged }, Command.none, { joinEvent = Nothing } )
 
             else
                 noChange
@@ -357,7 +358,7 @@ update config group maybeLoggedIn msg model =
             if canEdit_ then
                 case model.name of
                     Editting _ ->
-                        ( { model | name = Editting name }, Effect.none, { joinEvent = Nothing } )
+                        ( { model | name = Editting name }, Command.none, { joinEvent = Nothing } )
 
                     _ ->
                         noChange
@@ -368,7 +369,7 @@ update config group maybeLoggedIn msg model =
         PressedEditDescription ->
             if canEdit_ then
                 ( { model | description = Group.description group |> Description.toString |> Editting }
-                , Effect.none
+                , Command.none
                 , { joinEvent = Nothing }
                 )
 
@@ -387,7 +388,7 @@ update config group maybeLoggedIn msg model =
                                 ( { model | description = Submitting description }
                                 , Untrusted.untrust description
                                     |> ChangeGroupDescriptionRequest
-                                    |> Effect.sendToBackend
+                                    |> Lamdera.sendToBackend
                                 , { joinEvent = Nothing }
                                 )
 
@@ -402,7 +403,7 @@ update config group maybeLoggedIn msg model =
 
         PressedResetDescription ->
             if canEdit_ then
-                ( { model | description = Unchanged }, Effect.none, { joinEvent = Nothing } )
+                ( { model | description = Unchanged }, Command.none, { joinEvent = Nothing } )
 
             else
                 noChange
@@ -412,7 +413,7 @@ update config group maybeLoggedIn msg model =
                 case model.description of
                     Editting _ ->
                         ( { model | description = Editting description }
-                        , Effect.none
+                        , Command.none
                         , { joinEvent = Nothing }
                         )
 
@@ -424,20 +425,20 @@ update config group maybeLoggedIn msg model =
 
         PressedAddEvent ->
             if canEdit_ && model.eventOverlay == Nothing then
-                ( { model | eventOverlay = Just AddingNewEvent }, Effect.none, { joinEvent = Nothing } )
+                ( { model | eventOverlay = Just AddingNewEvent }, Command.none, { joinEvent = Nothing } )
 
             else
                 noChange
 
         PressedShowAllFutureEvents ->
-            ( { model | showAllFutureEvents = True }, Effect.none, { joinEvent = Nothing } )
+            ( { model | showAllFutureEvents = True }, Command.none, { joinEvent = Nothing } )
 
         PressedShowFirstFutureEvents ->
-            ( { model | showAllFutureEvents = False }, Effect.none, { joinEvent = Nothing } )
+            ( { model | showAllFutureEvents = False }, Command.none, { joinEvent = Nothing } )
 
         ChangedNewEvent newEvent ->
             if canEdit_ then
-                ( { model | newEvent = newEvent }, Effect.none, { joinEvent = Nothing } )
+                ( { model | newEvent = newEvent }, Command.none, { joinEvent = Nothing } )
 
             else
                 noChange
@@ -446,7 +447,7 @@ update config group maybeLoggedIn msg model =
             if canEdit_ then
                 case model.eventOverlay of
                     Just AddingNewEvent ->
-                        ( { model | eventOverlay = Nothing }, Effect.none, { joinEvent = Nothing } )
+                        ( { model | eventOverlay = Nothing }, Command.none, { joinEvent = Nothing } )
 
                     _ ->
                         noChange
@@ -490,7 +491,7 @@ update config group maybeLoggedIn msg model =
                             startTime
                             (Untrusted.untrust duration)
                             (Untrusted.untrust maxAttendees)
-                            |> Effect.sendToBackend
+                            |> Lamdera.sendToBackend
                         , { joinEvent = Nothing }
                         )
                     )
@@ -504,7 +505,7 @@ update config group maybeLoggedIn msg model =
                     )
                     |> Maybe.withDefault
                         ( { model | newEvent = pressSubmit model.newEvent }
-                        , Effect.none
+                        , Command.none
                         , { joinEvent = Nothing }
                         )
 
@@ -518,7 +519,7 @@ update config group maybeLoggedIn msg model =
 
                 _ ->
                     ( { model | pendingJoinOrLeave = Dict.insert eventId JoinOrLeavePending model.pendingJoinOrLeave }
-                    , LeaveEventRequest eventId |> Effect.sendToBackend
+                    , LeaveEventRequest eventId |> Lamdera.sendToBackend
                     , { joinEvent = Nothing }
                     )
 
@@ -531,12 +532,12 @@ update config group maybeLoggedIn msg model =
 
                         _ ->
                             ( { model | pendingJoinOrLeave = Dict.insert eventId JoinOrLeavePending model.pendingJoinOrLeave }
-                            , JoinEventRequest eventId |> Effect.sendToBackend
+                            , JoinEventRequest eventId |> Lamdera.sendToBackend
                             , { joinEvent = Nothing }
                             )
 
                 Nothing ->
-                    ( model, Effect.none, { joinEvent = Just eventId } )
+                    ( model, Command.none, { joinEvent = Just eventId } )
 
         PressedEditEvent eventId ->
             if canEdit_ && model.eventOverlay == Nothing then
@@ -600,7 +601,7 @@ update config group maybeLoggedIn msg model =
                                     }
                                     |> Just
                           }
-                        , Effect.none
+                        , Command.none
                         , { joinEvent = Nothing }
                         )
 
@@ -617,7 +618,7 @@ update config group maybeLoggedIn msg model =
                         _ ->
                             model.eventOverlay
               }
-            , Effect.none
+            , Command.none
             , { joinEvent = Nothing }
             )
 
@@ -669,7 +670,7 @@ update config group maybeLoggedIn msg model =
                                             startTime
                                             (Untrusted.untrust duration)
                                             (Untrusted.untrust maxAttendees)
-                                            |> Effect.sendToBackend
+                                            |> Lamdera.sendToBackend
                                         , { joinEvent = Nothing }
                                         )
                                     )
@@ -685,7 +686,7 @@ update config group maybeLoggedIn msg model =
                                         ( { model
                                             | eventOverlay = EdittingEvent eventId (pressSubmit editEvent) |> Just
                                           }
-                                        , Effect.none
+                                        , Command.none
                                         , { joinEvent = Nothing }
                                         )
 
@@ -701,7 +702,7 @@ update config group maybeLoggedIn msg model =
         PressedCancelEditEvent ->
             case model.eventOverlay of
                 Just (EdittingEvent _ _) ->
-                    ( { model | eventOverlay = Nothing }, Effect.none, { joinEvent = Nothing } )
+                    ( { model | eventOverlay = Nothing }, Command.none, { joinEvent = Nothing } )
 
                 _ ->
                     noChange
@@ -711,7 +712,7 @@ update config group maybeLoggedIn msg model =
                 Just (EdittingEvent eventId _) ->
                     ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
                     , ChangeEventCancellationStatusRequest eventId Event.EventCancelled
-                        |> Effect.sendToBackend
+                        |> Lamdera.sendToBackend
                     , { joinEvent = Nothing }
                     )
 
@@ -723,7 +724,7 @@ update config group maybeLoggedIn msg model =
                 Just (EdittingEvent eventId _) ->
                     ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
                     , ChangeEventCancellationStatusRequest eventId Event.EventUncancelled
-                        |> Effect.sendToBackend
+                        |> Lamdera.sendToBackend
                     , { joinEvent = Nothing }
                     )
 
@@ -735,7 +736,7 @@ update config group maybeLoggedIn msg model =
                 Just (EdittingEvent eventId _) ->
                     ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
                     , ChangeEventCancellationStatusRequest eventId Event.EventCancelled
-                        |> Effect.sendToBackend
+                        |> Lamdera.sendToBackend
                     , { joinEvent = Nothing }
                     )
 
@@ -745,7 +746,7 @@ update config group maybeLoggedIn msg model =
         PressedMakeGroupPublic ->
             if canEdit_ && not model.pendingToggleVisibility then
                 ( { model | pendingToggleVisibility = True }
-                , ChangeGroupVisibilityRequest Group.PublicGroup |> Effect.sendToBackend
+                , ChangeGroupVisibilityRequest Group.PublicGroup |> Lamdera.sendToBackend
                 , { joinEvent = Nothing }
                 )
 
@@ -755,7 +756,7 @@ update config group maybeLoggedIn msg model =
         PressedMakeGroupUnlisted ->
             if canEdit_ && not model.pendingToggleVisibility then
                 ( { model | pendingToggleVisibility = True }
-                , ChangeGroupVisibilityRequest Group.UnlistedGroup |> Effect.sendToBackend
+                , ChangeGroupVisibilityRequest Group.UnlistedGroup |> Lamdera.sendToBackend
                 , { joinEvent = Nothing }
                 )
 
@@ -765,7 +766,7 @@ update config group maybeLoggedIn msg model =
         PressedDeleteGroup ->
             case Maybe.map (.adminStatus >> AdminStatus.isAdminEnabled) maybeLoggedIn of
                 Just True ->
-                    ( model, Effect.sendToBackend DeleteGroupAdminRequest, { joinEvent = Nothing } )
+                    ( model, Lamdera.sendToBackend DeleteGroupAdminRequest, { joinEvent = Nothing } )
 
                 _ ->
                     noChange
@@ -779,7 +780,7 @@ update config group maybeLoggedIn msg model =
                                 | newEvent =
                                     fillInEmptyNewEventInputs config.timezone latestEvent_ model.newEvent
                               }
-                            , Effect.none
+                            , Command.none
                             , { joinEvent = Nothing }
                             )
 

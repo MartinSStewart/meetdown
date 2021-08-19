@@ -3,8 +3,7 @@
     "source-directories": [
         "src",
         "send-grid",
-        "justinmimbs/timezone-data/4.0.2/src",
-        "test-framework"
+        "justinmimbs/timezone-data/4.0.2/src"
     ],
     "elm-version": "0.19.1",
     "dependencies": {

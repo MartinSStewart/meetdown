@@ -15,7 +15,12 @@ import BiDict.Assoc as BiDict
 import CreateGroupPage exposing (CreateGroupError(..))
 import Description exposing (Description)
 import Duration exposing (Duration)
-import Effect exposing (Effect)
+import Effect.Command as Command exposing (BackendOnly, Command)
+import Effect.Http as Http
+import Effect.Lamdera exposing (ClientId, SessionId)
+import Effect.Subscription as Subscription exposing (Subscription)
+import Effect.Task as Task
+import Effect.Time as Time
 import Email.Html
 import Email.Html.Attributes
 import EmailAddress exposing (EmailAddress)
@@ -25,7 +30,6 @@ import EventName
 import Group exposing (EventId, Group, GroupVisibility)
 import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError(..))
-import Http
 import Id exposing (DeleteUserToken, GroupId, Id, LoginToken, UserId)
 import Lamdera
 import Link
@@ -37,77 +41,21 @@ import ProfileImage
 import ProfilePage
 import Quantity
 import Route exposing (Route(..))
-import SimulatedTask exposing (BackendOnly)
 import String.Nonempty exposing (NonemptyString(..))
-import Subscription exposing (Subscription)
-import Task
-import TestId exposing (ClientId, SessionId)
-import Time
 import Toop exposing (T3(..), T4(..), T5(..))
 import Types exposing (..)
 import Untrusted
 
 
 app =
-    Lamdera.backend
-        { init = init |> Tuple.mapSecond toCmd
-        , update = \msg model -> update msg model |> Tuple.mapSecond toCmd
-        , updateFromFrontend =
-            \sessionId clientId toBackend model ->
-                updateFromFrontend
-                    (TestId.sessionIdFromString sessionId)
-                    (TestId.clientIdFromString clientId)
-                    toBackend
-                    model
-                    |> Tuple.mapSecond toCmd
-        , subscriptions = \model -> subscriptions model |> Subscription.toSub
+    Effect.Lamdera.backend
+        Lamdera.broadcast
+        Lamdera.sendToFrontend
+        { init = init
+        , update = update
+        , updateFromFrontend = updateFromFrontend
+        , subscriptions = subscriptions
         }
-
-
-toCmd : Effect BackendOnly ToFrontend BackendMsg -> Cmd BackendMsg
-toCmd effect =
-    case effect of
-        Effect.Batch effects ->
-            List.map toCmd effects |> Cmd.batch
-
-        Effect.None ->
-            Cmd.none
-
-        Effect.SendToFrontend clientId toFrontend ->
-            Lamdera.sendToFrontend (TestId.clientIdToString clientId) toFrontend
-
-        Effect.Task simulatedTask ->
-            SimulatedTask.toTask simulatedTask
-                |> Task.attempt
-                    (\result ->
-                        case result of
-                            Ok ok ->
-                                ok
-
-                            Err err ->
-                                err
-                    )
-
-        Effect.SendToBackend _ ->
-            Cmd.none
-
-        Effect.NavigationPushUrl _ _ ->
-            Cmd.none
-
-        Effect.NavigationReplaceUrl _ _ ->
-            Cmd.none
-
-        Effect.NavigationLoad _ ->
-            Cmd.none
-
-        Effect.SelectFile _ _ ->
-            Cmd.none
-
-        Effect.FileToUrl _ _ ->
-            Cmd.none
-
-        Effect.Port _ _ _ ->
-            Cmd.none
 
 
 loginEmailLink : Route -> Id LoginToken -> Maybe ( Id GroupId, EventId ) -> String
@@ -115,7 +63,7 @@ loginEmailLink route loginToken maybeJoinEvent =
     Env.domain ++ Route.encodeWithToken route (Route.LoginToken loginToken maybeJoinEvent)
 
 
-init : ( BackendModel, Effect BackendOnly ToFrontend BackendMsg )
+init : ( BackendModel, Command BackendOnly ToFrontend BackendMsg )
 init =
     ( { users = Dict.empty
       , groups = Dict.empty
@@ -129,20 +77,20 @@ init =
       , pendingLoginTokens = Dict.empty
       , pendingDeleteUserTokens = Dict.empty
       }
-    , SimulatedTask.getTime |> Effect.perform BackendGotTime
+    , Time.now |> Task.perform BackendGotTime
     )
 
 
 subscriptions : BackendModel -> Subscription BackendOnly BackendMsg
 subscriptions _ =
     Subscription.batch
-        [ Subscription.timeEvery (Duration.seconds 15) BackendGotTime
-        , Subscription.onConnect Connected
-        , Subscription.onDisconnect Disconnected
+        [ Time.every (Duration.seconds 15) BackendGotTime
+        , Effect.Lamdera.onConnect Connected
+        , Effect.Lamdera.onDisconnect Disconnected
         ]
 
 
-handleNotifications : Time.Posix -> Time.Posix -> BackendModel -> Effect BackendOnly ToFrontend BackendMsg
+handleNotifications : Time.Posix -> Time.Posix -> BackendModel -> Command BackendOnly ToFrontend BackendMsg
 handleNotifications lastCheck currentTime backendModel =
     Dict.toList backendModel.groups
         |> List.concatMap
@@ -185,14 +133,14 @@ handleNotifications lastCheck currentTime backendModel =
                     )
                     futureEvents
             )
-        |> Effect.batch
+        |> Command.batch
 
 
-update : BackendMsg -> BackendModel -> ( BackendModel, Effect BackendOnly ToFrontend BackendMsg )
+update : BackendMsg -> BackendModel -> ( BackendModel, Command BackendOnly ToFrontend BackendMsg )
 update msg model =
     case msg of
         SentLoginEmail userId result ->
-            ( addLog (LogLoginEmail model.time result userId) model, Effect.none )
+            ( addLog (LogLoginEmail model.time result userId) model, Command.none )
 
         BackendGotTime time ->
             ( { model
@@ -222,7 +170,7 @@ update msg model =
                         )
                         model.connections
               }
-            , Effect.none
+            , Command.none
             )
 
         Disconnected sessionId clientId ->
@@ -232,14 +180,14 @@ update msg model =
                         (Maybe.andThen (List.Nonempty.toList >> List.remove clientId >> List.Nonempty.fromList))
                         model.connections
               }
-            , Effect.none
+            , Command.none
             )
 
         SentDeleteUserEmail userId result ->
-            ( addLog (LogDeleteAccountEmail model.time result userId) model, Effect.none )
+            ( addLog (LogDeleteAccountEmail model.time result userId) model, Command.none )
 
         SentEventReminderEmail userId groupId eventId result ->
-            ( addLog (LogEventReminderEmail model.time result userId groupId eventId) model, Effect.none )
+            ( addLog (LogEventReminderEmail model.time result userId groupId eventId) model, Command.none )
 
 
 addLog : Log -> BackendModel -> BackendModel
@@ -247,9 +195,9 @@ addLog log model =
     { model | logs = Array.push log model.logs }
 
 
-sendToFrontends : List ClientId -> ToFrontend -> Effect BackendOnly ToFrontend backendMsg
+sendToFrontends : List ClientId -> ToFrontend -> Command BackendOnly ToFrontend backendMsg
 sendToFrontends clientIds toFrontend =
-    List.map (\clientId -> Effect.sendToFrontend clientId toFrontend) clientIds |> Effect.batch
+    List.map (\clientId -> Effect.Lamdera.sendToFrontend clientId toFrontend) clientIds |> Command.batch
 
 
 noReplyEmailAddress : Maybe EmailAddress
@@ -263,7 +211,7 @@ sendLoginEmail :
     -> Route
     -> Id LoginToken
     -> Maybe ( Id GroupId, EventId )
-    -> Effect BackendOnly toFrontend backendMsg
+    -> Command BackendOnly toFrontend backendMsg
 sendLoginEmail msg emailAddress route loginToken maybeJoinEvent =
     case noReplyEmailAddress of
         Just sender ->
@@ -276,14 +224,14 @@ sendLoginEmail msg emailAddress route loginToken maybeJoinEvent =
                 |> Postmark.sendEmail msg Env.postmarkServerToken
 
         Nothing ->
-            Effect.none
+            Command.none
 
 
 sendDeleteUserEmail :
     (Result Http.Error Postmark.PostmarkSendResponse -> backendMsg)
     -> EmailAddress
     -> Id DeleteUserToken
-    -> Effect BackendOnly toFrontend backendMsg
+    -> Command BackendOnly toFrontend backendMsg
 sendDeleteUserEmail msg emailAddress deleteUserToken =
     case noReplyEmailAddress of
         Just sender ->
@@ -296,7 +244,7 @@ sendDeleteUserEmail msg emailAddress deleteUserToken =
                 |> Postmark.sendEmail msg Env.postmarkServerToken
 
         Nothing ->
-            Effect.none
+            Command.none
 
 
 sendEventReminderEmail :
@@ -306,7 +254,7 @@ sendEventReminderEmail :
     -> Event
     -> Time.Zone
     -> EmailAddress
-    -> Effect BackendOnly toFrontend backendMsg
+    -> Command BackendOnly toFrontend backendMsg
 sendEventReminderEmail msg groupId groupName event timezone emailAddress =
     case noReplyEmailAddress of
         Just sender ->
@@ -319,15 +267,15 @@ sendEventReminderEmail msg groupId groupName event timezone emailAddress =
                 |> Postmark.sendEmail msg Env.postmarkServerToken
 
         Nothing ->
-            Effect.none
+            Command.none
 
 
-updateFromFrontend : SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, Effect BackendOnly ToFrontend BackendMsg )
+updateFromFrontend : SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, Command BackendOnly ToFrontend BackendMsg )
 updateFromFrontend sessionId clientId msg model =
     let
         logUntrusted =
             ( addLog (LogUntrustedCheckFailed model.time msg (Id.anonymizeSessionId sessionId)) model
-            , Effect.none
+            , Command.none
             )
     in
     case msg of
@@ -365,21 +313,21 @@ updateFromFrontend sessionId clientId msg model =
                     GroupNotFound_
               )
                 |> GetGroupResponse groupId
-                |> Effect.sendToFrontend clientId
+                |> Effect.Lamdera.sendToFrontend clientId
             )
 
         GetUserRequest userId ->
             case getUser userId model of
                 Just user ->
                     ( model
-                    , Ok (Types.userToFrontend user) |> GetUserResponse userId |> Effect.sendToFrontend clientId
+                    , Ok (Types.userToFrontend user) |> GetUserResponse userId |> Effect.Lamdera.sendToFrontend clientId
                     )
 
                 Nothing ->
-                    ( model, Err () |> GetUserResponse userId |> Effect.sendToFrontend clientId )
+                    ( model, Err () |> GetUserResponse userId |> Effect.Lamdera.sendToFrontend clientId )
 
         CheckLoginRequest ->
-            ( model, checkLogin sessionId model |> CheckLoginResponse |> Effect.sendToFrontend clientId )
+            ( model, checkLogin sessionId model |> CheckLoginResponse |> Effect.Lamdera.sendToFrontend clientId )
 
         GetLoginTokenRequest route untrustedEmail maybeJoinEvent ->
             case Untrusted.validateEmailAddress untrustedEmail of
@@ -392,7 +340,7 @@ updateFromFrontend sessionId clientId msg model =
                         ( addLog
                             (LogLoginTokenEmailRequestRateLimited model.time email (Id.anonymizeSessionId sessionId))
                             model
-                        , Effect.none
+                        , Command.none
                         )
 
                     else
@@ -427,7 +375,7 @@ updateFromFrontend sessionId clientId msg model =
                 model
                 (\_ ->
                     ( model
-                    , Effect.sendToFrontend
+                    , Effect.Lamdera.sendToFrontend
                         clientId
                         (GetAdminDataResponse
                             { cachedEmailAddress = Dict.map (\_ value -> value.emailAddress) model.users
@@ -448,7 +396,7 @@ updateFromFrontend sessionId clientId msg model =
                     sendToFrontends (List.Nonempty.toList clientIds) LogoutResponse
 
                 Nothing ->
-                    Effect.none
+                    Command.none
             )
 
         CreateGroupRequest untrustedName untrustedDescription visibility ->
@@ -548,7 +496,7 @@ updateFromFrontend sessionId clientId msg model =
                         ( addLog
                             (LogDeleteAccountEmailRequestRateLimited model.time userId (Id.anonymizeSessionId sessionId))
                             model
-                        , Effect.none
+                        , Command.none
                         )
 
                     else
@@ -604,7 +552,7 @@ updateFromFrontend sessionId clientId msg model =
                         |> List.filter
                             (\( _, group ) -> Group.ownerId group == userId)
                         |> GetMyGroupsResponse
-                        |> Effect.sendToFrontend clientId
+                        |> Effect.Lamdera.sendToFrontend clientId
                     )
                 )
 
@@ -637,11 +585,11 @@ updateFromFrontend sessionId clientId msg model =
                                 1
                         )
                     |> SearchGroupsResponse searchText
-                    |> Effect.sendToFrontend clientId
+                    |> Effect.Lamdera.sendToFrontend clientId
                 )
 
             else
-                ( model, Effect.none )
+                ( model, Command.none )
 
         GroupRequest groupId (GroupPage.ChangeGroupNameRequest untrustedName) ->
             case Untrusted.validateGroupName untrustedName of
@@ -702,12 +650,12 @@ updateFromFrontend sessionId clientId msg model =
                         (\( userId, _, group ) ->
                             if Group.totalEvents group > 1000 then
                                 ( model
-                                , Effect.sendToFrontend clientId (CreateEventResponse groupId (Err TooManyEvents))
+                                , Effect.Lamdera.sendToFrontend clientId (CreateEventResponse groupId (Err TooManyEvents))
                                 )
 
                             else if Duration.from model.time startTime |> Quantity.lessThanZero then
                                 ( model
-                                , Effect.sendToFrontend
+                                , Effect.Lamdera.sendToFrontend
                                     clientId
                                     (CreateEventResponse groupId (Err EventStartsInThePast))
                                 )
@@ -736,7 +684,7 @@ updateFromFrontend sessionId clientId msg model =
 
                                     Err overlappingEvents ->
                                         ( model
-                                        , Effect.sendToFrontend
+                                        , Effect.Lamdera.sendToFrontend
                                             clientId
                                             (CreateEventResponse groupId (Err (EventOverlapsOtherEvents overlappingEvents)))
                                         )
@@ -769,7 +717,7 @@ updateFromFrontend sessionId clientId msg model =
 
                         Nothing ->
                             ( model
-                            , Effect.sendToFrontend
+                            , Effect.Lamdera.sendToFrontend
                                 clientId
                                 (LeaveEventResponse groupId eventId (Err ()))
                             )
@@ -811,7 +759,7 @@ updateFromFrontend sessionId clientId msg model =
 
                                 Err error ->
                                     ( model
-                                    , Effect.sendToFrontend
+                                    , Effect.Lamdera.sendToFrontend
                                         clientId
                                         (EditEventResponse groupId eventId (Err error) model.time)
                                     )
@@ -841,7 +789,7 @@ updateFromFrontend sessionId clientId msg model =
 
                         Err error ->
                             ( model
-                            , Effect.sendToFrontend
+                            , Effect.Lamdera.sendToFrontend
                                 clientId
                                 (ChangeEventCancellationStatusResponse groupId eventId (Err error) model.time)
                             )
@@ -877,7 +825,7 @@ updateFromFrontend sessionId clientId msg model =
                             )
 
                         Nothing ->
-                            ( model, Effect.none )
+                            ( model, Command.none )
                 )
 
 
@@ -910,7 +858,7 @@ handleDeleteUserRequest :
     ClientId
     -> Maybe DeleteUserTokenData
     -> BackendModel
-    -> ( BackendModel, Effect BackendOnly ToFrontend BackendMsg )
+    -> ( BackendModel, Command BackendOnly ToFrontend BackendMsg )
 handleDeleteUserRequest clientId maybeDeleteUserTokenData model =
     case maybeDeleteUserTokenData of
         Just { creationTime, userId } ->
@@ -920,10 +868,10 @@ handleDeleteUserRequest clientId maybeDeleteUserTokenData model =
                 )
 
             else
-                ( model, Effect.sendToFrontend clientId (DeleteUserResponse (Err ())) )
+                ( model, Effect.Lamdera.sendToFrontend clientId (DeleteUserResponse (Err ())) )
 
         Nothing ->
-            ( model, Effect.sendToFrontend clientId (DeleteUserResponse (Err ())) )
+            ( model, Effect.Lamdera.sendToFrontend clientId (DeleteUserResponse (Err ())) )
 
 
 deleteUser : Id UserId -> BackendModel -> BackendModel
@@ -956,10 +904,10 @@ loginWithToken :
     -> Maybe ( Id GroupId, EventId )
     -> Maybe LoginTokenData
     -> BackendModel
-    -> ( BackendModel, Effect BackendOnly ToFrontend BackendMsg )
+    -> ( BackendModel, Command BackendOnly ToFrontend BackendMsg )
 loginWithToken sessionId clientId maybeJoinEvent maybeLoginTokenData model =
     let
-        loginResponse : ( Id UserId, BackendUser ) -> Effect BackendOnly ToFrontend BackendMsg
+        loginResponse : ( Id UserId, BackendUser ) -> Command BackendOnly ToFrontend BackendMsg
         loginResponse ( userId, userEntry ) =
             case Dict.get sessionId model.connections of
                 Just clientIds ->
@@ -969,20 +917,20 @@ loginWithToken sessionId clientId maybeJoinEvent maybeLoginTokenData model =
                         |> sendToFrontends (List.Nonempty.toList clientIds)
 
                 Nothing ->
-                    Effect.none
+                    Command.none
 
         addSession : Id UserId -> BackendModel -> BackendModel
         addSession userId model_ =
             { model_ | sessions = BiDict.insert sessionId userId model_.sessions }
 
-        joinEventHelper : Id UserId -> BackendModel -> ( BackendModel, Effect BackendOnly ToFrontend BackendMsg )
+        joinEventHelper : Id UserId -> BackendModel -> ( BackendModel, Command BackendOnly ToFrontend BackendMsg )
         joinEventHelper userId model_ =
             case maybeJoinEvent of
                 Just joinEvent_ ->
                     joinEvent clientId userId joinEvent_ model_
 
                 Nothing ->
-                    ( model_, Effect.none )
+                    ( model_, Command.none )
     in
     case maybeLoginTokenData of
         Just { creationTime, emailAddress } ->
@@ -994,7 +942,7 @@ loginWithToken sessionId clientId maybeJoinEvent maybeLoginTokenData model =
                                 joinEventHelper userId model
                         in
                         ( addSession userId model2
-                        , Effect.batch [ loginResponse ( userId, user ), effects ]
+                        , Command.batch [ loginResponse ( userId, user ), effects ]
                         )
 
                     Nothing ->
@@ -1018,14 +966,14 @@ loginWithToken sessionId clientId maybeJoinEvent maybeLoginTokenData model =
                                     |> joinEventHelper userId
                         in
                         ( model3
-                        , Effect.batch [ loginResponse ( userId, newUser ), effects ]
+                        , Command.batch [ loginResponse ( userId, newUser ), effects ]
                         )
 
             else
-                ( model, Err () |> LoginWithTokenResponse |> Effect.sendToFrontend clientId )
+                ( model, Err () |> LoginWithTokenResponse |> Effect.Lamdera.sendToFrontend clientId )
 
         Nothing ->
-            ( model, Err () |> LoginWithTokenResponse |> Effect.sendToFrontend clientId )
+            ( model, Err () |> LoginWithTokenResponse |> Effect.Lamdera.sendToFrontend clientId )
 
 
 joinEvent :
@@ -1033,7 +981,7 @@ joinEvent :
     -> Id UserId
     -> ( Id GroupId, EventId )
     -> BackendModel
-    -> ( BackendModel, Effect BackendOnly ToFrontend BackendMsg )
+    -> ( BackendModel, Command BackendOnly ToFrontend BackendMsg )
 joinEvent clientId userId ( groupId, eventId ) model =
     case getGroup groupId model of
         Just group ->
@@ -1047,11 +995,11 @@ joinEvent clientId userId ( groupId, eventId ) model =
 
                 Err error ->
                     ( model
-                    , Effect.sendToFrontend clientId (JoinEventResponse groupId eventId (Err error))
+                    , Effect.Lamdera.sendToFrontend clientId (JoinEventResponse groupId eventId (Err error))
                     )
 
         Nothing ->
-            ( model, Effect.none )
+            ( model, Command.none )
 
 
 getAndRemoveLoginToken :
@@ -1066,10 +1014,10 @@ getAndRemoveLoginToken updateFunc loginToken model =
 
 
 getAndRemoveDeleteUserToken :
-    (Maybe DeleteUserTokenData -> BackendModel -> ( BackendModel, Effect BackendOnly ToFrontend BackendMsg ))
+    (Maybe DeleteUserTokenData -> BackendModel -> ( BackendModel, Command BackendOnly ToFrontend BackendMsg ))
     -> Id DeleteUserToken
     -> BackendModel
-    -> ( BackendModel, Effect BackendOnly ToFrontend BackendMsg )
+    -> ( BackendModel, Command BackendOnly ToFrontend BackendMsg )
 getAndRemoveDeleteUserToken updateFunc deleteUserToken model =
     updateFunc
         (Dict.get deleteUserToken model.pendingDeleteUserTokens)
@@ -1083,10 +1031,10 @@ addGroup :
     -> Description
     -> GroupVisibility
     -> BackendModel
-    -> ( BackendModel, Effect BackendOnly ToFrontend BackendMsg )
+    -> ( BackendModel, Command BackendOnly ToFrontend BackendMsg )
 addGroup clientId userId name description visibility model =
     if Dict.values model.groups |> List.any (Group.name >> GroupName.namesMatch name) then
-        ( model, Err GroupNameAlreadyInUse |> CreateGroupResponse |> Effect.sendToFrontend clientId )
+        ( model, Err GroupNameAlreadyInUse |> CreateGroupResponse |> Effect.Lamdera.sendToFrontend clientId )
 
     else
         let
@@ -1097,30 +1045,30 @@ addGroup clientId userId name description visibility model =
                 Group.init userId name description visibility model2.time
         in
         ( { model2 | groups = Dict.insert groupId newGroup model2.groups }
-        , Ok ( groupId, newGroup ) |> CreateGroupResponse |> Effect.sendToFrontend clientId
+        , Ok ( groupId, newGroup ) |> CreateGroupResponse |> Effect.Lamdera.sendToFrontend clientId
         )
 
 
 userAuthorization :
     SessionId
     -> BackendModel
-    -> (( Id UserId, BackendUser ) -> ( BackendModel, Effect BackendOnly ToFrontend BackendMsg ))
-    -> ( BackendModel, Effect BackendOnly ToFrontend BackendMsg )
+    -> (( Id UserId, BackendUser ) -> ( BackendModel, Command BackendOnly ToFrontend BackendMsg ))
+    -> ( BackendModel, Command BackendOnly ToFrontend BackendMsg )
 userAuthorization sessionId model updateFunc =
     case checkLogin sessionId model of
         Just { userId, user } ->
             updateFunc ( userId, user )
 
         Nothing ->
-            ( model, Effect.none )
+            ( model, Command.none )
 
 
 userWithGroupAuthorization :
     SessionId
     -> Id GroupId
     -> BackendModel
-    -> (( Id UserId, BackendUser, Group ) -> ( BackendModel, Effect BackendOnly ToFrontend BackendMsg ))
-    -> ( BackendModel, Effect BackendOnly ToFrontend BackendMsg )
+    -> (( Id UserId, BackendUser, Group ) -> ( BackendModel, Command BackendOnly ToFrontend BackendMsg ))
+    -> ( BackendModel, Command BackendOnly ToFrontend BackendMsg )
 userWithGroupAuthorization sessionId groupId model updateFunc =
     case checkLogin sessionId model of
         Just { userId, user } ->
@@ -1130,20 +1078,20 @@ userWithGroupAuthorization sessionId groupId model updateFunc =
                         updateFunc ( userId, user, group )
 
                     else
-                        ( model, Effect.none )
+                        ( model, Command.none )
 
                 Nothing ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
         Nothing ->
-            ( model, Effect.none )
+            ( model, Command.none )
 
 
 adminAuthorization :
     SessionId
     -> BackendModel
-    -> (( Id UserId, BackendUser ) -> ( BackendModel, Effect BackendOnly ToFrontend BackendMsg ))
-    -> ( BackendModel, Effect BackendOnly ToFrontend BackendMsg )
+    -> (( Id UserId, BackendUser ) -> ( BackendModel, Command BackendOnly ToFrontend BackendMsg ))
+    -> ( BackendModel, Command BackendOnly ToFrontend BackendMsg )
 adminAuthorization sessionId model updateFunc =
     case checkLogin sessionId model of
         Just checkLogin_ ->
@@ -1151,10 +1099,10 @@ adminAuthorization sessionId model updateFunc =
                 updateFunc ( checkLogin_.userId, checkLogin_.user )
 
             else
-                ( model, Effect.none )
+                ( model, Command.none )
 
         Nothing ->
-            ( model, Effect.none )
+            ( model, Command.none )
 
 
 isAdmin : BackendUser -> Bool
@@ -1205,8 +1153,8 @@ loginEmailContent route loginToken maybeJoinEvent =
         loginLink =
             loginEmailLink route loginToken maybeJoinEvent
 
-        _ =
-            Debug.log "login" loginLink
+        --_ =
+        --    Debug.log "login" loginLink
     in
     Email.Html.div
         [ Email.Html.Attributes.padding "8px" ]

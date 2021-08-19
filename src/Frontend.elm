@@ -16,14 +16,21 @@ import AdminPage
 import AdminStatus exposing (AdminStatus(..))
 import AssocList as Dict
 import AssocSet as Set
-import Browser exposing (UrlRequest(..))
-import Browser.Dom
-import Browser.Navigation
+import Browser as Browser exposing (UrlRequest(..))
 import Colors
 import CreateGroupPage
 import DictExtra as Dict
 import Duration exposing (Duration)
-import Effect exposing (Effect)
+import Effect.Browser.Dom as BrowserDom
+import Effect.Browser.Events as BrowserEvents
+import Effect.Browser.Navigation as BrowserNavigation exposing (Key)
+import Effect.Command as Command exposing (Command, FrontendOnly)
+import Effect.File as File
+import Effect.File.Select as FileSelect
+import Effect.Lamdera
+import Effect.Subscription as Subscription exposing (Subscription)
+import Effect.Task as Task
+import Effect.Time as Time
 import Element exposing (Element)
 import Element.Background
 import Element.Border
@@ -31,8 +38,6 @@ import Element.Font
 import Element.Input
 import Element.Region
 import Env
-import File
-import File.Select
 import FrontendUser exposing (FrontendUser)
 import Group exposing (Group)
 import GroupPage
@@ -41,20 +46,14 @@ import Html.Attributes
 import Id exposing (GroupId, Id, UserId)
 import Lamdera
 import LoginForm
-import MockFile
-import NavigationKey exposing (NavigationKey(..))
 import Pixels exposing (Pixels)
 import Privacy
 import ProfilePage
 import Quantity exposing (Quantity)
 import Route exposing (Route(..))
 import SearchPage
-import SimulatedTask exposing (FrontendOnly)
-import Subscription exposing (Subscription)
-import Task
 import Terms
 import TestId
-import Time
 import TimeZone
 import Types exposing (..)
 import Ui
@@ -64,13 +63,14 @@ import UserPage
 
 
 app =
-    Lamdera.frontend
-        { init = \url navKey -> init url (RealNavigationKey navKey) |> Tuple.mapSecond toCmd
+    Effect.Lamdera.frontend
+        Lamdera.sendToBackend
+        { init = init
         , onUrlRequest = onUrlRequest
         , onUrlChange = onUrlChange
-        , update = \msg model -> update msg model |> Tuple.mapSecond toCmd
-        , updateFromBackend = \msg model -> updateFromBackend msg model |> Tuple.mapSecond toCmd
-        , subscriptions = subscriptions >> Subscription.toSub
+        , update = update
+        , updateFromBackend = updateFromBackend
+        , subscriptions = subscriptions
         , view =
             \model ->
                 let
@@ -79,67 +79,6 @@ app =
                 in
                 { document | body = Html.div [] [ Element.layout [] Element.none ] :: document.body }
         }
-
-
-toCmd : Effect FrontendOnly ToBackend frontendMsg -> Cmd frontendMsg
-toCmd effect =
-    case effect of
-        Effect.Batch effects ->
-            List.map toCmd effects |> Cmd.batch
-
-        Effect.None ->
-            Cmd.none
-
-        Effect.SendToBackend toBackend ->
-            Lamdera.sendToBackend toBackend
-
-        Effect.NavigationPushUrl navigationKey string ->
-            case navigationKey of
-                RealNavigationKey key ->
-                    Browser.Navigation.pushUrl key string
-
-                MockNavigationKey ->
-                    Cmd.none
-
-        Effect.NavigationReplaceUrl navigationKey string ->
-            case navigationKey of
-                RealNavigationKey key ->
-                    Browser.Navigation.replaceUrl key string
-
-                MockNavigationKey ->
-                    Cmd.none
-
-        Effect.NavigationLoad url ->
-            Browser.Navigation.load url
-
-        Effect.SelectFile mimeTypes msg ->
-            File.Select.file mimeTypes (MockFile.RealFile >> msg)
-
-        Effect.FileToUrl msg file ->
-            case file of
-                MockFile.RealFile realFile ->
-                    File.toUrl realFile |> Task.perform msg
-
-                MockFile.MockFile _ ->
-                    Cmd.none
-
-        Effect.Task simulatedTask ->
-            SimulatedTask.toTask simulatedTask
-                |> Task.attempt
-                    (\result ->
-                        case result of
-                            Ok ok ->
-                                ok
-
-                            Err err ->
-                                err
-                    )
-
-        Effect.Port _ portFunction value ->
-            portFunction value
-
-        Effect.SendToFrontend _ _ ->
-            Cmd.none
 
 
 subscriptions : FrontendModel -> Subscription FrontendOnly FrontendMsg
@@ -151,8 +90,8 @@ subscriptions model =
 
             Loading _ ->
                 Subscription.none
-        , Subscription.onResize GotWindowSize
-        , Subscription.timeEvery Duration.minute GotTime
+        , BrowserEvents.onResize GotWindowSize
+        , Time.every Duration.minute GotTime
         ]
 
 
@@ -166,7 +105,7 @@ onUrlChange =
     UrlChanged
 
 
-init : Url -> NavigationKey -> ( FrontendModel, Effect FrontendOnly ToBackend FrontendMsg )
+init : Url -> Key -> ( FrontendModel, Command FrontendOnly ToBackend FrontendMsg )
 init url key =
     let
         ( route, token ) =
@@ -180,25 +119,25 @@ init url key =
         , time = Nothing
         , timezone = Nothing
         }
-    , Effect.batch
-        [ SimulatedTask.getTime |> Effect.perform GotTime
-        , SimulatedTask.getViewport
-            |> Effect.perform
-                (\{ scene } -> GotWindowSize (Pixels.pixels (round scene.width)) (Pixels.pixels (round scene.height)))
-        , TimeZone.getZone |> Effect.attempt GotTimeZone
+    , Command.batch
+        [ Time.now |> Task.perform GotTime
+        , BrowserDom.getViewport
+            |> Task.perform
+                (\{ scene } -> GotWindowSize (round scene.width) (round scene.height))
+        , TimeZone.getZone |> Task.attempt GotTimeZone
         ]
     )
 
 
 initLoadedFrontend :
-    NavigationKey
+    Key
     -> Quantity Int Pixels
     -> Quantity Int Pixels
     -> Route
     -> Route.Token
     -> Time.Posix
     -> Time.Zone
-    -> ( LoadedFrontend, Effect FrontendOnly ToBackend FrontendMsg )
+    -> ( LoadedFrontend, Command FrontendOnly ToBackend FrontendMsg )
 initLoadedFrontend navigationKey windowWidth windowHeight route maybeLoginToken time timezone =
     let
         login =
@@ -243,14 +182,14 @@ initLoadedFrontend navigationKey windowWidth windowHeight route maybeLoginToken 
             routeRequest route model
     in
     ( model2
-    , Effect.batch
-        [ Effect.batch [ Effect.sendToBackend login, cmd ]
-        , Effect.navigationReplaceUrl navigationKey (Route.encode route)
+    , Command.batch
+        [ Command.batch [ Effect.Lamdera.sendToBackend login, cmd ]
+        , BrowserNavigation.replaceUrl navigationKey (Route.encode route)
         ]
     )
 
 
-tryInitLoadedFrontend : LoadingFrontend -> ( FrontendModel, Effect FrontendOnly ToBackend FrontendMsg )
+tryInitLoadedFrontend : LoadingFrontend -> ( FrontendModel, Command FrontendOnly ToBackend FrontendMsg )
 tryInitLoadedFrontend loading =
     Maybe.map3
         (\( windowWidth, windowHeight ) time zone ->
@@ -267,7 +206,7 @@ tryInitLoadedFrontend loading =
         loading.windowSize
         loading.time
         loading.timezone
-        |> Maybe.withDefault ( Loading loading, Effect.none )
+        |> Maybe.withDefault ( Loading loading, Command.none )
 
 
 gotTimeZone : Result error ( a, Time.Zone ) -> { b | timezone : Maybe Time.Zone } -> { b | timezone : Maybe Time.Zone }
@@ -280,7 +219,7 @@ gotTimeZone result model =
             { model | timezone = Just Time.utc }
 
 
-update : FrontendMsg -> FrontendModel -> ( FrontendModel, Effect FrontendOnly ToBackend FrontendMsg )
+update : FrontendMsg -> FrontendModel -> ( FrontendModel, Command FrontendOnly ToBackend FrontendMsg )
 update msg model =
     case model of
         Loading loading ->
@@ -289,23 +228,23 @@ update msg model =
                     tryInitLoadedFrontend { loading | time = Just time }
 
                 GotWindowSize width height ->
-                    tryInitLoadedFrontend { loading | windowSize = Just ( width, height ) }
+                    tryInitLoadedFrontend { loading | windowSize = Just ( Pixels.pixels width, Pixels.pixels height ) }
 
                 GotTimeZone result ->
                     gotTimeZone result loading |> tryInitLoadedFrontend
 
                 _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
         Loaded loaded ->
             updateLoaded msg loaded |> Tuple.mapFirst Loaded
 
 
-routeRequest : Route -> LoadedFrontend -> ( LoadedFrontend, Effect FrontendOnly ToBackend FrontendMsg )
+routeRequest : Route -> LoadedFrontend -> ( LoadedFrontend, Command FrontendOnly ToBackend FrontendMsg )
 routeRequest route model =
     case route of
         MyGroupsRoute ->
-            ( model, Effect.sendToBackend GetMyGroupsRequest )
+            ( model, Effect.Lamdera.sendToBackend GetMyGroupsRequest )
 
         GroupRoute groupId _ ->
             case Dict.get groupId model.cachedGroups of
@@ -316,92 +255,92 @@ routeRequest route model =
                     in
                     case Dict.get ownerId model.cachedUsers of
                         Just _ ->
-                            ( model, Effect.none )
+                            ( model, Command.none )
 
                         Nothing ->
                             ( { model | cachedUsers = Dict.insert ownerId ItemRequestPending model.cachedUsers }
-                            , Effect.sendToBackend (GetUserRequest ownerId)
+                            , Effect.Lamdera.sendToBackend (GetUserRequest ownerId)
                             )
 
                 Just ItemRequestPending ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
                 Just ItemDoesNotExist ->
                     ( { model | cachedGroups = Dict.insert groupId ItemRequestPending model.cachedGroups }
-                    , Effect.sendToBackend (GetGroupRequest groupId)
+                    , Effect.Lamdera.sendToBackend (GetGroupRequest groupId)
                     )
 
                 Nothing ->
                     ( { model | cachedGroups = Dict.insert groupId ItemRequestPending model.cachedGroups }
-                    , Effect.sendToBackend (GetGroupRequest groupId)
+                    , Effect.Lamdera.sendToBackend (GetGroupRequest groupId)
                     )
 
         HomepageRoute ->
-            ( model, Effect.none )
+            ( model, Command.none )
 
         AdminRoute ->
             checkAdminState model
 
         CreateGroupRoute ->
-            ( model, Effect.sendToBackend GetMyGroupsRequest )
+            ( model, Effect.Lamdera.sendToBackend GetMyGroupsRequest )
 
         MyProfileRoute ->
-            ( model, Effect.none )
+            ( model, Command.none )
 
         SearchGroupsRoute searchText ->
-            ( model, Effect.sendToBackend (SearchGroupsRequest searchText) )
+            ( model, Effect.Lamdera.sendToBackend (SearchGroupsRequest searchText) )
 
         UserRoute userId _ ->
             case Dict.get userId model.cachedUsers of
                 Just _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
                 Nothing ->
                     ( { model | cachedUsers = Dict.insert userId ItemRequestPending model.cachedUsers }
-                    , Effect.sendToBackend (GetUserRequest userId)
+                    , Effect.Lamdera.sendToBackend (GetUserRequest userId)
                     )
 
         PrivacyRoute ->
-            ( model, Effect.none )
+            ( model, Command.none )
 
         TermsOfServiceRoute ->
-            ( model, Effect.none )
+            ( model, Command.none )
 
         CodeOfConductRoute ->
-            ( model, Effect.none )
+            ( model, Command.none )
 
         FrequentQuestionsRoute ->
-            ( model, Effect.none )
+            ( model, Command.none )
 
 
-checkAdminState : LoadedFrontend -> ( LoadedFrontend, Effect FrontendOnly ToBackend FrontendMsg )
+checkAdminState : LoadedFrontend -> ( LoadedFrontend, Command FrontendOnly ToBackend FrontendMsg )
 checkAdminState model =
     case model.loginStatus of
         LoggedIn loggedIn_ ->
             if loggedIn_.adminState == AdminCacheNotRequested && loggedIn_.adminStatus /= IsNotAdmin then
                 ( { model | loginStatus = LoggedIn { loggedIn_ | adminState = AdminCachePending } }
-                , Effect.sendToBackend GetAdminDataRequest
+                , Effect.Lamdera.sendToBackend GetAdminDataRequest
                 )
 
             else
-                ( model, Effect.none )
+                ( model, Command.none )
 
         NotLoggedIn _ ->
-            ( model, Effect.none )
+            ( model, Command.none )
 
         LoginStatusPending ->
-            ( model, Effect.none )
+            ( model, Command.none )
 
 
 navigationReplaceRoute navKey route =
-    Route.encode route |> Effect.navigationReplaceUrl navKey
+    Route.encode route |> BrowserNavigation.replaceUrl navKey
 
 
 navigationPushRoute navKey route =
-    Route.encode route |> Effect.navigationPushUrl navKey
+    Route.encode route |> BrowserNavigation.pushUrl navKey
 
 
-updateLoaded : FrontendMsg -> LoadedFrontend -> ( LoadedFrontend, Effect FrontendOnly ToBackend FrontendMsg )
+updateLoaded : FrontendMsg -> LoadedFrontend -> ( LoadedFrontend, Command FrontendOnly ToBackend FrontendMsg )
 updateLoaded msg model =
     case msg of
         UrlClicked urlRequest ->
@@ -414,11 +353,11 @@ updateLoaded msg model =
                                 |> Maybe.withDefault HomepageRoute
                     in
                     ( { model | route = route, hasLoginTokenError = False } |> closeLoginForm
-                    , Effect.navigationPushUrl model.navigationKey (Route.encode route)
+                    , BrowserNavigation.pushUrl model.navigationKey (Route.encode route)
                     )
 
                 External url ->
-                    ( model, Effect.navigationLoad url )
+                    ( model, BrowserNavigation.load url )
 
         UrlChanged url ->
             let
@@ -430,39 +369,39 @@ updateLoaded msg model =
             routeRequest route { model | route = route }
                 |> Tuple.mapSecond
                     (\a ->
-                        Effect.batch
+                        Command.batch
                             [ a
-                            , SimulatedTask.setViewport Quantity.zero Quantity.zero
-                                |> Effect.perform (\() -> ScrolledToTop)
+                            , BrowserDom.setViewport 0 0
+                                |> Task.perform (\() -> ScrolledToTop)
                             ]
                     )
 
         GotTime time ->
-            ( { model | time = time }, Effect.none )
+            ( { model | time = time }, Command.none )
 
         PressedLogin ->
             case model.loginStatus of
                 LoginStatusPending ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
                 NotLoggedIn notLoggedIn ->
                     ( { model
                         | loginStatus = NotLoggedIn { notLoggedIn | showLogin = True }
                         , hasLoginTokenError = False
                       }
-                    , Effect.none
+                    , Command.none
                     )
 
                 LoggedIn _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
         PressedLogout ->
             ( { model | loginStatus = NotLoggedIn { showLogin = False, joiningEvent = Nothing } }
-            , Effect.sendToBackend LogoutRequest
+            , Effect.Lamdera.sendToBackend LogoutRequest
             )
 
         TypedEmail text ->
-            ( { model | loginForm = LoginForm.typedEmail text model.loginForm }, Effect.none )
+            ( { model | loginForm = LoginForm.typedEmail text model.loginForm }, Command.none )
 
         PressedSubmitLogin ->
             case model.loginStatus of
@@ -471,10 +410,10 @@ updateLoaded msg model =
                         |> Tuple.mapFirst (\a -> { model | loginForm = a })
 
                 LoginStatusPending ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
                 LoggedIn _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
         PressedCreateGroup ->
             ( model, navigationPushRoute model.navigationKey CreateGroupRoute )
@@ -496,20 +435,20 @@ updateLoaded msg model =
                                         (Untrusted.untrust submitted.name)
                                         (Untrusted.untrust submitted.description)
                                         submitted.visibility
-                                        |> Effect.sendToBackend
+                                        |> Effect.Lamdera.sendToBackend
                                     )
 
                                 CreateGroupPage.NoChange ->
-                                    ( newModel, Effect.none )
+                                    ( newModel, Command.none )
 
                         Nothing ->
-                            ( model, Effect.none )
+                            ( model, Command.none )
 
                 NotLoggedIn _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
                 LoginStatusPending ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
         ProfileFormMsg profileFormMsg ->
             case model.loginStatus of
@@ -517,20 +456,20 @@ updateLoaded msg model =
                     let
                         ( newModel, effects ) =
                             ProfilePage.update model profileFormMsg loggedIn.profileForm
-                                |> Tuple.mapSecond (Effect.map ProfileFormRequest ProfileFormMsg)
+                                |> Tuple.mapSecond (Command.map ProfileFormRequest ProfileFormMsg)
                     in
                     ( { model | loginStatus = LoggedIn { loggedIn | profileForm = newModel } }
                     , effects
                     )
 
                 NotLoggedIn _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
                 LoginStatusPending ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
         TypedSearchText searchText ->
-            ( { model | searchText = searchText }, Effect.none )
+            ( { model | searchText = searchText }, Command.none )
 
         SubmittedSearchBox ->
             ( closeLoginForm model, navigationPushRoute model.navigationKey (SearchGroupsRoute model.searchText) )
@@ -573,26 +512,26 @@ updateLoaded msg model =
                                         _ ->
                                             model.loginStatus
                               }
-                            , Effect.map (GroupRequest groupId) GroupPageMsg effects
+                            , Command.map (GroupRequest groupId) GroupPageMsg effects
                             )
 
                         _ ->
-                            ( model, Effect.none )
+                            ( model, Command.none )
 
                 _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
         GotWindowSize width height ->
-            ( { model | windowWidth = width, windowHeight = height }, Effect.none )
+            ( { model | windowWidth = Pixels.pixels width, windowHeight = Pixels.pixels height }, Command.none )
 
         GotTimeZone _ ->
-            ( model, Effect.none )
+            ( model, Command.none )
 
         PressedCancelLogin ->
-            ( closeLoginForm model, Effect.none )
+            ( closeLoginForm model, Command.none )
 
         ScrolledToTop ->
-            ( model, Effect.none )
+            ( model, Command.none )
 
         PressedEnableAdmin ->
             ( case model.loginStatus of
@@ -609,7 +548,7 @@ updateLoaded msg model =
 
                 _ ->
                     model
-            , Effect.none
+            , Command.none
             )
 
         PressedDisableAdmin ->
@@ -627,7 +566,7 @@ updateLoaded msg model =
 
                 _ ->
                     model
-            , Effect.none
+            , Command.none
             )
 
 
@@ -647,17 +586,17 @@ closeLoginForm model =
     }
 
 
-updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Effect FrontendOnly ToBackend FrontendMsg )
+updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Command FrontendOnly ToBackend FrontendMsg )
 updateFromBackend msg model =
     case model of
         Loading _ ->
-            ( model, Effect.none )
+            ( model, Command.none )
 
         Loaded loaded ->
             updateLoadedFromBackend msg loaded |> Tuple.mapFirst Loaded
 
 
-updateLoadedFromBackend : ToFrontend -> LoadedFrontend -> ( LoadedFrontend, Effect FrontendOnly ToBackend FrontendMsg )
+updateLoadedFromBackend : ToFrontend -> LoadedFrontend -> ( LoadedFrontend, Command FrontendOnly ToBackend FrontendMsg )
 updateLoadedFromBackend msg model =
     case msg of
         GetGroupResponse groupId result ->
@@ -687,7 +626,7 @@ updateLoadedFromBackend msg model =
                         (GroupRoute groupId (Group.name groupData))
 
                 GroupNotFound_ ->
-                    Effect.none
+                    Command.none
             )
 
         GetUserResponse userId result ->
@@ -704,7 +643,7 @@ updateLoadedFromBackend msg model =
                         )
                         model.cachedUsers
               }
-            , Effect.none
+            , Command.none
             )
 
         LoginWithTokenResponse result ->
@@ -734,7 +673,7 @@ updateLoadedFromBackend msg model =
                         | hasLoginTokenError = True
                         , loginStatus = NotLoggedIn { showLogin = True, joiningEvent = Nothing }
                       }
-                    , Effect.none
+                    , Command.none
                     )
 
         CheckLoginResponse loginStatus ->
@@ -761,21 +700,21 @@ updateLoadedFromBackend msg model =
 
                 Nothing ->
                     ( { model | loginStatus = NotLoggedIn { showLogin = False, joiningEvent = Nothing } }
-                    , Effect.none
+                    , Command.none
                     )
 
         GetAdminDataResponse adminData ->
             case model.loginStatus of
                 LoggedIn loggedIn_ ->
                     ( { model | loginStatus = LoggedIn { loggedIn_ | adminState = AdminCached adminData } }
-                    , Effect.none
+                    , Command.none
                     )
 
                 LoginStatusPending ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
                 NotLoggedIn _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
         CreateGroupResponse result ->
             case model.loginStatus of
@@ -794,17 +733,17 @@ updateLoadedFromBackend msg model =
 
                         Err error ->
                             ( { model | groupForm = CreateGroupPage.submitFailed error model.groupForm }
-                            , Effect.none
+                            , Command.none
                             )
 
                 NotLoggedIn _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
                 LoginStatusPending ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
         LogoutResponse ->
-            ( { model | loginStatus = NotLoggedIn { showLogin = False, joiningEvent = Nothing } }, Effect.none )
+            ( { model | loginStatus = NotLoggedIn { showLogin = False, joiningEvent = Nothing } }, Command.none )
 
         ChangeNameResponse name ->
             case model.loginStatus of
@@ -816,14 +755,14 @@ updateLoadedFromBackend msg model =
                                 (Types.mapCache (\a -> { a | name = name }))
                                 model.cachedUsers
                       }
-                    , Effect.none
+                    , Command.none
                     )
 
                 LoginStatusPending ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
                 NotLoggedIn _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
         ChangeDescriptionResponse description ->
             case model.loginStatus of
@@ -835,27 +774,27 @@ updateLoadedFromBackend msg model =
                                 (Types.mapCache (\a -> { a | description = description }))
                                 model.cachedUsers
                       }
-                    , Effect.none
+                    , Command.none
                     )
 
                 LoginStatusPending ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
                 NotLoggedIn _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
         ChangeEmailAddressResponse emailAddress ->
             case model.loginStatus of
                 LoggedIn loggedIn ->
                     ( { model | loginStatus = LoggedIn { loggedIn | emailAddress = emailAddress } }
-                    , Effect.none
+                    , Command.none
                     )
 
                 LoginStatusPending ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
                 NotLoggedIn _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
         DeleteUserResponse result ->
             case result of
@@ -864,11 +803,11 @@ updateLoadedFromBackend msg model =
                         | loginStatus = NotLoggedIn { showLogin = False, joiningEvent = Nothing }
                         , accountDeletedResult = Just result
                       }
-                    , Effect.none
+                    , Command.none
                     )
 
                 Err () ->
-                    ( { model | accountDeletedResult = Just result }, Effect.none )
+                    ( { model | accountDeletedResult = Just result }, Command.none )
 
         ChangeProfileImageResponse profileImage ->
             case model.loginStatus of
@@ -880,14 +819,14 @@ updateLoadedFromBackend msg model =
                                 (Types.mapCache (\a -> { a | profileImage = profileImage }))
                                 model.cachedUsers
                       }
-                    , Effect.none
+                    , Command.none
                     )
 
                 LoginStatusPending ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
                 NotLoggedIn _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
         GetMyGroupsResponse myGroups ->
             ( case model.loginStatus of
@@ -909,7 +848,7 @@ updateLoadedFromBackend msg model =
 
                 LoginStatusPending ->
                     model
-            , Effect.none
+            , Command.none
             )
 
         SearchGroupsResponse _ groups ->
@@ -923,7 +862,7 @@ updateLoadedFromBackend msg model =
                         groups
                 , searchList = List.map Tuple.first groups
               }
-            , Effect.none
+            , Command.none
             )
 
         ChangeGroupNameResponse groupId groupName ->
@@ -934,7 +873,7 @@ updateLoadedFromBackend msg model =
                         model.cachedGroups
                 , groupPage = Dict.updateJust groupId GroupPage.savedName model.groupPage
               }
-            , Effect.none
+            , Command.none
             )
 
         ChangeGroupDescriptionResponse groupId description ->
@@ -945,7 +884,7 @@ updateLoadedFromBackend msg model =
                         model.cachedGroups
                 , groupPage = Dict.updateJust groupId GroupPage.savedDescription model.groupPage
               }
-            , Effect.none
+            , Command.none
             )
 
         CreateEventResponse groupId result ->
@@ -961,7 +900,7 @@ updateLoadedFromBackend msg model =
                             model.cachedGroups
                 , groupPage = Dict.updateJust groupId (GroupPage.addedNewEvent result) model.groupPage
               }
-            , Effect.none
+            , Command.none
             )
 
         JoinEventResponse groupId eventId result ->
@@ -1004,7 +943,7 @@ updateLoadedFromBackend msg model =
 
                 NotLoggedIn _ ->
                     model
-            , Effect.none
+            , Command.none
             )
 
         LeaveEventResponse groupId eventId result ->
@@ -1038,7 +977,7 @@ updateLoadedFromBackend msg model =
 
                 NotLoggedIn _ ->
                     model
-            , Effect.none
+            , Command.none
             )
 
         EditEventResponse groupId eventId result backendTime ->
@@ -1064,7 +1003,7 @@ updateLoadedFromBackend msg model =
                 , groupPage =
                     Dict.updateJust groupId (GroupPage.editEventResponse result) model.groupPage
               }
-            , Effect.none
+            , Command.none
             )
 
         ChangeEventCancellationStatusResponse groupId eventId result backendTime ->
@@ -1096,7 +1035,7 @@ updateLoadedFromBackend msg model =
                 , groupPage =
                     Dict.updateJust groupId (GroupPage.editCancellationStatusResponse eventId result) model.groupPage
               }
-            , Effect.none
+            , Command.none
             )
 
         ChangeGroupVisibilityResponse groupId visibility ->
@@ -1105,12 +1044,12 @@ updateLoadedFromBackend msg model =
                     Dict.updateJust groupId (Types.mapCache (Group.withVisibility visibility)) model.cachedGroups
                 , groupPage = Dict.updateJust groupId (GroupPage.changeVisibilityResponse visibility) model.groupPage
               }
-            , Effect.none
+            , Command.none
             )
 
         DeleteGroupAdminResponse groupId ->
             ( { model | cachedGroups = Dict.updateJust groupId (\_ -> ItemDoesNotExist) model.cachedGroups }
-            , Effect.none
+            , Command.none
             )
 
 

@@ -14,11 +14,17 @@ module ProfilePage exposing
     , view
     )
 
-import Browser.Dom
 import Colors exposing (..)
 import Description exposing (Description, Error(..))
 import Duration exposing (Duration)
-import Effect exposing (Effect)
+import Effect.Browser.Dom as BrowserDom
+import Effect.Command as Command exposing (Command, FrontendOnly)
+import Effect.File as File exposing (File)
+import Effect.File.Select as FileSelect
+import Effect.Lamdera as Lamdera
+import Effect.Process as Process
+import Effect.Subscription exposing (Subscription)
+import Effect.Task as Task
 import Element exposing (Element)
 import Element.Background
 import Element.Border
@@ -31,14 +37,11 @@ import Html.Events
 import Html.Events.Extra.Touch
 import Json.Decode
 import List.Extra as List
-import MockFile exposing (File)
 import Name exposing (Error(..), Name)
 import Pixels exposing (Pixels)
 import Ports exposing (CropImageDataResponse)
 import ProfileImage exposing (ProfileImage)
 import Quantity exposing (Quantity)
-import SimulatedTask exposing (FrontendOnly)
-import Subscription exposing (Subscription)
 import TestId exposing (ButtonId)
 import Ui
 import Untrusted exposing (Untrusted)
@@ -57,7 +60,7 @@ type Msg
     | TouchEndImageEditor
     | PressedConfirmImage
     | PressedCancelImage
-    | GotImageSize (Result Browser.Dom.Error Browser.Dom.Element)
+    | GotImageSize (Result BrowserDom.Error BrowserDom.Element)
     | CroppedImage (Result String CropImageDataResponse)
 
 
@@ -143,13 +146,13 @@ update :
     { c | windowWidth : Quantity Int Pixels, windowHeight : Quantity Int Pixels }
     -> Msg
     -> Model
-    -> ( Model, Effect FrontendOnly ToBackend Msg )
+    -> ( Model, Command FrontendOnly ToBackend Msg )
 update windowSize msg model =
     case msg of
         FormChanged newForm ->
             ( { model | form = newForm, changeCounter = model.changeCounter + 1 }
-            , SimulatedTask.wait (Duration.seconds 2)
-                |> Effect.perform (\() -> SleepFinished (model.changeCounter + 1))
+            , Process.sleep (Duration.seconds 2)
+                |> Task.perform (\() -> SleepFinished (model.changeCounter + 1))
             )
 
         SleepFinished changeCount ->
@@ -168,43 +171,43 @@ update windowSize msg model =
                 [ validate
                     (Name.fromString
                         >> Result.toMaybe
-                        >> Maybe.map (Untrusted.untrust >> ChangeNameRequest >> Effect.sendToBackend)
+                        >> Maybe.map (Untrusted.untrust >> ChangeNameRequest >> Lamdera.sendToBackend)
                     )
                     model.form.name
                 , validate
                     (Description.fromString
                         >> Result.toMaybe
-                        >> Maybe.map (Untrusted.untrust >> ChangeDescriptionRequest >> Effect.sendToBackend)
+                        >> Maybe.map (Untrusted.untrust >> ChangeDescriptionRequest >> Lamdera.sendToBackend)
                     )
                     model.form.description
                 , validate
                     (EmailAddress.fromString
-                        >> Maybe.map (Untrusted.untrust >> ChangeEmailAddressRequest >> Effect.sendToBackend)
+                        >> Maybe.map (Untrusted.untrust >> ChangeEmailAddressRequest >> Lamdera.sendToBackend)
                     )
                     model.form.emailAddress
                 ]
                     |> List.filterMap identity
-                    |> Effect.batch
+                    |> Command.batch
 
               else
-                Effect.none
+                Command.none
             )
 
         PressedProfileImage ->
-            ( model, Effect.selectFile [ "image/png", "image/jpg", "image/jpeg" ] SelectedImage )
+            ( model, FileSelect.file [ "image/png", "image/jpg", "image/jpeg" ] SelectedImage )
 
         SelectedImage file ->
-            ( model, Effect.fileToUrl GotImageUrl file )
+            ( model, File.toUrl file |> Task.perform GotImageUrl )
 
         PressedDeleteAccount ->
-            ( { model | pressedDeleteAccount = True }, Effect.sendToBackend SendDeleteUserEmailRequest )
+            ( { model | pressedDeleteAccount = True }, Lamdera.sendToBackend SendDeleteUserEmailRequest )
 
         GotImageUrl imageUrl ->
             ( { model
                 | profileImage =
                     Editting (Just { x = 0.1, y = 0.1, size = 0.8, imageUrl = imageUrl, dragState = Nothing, imageSize = Nothing })
               }
-            , SimulatedTask.getElement profileImagePlaceholderId |> Effect.attempt GotImageSize
+            , BrowserDom.getElement profileImagePlaceholderId |> Task.attempt GotImageSize
             )
 
         MouseDownImageEditor x y ->
@@ -248,11 +251,11 @@ update windowSize msg model =
                     ( { model
                         | profileImage = Editting (Just { imageData | dragState = Just newDragState })
                       }
-                    , Effect.none
+                    , Command.none
                     )
 
                 _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
         MovedImageEditor x y ->
             case model.profileImage of
@@ -261,11 +264,11 @@ update windowSize msg model =
                         | profileImage =
                             Editting (Just (updateDragState (pixelToT windowSize x) (pixelToT windowSize y) imageData))
                       }
-                    , Effect.none
+                    , Command.none
                     )
 
                 _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
         MouseUpImageEditor x y ->
             case model.profileImage of
@@ -277,11 +280,11 @@ update windowSize msg model =
                                 |> (\a -> { a | dragState = Nothing })
                     in
                     ( { model | profileImage = Editting (Just newImageData) }
-                    , Effect.none
+                    , Command.none
                     )
 
                 _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
         TouchEndImageEditor ->
             case model.profileImage of
@@ -292,11 +295,11 @@ update windowSize msg model =
                                 |> (\a -> { a | dragState = Nothing })
                     in
                     ( { model | profileImage = Editting (Just newImageData) }
-                    , Effect.none
+                    , Command.none
                     )
 
                 _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
         PressedConfirmImage ->
             case model.profileImage of
@@ -317,20 +320,20 @@ update windowSize msg model =
                             )
 
                         Nothing ->
-                            ( model, Effect.none )
+                            ( model, Command.none )
 
                 _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
         PressedCancelImage ->
-            ( { model | profileImage = Unchanged }, Effect.none )
+            ( { model | profileImage = Unchanged }, Command.none )
 
         GotImageSize result ->
             case ( result, model.profileImage ) of
                 ( Ok { element }, Editting (Just imageData) ) ->
                     if element.height <= 0 then
                         ( model
-                        , SimulatedTask.getElement profileImagePlaceholderId |> Effect.attempt GotImageSize
+                        , BrowserDom.getElement profileImagePlaceholderId |> Task.attempt GotImageSize
                         )
 
                     else
@@ -345,11 +348,11 @@ update windowSize msg model =
                                     |> Just
                                     |> Editting
                           }
-                        , Effect.none
+                        , Command.none
                         )
 
                 _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
         CroppedImage result ->
             case result of
@@ -363,14 +366,14 @@ update windowSize msg model =
                             ( newModel
                             , Untrusted.untrust profileImage
                                 |> ChangeProfileImageRequest
-                                |> Effect.sendToBackend
+                                |> Lamdera.sendToBackend
                             )
 
                         Err _ ->
-                            ( model, Effect.none )
+                            ( model, Command.none )
 
                 Err _ ->
-                    ( model, Effect.none )
+                    ( model, Command.none )
 
 
 subscriptions : (Msg -> msg) -> Subscription FrontendOnly msg

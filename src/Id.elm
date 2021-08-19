@@ -13,9 +13,9 @@ module Id exposing
     , sessionIdFirst4CharsToString
     )
 
+import Effect.Lamdera as Lamdera exposing (SessionId)
 import Env
 import Sha256
-import TestId exposing (SessionId(..))
 import Time
 
 
@@ -32,8 +32,8 @@ type SessionIdFirst4Chars
 
 
 anonymizeSessionId : SessionId -> SessionIdFirst4Chars
-anonymizeSessionId (SessionId sessionId) =
-    String.left 4 sessionId |> SessionIdFirst4Chars
+anonymizeSessionId sessionId =
+    String.left 4 (Lamdera.sessionIdToString sessionId) |> SessionIdFirst4Chars
 
 
 sessionIdFirst4CharsToString : SessionIdFirst4Chars -> String

@@ -8,25 +8,25 @@ import BiDict.Assoc exposing (BiDict)
 import Browser exposing (UrlRequest)
 import CreateGroupPage exposing (CreateGroupError, GroupFormValidated)
 import Description exposing (Description)
+import Effect.Browser.Navigation exposing (Key)
+import Effect.Http as Http
+import Effect.Lamdera exposing (ClientId, SessionId)
 import EmailAddress exposing (EmailAddress)
 import Event exposing (CancellationStatus, Event, EventType)
 import FrontendUser exposing (FrontendUser)
 import Group exposing (EventId, Group, GroupVisibility, JoinEventError)
 import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError)
-import Http
 import HttpHelpers
 import Id exposing (DeleteUserToken, GroupId, Id, LoginToken, SessionIdFirst4Chars, UserId)
 import List.Nonempty exposing (Nonempty)
 import Name exposing (Name)
-import NavigationKey exposing (NavigationKey)
 import Pixels exposing (Pixels)
 import Postmark
 import ProfileImage exposing (ProfileImage)
 import ProfilePage
 import Quantity exposing (Quantity)
 import Route exposing (Route)
-import TestId exposing (ClientId, SessionId)
 import Time
 import TimeZone
 import Untrusted exposing (Untrusted)
@@ -39,7 +39,7 @@ type FrontendModel
 
 
 type alias LoadingFrontend =
-    { navigationKey : NavigationKey
+    { navigationKey : Key
     , route : Route
     , routeToken : Route.Token
     , windowSize : Maybe ( Quantity Int Pixels, Quantity Int Pixels )
@@ -49,7 +49,7 @@ type alias LoadingFrontend =
 
 
 type alias LoadedFrontend =
-    { navigationKey : NavigationKey
+    { navigationKey : Key
     , loginStatus : LoginStatus
     , route : Route
     , cachedGroups : Dict (Id GroupId) (Cache Group)
@@ -292,7 +292,7 @@ type FrontendMsg
     | TypedSearchText String
     | SubmittedSearchBox
     | GroupPageMsg GroupPage.Msg
-    | GotWindowSize (Quantity Int Pixels) (Quantity Int Pixels)
+    | GotWindowSize Int Int
     | GotTimeZone (Result TimeZone.Error ( String, Time.Zone ))
     | ScrolledToTop
     | PressedEnableAdmin

@@ -1,14 +1,6 @@
 module TestId exposing (..)
 
 
-type SessionId
-    = SessionId String
-
-
-type ClientId
-    = ClientId String
-
-
 type HtmlId a
     = HtmlId String
 
@@ -70,18 +62,3 @@ type TimeInputId
 timeInputId : String -> HtmlId TimeInputId
 timeInputId =
     (++) "f_" >> HtmlId
-
-
-sessionIdFromString : String -> SessionId
-sessionIdFromString =
-    SessionId
-
-
-clientIdFromString : String -> ClientId
-clientIdFromString =
-    ClientId
-
-
-clientIdToString : ClientId -> String
-clientIdToString (ClientId clientId) =
-    clientId

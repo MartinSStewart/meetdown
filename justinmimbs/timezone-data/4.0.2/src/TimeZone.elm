@@ -32,7 +32,9 @@ becomes `america__port_au_prince`.
 -}
 
 import Dict exposing (Dict)
-import SimulatedTask exposing (FrontendOnly, SimulatedTask)
+import Effect.Command exposing (FrontendOnly)
+import Effect.Task as Task exposing (Task)
+import Effect.Time exposing (Month, Weekday)
 import Time exposing (Month(..), Weekday(..))
 import TimeZone.Specification exposing (Clock(..), DateTime, DayOfMonth(..), Rule, Zone, ZoneRules(..), ZoneState)
 
@@ -73,22 +75,22 @@ type Error
 {-| Try to get the local time zone. If the task succeeds, then you get the zone
 name along with the `Time.Zone`.
 -}
-getZone : SimulatedTask FrontendOnly Error ( String, Time.Zone )
+getZone : Task FrontendOnly Error ( String, Time.Zone )
 getZone =
-    SimulatedTask.getTimeZoneName
-        |> SimulatedTask.andThen
+    Effect.Time.getZoneName
+        |> Task.andThen
             (\nameOrOffset ->
                 case nameOrOffset of
-                    Time.Name zoneName ->
+                    Effect.Time.Name zoneName ->
                         case Dict.get zoneName zones of
                             Just zone ->
-                                SimulatedTask.succeed ( zoneName, zone () )
+                                Task.succeed ( zoneName, zone () )
 
                             Nothing ->
-                                SimulatedTask.fail (NoDataForZoneName zoneName)
+                                Task.fail (NoDataForZoneName zoneName)
 
-                    Time.Offset _ ->
-                        SimulatedTask.fail NoZoneName
+                    Effect.Time.Offset _ ->
+                        Task.fail NoZoneName
             )
 
 

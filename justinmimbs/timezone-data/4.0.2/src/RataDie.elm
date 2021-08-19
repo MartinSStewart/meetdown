@@ -1,11 +1,10 @@
-module RataDie
-    exposing
-        ( RataDie
-        , ceilingWeekday
-        , dayOfMonth
-        , floorWeekday
-        , lastOfMonth
-        )
+module RataDie exposing
+    ( RataDie
+    , ceilingWeekday
+    , dayOfMonth
+    , floorWeekday
+    , lastOfMonth
+    )
 
 import Time exposing (Month(..), Weekday(..))
 

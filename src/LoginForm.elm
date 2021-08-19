@@ -1,8 +1,8 @@
 module LoginForm exposing (cancelButtonId, emailAddressInputId, submitButtonId, submitForm, typedEmail, view)
 
 import AssocList as Dict exposing (Dict)
-import Colors
-import Effect exposing (Effect)
+import Effect.Command as Command exposing (Command, FrontendOnly)
+import Effect.Lamdera as Lamdera
 import Element exposing (Element)
 import Element.Font
 import Element.Input
@@ -12,7 +12,6 @@ import GroupName
 import Html.Attributes
 import Id exposing (GroupId, Id)
 import Route exposing (Route)
-import SimulatedTask exposing (FrontendOnly)
 import TestId exposing (ButtonId, HtmlId, TextInputId)
 import Types exposing (Cache(..), FrontendMsg(..), LoginForm, ToBackend(..))
 import Ui
@@ -130,16 +129,16 @@ submitForm :
     Route
     -> Maybe ( Id GroupId, EventId )
     -> LoginForm
-    -> ( LoginForm, Effect FrontendOnly ToBackend FrontendMsg )
+    -> ( LoginForm, Command FrontendOnly ToBackend FrontendMsg )
 submitForm route maybeJoinEvent loginForm =
     case validateEmail loginForm.email of
         Ok email ->
             ( { loginForm | emailSent = Just email }
-            , GetLoginTokenRequest route (Untrusted.untrust email) maybeJoinEvent |> Effect.sendToBackend
+            , GetLoginTokenRequest route (Untrusted.untrust email) maybeJoinEvent |> Lamdera.sendToBackend
             )
 
         Err _ ->
-            ( { loginForm | pressedSubmitEmail = True }, Effect.none )
+            ( { loginForm | pressedSubmitEmail = True }, Command.none )
 
 
 typedEmail : String -> LoginForm -> LoginForm
