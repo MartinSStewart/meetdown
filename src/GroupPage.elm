@@ -23,6 +23,7 @@ import FrontendUser exposing (FrontendUser)
 import Group exposing (EditEventError(..), EventId, Group, GroupVisibility, PastOngoingOrFuture(..))
 import GroupName exposing (GroupName)
 import Html.Attributes
+import HtmlId exposing (ButtonId, HtmlId)
 import Id exposing (Id, UserId)
 import Link exposing (Link)
 import List.Nonempty exposing (Nonempty(..))
@@ -31,7 +32,6 @@ import Name
 import ProfileImage
 import Quantity exposing (Quantity)
 import Route
-import TestId exposing (ButtonId, HtmlId)
 import Time
 import Time.Extra as Time
 import TimeExtra as Time
@@ -1221,59 +1221,59 @@ groupView isMobile currentTime timezone owner group model maybeLoggedIn =
 
 
 deleteGroupButtonId =
-    TestId.buttonId "groupPageDeleteGroup"
+    HtmlId.buttonId "groupPageDeleteGroup"
 
 
 makeUnlistedGroupId =
-    TestId.buttonId "groupPageMakeUnlistedGroup"
+    HtmlId.buttonId "groupPageMakeUnlistedGroup"
 
 
 makePublicGroupId =
-    TestId.buttonId "groupPageMakePublicGroup"
+    HtmlId.buttonId "groupPageMakePublicGroup"
 
 
 showAllFutureEventsId =
-    TestId.buttonId "groupPageShowAllFutureEvents"
+    HtmlId.buttonId "groupPageShowAllFutureEvents"
 
 
 showFirstFutureEventsId =
-    TestId.buttonId "groupPageShowFirstFutureEvents"
+    HtmlId.buttonId "groupPageShowFirstFutureEvents"
 
 
 resetGroupNameId =
-    TestId.buttonId "groupPageResetGroupName"
+    HtmlId.buttonId "groupPageResetGroupName"
 
 
 editGroupNameId =
-    TestId.buttonId "groupPageEditGroupName"
+    HtmlId.buttonId "groupPageEditGroupName"
 
 
 saveGroupNameId =
-    TestId.buttonId "groupPageSaveGroupName"
+    HtmlId.buttonId "groupPageSaveGroupName"
 
 
 resetDescriptionId =
-    TestId.buttonId "groupPageResetDescription"
+    HtmlId.buttonId "groupPageResetDescription"
 
 
 editDescriptionId =
-    TestId.buttonId "groupPageEditDescription"
+    HtmlId.buttonId "groupPageEditDescription"
 
 
 saveDescriptionId =
-    TestId.buttonId "groupPageSaveDescription"
+    HtmlId.buttonId "groupPageSaveDescription"
 
 
 createEventCancelId =
-    TestId.buttonId "groupPageCreateEventCancel"
+    HtmlId.buttonId "groupPageCreateEventCancel"
 
 
 createEventSubmitId =
-    TestId.buttonId "groupPageCreateEventSubmit"
+    HtmlId.buttonId "groupPageCreateEventSubmit"
 
 
 createNewEventId =
-    TestId.buttonId "groupPageCreateNewEvent"
+    HtmlId.buttonId "groupPageCreateNewEvent"
 
 
 ongoingEventView :
@@ -1659,27 +1659,27 @@ eventTypeView isPastEvent event =
 
 
 cancelEventId =
-    TestId.buttonId "groupCancelEvent"
+    HtmlId.buttonId "groupCancelEvent"
 
 
 uncancelEventId =
-    TestId.buttonId "groupUncancelEvent"
+    HtmlId.buttonId "groupUncancelEvent"
 
 
 recancelEventId =
-    TestId.buttonId "groupRecancelEvent"
+    HtmlId.buttonId "groupRecancelEvent"
 
 
 editEventId =
-    TestId.buttonId "groupEditEvent"
+    HtmlId.buttonId "groupEditEvent"
 
 
 leaveEventButtonId =
-    TestId.buttonId "groupLeaveEvent"
+    HtmlId.buttonId "groupLeaveEvent"
 
 
 joinEventButtonId =
-    TestId.buttonId "groupJoinEvent"
+    HtmlId.buttonId "groupJoinEvent"
 
 
 intToMonth : Int -> Maybe Time.Month
@@ -1731,15 +1731,15 @@ type EventType
 
 
 eventNameInputId =
-    TestId.textInputId "groupEventName"
+    HtmlId.textInputId "groupEventName"
 
 
 eventDescriptionInputId =
-    TestId.textInputId "groupEventDescription"
+    HtmlId.textInputId "groupEventDescription"
 
 
 eventMeetingTypeId =
-    TestId.radioButtonId
+    HtmlId.radioButtonId
         "groupEventMeeting_"
         (\meetingType ->
             case meetingType of
@@ -1752,11 +1752,11 @@ eventMeetingTypeId =
 
 
 eventMeetingOnlineInputId =
-    TestId.textInputId "groupEventMeetingOnline"
+    HtmlId.textInputId "groupEventMeetingOnline"
 
 
 eventMeetingInPersonInputId =
-    TestId.textInputId "groupEventMeetingInPerson"
+    HtmlId.textInputId "groupEventMeetingInPerson"
 
 
 editEventView :
@@ -2170,19 +2170,19 @@ newEventView currentTime timezone group event =
 
 
 eventMaxAttendeesId =
-    TestId.numberInputId "groupPageEditMaxAttendeesId"
+    HtmlId.numberInputId "groupPageEditMaxAttendeesId"
 
 
 eventDurationId =
-    TestId.numberInputId "groupPageEventDurationId"
+    HtmlId.numberInputId "groupPageEventDurationId"
 
 
 createEventStartDateId =
-    TestId.dateInputId "groupPageCreateEventStartDate"
+    HtmlId.dateInputId "groupPageCreateEventStartDate"
 
 
 createEventStartTimeId =
-    TestId.timeInputId "groupPageCreateEventStartTime"
+    HtmlId.timeInputId "groupPageCreateEventStartTime"
 
 
 dateToString : Maybe Time.Zone -> Time.Posix -> String
@@ -2311,7 +2311,7 @@ smallButton htmlId onPress label =
         , Element.paddingXY 8 2
         , Element.Border.rounded 4
         , Element.Font.center
-        , TestId.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
+        , HtmlId.toString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         ]
         { onPress = Just onPress
         , label = Element.text label
@@ -2331,11 +2331,11 @@ multiline onChange text labelText =
 
 
 groupNameInputId =
-    TestId.textInputId "groupPageGroupName"
+    HtmlId.textInputId "groupPageGroupName"
 
 
 copyPreviousEventButtonId =
-    TestId.buttonId "groupPage_CopyPreviousEvent"
+    HtmlId.buttonId "groupPage_CopyPreviousEvent"
 
 
 groupNameTextInput : (String -> msg) -> String -> String -> Element msg
@@ -2343,7 +2343,7 @@ groupNameTextInput onChange text labelText =
     Element.Input.text
         [ Element.width Element.fill
         , Element.paddingXY 8 4
-        , TestId.htmlIdToString groupNameInputId |> Html.Attributes.id |> Element.htmlAttribute
+        , HtmlId.toString groupNameInputId |> Html.Attributes.id |> Element.htmlAttribute
         ]
         { text = text
         , onChange = onChange

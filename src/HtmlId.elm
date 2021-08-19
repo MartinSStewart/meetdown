@@ -1,12 +1,12 @@
-module TestId exposing (..)
+module HtmlId exposing (..)
 
 
 type HtmlId a
     = HtmlId String
 
 
-htmlIdToString : HtmlId a -> String
-htmlIdToString (HtmlId a) =
+toString : HtmlId a -> String
+toString (HtmlId a) =
     a
 
 

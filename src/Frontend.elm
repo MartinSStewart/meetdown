@@ -43,6 +43,7 @@ import Group exposing (Group)
 import GroupPage
 import Html
 import Html.Attributes
+import HtmlId
 import Id exposing (GroupId, Id, UserId)
 import Lamdera
 import LoginForm
@@ -53,7 +54,6 @@ import Quantity exposing (Quantity)
 import Route exposing (Route(..))
 import SearchPage
 import Terms
-import TestId
 import TimeZone
 import Types exposing (..)
 import Ui
@@ -1408,7 +1408,7 @@ searchInput searchText =
         , Element.Border.color Colors.darkGrey
         , Element.paddingEach { left = 24, right = 8, top = 4, bottom = 4 }
         , Ui.onEnter SubmittedSearchBox
-        , TestId.htmlIdToString groupSearchId |> Html.Attributes.id |> Element.htmlAttribute
+        , HtmlId.toString groupSearchId |> Html.Attributes.id |> Element.htmlAttribute
         , Element.inFront
             (Element.el
                 [ Element.Font.size 12
@@ -1439,7 +1439,7 @@ searchInputLarge searchText =
             , Element.Border.widthEach { bottom = 1, left = 1, right = 0, top = 1 }
             , Element.paddingEach { left = 30, right = 8, top = 8, bottom = 8 }
             , Ui.onEnter SubmittedSearchBox
-            , TestId.htmlIdToString groupSearchLargeId |> Html.Attributes.id |> Element.htmlAttribute
+            , HtmlId.toString groupSearchLargeId |> Html.Attributes.id |> Element.htmlAttribute
             , Element.inFront
                 (Element.el
                     [ Element.Font.size 14
@@ -1612,16 +1612,16 @@ headerButtons isMobile_ isAdmin route =
 
 
 groupSearchId =
-    TestId.textInputId "headerGroupSearch"
+    HtmlId.textInputId "headerGroupSearch"
 
 
 groupSearchLargeId =
-    TestId.textInputId "headerGroupSearchLarge"
+    HtmlId.textInputId "headerGroupSearchLarge"
 
 
 logOutButtonId =
-    TestId.buttonId "headerLogOut"
+    HtmlId.buttonId "headerLogOut"
 
 
 signUpOrLoginButtonId =
-    TestId.buttonId "headerSignUpOrLogin"
+    HtmlId.buttonId "headerSignUpOrLogin"

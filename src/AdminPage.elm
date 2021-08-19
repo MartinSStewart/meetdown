@@ -4,8 +4,8 @@ import AdminStatus exposing (AdminStatus(..))
 import Array
 import Date
 import Element exposing (Element)
+import HtmlId
 import Id
-import TestId
 import Time
 import Types exposing (AdminCache(..), AdminModel, FrontendMsg(..), Log)
 import Ui
@@ -54,7 +54,7 @@ adminView adminEnabled timezone loggedIn =
 
 
 enableAdminId =
-    TestId.buttonId "adminPageEnableAdmin"
+    HtmlId.buttonId "adminPageEnableAdmin"
 
 
 logView : Time.Zone -> AdminModel -> Log -> Element msg

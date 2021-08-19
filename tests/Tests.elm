@@ -11,7 +11,10 @@ import CreateGroupPage
 import Date
 import Dict as RegularDict
 import Duration
+import Effect.Command exposing (PortToJs)
 import Effect.Http as Http
+import Effect.Internal exposing (HttpBody(..))
+import Effect.Lamdera as Lamdera exposing (ClientId, SessionId)
 import Effect.Test as TF
 import EmailAddress exposing (EmailAddress)
 import Env
@@ -20,6 +23,7 @@ import Group exposing (EventId)
 import GroupName exposing (GroupName)
 import GroupPage
 import Html.Parser
+import HtmlId
 import Id exposing (GroupId, Id)
 import Json.Decode
 import List.Extra as List
@@ -63,6 +67,7 @@ testApp =
         handleHttpRequests
         handlePortToJs
         handleFileRequest
+        (Unsafe.url Env.domain)
 
 
 handleHttpRequests : { currentRequest : TF.HttpRequest, httpRequests : List TF.HttpRequest } -> Http.Response String
@@ -99,17 +104,20 @@ handlePortToJs { currentRequest, portRequests } =
         Nothing
 
 
-handleFileRequest : { mimeTypes : List String } -> Maybe MockFile.File
+handleFileRequest :
+    { mimeTypes : List String }
+    -> Maybe { name : String, mimeType : String, content : String, lastModified : Time.Posix }
 handleFileRequest _ =
-    MockFile.MockFile
-        { name = "Image0.png"
-        , content = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAABhWlDQ1BJQ0MgcHJvZmlsZQAAKJF9kT1Iw0AcxV9Ta0UqgnYQcchQnayIijhKFYtgobQVWnUwufRDaNKQpLg4Cq4FBz8Wqw4uzro6uAqC4AeIm5uToouU+L+k0CLGg+N+vLv3uHsHCPUyU82OcUDVLCMVj4nZ3IoYfEUn/OhDAGMSM/VEeiEDz/F1Dx9f76I8y/vcn6NHyZsM8InEs0w3LOJ14ulNS+e8TxxmJUkhPiceNeiCxI9cl11+41x0WOCZYSOTmiMOE4vFNpbbmJUMlXiKOKKoGuULWZcVzluc1XKVNe/JXxjKa8tprtMcQhyLSCAJETKq2EAZFqK0aqSYSNF+zMM/6PiT5JLJtQFGjnlUoEJy/OB/8LtbszA54SaFYkDgxbY/hoHgLtCo2fb3sW03TgD/M3CltfyVOjDzSXqtpUWOgN5t4OK6pcl7wOUOMPCkS4bkSH6aQqEAvJ/RN+WA/luge9XtrbmP0wcgQ10t3QAHh8BIkbLXPN7d1d7bv2ea/f0AT2FymQ2GVEYAAAAJcEhZcwAALiMAAC4jAXilP3YAAAAHdElNRQflBgMSBgvJgnPPAAAAGXRFWHRDb21tZW50AENyZWF0ZWQgd2l0aCBHSU1QV4EOFwAAAAxJREFUCNdjmH36PwAEagJmf/sZfAAAAABJRU5ErkJggg=="
-        }
+    { name = "Image0.png"
+    , content = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAABhWlDQ1BJQ0MgcHJvZmlsZQAAKJF9kT1Iw0AcxV9Ta0UqgnYQcchQnayIijhKFYtgobQVWnUwufRDaNKQpLg4Cq4FBz8Wqw4uzro6uAqC4AeIm5uToouU+L+k0CLGg+N+vLv3uHsHCPUyU82OcUDVLCMVj4nZ3IoYfEUn/OhDAGMSM/VEeiEDz/F1Dx9f76I8y/vcn6NHyZsM8InEs0w3LOJ14ulNS+e8TxxmJUkhPiceNeiCxI9cl11+41x0WOCZYSOTmiMOE4vFNpbbmJUMlXiKOKKoGuULWZcVzluc1XKVNe/JXxjKa8tprtMcQhyLSCAJETKq2EAZFqK0aqSYSNF+zMM/6PiT5JLJtQFGjnlUoEJy/OB/8LtbszA54SaFYkDgxbY/hoHgLtCo2fb3sW03TgD/M3CltfyVOjDzSXqtpUWOgN5t4OK6pcl7wOUOMPCkS4bkSH6aQqEAvJ/RN+WA/luge9XtrbmP0wcgQ10t3QAHh8BIkbLXPN7d1d7bv2ea/f0AT2FymQ2GVEYAAAAJcEhZcwAALiMAAC4jAXilP3YAAAAHdElNRQflBgMSBgvJgnPPAAAAGXRFWHRDb21tZW50AENyZWF0ZWQgd2l0aCBHSU1QV4EOFwAAAAxJREFUCNdjmH36PwAEagJmf/sZfAAAAABJRU5ErkJggg=="
+    , lastModified = Time.millisToPosix 0
+    , mimeType = "image/png"
+    }
         |> Just
 
 
 checkLoadedFrontend :
-    TestId.ClientId
+    ClientId
     -> (LoadedFrontend -> Result String ())
     -> TF.Instructions ToBackend FrontendMsg FrontendModel toFrontend backendMsg backendModel
     -> TF.Instructions ToBackend FrontendMsg FrontendModel toFrontend backendMsg backendModel
@@ -129,11 +137,11 @@ checkLoadedFrontend clientId checkFunc state =
 
 loginFromHomepage :
     Bool
-    -> TestId.SessionId
-    -> TestId.SessionId
+    -> SessionId
+    -> SessionId
     -> EmailAddress.EmailAddress
     ->
-        ({ instructions : TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel, clientId : TestId.ClientId, clientIdFromEmail : TestId.ClientId }
+        ({ instructions : TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel, clientId : ClientId, clientIdFromEmail : ClientId }
          -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
         )
     -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
@@ -144,18 +152,18 @@ loginFromHomepage loginWithEnterKey sessionId sessionIdFromEmail emailAddress st
         (\( state3, clientId ) ->
             state3
                 |> testApp.simulateTime Duration.second
-                |> testApp.clickButton clientId Frontend.signUpOrLoginButtonId
+                |> testApp.clickButton clientId (HtmlId.toString Frontend.signUpOrLoginButtonId)
                 |> handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress stateFunc
         )
 
 
 handleLoginForm :
     Bool
-    -> TestId.ClientId
-    -> TestId.SessionId
+    -> ClientId
+    -> SessionId
     -> EmailAddress
     ->
-        ({ instructions : TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel, clientId : TestId.ClientId, clientIdFromEmail : TestId.ClientId }
+        ({ instructions : TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel, clientId : ClientId, clientIdFromEmail : ClientId }
          -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
         )
     -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
@@ -163,13 +171,13 @@ handleLoginForm :
 handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress andThenFunc state =
     state
         |> testApp.simulateTime Duration.second
-        |> testApp.inputText clientId LoginForm.emailAddressInputId (EmailAddress.toString emailAddress)
+        |> testApp.inputText clientId (HtmlId.toString LoginForm.emailAddressInputId) (EmailAddress.toString emailAddress)
         |> testApp.simulateTime Duration.second
         |> (if loginWithEnterKey then
-                TF.keyDownEvent frontendApp clientId LoginForm.emailAddressInputId Ui.enterKeyCode
+                testApp.keyDownEvent clientId (HtmlId.toString LoginForm.emailAddressInputId) Ui.enterKeyCode
 
             else
-                testApp.clickButton clientId LoginForm.submitButtonId
+                testApp.clickButton clientId (HtmlId.toString LoginForm.submitButtonId)
            )
         |> testApp.simulateTime Duration.second
         |> TF.andThen
@@ -382,7 +390,7 @@ suite =
             \_ ->
                 let
                     sessionId =
-                        TestId.sessionIdFromString "session0"
+                        Lamdera.sessionIdFromString "session0"
 
                     emailAddress =
                         Unsafe.emailAddress "the@email.com"
@@ -416,7 +424,7 @@ suite =
             \_ ->
                 let
                     sessionId =
-                        TestId.sessionIdFromString "session0"
+                        Lamdera.sessionIdFromString "session0"
 
                     emailAddress =
                         Unsafe.emailAddress "the@email.com"
@@ -451,7 +459,7 @@ suite =
             \_ ->
                 let
                     sessionId =
-                        TestId.sessionIdFromString "session0"
+                        Lamdera.sessionIdFromString "session0"
 
                     emailAddress =
                         Unsafe.emailAddress "the@email.com"
@@ -487,8 +495,8 @@ suite =
                 testApp.init
                     |> loginFromHomepage
                         True
-                        (TestId.sessionIdFromString "session0")
-                        (TestId.sessionIdFromString "session1")
+                        (Lamdera.sessionIdFromString "session0")
+                        (Lamdera.sessionIdFromString "session1")
                         (Unsafe.emailAddress "the@email.com")
                         (\{ instructions, clientId, clientIdFromEmail } ->
                             instructions
@@ -514,7 +522,7 @@ suite =
                         Unsafe.emailAddress "the@email.com"
 
                     sessionId =
-                        TestId.sessionIdFromString "session0"
+                        Lamdera.sessionIdFromString "session0"
                 in
                 testApp.init
                     |> loginFromHomepage True
@@ -529,7 +537,7 @@ suite =
                                             [ loginEmail ] ->
                                                 TF.continueWith state
                                                     |> testApp.connectFrontend
-                                                        (TestId.sessionIdFromString "session1")
+                                                        (Lamdera.sessionIdFromString "session1")
                                                         (Unsafe.url
                                                             (Backend.loginEmailLink
                                                                 loginEmail.route
@@ -568,7 +576,7 @@ suite =
             \_ ->
                 let
                     session0 =
-                        TestId.sessionIdFromString "session0"
+                        Lamdera.sessionIdFromString "session0"
 
                     groupName =
                         "It's my Group!"
@@ -614,7 +622,7 @@ suite =
             \_ ->
                 let
                     session0 =
-                        TestId.sessionIdFromString "session0"
+                        Lamdera.sessionIdFromString "session0"
 
                     emailAddress =
                         Unsafe.emailAddress "the@email.com"
@@ -661,7 +669,7 @@ suite =
             \_ ->
                 let
                     session0 =
-                        TestId.sessionIdFromString "session0"
+                        Lamdera.sessionIdFromString "session0"
 
                     emailAddress =
                         Unsafe.emailAddress "the@email.com"
@@ -700,10 +708,10 @@ suite =
             \_ ->
                 let
                     session0 =
-                        TestId.sessionIdFromString "session0"
+                        Lamdera.sessionIdFromString "session0"
 
                     session1 =
-                        TestId.sessionIdFromString "session1"
+                        Lamdera.sessionIdFromString "session1"
 
                     emailAddress0 =
                         Unsafe.emailAddress "the@email.com"
@@ -741,12 +749,12 @@ suite =
                             findSingleGroup
                                 (\groupId inProgress2 ->
                                     inProgress2
-                                        |> testApp.inputText clientId Frontend.groupSearchId "my group!"
-                                        |> TF.keyDownEvent frontendApp clientId Frontend.groupSearchId Ui.enterKeyCode
+                                        |> testApp.inputText clientId (HtmlId.toString Frontend.groupSearchId) "my group!"
+                                        |> testApp.keyDownEvent clientId (HtmlId.toString Frontend.groupSearchId) Ui.enterKeyCode
                                         |> testApp.simulateTime Duration.second
-                                        |> testApp.clickLink clientId (Route.GroupRoute groupId groupName)
+                                        |> testApp.clickLink clientId (Route.GroupRoute groupId groupName |> Route.encode)
                                         |> testApp.simulateTime Duration.second
-                                        |> testApp.clickButton clientId GroupPage.joinEventButtonId
+                                        |> testApp.clickButton clientId (HtmlId.toString GroupPage.joinEventButtonId)
                                         |> testApp.simulateTime Duration.second
                                         |> TF.fastForward (Duration.hours 14)
                                         |> testApp.simulateTime (Duration.seconds 30)
@@ -771,14 +779,14 @@ suite =
                 let
                     connectAndLogin count =
                         testApp.connectFrontend
-                            (TestId.sessionIdFromString <| "session " ++ String.fromInt count)
+                            (Lamdera.sessionIdFromString <| "session " ++ String.fromInt count)
                             (Unsafe.url Env.domain)
                             (\( state, clientId ) ->
                                 state
                                     |> testApp.simulateTime Duration.second
-                                    |> testApp.clickButton clientId Frontend.signUpOrLoginButtonId
-                                    |> testApp.inputText clientId LoginForm.emailAddressInputId "my+good@email.eu"
-                                    |> testApp.clickButton clientId LoginForm.submitButtonId
+                                    |> testApp.clickButton clientId (HtmlId.toString Frontend.signUpOrLoginButtonId)
+                                    |> testApp.inputText clientId (HtmlId.toString LoginForm.emailAddressInputId) "my+good@email.eu"
+                                    |> testApp.clickButton clientId (HtmlId.toString LoginForm.submitButtonId)
                                     |> testApp.simulateTime Duration.second
                             )
                 in
@@ -810,7 +818,7 @@ suite =
             \_ ->
                 let
                     session0 =
-                        TestId.sessionIdFromString "session0"
+                        Lamdera.sessionIdFromString "session0"
                 in
                 testApp.init
                     |> testApp.connectFrontend
@@ -819,21 +827,21 @@ suite =
                         (\( state, clientId ) ->
                             state
                                 |> testApp.simulateTime Duration.second
-                                |> testApp.clickButton clientId Frontend.signUpOrLoginButtonId
-                                |> testApp.inputText clientId LoginForm.emailAddressInputId "a@email.eu"
-                                |> testApp.clickButton clientId LoginForm.submitButtonId
+                                |> testApp.clickButton clientId (HtmlId.toString Frontend.signUpOrLoginButtonId)
+                                |> testApp.inputText clientId (HtmlId.toString LoginForm.emailAddressInputId) "a@email.eu"
+                                |> testApp.clickButton clientId (HtmlId.toString LoginForm.submitButtonId)
                                 |> testApp.simulateTime Duration.second
-                                |> testApp.inputText clientId LoginForm.emailAddressInputId "b@email.eu"
-                                |> testApp.clickButton clientId LoginForm.submitButtonId
+                                |> testApp.inputText clientId (HtmlId.toString LoginForm.emailAddressInputId) "b@email.eu"
+                                |> testApp.clickButton clientId (HtmlId.toString LoginForm.submitButtonId)
                                 |> testApp.simulateTime Duration.second
-                                |> testApp.inputText clientId LoginForm.emailAddressInputId "c@email.eu"
-                                |> testApp.clickButton clientId LoginForm.submitButtonId
+                                |> testApp.inputText clientId (HtmlId.toString LoginForm.emailAddressInputId) "c@email.eu"
+                                |> testApp.clickButton clientId (HtmlId.toString LoginForm.submitButtonId)
                                 |> testApp.simulateTime Duration.second
-                                |> testApp.inputText clientId LoginForm.emailAddressInputId "d@email.eu"
-                                |> testApp.clickButton clientId LoginForm.submitButtonId
+                                |> testApp.inputText clientId (HtmlId.toString LoginForm.emailAddressInputId) "d@email.eu"
+                                |> testApp.clickButton clientId (HtmlId.toString LoginForm.submitButtonId)
                                 |> testApp.simulateTime Duration.second
-                                |> testApp.inputText clientId LoginForm.emailAddressInputId "e@email.eu"
-                                |> testApp.clickButton clientId LoginForm.submitButtonId
+                                |> testApp.inputText clientId (HtmlId.toString LoginForm.emailAddressInputId) "e@email.eu"
+                                |> testApp.clickButton clientId (HtmlId.toString LoginForm.submitButtonId)
                                 |> testApp.simulateTime Duration.second
                                 |> TF.checkState
                                     (\state2 ->
@@ -851,8 +859,8 @@ suite =
                                                 |> Err
                                     )
                                 |> testApp.simulateTime Duration.minute
-                                |> testApp.inputText clientId LoginForm.emailAddressInputId "e@email.eu"
-                                |> testApp.clickButton clientId LoginForm.submitButtonId
+                                |> testApp.inputText clientId (HtmlId.toString LoginForm.emailAddressInputId) "e@email.eu"
+                                |> testApp.clickButton clientId (HtmlId.toString LoginForm.submitButtonId)
                                 |> testApp.simulateTime Duration.second
                                 |> TF.checkState
                                     (\state2 ->
@@ -875,7 +883,7 @@ suite =
             \_ ->
                 let
                     session0 =
-                        TestId.sessionIdFromString "session0"
+                        Lamdera.sessionIdFromString "session0"
 
                     emailAddress =
                         Unsafe.emailAddress "a@email.eu"
@@ -889,14 +897,14 @@ suite =
                         (\{ instructions, clientId, clientIdFromEmail } ->
                             instructions
                                 |> testApp.simulateTime Duration.second
-                                |> testApp.clickLink clientId Route.MyProfileRoute
-                                |> testApp.clickButton clientId ProfilePage.deleteAccountButtonId
+                                |> testApp.clickLink clientId (Route.encode Route.MyProfileRoute)
+                                |> testApp.clickButton clientId (HtmlId.toString ProfilePage.deleteAccountButtonId)
                                 |> testApp.simulateTime Duration.second
-                                |> testApp.clickButton clientId ProfilePage.deleteAccountButtonId
+                                |> testApp.clickButton clientId (HtmlId.toString ProfilePage.deleteAccountButtonId)
                                 |> testApp.simulateTime Duration.second
-                                |> testApp.clickButton clientId ProfilePage.deleteAccountButtonId
+                                |> testApp.clickButton clientId (HtmlId.toString ProfilePage.deleteAccountButtonId)
                                 |> testApp.simulateTime Duration.second
-                                |> testApp.clickButton clientId ProfilePage.deleteAccountButtonId
+                                |> testApp.clickButton clientId (HtmlId.toString ProfilePage.deleteAccountButtonId)
                                 |> testApp.simulateTime Duration.second
                                 |> TF.checkState
                                     (\state2 ->
@@ -923,7 +931,7 @@ suite =
                                                 |> Err
                                     )
                                 |> testApp.simulateTime (Duration.minutes 1.5)
-                                |> testApp.clickButton clientId ProfilePage.deleteAccountButtonId
+                                |> testApp.clickButton clientId (HtmlId.toString ProfilePage.deleteAccountButtonId)
                                 |> testApp.simulateTime Duration.second
                                 |> TF.checkState
                                     (\state2 ->
@@ -955,7 +963,7 @@ suite =
             \_ ->
                 let
                     sessionId =
-                        TestId.sessionIdFromString "sessionId"
+                        Lamdera.sessionIdFromString "sessionId"
                 in
                 testApp.init
                     |> testApp.connectFrontend
@@ -986,10 +994,10 @@ suite =
             \_ ->
                 let
                     sessionId =
-                        TestId.sessionIdFromString "sessionId"
+                        Lamdera.sessionIdFromString "sessionId"
 
                     attackerSessionId =
-                        TestId.sessionIdFromString "sessionIdAttacker"
+                        Lamdera.sessionIdFromString "sessionIdAttacker"
 
                     emailAddress =
                         Unsafe.emailAddress "my@email.com"
@@ -1067,10 +1075,10 @@ createEventAndAnotherUserNotLoggedInJoinsIt : TF.Instructions ToBackend Frontend
 createEventAndAnotherUserNotLoggedInJoinsIt =
     let
         session0 =
-            TestId.sessionIdFromString "session0"
+            Lamdera.sessionIdFromString "session0"
 
         session1 =
-            TestId.sessionIdFromString "session1"
+            Lamdera.sessionIdFromString "session1"
 
         emailAddress0 =
             Unsafe.emailAddress "the@email.se"
@@ -1107,12 +1115,12 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
                     (\groupId inProgress2 ->
                         inProgress2
                             |> testApp.simulateTime Duration.second
-                            |> testApp.inputText clientId Frontend.groupSearchId "my group!"
-                            |> TF.keyDownEvent frontendApp clientId Frontend.groupSearchId Ui.enterKeyCode
+                            |> testApp.inputText clientId (HtmlId.toString Frontend.groupSearchId) "my group!"
+                            |> testApp.keyDownEvent clientId (HtmlId.toString Frontend.groupSearchId) Ui.enterKeyCode
                             |> testApp.simulateTime Duration.second
-                            |> testApp.clickLink clientId (Route.GroupRoute groupId groupName)
+                            |> testApp.clickLink clientId (Route.GroupRoute groupId groupName |> Route.encode)
                             |> testApp.simulateTime Duration.second
-                            |> testApp.clickButton clientId GroupPage.joinEventButtonId
+                            |> testApp.clickButton clientId (HtmlId.toString GroupPage.joinEventButtonId)
                             |> testApp.simulateTime Duration.second
                             |> handleLoginForm
                                 True
@@ -1123,7 +1131,7 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
                                     a.instructions
                                         |> testApp.simulateTime Duration.second
                                         -- We are just clicking the leave button to test that we had joined the event.
-                                        |> testApp.clickButton a.clientIdFromEmail GroupPage.leaveEventButtonId
+                                        |> testApp.clickButton a.clientIdFromEmail (HtmlId.toString GroupPage.leaveEventButtonId)
                                 )
                     )
                     instructions
@@ -1134,10 +1142,10 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt : TF.Instruc
 createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
     let
         session0 =
-            TestId.sessionIdFromString "session0"
+            Lamdera.sessionIdFromString "session0"
 
         session1 =
-            TestId.sessionIdFromString "session1"
+            Lamdera.sessionIdFromString "session1"
 
         emailAddress0 =
             Unsafe.emailAddress "the@email.com"
@@ -1174,7 +1182,7 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
             (\{ instructions, clientIdFromEmail } ->
                 instructions
                     |> testApp.simulateTime Duration.second
-                    |> testApp.clickButton clientIdFromEmail Frontend.logOutButtonId
+                    |> testApp.clickButton clientIdFromEmail (HtmlId.toString Frontend.logOutButtonId)
                     |> testApp.simulateTime Duration.minute
             )
         |> testApp.connectFrontend session1
@@ -1184,12 +1192,12 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
                     (\groupId inProgress2 ->
                         inProgress2
                             |> testApp.simulateTime Duration.second
-                            |> testApp.inputText clientId Frontend.groupSearchId "my group!"
-                            |> TF.keyDownEvent frontendApp clientId Frontend.groupSearchId Ui.enterKeyCode
+                            |> testApp.inputText clientId (HtmlId.toString Frontend.groupSearchId) "my group!"
+                            |> testApp.keyDownEvent clientId (HtmlId.toString Frontend.groupSearchId) Ui.enterKeyCode
                             |> testApp.simulateTime Duration.second
-                            |> testApp.clickLink clientId (Route.GroupRoute groupId groupName)
+                            |> testApp.clickLink clientId (Route.GroupRoute groupId groupName |> Route.encode)
                             |> testApp.simulateTime Duration.second
-                            |> testApp.clickButton clientId GroupPage.joinEventButtonId
+                            |> testApp.clickButton clientId (HtmlId.toString GroupPage.joinEventButtonId)
                             |> testApp.simulateTime Duration.second
                             |> handleLoginForm
                                 True
@@ -1200,7 +1208,7 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
                                     a.instructions
                                         |> testApp.simulateTime Duration.second
                                         -- We are just clicking the leave button to test that we had joined the event.
-                                        |> testApp.clickButton a.clientIdFromEmail GroupPage.leaveEventButtonId
+                                        |> testApp.clickButton a.clientIdFromEmail (HtmlId.toString GroupPage.leaveEventButtonId)
                                 )
                     )
                     instructions
@@ -1208,24 +1216,24 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
 
 
 createGroup :
-    TestId.ClientId
+    ClientId
     -> String
     -> String
     -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
     -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 createGroup loggedInClient groupName groupDescription state =
     state
-        |> testApp.clickLink loggedInClient Route.CreateGroupRoute
+        |> testApp.clickLink loggedInClient (Route.encode Route.CreateGroupRoute)
         |> testApp.simulateTime Duration.second
-        |> testApp.inputText loggedInClient CreateGroupPage.nameInputId groupName
-        |> testApp.inputText loggedInClient CreateGroupPage.descriptionInputId groupDescription
-        |> testApp.clickRadioButton loggedInClient (CreateGroupPage.groupVisibilityId Group.PublicGroup)
-        |> testApp.clickButton loggedInClient CreateGroupPage.submitButtonId
+        |> testApp.inputText loggedInClient (HtmlId.toString CreateGroupPage.nameInputId) groupName
+        |> testApp.inputText loggedInClient (HtmlId.toString CreateGroupPage.descriptionInputId) groupDescription
+        |> testApp.clickButton loggedInClient (CreateGroupPage.groupVisibilityId Group.PublicGroup |> HtmlId.toString)
+        |> testApp.clickButton loggedInClient (HtmlId.toString CreateGroupPage.submitButtonId)
         |> testApp.simulateTime Duration.second
 
 
 createGroupAndEvent :
-    TestId.ClientId
+    ClientId
     ->
         { groupName : String
         , groupDescription : String
@@ -1240,12 +1248,12 @@ createGroupAndEvent :
     -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 createGroupAndEvent loggedInClient { groupName, groupDescription, eventName, eventDescription, eventDate, eventHour, eventMinute, eventDuration } state =
     createGroup loggedInClient groupName groupDescription state
-        |> testApp.clickButton loggedInClient GroupPage.createNewEventId
-        |> testApp.inputText loggedInClient GroupPage.eventNameInputId eventName
-        |> testApp.inputText loggedInClient GroupPage.eventDescriptionInputId eventDescription
-        |> testApp.clickRadioButton loggedInClient (GroupPage.eventMeetingTypeId GroupPage.MeetOnline)
-        |> testApp.inputDate loggedInClient GroupPage.createEventStartDateId eventDate
-        |> testApp.inputTime loggedInClient GroupPage.createEventStartTimeId eventHour eventMinute
-        |> testApp.inputNumber loggedInClient GroupPage.eventDurationId eventDuration
-        |> testApp.clickButton loggedInClient GroupPage.createEventSubmitId
+        |> testApp.clickButton loggedInClient (HtmlId.toString GroupPage.createNewEventId)
+        |> testApp.inputText loggedInClient (HtmlId.toString GroupPage.eventNameInputId) eventName
+        |> testApp.inputText loggedInClient (HtmlId.toString GroupPage.eventDescriptionInputId) eventDescription
+        |> testApp.clickButton loggedInClient (GroupPage.eventMeetingTypeId GroupPage.MeetOnline |> HtmlId.toString)
+        |> testApp.inputText loggedInClient (HtmlId.toString GroupPage.createEventStartDateId) (Ui.datestamp eventDate)
+        |> testApp.inputText loggedInClient (HtmlId.toString GroupPage.createEventStartTimeId) (Ui.timestamp eventHour eventMinute)
+        |> testApp.inputText loggedInClient (HtmlId.toString GroupPage.eventDurationId) eventDuration
+        |> testApp.clickButton loggedInClient (HtmlId.toString GroupPage.createEventSubmitId)
         |> testApp.simulateTime Duration.second

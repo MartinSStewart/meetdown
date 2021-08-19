@@ -35,6 +35,7 @@ import Html
 import Html.Attributes
 import Html.Events
 import Html.Events.Extra.Touch
+import HtmlId exposing (ButtonId)
 import Json.Decode
 import List.Extra as List
 import Name exposing (Error(..), Name)
@@ -42,7 +43,6 @@ import Pixels exposing (Pixels)
 import Ports exposing (CropImageDataResponse)
 import ProfileImage exposing (ProfileImage)
 import Quantity exposing (Quantity)
-import TestId exposing (ButtonId)
 import Ui
 import Untrusted exposing (Untrusted)
 
@@ -714,11 +714,11 @@ imageEditorView windowSize imageEdit =
 
 
 uploadImageButtonId =
-    TestId.buttonId "profileUploadImage"
+    HtmlId.buttonId "profileUploadImage"
 
 
 cancelImageButtonId =
-    TestId.buttonId "profileCancelImage"
+    HtmlId.buttonId "profileCancelImage"
 
 
 view :
@@ -807,9 +807,9 @@ view windowSize currentValues ({ form } as model) =
                 ]
 
 
-deleteAccountButtonId : TestId.HtmlId ButtonId
+deleteAccountButtonId : HtmlId.HtmlId ButtonId
 deleteAccountButtonId =
-    TestId.buttonId "profileDeleteAccount"
+    HtmlId.buttonId "profileDeleteAccount"
 
 
 editableTextInput :

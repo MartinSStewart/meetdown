@@ -10,9 +10,9 @@ import EmailAddress exposing (EmailAddress)
 import Group exposing (EventId, Group)
 import GroupName
 import Html.Attributes
+import HtmlId exposing (ButtonId, HtmlId, TextInputId)
 import Id exposing (GroupId, Id)
 import Route exposing (Route)
-import TestId exposing (ButtonId, HtmlId, TextInputId)
 import Types exposing (Cache(..), FrontendMsg(..), LoginForm, ToBackend(..))
 import Ui
 import Untrusted
@@ -26,7 +26,7 @@ emailInput id onSubmit onChange text labelText maybeError =
             [ Element.width Element.fill
             , Ui.onEnter onSubmit
             , Ui.inputBorder (maybeError /= Nothing)
-            , TestId.htmlIdToString id |> Html.Attributes.id |> Element.htmlAttribute
+            , HtmlId.toString id |> Html.Attributes.id |> Element.htmlAttribute
             ]
             { text = text
             , onChange = onChange
@@ -148,14 +148,14 @@ typedEmail emailText loginForm =
 
 emailAddressInputId : HtmlId TextInputId
 emailAddressInputId =
-    TestId.textInputId "loginTextInput"
+    HtmlId.textInputId "loginTextInput"
 
 
 submitButtonId : HtmlId ButtonId
 submitButtonId =
-    TestId.buttonId "loginSubmit"
+    HtmlId.buttonId "loginSubmit"
 
 
 cancelButtonId : HtmlId ButtonId
 cancelButtonId =
-    TestId.buttonId "loginCancel"
+    HtmlId.buttonId "loginCancel"
