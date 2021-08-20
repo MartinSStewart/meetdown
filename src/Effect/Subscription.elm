@@ -27,16 +27,9 @@ module Effect.Subscription exposing
 
 -}
 
+import Effect.Command exposing (FrontendOnly)
 import Effect.Internal
 import Json.Decode
-
-
-type alias FrontendOnly =
-    Effect.Internal.FrontendOnly
-
-
-type alias BackendOnly =
-    Effect.Internal.BackendOnly
 
 
 {-| A subscription is a way of telling Elm, “Hey, let me know if anything

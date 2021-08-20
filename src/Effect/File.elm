@@ -24,14 +24,11 @@ module Effect.File exposing
 -}
 
 import Bytes exposing (Bytes)
+import Effect.Command exposing (FrontendOnly)
 import Effect.Internal exposing (File(..), Task(..))
 import File
 import Json.Decode as Decode
 import Time
-
-
-type alias FrontendOnly =
-    Effect.Internal.FrontendOnly
 
 
 

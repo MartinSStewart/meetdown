@@ -28,7 +28,6 @@ module Effect.Command exposing
 -}
 
 import Effect.Internal exposing (Command(..), NavigationKey, Subscription(..))
-import Effect.Task
 import Json.Encode
 
 
@@ -136,8 +135,8 @@ map mapToMsg mapMsg frontendEffect =
             NavigationReloadAndSkipCache
 
         Task simulatedTask ->
-            Effect.Task.map mapMsg simulatedTask
-                |> Effect.Task.mapError mapMsg
+            Effect.Internal.taskMap mapMsg simulatedTask
+                |> Effect.Internal.taskMapError mapMsg
                 |> Task
 
         Port portName function value ->

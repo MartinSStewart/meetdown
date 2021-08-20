@@ -4,7 +4,7 @@ module Effect.Http exposing
     , Expect(..), expectString, expectJson, expectWhatever, Error(..)
     , expectStringResponse, Response(..)
     , task, Resolver, stringResolver
-    , Command, HttpBody
+    , HttpBody
     )
 
 {-| This module parallels [elm/http's `Http` module](https://package.elm-lang.org/packages/elm/http/2.0.0/Http).
@@ -47,15 +47,12 @@ to help you implement the function to provide when using [`ProgramTest.withBacke
 
 import Dict exposing (Dict)
 import Duration exposing (Duration)
+import Effect.Command exposing (Command)
 import Effect.Internal exposing (HttpBody(..), Task(..))
 import Effect.Task exposing (Task)
 import Http
 import Json.Decode exposing (Decoder)
 import Json.Encode
-
-
-type alias Command restriction toMsg msg =
-    Effect.Internal.Command restriction toMsg msg
 
 
 {-| An HTTP header for configuring requests.

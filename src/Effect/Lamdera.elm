@@ -15,7 +15,9 @@ import Browser.Events
 import Browser.Navigation
 import Bytes.Encode
 import Duration
+import Effect.Command exposing (BackendOnly, Command, FrontendOnly)
 import Effect.Internal exposing (File(..), HttpBody(..), NavigationKey(..))
+import Effect.Subscription exposing (Subscription)
 import Effect.Time
 import File
 import File.Download
@@ -26,22 +28,6 @@ import Process
 import Task
 import Time
 import Url
-
-
-type alias Command restriction toMsg msg =
-    Effect.Internal.Command restriction toMsg msg
-
-
-type alias FrontendOnly =
-    Effect.Internal.FrontendOnly
-
-
-type alias BackendOnly =
-    Effect.Internal.BackendOnly
-
-
-type alias Subscription restriction msg =
-    Effect.Internal.Subscription restriction msg
 
 
 {-| Create a Lamdera frontend application
@@ -128,8 +114,8 @@ sendToBackend =
 {-| Send a toFrontend msg to the Frontend
 -}
 sendToFrontend : ClientId -> toFrontend -> Command BackendOnly toFrontend backendMsg
-sendToFrontend =
-    Effect.Internal.SendToFrontend
+sendToFrontend client toFrontend =
+    Effect.Internal.SendToFrontend (clientIdToString client |> Effect.Internal.ClientId) toFrontend
 
 
 {-| Send a toFrontend msg to all currently connected clients
@@ -142,48 +128,54 @@ broadcast =
 {-| Subscribe to Frontend client connected events
 -}
 onConnect : (SessionId -> ClientId -> backendMsg) -> Subscription BackendOnly backendMsg
-onConnect =
+onConnect msg =
     Effect.Internal.OnConnect
+        (\(Effect.Internal.SessionId sessionId) (Effect.Internal.ClientId clientId) ->
+            msg (sessionIdFromString sessionId) (clientIdFromString clientId)
+        )
 
 
 {-| Subscribe to Frontend client disconnected events
 -}
 onDisconnect : (SessionId -> ClientId -> backendMsg) -> Subscription BackendOnly backendMsg
-onDisconnect =
+onDisconnect msg =
     Effect.Internal.OnDisconnect
+        (\(Effect.Internal.SessionId sessionId) (Effect.Internal.ClientId clientId) ->
+            msg (sessionIdFromString sessionId) (clientIdFromString clientId)
+        )
 
 
 {-| -}
-type alias ClientId =
-    Effect.Internal.ClientId
+type ClientId
+    = ClientId String
 
 
 {-| -}
-type alias SessionId =
-    Effect.Internal.SessionId
+type SessionId
+    = SessionId String
 
 
 {-| -}
 sessionIdFromString : String -> SessionId
 sessionIdFromString =
-    Effect.Internal.SessionId
+    SessionId
 
 
 {-| -}
 sessionIdToString : SessionId -> String
-sessionIdToString (Effect.Internal.SessionId sessionId) =
+sessionIdToString (SessionId sessionId) =
     sessionId
 
 
 {-| -}
 clientIdFromString : String -> ClientId
 clientIdFromString =
-    Effect.Internal.ClientId
+    ClientId
 
 
 {-| -}
 clientIdToString : ClientId -> String
-clientIdToString (Effect.Internal.ClientId clientId) =
+clientIdToString (ClientId clientId) =
     clientId
 
 
@@ -279,8 +271,8 @@ toCmd broadcastCmd toFrontendCmd toBackendCmd effect =
         Effect.Internal.Port _ portFunction value ->
             portFunction value
 
-        Effect.Internal.SendToFrontend clientId toFrontend ->
-            toFrontendCmd (clientIdToString clientId) toFrontend
+        Effect.Internal.SendToFrontend (Effect.Internal.ClientId clientId) toFrontend ->
+            toFrontendCmd clientId toFrontend
 
         Effect.Internal.FileDownloadUrl { href } ->
             File.Download.url href
@@ -471,8 +463,12 @@ toSub sub =
 
         Effect.Internal.OnConnect msg ->
             Lamdera.onConnect
-                (\sessionId clientId -> msg (sessionIdFromString sessionId) (clientIdFromString clientId))
+                (\sessionId clientId ->
+                    msg (Effect.Internal.SessionId sessionId) (Effect.Internal.ClientId clientId)
+                )
 
         Effect.Internal.OnDisconnect msg ->
             Lamdera.onDisconnect
-                (\sessionId clientId -> msg (sessionIdFromString sessionId) (clientIdFromString clientId))
+                (\sessionId clientId ->
+                    msg (Effect.Internal.SessionId sessionId) (Effect.Internal.ClientId clientId)
+                )

@@ -1,7 +1,4 @@
-module Effect.File.Select exposing
-    ( file, files
-    , Command, FrontendOnly
-    )
+module Effect.File.Select exposing (file, files)
 
 {-| Ask the user to select some files.
 
@@ -37,17 +34,10 @@ before exposing a `Task` API for things.
 -}
 
 import Bytes exposing (Bytes)
+import Effect.Command exposing (Command, FrontendOnly)
 import Effect.Internal exposing (File)
 import Json.Decode as Decode
 import Time
-
-
-type alias Command restriction toMsg msg =
-    Effect.Internal.Command restriction toMsg msg
-
-
-type alias FrontendOnly =
-    Effect.Internal.FrontendOnly
 
 
 

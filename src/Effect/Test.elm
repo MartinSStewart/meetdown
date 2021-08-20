@@ -366,7 +366,11 @@ getClientDisconnectSubs backendSub =
             List.foldl (\sub list -> getClientDisconnectSubs sub ++ list) [] batch
 
         Effect.Internal.OnDisconnect msg ->
-            [ msg ]
+            [ \sessionId clientId ->
+                msg
+                    (Effect.Lamdera.sessionIdToString sessionId |> Effect.Internal.SessionId)
+                    (Effect.Lamdera.clientIdToString clientId |> Effect.Internal.ClientId)
+            ]
 
         _ ->
             []
@@ -379,7 +383,11 @@ getClientConnectSubs backendSub =
             List.foldl (\sub list -> getClientConnectSubs sub ++ list) [] batch
 
         Effect.Internal.OnConnect msg ->
-            [ msg ]
+            [ \sessionId clientId ->
+                msg
+                    (Effect.Lamdera.sessionIdToString sessionId |> Effect.Internal.SessionId)
+                    (Effect.Lamdera.clientIdToString clientId |> Effect.Internal.ClientId)
+            ]
 
         _ ->
             []
@@ -1122,11 +1130,11 @@ runBackendEffects frontendApp backendApp effect state =
         Batch effects ->
             List.foldl (runBackendEffects frontendApp backendApp) state effects
 
-        SendToFrontend clientId toFrontend ->
+        SendToFrontend (Effect.Internal.ClientId clientId) toFrontend ->
             { state
                 | frontends =
                     Dict.update
-                        clientId
+                        (Effect.Lamdera.clientIdFromString clientId)
                         (Maybe.map (\frontend -> { frontend | toFrontend = frontend.toFrontend ++ [ toFrontend ] }))
                         state.frontends
             }

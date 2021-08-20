@@ -4,7 +4,6 @@ module Effect.Time exposing
     , toYear, toMonth, toDay, toWeekday, toHour, toMinute, toSecond, toMillis
     , Weekday, Month
     , customZone, getZoneName, ZoneName(..)
-    , FrontendOnly, Subscription, Task
     )
 
 {-| Library for working with time and time zones.
@@ -38,20 +37,11 @@ module Effect.Time exposing
 
 import Basics exposing (..)
 import Duration exposing (Duration)
+import Effect.Command exposing (FrontendOnly)
 import Effect.Internal
+import Effect.Subscription exposing (Subscription)
+import Effect.Task exposing (Task)
 import Time
-
-
-type alias Task restriction x a =
-    Effect.Internal.Task restriction x a
-
-
-type alias FrontendOnly =
-    Effect.Internal.FrontendOnly
-
-
-type alias Subscription restriction msg =
-    Effect.Internal.Subscription restriction msg
 
 
 

@@ -70,15 +70,9 @@ Hockney explores the history of _perspective_ in art. Really interesting!
 
 -}
 
+import Effect.Command exposing (FrontendOnly)
 import Effect.Internal
-
-
-type alias Task restriction a x =
-    Effect.Internal.Task restriction a x
-
-
-type alias FrontendOnly =
-    Effect.Internal.FrontendOnly
+import Effect.Task exposing (Task)
 
 
 

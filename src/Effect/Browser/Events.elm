@@ -3,7 +3,6 @@ module Effect.Browser.Events exposing
     , onKeyPress, onKeyDown, onKeyUp
     , onClick, onMouseMove, onMouseDown, onMouseUp
     , onResize, onVisibilityChange, Visibility(..)
-    , FrontendOnly, Subscription
     )
 
 {-| In JavaScript, information about the root of an HTML document is held in
@@ -38,17 +37,11 @@ If there is something else you need, use [ports] to do it in JavaScript!
 -}
 
 import Duration exposing (Duration)
+import Effect.Command exposing (FrontendOnly)
 import Effect.Internal
+import Effect.Subscription exposing (Subscription)
 import Json.Decode as Decode
 import Time
-
-
-type alias FrontendOnly =
-    Effect.Internal.FrontendOnly
-
-
-type alias Subscription restriction msg =
-    Effect.Internal.Subscription restriction msg
 
 
 

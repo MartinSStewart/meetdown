@@ -33,18 +33,6 @@ HTTP requests or writing to a database.
 import Effect.Internal exposing (Command(..), HttpBody(..), Task(..))
 
 
-type alias FrontendOnly =
-    Effect.Internal.FrontendOnly
-
-
-type alias BackendOnly =
-    Effect.Internal.BackendOnly
-
-
-type alias Command restriction toMsg msg =
-    Effect.Internal.Command restriction toMsg msg
-
-
 {-| Here are some common tasks:
 
   - [`now : Task x Posix`][now]
@@ -161,65 +149,8 @@ First the process sleeps for an hour **and then** it tells us what time it is.
 
 -}
 andThen : (a -> Task restriction x b) -> Task restriction x a -> Task restriction x b
-andThen f task =
-    case task of
-        Succeed a ->
-            f a
-
-        Fail x ->
-            Fail x
-
-        HttpTask request ->
-            HttpTask
-                { method = request.method
-                , url = request.url
-                , body = request.body
-                , headers = request.headers
-                , onRequestComplete = request.onRequestComplete >> andThen f
-                , timeout = request.timeout
-                }
-
-        SleepTask delay onResult ->
-            SleepTask delay (onResult >> andThen f)
-
-        TimeNow gotTime ->
-            TimeNow (gotTime >> andThen f)
-
-        TimeHere gotTimeZone ->
-            TimeHere (gotTimeZone >> andThen f)
-
-        TimeGetZoneName gotTimeZoneName ->
-            TimeGetZoneName (gotTimeZoneName >> andThen f)
-
-        SetViewport x y function ->
-            SetViewport x y (function >> andThen f)
-
-        GetViewport function ->
-            GetViewport (function >> andThen f)
-
-        GetElement string function ->
-            GetElement string (function >> andThen f)
-
-        Focus string function ->
-            Focus string (function >> andThen f)
-
-        Blur string function ->
-            Blur string (function >> andThen f)
-
-        GetViewportOf string function ->
-            GetViewportOf string (function >> andThen f)
-
-        SetViewportOf string x y function ->
-            SetViewportOf string x y (function >> andThen f)
-
-        FileToString file function ->
-            FileToString file (function >> andThen f)
-
-        FileToBytes file function ->
-            FileToBytes file (function >> andThen f)
-
-        FileToUrl file function ->
-            FileToUrl file (function >> andThen f)
+andThen =
+    Effect.Internal.andThen
 
 
 {-| A task that succeeds immediately when run. It is usually used with
@@ -276,8 +207,8 @@ out what time it will be in one hour:
 
 -}
 map : (a -> b) -> Task restriction x a -> Task restriction x b
-map f =
-    andThen (f >> Succeed)
+map =
+    Effect.Internal.taskMap
 
 
 {-| Put the results of two tasks together. For example, if we wanted to know
@@ -395,65 +326,8 @@ types to match up.
 
 -}
 mapError : (x -> y) -> Task restriction x a -> Task restriction y a
-mapError f task =
-    case task of
-        Succeed a ->
-            Succeed a
-
-        Fail x ->
-            Fail (f x)
-
-        HttpTask request ->
-            HttpTask
-                { method = request.method
-                , url = request.url
-                , body = request.body
-                , headers = request.headers
-                , onRequestComplete = request.onRequestComplete >> mapError f
-                , timeout = request.timeout
-                }
-
-        SleepTask delay onResult ->
-            SleepTask delay (onResult >> mapError f)
-
-        TimeNow gotTime ->
-            TimeNow (gotTime >> mapError f)
-
-        TimeHere gotTimeZone ->
-            TimeHere (gotTimeZone >> mapError f)
-
-        TimeGetZoneName gotTimeZoneName ->
-            TimeGetZoneName (gotTimeZoneName >> mapError f)
-
-        SetViewport x y function ->
-            SetViewport x y (function >> mapError f)
-
-        GetViewport function ->
-            GetViewport (function >> mapError f)
-
-        GetElement string function ->
-            GetElement string (function >> mapError f)
-
-        Focus string function ->
-            Focus string (function >> mapError f)
-
-        Blur string function ->
-            Blur string (function >> mapError f)
-
-        GetViewportOf string function ->
-            GetViewportOf string (function >> mapError f)
-
-        SetViewportOf string x y function ->
-            SetViewportOf string x y (function >> mapError f)
-
-        FileToString file function ->
-            FileToString file (function >> mapError f)
-
-        FileToBytes file function ->
-            FileToBytes file (function >> mapError f)
-
-        FileToUrl file function ->
-            FileToUrl file (function >> mapError f)
+mapError =
+    Effect.Internal.taskMapError
 
 
 {-| Start with a list of tasks, and turn them into a single task that returns a

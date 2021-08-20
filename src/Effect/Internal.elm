@@ -12,6 +12,9 @@ module Effect.Internal exposing
     , Subscription(..)
     , Task(..)
     , Visibility(..)
+    , andThen
+    , taskMap
+    , taskMapError
     )
 
 import Browser.Dom
@@ -139,3 +142,132 @@ type HttpBody
         , content : String
         }
     | JsonBody Json.Encode.Value
+
+
+taskMap : (a -> b) -> Task restriction x a -> Task restriction x b
+taskMap f =
+    andThen (f >> Succeed)
+
+
+andThen : (a -> Task restriction x b) -> Task c x a -> Task restriction x b
+andThen f task =
+    case task of
+        Succeed a ->
+            f a
+
+        Fail x ->
+            Fail x
+
+        HttpTask request ->
+            HttpTask
+                { method = request.method
+                , url = request.url
+                , body = request.body
+                , headers = request.headers
+                , onRequestComplete = request.onRequestComplete >> andThen f
+                , timeout = request.timeout
+                }
+
+        SleepTask delay onResult ->
+            SleepTask delay (onResult >> andThen f)
+
+        TimeNow gotTime ->
+            TimeNow (gotTime >> andThen f)
+
+        TimeHere gotTimeZone ->
+            TimeHere (gotTimeZone >> andThen f)
+
+        TimeGetZoneName gotTimeZoneName ->
+            TimeGetZoneName (gotTimeZoneName >> andThen f)
+
+        SetViewport x y function ->
+            SetViewport x y (function >> andThen f)
+
+        GetViewport function ->
+            GetViewport (function >> andThen f)
+
+        GetElement string function ->
+            GetElement string (function >> andThen f)
+
+        Focus string function ->
+            Focus string (function >> andThen f)
+
+        Blur string function ->
+            Blur string (function >> andThen f)
+
+        GetViewportOf string function ->
+            GetViewportOf string (function >> andThen f)
+
+        SetViewportOf string x y function ->
+            SetViewportOf string x y (function >> andThen f)
+
+        FileToString file function ->
+            FileToString file (function >> andThen f)
+
+        FileToBytes file function ->
+            FileToBytes file (function >> andThen f)
+
+        FileToUrl file function ->
+            FileToUrl file (function >> andThen f)
+
+
+taskMapError : (x -> y) -> Task restriction x a -> Task restriction y a
+taskMapError f task =
+    case task of
+        Succeed a ->
+            Succeed a
+
+        Fail x ->
+            Fail (f x)
+
+        HttpTask request ->
+            HttpTask
+                { method = request.method
+                , url = request.url
+                , body = request.body
+                , headers = request.headers
+                , onRequestComplete = request.onRequestComplete >> taskMapError f
+                , timeout = request.timeout
+                }
+
+        SleepTask delay onResult ->
+            SleepTask delay (onResult >> taskMapError f)
+
+        TimeNow gotTime ->
+            TimeNow (gotTime >> taskMapError f)
+
+        TimeHere gotTimeZone ->
+            TimeHere (gotTimeZone >> taskMapError f)
+
+        TimeGetZoneName gotTimeZoneName ->
+            TimeGetZoneName (gotTimeZoneName >> taskMapError f)
+
+        SetViewport x y function ->
+            SetViewport x y (function >> taskMapError f)
+
+        GetViewport function ->
+            GetViewport (function >> taskMapError f)
+
+        GetElement string function ->
+            GetElement string (function >> taskMapError f)
+
+        Focus string function ->
+            Focus string (function >> taskMapError f)
+
+        Blur string function ->
+            Blur string (function >> taskMapError f)
+
+        GetViewportOf string function ->
+            GetViewportOf string (function >> taskMapError f)
+
+        SetViewportOf string x y function ->
+            SetViewportOf string x y (function >> taskMapError f)
+
+        FileToString file function ->
+            FileToString file (function >> taskMapError f)
+
+        FileToBytes file function ->
+            FileToBytes file (function >> taskMapError f)
+
+        FileToUrl file function ->
+            FileToUrl file (function >> taskMapError f)

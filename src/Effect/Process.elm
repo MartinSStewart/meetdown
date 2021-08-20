@@ -1,7 +1,4 @@
-module Effect.Process exposing
-    ( sleep
-    , Task
-    )
+module Effect.Process exposing (sleep)
 
 {-|
 
@@ -14,10 +11,7 @@ module Effect.Process exposing
 
 import Duration exposing (Duration)
 import Effect.Internal
-
-
-type alias Task restriction x a =
-    Effect.Internal.Task restriction x a
+import Effect.Task exposing (Task)
 
 
 {-| Block progress on the current process for the given number of milliseconds.

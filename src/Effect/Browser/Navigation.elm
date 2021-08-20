@@ -1,7 +1,6 @@
 module Effect.Browser.Navigation exposing
     ( Key, pushUrl, replaceUrl, back, forward
     , load, reload, reloadAndSkipCache
-    , Command, FrontendOnly
     )
 
 {-| This module helps you manage the browser’s URL yourself. This is the
@@ -44,6 +43,7 @@ want!
 
 -}
 
+import Effect.Command exposing (Command, FrontendOnly)
 import Effect.Internal
 
 
@@ -66,14 +66,6 @@ kinds of programs, unsuspecting programmers would be sure to run into some
 -}
 type alias Key =
     Effect.Internal.NavigationKey
-
-
-type alias Command restriction toMsg msg =
-    Effect.Internal.Command restriction toMsg msg
-
-
-type alias FrontendOnly =
-    Effect.Internal.FrontendOnly
 
 
 {-| Change the URL, but do not trigger a page load.

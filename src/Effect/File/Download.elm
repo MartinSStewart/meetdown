@@ -1,7 +1,4 @@
-module Effect.File.Download exposing
-    ( string, bytes, url
-    , Command, FrontendOnly
-    )
+module Effect.File.Download exposing (string, bytes, url)
 
 {-| Commands for downloading files.
 
@@ -19,15 +16,8 @@ event.
 -}
 
 import Bytes exposing (Bytes)
+import Effect.Command exposing (Command, FrontendOnly)
 import Effect.Internal
-
-
-type alias Command restriction toMsg msg =
-    Effect.Internal.Command restriction toMsg msg
-
-
-type alias FrontendOnly =
-    Effect.Internal.FrontendOnly
 
 
 
