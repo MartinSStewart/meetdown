@@ -486,14 +486,10 @@ clickLink :
     -> String
     -> Instructions toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
     -> Instructions toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
-clickLink frontendApp clientId linkUrl =
+clickLink frontendApp clientId href =
     NextStep
-        ("Click link " ++ linkUrl)
+        ("Click link " ++ href)
         (\state ->
-            let
-                href =
-                    normalizeUrl state.domain linkUrl
-            in
             case Dict.get clientId state.frontends of
                 Just frontend ->
                     case
@@ -506,7 +502,7 @@ clickLink frontendApp clientId linkUrl =
                             |> Test.Runner.getFailureReason
                     of
                         Nothing ->
-                            case Url.fromString href of
+                            case Url.fromString (normalizeUrl state.domain href) of
                                 Just url ->
                                     let
                                         ( newModel, effects ) =
