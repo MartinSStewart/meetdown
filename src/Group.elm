@@ -1,8 +1,8 @@
 module Group exposing
     ( EditCancellationStatusError(..)
     , EditEventError(..)
-    , EventId(..)
-    , Group(..)
+    , EventId
+    , Group
     , GroupVisibility(..)
     , JoinEventError(..)
     , PastOngoingOrFuture(..)

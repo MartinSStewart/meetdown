@@ -1,4 +1,4 @@
-module Name exposing (Error(..), Name(..), anonymous, fromString, maxLength, minLength, toString)
+module Name exposing (Error(..), Name, anonymous, fromString, maxLength, minLength, toString)
 
 
 type Name

@@ -1,5 +1,5 @@
 module Effect.Lamdera exposing
-    ( frontend, backend, sendToBackend, sendToFrontend, broadcast, onConnect, onDisconnect, ClientId(..), SessionId(..), Url, Document, Key, UrlRequest
+    ( frontend, backend, sendToBackend, sendToFrontend, broadcast, onConnect, onDisconnect, ClientId, SessionId, Url, Document, Key, UrlRequest
     , clientIdFromString, clientIdToString, sessionIdFromString, sessionIdToString
     )
 

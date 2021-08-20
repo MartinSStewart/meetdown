@@ -1,4 +1,4 @@
-module EventDuration exposing (Error(..), EventDuration(..), errorToString, fromMinutes, maxLength, toDuration, toMinutes, toString)
+module EventDuration exposing (Error(..), EventDuration, errorToString, fromMinutes, maxLength, toDuration, toMinutes, toString)
 
 import Duration exposing (Duration)
 import TimeExtra

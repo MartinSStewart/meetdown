@@ -1,4 +1,4 @@
-module MaxAttendees exposing (Error(..), MaxAttendees(..), maxAttendees, noLimit, toMaybe, tooManyAttendees)
+module MaxAttendees exposing (Error(..), MaxAttendees, maxAttendees, noLimit, toMaybe, tooManyAttendees)
 
 
 type MaxAttendees
