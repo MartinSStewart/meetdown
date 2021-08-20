@@ -6,22 +6,20 @@ import AssocList as Dict exposing (Dict)
 import AssocSet exposing (Set)
 import BiDict.Assoc exposing (BiDict)
 import Browser exposing (UrlRequest)
-import Browser.Navigation
 import CreateGroupPage exposing (CreateGroupError, GroupFormValidated)
 import Description exposing (Description)
+import Effect.Browser.Navigation exposing (Key)
+import Effect.Http as Http
+import Effect.Lamdera exposing (ClientId, SessionId)
 import EmailAddress exposing (EmailAddress)
 import Event exposing (CancellationStatus, Event, EventType)
-import EventDuration exposing (EventDuration)
-import EventName exposing (EventName)
 import FrontendUser exposing (FrontendUser)
 import Group exposing (EventId, Group, GroupVisibility, JoinEventError)
 import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError)
-import Http
 import HttpHelpers
-import Id exposing (ClientId, DeleteUserToken, GroupId, Id, LoginToken, SessionId, SessionIdFirst4Chars, UserId)
+import Id exposing (DeleteUserToken, GroupId, Id, LoginToken, SessionIdFirst4Chars, UserId)
 import List.Nonempty exposing (Nonempty)
-import MaxAttendees exposing (MaxAttendees)
 import Name exposing (Name)
 import Pixels exposing (Pixels)
 import Postmark
@@ -29,16 +27,10 @@ import ProfileImage exposing (ProfileImage)
 import ProfilePage
 import Quantity exposing (Quantity)
 import Route exposing (Route)
-import SendGrid exposing (Email)
 import Time
 import TimeZone
 import Untrusted exposing (Untrusted)
 import Url exposing (Url)
-
-
-type NavigationKey
-    = RealNavigationKey Browser.Navigation.Key
-    | MockNavigationKey
 
 
 type FrontendModel
@@ -47,7 +39,7 @@ type FrontendModel
 
 
 type alias LoadingFrontend =
-    { navigationKey : NavigationKey
+    { navigationKey : Key
     , route : Route
     , routeToken : Route.Token
     , windowSize : Maybe ( Quantity Int Pixels, Quantity Int Pixels )
@@ -57,7 +49,7 @@ type alias LoadingFrontend =
 
 
 type alias LoadedFrontend =
-    { navigationKey : NavigationKey
+    { navigationKey : Key
     , loginStatus : LoginStatus
     , route : Route
     , cachedGroups : Dict (Id GroupId) (Cache Group)
@@ -297,11 +289,10 @@ type FrontendMsg
     | PressedCreateGroup
     | CreateGroupPageMsg CreateGroupPage.Msg
     | ProfileFormMsg ProfilePage.Msg
-    | CroppedImage { requestId : Int, croppedImageUrl : String }
     | TypedSearchText String
     | SubmittedSearchBox
     | GroupPageMsg GroupPage.Msg
-    | GotWindowSize (Quantity Int Pixels) (Quantity Int Pixels)
+    | GotWindowSize Int Int
     | GotTimeZone (Result TimeZone.Error ( String, Time.Zone ))
     | ScrolledToTop
     | PressedEnableAdmin
@@ -317,23 +308,11 @@ type ToBackend
     | GetAdminDataRequest
     | LogoutRequest
     | CreateGroupRequest (Untrusted GroupName) (Untrusted Description) GroupVisibility
-    | ChangeNameRequest (Untrusted Name)
-    | ChangeDescriptionRequest (Untrusted Description)
-    | ChangeEmailAddressRequest (Untrusted EmailAddress)
-    | SendDeleteUserEmailRequest
     | DeleteUserRequest (Id DeleteUserToken)
-    | ChangeProfileImageRequest (Untrusted ProfileImage)
     | GetMyGroupsRequest
     | SearchGroupsRequest String
-    | ChangeGroupNameRequest (Id GroupId) (Untrusted GroupName)
-    | ChangeGroupDescriptionRequest (Id GroupId) (Untrusted Description)
-    | ChangeGroupVisibilityRequest (Id GroupId) GroupVisibility
-    | CreateEventRequest (Id GroupId) (Untrusted EventName) (Untrusted Description) (Untrusted EventType) Time.Posix (Untrusted EventDuration) (Untrusted MaxAttendees)
-    | EditEventRequest (Id GroupId) EventId (Untrusted EventName) (Untrusted Description) (Untrusted EventType) Time.Posix (Untrusted EventDuration) (Untrusted MaxAttendees)
-    | JoinEventRequest (Id GroupId) EventId
-    | LeaveEventRequest (Id GroupId) EventId
-    | ChangeEventCancellationStatusRequest (Id GroupId) EventId CancellationStatus
-    | DeleteGroupAdminRequest (Id GroupId)
+    | GroupRequest (Id GroupId) GroupPage.ToBackend
+    | ProfileFormRequest ProfilePage.ToBackend
 
 
 type BackendMsg

@@ -1,4 +1,4 @@
-module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, addedNewEvent, changeVisibilityResponse, createEventCancelId, createEventStartDateId, createEventStartTimeId, createEventSubmitId, createNewEventId, editCancellationStatusResponse, editDescriptionId, editEventResponse, editGroupNameId, eventDescriptionInputId, eventDurationId, eventMeetingInPersonInputId, eventMeetingOnlineInputId, eventMeetingTypeId, eventNameInputId, init, joinEventButtonId, joinEventResponse, leaveEventButtonId, leaveEventResponse, resetDescriptionId, resetGroupNameId, saveDescriptionId, saveGroupNameId, savedDescription, savedName, update, view)
+module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, ToBackend(..), addedNewEvent, changeVisibilityResponse, createEventCancelId, createEventStartDateId, createEventStartTimeId, createEventSubmitId, createNewEventId, editCancellationStatusResponse, editDescriptionId, editEventResponse, editGroupNameId, eventDescriptionInputId, eventDurationId, eventMeetingInPersonInputId, eventMeetingOnlineInputId, eventMeetingTypeId, eventNameInputId, init, joinEventButtonId, joinEventResponse, leaveEventButtonId, leaveEventResponse, resetDescriptionId, resetGroupNameId, saveDescriptionId, saveGroupNameId, savedDescription, savedName, update, view)
 
 import Address exposing (Address, Error(..))
 import AdminStatus exposing (AdminStatus(..))
@@ -8,22 +8,26 @@ import Colors exposing (..)
 import Date
 import Description exposing (Description)
 import Duration exposing (Duration)
+import Effect.Command as Command exposing (Command, FrontendOnly)
+import Effect.Lamdera as Lamdera
+import Effect.Time
 import Element exposing (Element)
 import Element.Border
 import Element.Font
 import Element.Input
 import Element.Region
-import Event exposing (Event, EventType)
+import Event exposing (CancellationStatus, Event, EventType)
 import EventDuration exposing (EventDuration)
 import EventName exposing (EventName)
 import FrontendUser exposing (FrontendUser)
-import Group exposing (EditEventError(..), EventId, Group, PastOngoingOrFuture(..))
+import Group exposing (EditEventError(..), EventId, Group, GroupVisibility, PastOngoingOrFuture(..))
 import GroupName exposing (GroupName)
 import Html.Attributes
-import Id exposing (ButtonId(..), HtmlId, Id, UserId)
+import HtmlId exposing (ButtonId, HtmlId)
+import Id exposing (Id, UserId)
 import Link exposing (Link)
 import List.Nonempty exposing (Nonempty(..))
-import MaxAttendees exposing (Error(..))
+import MaxAttendees exposing (Error(..), MaxAttendees)
 import Name
 import ProfileImage
 import Quantity exposing (Quantity)
@@ -89,33 +93,34 @@ type Msg
     | PressedCopyPreviousEvent
 
 
-type alias Effects cmd =
-    { none : cmd
-    , changeName : Untrusted GroupName -> cmd
-    , changeDescription : Untrusted Description -> cmd
-    , createEvent :
-        Untrusted EventName
-        -> Untrusted Description
-        -> Untrusted Event.EventType
-        -> Time.Posix
-        -> Untrusted EventDuration
-        -> Untrusted MaxAttendees.MaxAttendees
-        -> cmd
-    , editEvent :
-        EventId
-        -> Untrusted EventName
-        -> Untrusted Description
-        -> Untrusted Event.EventType
-        -> Time.Posix
-        -> Untrusted EventDuration
-        -> Untrusted MaxAttendees.MaxAttendees
-        -> cmd
-    , joinEvent : EventId -> cmd
-    , leaveEvent : EventId -> cmd
-    , changeCancellationStatus : EventId -> Event.CancellationStatus -> cmd
-    , changeVisibility : Group.GroupVisibility -> cmd
-    , deleteGroup : cmd
-    }
+
+--type alias Effects cmd =
+--    { none : cmd
+--    , changeName : Untrusted GroupName -> cmd
+--    , changeDescription : Untrusted Description -> cmd
+--    , createEvent :
+--        Untrusted EventName
+--        -> Untrusted Description
+--        -> Untrusted Event.EventType
+--        -> Time.Posix
+--        -> Untrusted EventDuration
+--        -> Untrusted MaxAttendees.MaxAttendees
+--        -> cmd
+--    , editEvent :
+--        EventId
+--        -> Untrusted EventName
+--        -> Untrusted Description
+--        -> Untrusted Event.EventType
+--        -> Time.Posix
+--        -> Untrusted EventDuration
+--        -> Untrusted MaxAttendees.MaxAttendees
+--        -> cmd
+--    , joinEvent : EventId -> cmd
+--    , leaveEvent : EventId -> cmd
+--    , changeCancellationStatus : EventId -> Event.CancellationStatus -> cmd
+--    , changeVisibility : Group.GroupVisibility -> cmd
+--    , deleteGroup : cmd
+--    }
 
 
 type SubmitStatus error
@@ -281,27 +286,38 @@ canEdit group maybeLoggedIn =
             False
 
 
+type ToBackend
+    = ChangeGroupNameRequest (Untrusted GroupName)
+    | ChangeGroupDescriptionRequest (Untrusted Description)
+    | ChangeGroupVisibilityRequest GroupVisibility
+    | CreateEventRequest (Untrusted EventName) (Untrusted Description) (Untrusted Event.EventType) Time.Posix (Untrusted EventDuration) (Untrusted MaxAttendees)
+    | EditEventRequest EventId (Untrusted EventName) (Untrusted Description) (Untrusted Event.EventType) Time.Posix (Untrusted EventDuration) (Untrusted MaxAttendees)
+    | JoinEventRequest EventId
+    | LeaveEventRequest EventId
+    | ChangeEventCancellationStatusRequest EventId CancellationStatus
+    | DeleteGroupAdminRequest
+
+
 update :
-    Effects cmd
-    -> { a | time : Time.Posix, timezone : Time.Zone }
+    { a | time : Time.Posix, timezone : Time.Zone }
     -> Group
     -> Maybe { b | userId : Id UserId, adminStatus : AdminStatus }
     -> Msg
     -> Model
-    -> ( Model, cmd, { joinEvent : Maybe EventId } )
-update effects config group maybeLoggedIn msg model =
+    -> ( Model, Command FrontendOnly ToBackend Msg, { joinEvent : Maybe EventId } )
+update config group maybeLoggedIn msg model =
     let
         canEdit_ =
             canEdit group maybeLoggedIn
 
         noChange =
-            ( model, effects.none, { joinEvent = Nothing } )
+            ( model, Command.none, { joinEvent = Nothing } )
     in
     case msg of
         PressedEditName ->
             if canEdit_ then
                 ( { model | name = Group.name group |> GroupName.toString |> Editting }
-                , effects.none
+                , Command.none
                 , { joinEvent = Nothing }
                 )
 
@@ -318,7 +334,7 @@ update effects config group maybeLoggedIn msg model =
                         case GroupName.fromString nameText of
                             Ok name ->
                                 ( { model | name = Submitting name }
-                                , Untrusted.untrust name |> effects.changeName
+                                , Untrusted.untrust name |> ChangeGroupNameRequest |> Lamdera.sendToBackend
                                 , { joinEvent = Nothing }
                                 )
 
@@ -333,7 +349,7 @@ update effects config group maybeLoggedIn msg model =
 
         PressedResetName ->
             if canEdit_ then
-                ( { model | name = Unchanged }, effects.none, { joinEvent = Nothing } )
+                ( { model | name = Unchanged }, Command.none, { joinEvent = Nothing } )
 
             else
                 noChange
@@ -342,7 +358,7 @@ update effects config group maybeLoggedIn msg model =
             if canEdit_ then
                 case model.name of
                     Editting _ ->
-                        ( { model | name = Editting name }, effects.none, { joinEvent = Nothing } )
+                        ( { model | name = Editting name }, Command.none, { joinEvent = Nothing } )
 
                     _ ->
                         noChange
@@ -353,7 +369,7 @@ update effects config group maybeLoggedIn msg model =
         PressedEditDescription ->
             if canEdit_ then
                 ( { model | description = Group.description group |> Description.toString |> Editting }
-                , effects.none
+                , Command.none
                 , { joinEvent = Nothing }
                 )
 
@@ -370,7 +386,9 @@ update effects config group maybeLoggedIn msg model =
                         case Description.fromString descriptionText of
                             Ok description ->
                                 ( { model | description = Submitting description }
-                                , Untrusted.untrust description |> effects.changeDescription
+                                , Untrusted.untrust description
+                                    |> ChangeGroupDescriptionRequest
+                                    |> Lamdera.sendToBackend
                                 , { joinEvent = Nothing }
                                 )
 
@@ -385,7 +403,7 @@ update effects config group maybeLoggedIn msg model =
 
         PressedResetDescription ->
             if canEdit_ then
-                ( { model | description = Unchanged }, effects.none, { joinEvent = Nothing } )
+                ( { model | description = Unchanged }, Command.none, { joinEvent = Nothing } )
 
             else
                 noChange
@@ -394,7 +412,10 @@ update effects config group maybeLoggedIn msg model =
             if canEdit_ then
                 case model.description of
                     Editting _ ->
-                        ( { model | description = Editting description }, effects.none, { joinEvent = Nothing } )
+                        ( { model | description = Editting description }
+                        , Command.none
+                        , { joinEvent = Nothing }
+                        )
 
                     _ ->
                         noChange
@@ -404,20 +425,20 @@ update effects config group maybeLoggedIn msg model =
 
         PressedAddEvent ->
             if canEdit_ && model.eventOverlay == Nothing then
-                ( { model | eventOverlay = Just AddingNewEvent }, effects.none, { joinEvent = Nothing } )
+                ( { model | eventOverlay = Just AddingNewEvent }, Command.none, { joinEvent = Nothing } )
 
             else
                 noChange
 
         PressedShowAllFutureEvents ->
-            ( { model | showAllFutureEvents = True }, effects.none, { joinEvent = Nothing } )
+            ( { model | showAllFutureEvents = True }, Command.none, { joinEvent = Nothing } )
 
         PressedShowFirstFutureEvents ->
-            ( { model | showAllFutureEvents = False }, effects.none, { joinEvent = Nothing } )
+            ( { model | showAllFutureEvents = False }, Command.none, { joinEvent = Nothing } )
 
         ChangedNewEvent newEvent ->
             if canEdit_ then
-                ( { model | newEvent = newEvent }, effects.none, { joinEvent = Nothing } )
+                ( { model | newEvent = newEvent }, Command.none, { joinEvent = Nothing } )
 
             else
                 noChange
@@ -426,7 +447,7 @@ update effects config group maybeLoggedIn msg model =
             if canEdit_ then
                 case model.eventOverlay of
                     Just AddingNewEvent ->
-                        ( { model | eventOverlay = Nothing }, effects.none, { joinEvent = Nothing } )
+                        ( { model | eventOverlay = Nothing }, Command.none, { joinEvent = Nothing } )
 
                     _ ->
                         noChange
@@ -463,13 +484,14 @@ update effects config group maybeLoggedIn msg model =
                 Maybe.map5
                     (\name description eventType startTime ( duration, maxAttendees ) ->
                         ( { model | newEvent = { newEvent | submitStatus = IsSubmitting } }
-                        , effects.createEvent
+                        , CreateEventRequest
                             (Untrusted.untrust name)
                             (Untrusted.untrust description)
                             (Untrusted.untrust eventType)
                             startTime
                             (Untrusted.untrust duration)
                             (Untrusted.untrust maxAttendees)
+                            |> Lamdera.sendToBackend
                         , { joinEvent = Nothing }
                         )
                     )
@@ -483,7 +505,7 @@ update effects config group maybeLoggedIn msg model =
                     )
                     |> Maybe.withDefault
                         ( { model | newEvent = pressSubmit model.newEvent }
-                        , effects.none
+                        , Command.none
                         , { joinEvent = Nothing }
                         )
 
@@ -497,7 +519,7 @@ update effects config group maybeLoggedIn msg model =
 
                 _ ->
                     ( { model | pendingJoinOrLeave = Dict.insert eventId JoinOrLeavePending model.pendingJoinOrLeave }
-                    , effects.leaveEvent eventId
+                    , LeaveEventRequest eventId |> Lamdera.sendToBackend
                     , { joinEvent = Nothing }
                     )
 
@@ -510,12 +532,12 @@ update effects config group maybeLoggedIn msg model =
 
                         _ ->
                             ( { model | pendingJoinOrLeave = Dict.insert eventId JoinOrLeavePending model.pendingJoinOrLeave }
-                            , effects.joinEvent eventId
+                            , JoinEventRequest eventId |> Lamdera.sendToBackend
                             , { joinEvent = Nothing }
                             )
 
                 Nothing ->
-                    ( model, effects.none, { joinEvent = Just eventId } )
+                    ( model, Command.none, { joinEvent = Just eventId } )
 
         PressedEditEvent eventId ->
             if canEdit_ && model.eventOverlay == Nothing then
@@ -579,7 +601,7 @@ update effects config group maybeLoggedIn msg model =
                                     }
                                     |> Just
                           }
-                        , effects.none
+                        , Command.none
                         , { joinEvent = Nothing }
                         )
 
@@ -596,7 +618,7 @@ update effects config group maybeLoggedIn msg model =
                         _ ->
                             model.eventOverlay
               }
-            , effects.none
+            , Command.none
             , { joinEvent = Nothing }
             )
 
@@ -640,7 +662,7 @@ update effects config group maybeLoggedIn msg model =
                                                     { editEvent | submitStatus = IsSubmitting }
                                                     |> Just
                                           }
-                                        , effects.editEvent
+                                        , EditEventRequest
                                             eventId
                                             (Untrusted.untrust name)
                                             (Untrusted.untrust description)
@@ -648,6 +670,7 @@ update effects config group maybeLoggedIn msg model =
                                             startTime
                                             (Untrusted.untrust duration)
                                             (Untrusted.untrust maxAttendees)
+                                            |> Lamdera.sendToBackend
                                         , { joinEvent = Nothing }
                                         )
                                     )
@@ -663,7 +686,7 @@ update effects config group maybeLoggedIn msg model =
                                         ( { model
                                             | eventOverlay = EdittingEvent eventId (pressSubmit editEvent) |> Just
                                           }
-                                        , effects.none
+                                        , Command.none
                                         , { joinEvent = Nothing }
                                         )
 
@@ -679,7 +702,7 @@ update effects config group maybeLoggedIn msg model =
         PressedCancelEditEvent ->
             case model.eventOverlay of
                 Just (EdittingEvent _ _) ->
-                    ( { model | eventOverlay = Nothing }, effects.none, { joinEvent = Nothing } )
+                    ( { model | eventOverlay = Nothing }, Command.none, { joinEvent = Nothing } )
 
                 _ ->
                     noChange
@@ -688,7 +711,8 @@ update effects config group maybeLoggedIn msg model =
             case model.eventOverlay of
                 Just (EdittingEvent eventId _) ->
                     ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
-                    , effects.changeCancellationStatus eventId Event.EventCancelled
+                    , ChangeEventCancellationStatusRequest eventId Event.EventCancelled
+                        |> Lamdera.sendToBackend
                     , { joinEvent = Nothing }
                     )
 
@@ -699,7 +723,8 @@ update effects config group maybeLoggedIn msg model =
             case model.eventOverlay of
                 Just (EdittingEvent eventId _) ->
                     ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
-                    , effects.changeCancellationStatus eventId Event.EventUncancelled
+                    , ChangeEventCancellationStatusRequest eventId Event.EventUncancelled
+                        |> Lamdera.sendToBackend
                     , { joinEvent = Nothing }
                     )
 
@@ -710,7 +735,8 @@ update effects config group maybeLoggedIn msg model =
             case model.eventOverlay of
                 Just (EdittingEvent eventId _) ->
                     ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
-                    , effects.changeCancellationStatus eventId Event.EventCancelled
+                    , ChangeEventCancellationStatusRequest eventId Event.EventCancelled
+                        |> Lamdera.sendToBackend
                     , { joinEvent = Nothing }
                     )
 
@@ -720,7 +746,7 @@ update effects config group maybeLoggedIn msg model =
         PressedMakeGroupPublic ->
             if canEdit_ && not model.pendingToggleVisibility then
                 ( { model | pendingToggleVisibility = True }
-                , effects.changeVisibility Group.PublicGroup
+                , ChangeGroupVisibilityRequest Group.PublicGroup |> Lamdera.sendToBackend
                 , { joinEvent = Nothing }
                 )
 
@@ -730,7 +756,7 @@ update effects config group maybeLoggedIn msg model =
         PressedMakeGroupUnlisted ->
             if canEdit_ && not model.pendingToggleVisibility then
                 ( { model | pendingToggleVisibility = True }
-                , effects.changeVisibility Group.UnlistedGroup
+                , ChangeGroupVisibilityRequest Group.UnlistedGroup |> Lamdera.sendToBackend
                 , { joinEvent = Nothing }
                 )
 
@@ -740,7 +766,7 @@ update effects config group maybeLoggedIn msg model =
         PressedDeleteGroup ->
             case Maybe.map (.adminStatus >> AdminStatus.isAdminEnabled) maybeLoggedIn of
                 Just True ->
-                    ( model, effects.deleteGroup, { joinEvent = Nothing } )
+                    ( model, Lamdera.sendToBackend DeleteGroupAdminRequest, { joinEvent = Nothing } )
 
                 _ ->
                     noChange
@@ -754,7 +780,7 @@ update effects config group maybeLoggedIn msg model =
                                 | newEvent =
                                     fillInEmptyNewEventInputs config.timezone latestEvent_ model.newEvent
                               }
-                            , effects.none
+                            , Command.none
                             , { joinEvent = Nothing }
                             )
 
@@ -1195,59 +1221,59 @@ groupView isMobile currentTime timezone owner group model maybeLoggedIn =
 
 
 deleteGroupButtonId =
-    Id.buttonId "groupPageDeleteGroup"
+    HtmlId.buttonId "groupPageDeleteGroup"
 
 
 makeUnlistedGroupId =
-    Id.buttonId "groupPageMakeUnlistedGroup"
+    HtmlId.buttonId "groupPageMakeUnlistedGroup"
 
 
 makePublicGroupId =
-    Id.buttonId "groupPageMakePublicGroup"
+    HtmlId.buttonId "groupPageMakePublicGroup"
 
 
 showAllFutureEventsId =
-    Id.buttonId "groupPageShowAllFutureEvents"
+    HtmlId.buttonId "groupPageShowAllFutureEvents"
 
 
 showFirstFutureEventsId =
-    Id.buttonId "groupPageShowFirstFutureEvents"
+    HtmlId.buttonId "groupPageShowFirstFutureEvents"
 
 
 resetGroupNameId =
-    Id.buttonId "groupPageResetGroupName"
+    HtmlId.buttonId "groupPageResetGroupName"
 
 
 editGroupNameId =
-    Id.buttonId "groupPageEditGroupName"
+    HtmlId.buttonId "groupPageEditGroupName"
 
 
 saveGroupNameId =
-    Id.buttonId "groupPageSaveGroupName"
+    HtmlId.buttonId "groupPageSaveGroupName"
 
 
 resetDescriptionId =
-    Id.buttonId "groupPageResetDescription"
+    HtmlId.buttonId "groupPageResetDescription"
 
 
 editDescriptionId =
-    Id.buttonId "groupPageEditDescription"
+    HtmlId.buttonId "groupPageEditDescription"
 
 
 saveDescriptionId =
-    Id.buttonId "groupPageSaveDescription"
+    HtmlId.buttonId "groupPageSaveDescription"
 
 
 createEventCancelId =
-    Id.buttonId "groupPageCreateEventCancel"
+    HtmlId.buttonId "groupPageCreateEventCancel"
 
 
 createEventSubmitId =
-    Id.buttonId "groupPageCreateEventSubmit"
+    HtmlId.buttonId "groupPageCreateEventSubmit"
 
 
 createNewEventId =
-    Id.buttonId "groupPageCreateNewEvent"
+    HtmlId.buttonId "groupPageCreateNewEvent"
 
 
 ongoingEventView :
@@ -1633,27 +1659,27 @@ eventTypeView isPastEvent event =
 
 
 cancelEventId =
-    Id.buttonId "groupCancelEvent"
+    HtmlId.buttonId "groupCancelEvent"
 
 
 uncancelEventId =
-    Id.buttonId "groupUncancelEvent"
+    HtmlId.buttonId "groupUncancelEvent"
 
 
 recancelEventId =
-    Id.buttonId "groupRecancelEvent"
+    HtmlId.buttonId "groupRecancelEvent"
 
 
 editEventId =
-    Id.buttonId "groupEditEvent"
+    HtmlId.buttonId "groupEditEvent"
 
 
 leaveEventButtonId =
-    Id.buttonId "groupLeaveEvent"
+    HtmlId.buttonId "groupLeaveEvent"
 
 
 joinEventButtonId =
-    Id.buttonId "groupJoinEvent"
+    HtmlId.buttonId "groupJoinEvent"
 
 
 intToMonth : Int -> Maybe Time.Month
@@ -1705,15 +1731,15 @@ type EventType
 
 
 eventNameInputId =
-    Id.textInputId "groupEventName"
+    HtmlId.textInputId "groupEventName"
 
 
 eventDescriptionInputId =
-    Id.textInputId "groupEventDescription"
+    HtmlId.textInputId "groupEventDescription"
 
 
 eventMeetingTypeId =
-    Id.radioButtonId
+    HtmlId.radioButtonId
         "groupEventMeeting_"
         (\meetingType ->
             case meetingType of
@@ -1726,11 +1752,11 @@ eventMeetingTypeId =
 
 
 eventMeetingOnlineInputId =
-    Id.textInputId "groupEventMeetingOnline"
+    HtmlId.textInputId "groupEventMeetingOnline"
 
 
 eventMeetingInPersonInputId =
-    Id.textInputId "groupEventMeetingInPerson"
+    HtmlId.textInputId "groupEventMeetingInPerson"
 
 
 editEventView :
@@ -2144,19 +2170,19 @@ newEventView currentTime timezone group event =
 
 
 eventMaxAttendeesId =
-    Id.numberInputId "groupPageEditMaxAttendeesId"
+    HtmlId.numberInputId "groupPageEditMaxAttendeesId"
 
 
 eventDurationId =
-    Id.numberInputId "groupPageEventDurationId"
+    HtmlId.numberInputId "groupPageEventDurationId"
 
 
 createEventStartDateId =
-    Id.dateInputId "groupPageCreateEventStartDate"
+    HtmlId.dateInputId "groupPageCreateEventStartDate"
 
 
 createEventStartTimeId =
-    Id.timeInputId "groupPageCreateEventStartTime"
+    HtmlId.timeInputId "groupPageCreateEventStartTime"
 
 
 dateToString : Maybe Time.Zone -> Time.Posix -> String
@@ -2285,7 +2311,7 @@ smallButton htmlId onPress label =
         , Element.paddingXY 8 2
         , Element.Border.rounded 4
         , Element.Font.center
-        , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
+        , HtmlId.toString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         ]
         { onPress = Just onPress
         , label = Element.text label
@@ -2305,11 +2331,11 @@ multiline onChange text labelText =
 
 
 groupNameInputId =
-    Id.textInputId "groupPageGroupName"
+    HtmlId.textInputId "groupPageGroupName"
 
 
 copyPreviousEventButtonId =
-    Id.buttonId "groupPage_CopyPreviousEvent"
+    HtmlId.buttonId "groupPage_CopyPreviousEvent"
 
 
 groupNameTextInput : (String -> msg) -> String -> String -> Element msg
@@ -2317,7 +2343,7 @@ groupNameTextInput onChange text labelText =
     Element.Input.text
         [ Element.width Element.fill
         , Element.paddingXY 8 4
-        , Id.htmlIdToString groupNameInputId |> Html.Attributes.id |> Element.htmlAttribute
+        , HtmlId.toString groupNameInputId |> Html.Attributes.id |> Element.htmlAttribute
         ]
         { text = text
         , onChange = onChange

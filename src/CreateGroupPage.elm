@@ -19,7 +19,7 @@ import Description exposing (Description)
 import Element exposing (Element)
 import Group exposing (GroupVisibility(..))
 import GroupName exposing (GroupName)
-import Id exposing (ButtonId(..))
+import HtmlId exposing (ButtonId)
 import List.Nonempty exposing (Nonempty(..))
 import Route
 import Ui
@@ -259,29 +259,29 @@ formView isMobile firstGroup maybeSubmitError isSubmitting form =
         ]
 
 
-nameInputId : Id.HtmlId Id.TextInputId
+nameInputId : HtmlId.HtmlId HtmlId.TextInputId
 nameInputId =
-    Id.textInputId "createGroupName"
+    HtmlId.textInputId "createGroupName"
 
 
-descriptionInputId : Id.HtmlId Id.TextInputId
+descriptionInputId : HtmlId.HtmlId HtmlId.TextInputId
 descriptionInputId =
-    Id.textInputId "createGroupDescription"
+    HtmlId.textInputId "createGroupDescription"
 
 
-clearButtonId : Id.HtmlId ButtonId
+clearButtonId : HtmlId.HtmlId ButtonId
 clearButtonId =
-    Id.buttonId "createGroupClear"
+    HtmlId.buttonId "createGroupClear"
 
 
-submitButtonId : Id.HtmlId ButtonId
+submitButtonId : HtmlId.HtmlId ButtonId
 submitButtonId =
-    Id.buttonId "createGroupSubmit"
+    HtmlId.buttonId "createGroupSubmit"
 
 
-groupVisibilityId : GroupVisibility -> Id.HtmlId Id.RadioButtonId
+groupVisibilityId : GroupVisibility -> HtmlId.HtmlId HtmlId.RadioButtonId
 groupVisibilityId =
-    Id.radioButtonId
+    HtmlId.radioButtonId
         "groupCreateVisibility_"
         (\visibility ->
             case visibility of
@@ -293,6 +293,6 @@ groupVisibilityId =
         )
 
 
-termsOfServiceId : () -> Id.HtmlId Id.RadioButtonId
+termsOfServiceId : () -> HtmlId.HtmlId HtmlId.RadioButtonId
 termsOfServiceId =
-    Id.radioButtonId "termsOfServiceId" (\() -> "")
+    HtmlId.radioButtonId "termsOfServiceId" (\() -> "")

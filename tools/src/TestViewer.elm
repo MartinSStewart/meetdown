@@ -5,18 +5,18 @@ import Browser exposing (Document, UrlRequest)
 import Browser.Navigation exposing (Key)
 import Colors
 import Dict as RegularDict
+import Effect.Lamdera exposing (ClientId)
+import Effect.Test as TF exposing (Instructions)
 import Element exposing (Element)
 import Element.Background
 import Element.Border
 import Element.Font
 import Element.Input
 import Html exposing (Html)
-import Id exposing (ClientId)
 import Json.Decode
 import List.Extra as List
 import List.Nonempty exposing (Nonempty(..))
 import List.Zipper exposing (Zipper)
-import TestFramework as TF exposing (Instructions)
 import Tests
 import Ui
 import Url exposing (Url)

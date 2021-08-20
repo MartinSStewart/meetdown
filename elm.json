@@ -2,7 +2,8 @@
     "type": "application",
     "source-directories": [
         "src",
-        "send-grid"
+        "send-grid",
+        "justinmimbs/timezone-data/4.0.2/src"
     ],
     "elm-version": "0.19.1",
     "dependencies": {
@@ -29,18 +30,20 @@
             "elm-community/basics-extra": "4.1.0",
             "elm-community/list-extra": "8.3.0",
             "erlandsona/assoc-set": "1.1.0",
+            "hecrj/html-parser": "2.4.0",
             "ianmackenzie/elm-units": "2.9.0",
             "justinmimbs/date": "3.2.1",
             "justinmimbs/time-extra": "1.1.0",
-            "justinmimbs/timezone-data": "4.0.2",
             "lamdera/codecs": "1.0.0",
             "lamdera/core": "1.0.0",
             "mdgriffith/elm-ui": "1.1.7",
             "mgold/elm-nonempty-list": "4.2.0",
+            "miniBill/elm-codec": "2.0.0",
             "mpizenberg/elm-pointer-events": "4.0.2",
             "noahzgordon/elm-color-extra": "1.0.2",
             "pzp1997/assoc-list": "1.0.0",
-            "zwilias/elm-html-string": "2.0.2"
+            "zwilias/elm-html-string": "2.0.2",
+            "elm-explorations/test": "1.2.2"
         },
         "indirect": {
             "NoRedInk/elm-string-conversions": "1.0.1",
@@ -54,9 +57,7 @@
         }
     },
     "test-dependencies": {
-        "direct": {
-            "elm-explorations/test": "1.2.2"
-        },
+        "direct": {},
         "indirect": {}
     }
 }

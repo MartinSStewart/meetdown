@@ -62,7 +62,7 @@ import Env
 import Html exposing (Html)
 import Html.Attributes
 import Html.Events
-import Id exposing (ButtonId(..), DateInputId(..), HtmlId, NumberInputId(..), RadioButtonId(..), TextInputId(..), TimeInputId(..))
+import HtmlId exposing (ButtonId, DateInputId, HtmlId, NumberInputId, RadioButtonId, TextInputId, TimeInputId)
 import Json.Decode
 import List.Nonempty exposing (Nonempty)
 import Route exposing (Route)
@@ -156,7 +156,7 @@ headerButton isMobile_ htmlId { onPress, label } =
             Element.padding 8
         , Element.Font.center
         , inputFocusClass
-        , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
+        , HtmlId.toString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         , if isMobile_ then
             Element.Font.size 13
 
@@ -273,7 +273,7 @@ button htmlId { onPress, label } =
         , Element.Font.center
         , Element.Font.color readingMuted
         , Element.width (Element.minimum 150 Element.fill)
-        , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
+        , HtmlId.toString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         ]
         { onPress = Just onPress
         , label = Element.text label
@@ -314,7 +314,7 @@ submitButton htmlId isSubmitting { onPress, label } =
         , Element.Border.rounded 4
         , Element.Font.center
         , Element.Font.color white
-        , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
+        , HtmlId.toString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         , Element.width Element.fill
         ]
         { onPress = Just onPress
@@ -330,7 +330,7 @@ smallSubmitButton htmlId isSubmitting { onPress, label } =
         , Element.Border.rounded 4
         , Element.Font.center
         , Element.Font.color <| Element.rgb 1 1 1
-        , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
+        , HtmlId.toString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         ]
         { onPress = Just onPress
         , label = labelWithHourglass isSubmitting label
@@ -345,7 +345,7 @@ dangerButton htmlId isSubmitting { onPress, label } =
         , Element.Border.rounded 4
         , Element.Font.center
         , Element.Font.color white
-        , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
+        , HtmlId.toString htmlId |> Html.Attributes.id |> Element.htmlAttribute
         ]
         { onPress = Just onPress
         , label = labelWithHourglass isSubmitting label
@@ -466,7 +466,7 @@ radioGroup htmlId onSelect options selected optionToLabel maybeError =
                     Element.Input.button
                         [ Element.width Element.fill
                         , Element.paddingXY 0 6
-                        , htmlId value |> Id.htmlIdToString |> Html.Attributes.id |> Element.htmlAttribute
+                        , htmlId value |> HtmlId.toString |> Html.Attributes.id |> Element.htmlAttribute
                         ]
                         { onPress = Just (onSelect value)
                         , label =
@@ -535,7 +535,7 @@ textInput htmlId onChange text labelText maybeError =
         ]
         [ Element.Input.text
             [ Element.width Element.fill
-            , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
+            , HtmlId.toString htmlId |> Html.Attributes.id |> Element.htmlAttribute
             , inputBorder (maybeError /= Nothing)
             ]
             { text = text
@@ -556,7 +556,7 @@ multiline htmlId onChange text labelText maybeError =
         [ Element.Input.multiline
             [ Element.width Element.fill
             , Element.height (Element.px 200)
-            , Id.htmlIdToString htmlId |> Html.Attributes.id |> Element.htmlAttribute
+            , HtmlId.toString htmlId |> Html.Attributes.id |> Element.htmlAttribute
             , inputBorder (maybeError /= Nothing)
             , inputBorderWidth (maybeError /= Nothing)
             ]
@@ -579,7 +579,7 @@ numberInput htmlId onChange value labelText maybeError =
         , Html.input
             ([ Html.Attributes.type_ "number"
              , Html.Events.onInput onChange
-             , Id.htmlIdToString htmlId |> Html.Attributes.id
+             , HtmlId.toString htmlId |> Html.Attributes.id
              , Html.Attributes.value value
              , Html.Attributes.style "line-height" "38px"
              , Html.Attributes.style "text-align" "right"
@@ -627,7 +627,7 @@ timeInput htmlId onChange time isDisabled =
          , Html.Events.onInput onChange
          , Html.Attributes.value time
          , Html.Attributes.style "padding" "5px"
-         , Id.htmlIdToString htmlId |> Html.Attributes.id
+         , HtmlId.toString htmlId |> Html.Attributes.id
          , Html.Attributes.disabled isDisabled
          ]
             ++ htmlInputBorderStyles
@@ -652,7 +652,7 @@ dateInput htmlId onChange minDateTime date isDisabled =
          , Html.Events.onInput onChange
          , Html.Attributes.value date
          , Html.Attributes.style "padding" "5px"
-         , Id.htmlIdToString htmlId |> Html.Attributes.id
+         , HtmlId.toString htmlId |> Html.Attributes.id
          , Html.Attributes.disabled isDisabled
          ]
             ++ htmlInputBorderStyles

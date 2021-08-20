@@ -1,7 +1,8 @@
 module LoginForm exposing (cancelButtonId, emailAddressInputId, submitButtonId, submitForm, typedEmail, view)
 
 import AssocList as Dict exposing (Dict)
-import Colors
+import Effect.Command as Command exposing (Command, FrontendOnly)
+import Effect.Lamdera as Lamdera
 import Element exposing (Element)
 import Element.Font
 import Element.Input
@@ -9,7 +10,8 @@ import EmailAddress exposing (EmailAddress)
 import Group exposing (EventId, Group)
 import GroupName
 import Html.Attributes
-import Id exposing (ButtonId(..), GroupId, HtmlId, Id, TextInputId)
+import HtmlId exposing (ButtonId, HtmlId, TextInputId)
+import Id exposing (GroupId, Id)
 import Route exposing (Route)
 import Types exposing (Cache(..), FrontendMsg(..), LoginForm, ToBackend(..))
 import Ui
@@ -24,7 +26,7 @@ emailInput id onSubmit onChange text labelText maybeError =
             [ Element.width Element.fill
             , Ui.onEnter onSubmit
             , Ui.inputBorder (maybeError /= Nothing)
-            , Id.htmlIdToString id |> Html.Attributes.id |> Element.htmlAttribute
+            , HtmlId.toString id |> Html.Attributes.id |> Element.htmlAttribute
             ]
             { text = text
             , onChange = onChange
@@ -124,20 +126,19 @@ validateEmail text =
 
 
 submitForm :
-    { a | none : cmd, sendToBackend : ToBackend -> cmd }
-    -> Route
+    Route
     -> Maybe ( Id GroupId, EventId )
     -> LoginForm
-    -> ( LoginForm, cmd )
-submitForm cmds route maybeJoinEvent loginForm =
+    -> ( LoginForm, Command FrontendOnly ToBackend FrontendMsg )
+submitForm route maybeJoinEvent loginForm =
     case validateEmail loginForm.email of
         Ok email ->
             ( { loginForm | emailSent = Just email }
-            , GetLoginTokenRequest route (Untrusted.untrust email) maybeJoinEvent |> cmds.sendToBackend
+            , GetLoginTokenRequest route (Untrusted.untrust email) maybeJoinEvent |> Lamdera.sendToBackend
             )
 
         Err _ ->
-            ( { loginForm | pressedSubmitEmail = True }, cmds.none )
+            ( { loginForm | pressedSubmitEmail = True }, Command.none )
 
 
 typedEmail : String -> LoginForm -> LoginForm
@@ -147,14 +148,14 @@ typedEmail emailText loginForm =
 
 emailAddressInputId : HtmlId TextInputId
 emailAddressInputId =
-    Id.textInputId "loginTextInput"
+    HtmlId.textInputId "loginTextInput"
 
 
 submitButtonId : HtmlId ButtonId
 submitButtonId =
-    Id.buttonId "loginSubmit"
+    HtmlId.buttonId "loginSubmit"
 
 
 cancelButtonId : HtmlId ButtonId
 cancelButtonId =
-    Id.buttonId "loginCancel"
+    HtmlId.buttonId "loginCancel"
