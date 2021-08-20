@@ -1,4 +1,4 @@
-module GroupName exposing (Error(..), GroupName, fromString, maxLength, minLength, namesMatch, toNonemptyString, toString)
+module GroupName exposing (Error(..), GroupName(..), fromString, maxLength, minLength, namesMatch, toNonemptyString, toString)
 
 import String.Nonempty exposing (NonemptyString)
 

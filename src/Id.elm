@@ -1,9 +1,9 @@
 module Id exposing
     ( DeleteUserToken
     , GroupId
-    , Id
+    , Id(..)
     , LoginToken
-    , SessionIdFirst4Chars
+    , SessionIdFirst4Chars(..)
     , UserId
     , anonymizeSessionId
     , cryptoHashFromString
