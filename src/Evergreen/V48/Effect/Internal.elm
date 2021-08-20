@@ -10,14 +10,6 @@ type NavigationKey
     | MockNavigationKey
 
 
-type SessionId
-    = SessionId String
-
-
-type ClientId
-    = ClientId String
-
-
 type File
     = RealFile File.File
     | MockFile
