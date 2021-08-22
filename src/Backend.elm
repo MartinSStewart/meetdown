@@ -330,7 +330,7 @@ updateFromFrontend sessionId clientId msg model =
             ( model, checkLogin sessionId model |> CheckLoginResponse |> Effect.Lamdera.sendToFrontend clientId )
 
         GetLoginTokenRequest route untrustedEmail maybeJoinEvent ->
-            case Untrusted.validateEmailAddress untrustedEmail of
+            case Untrusted.emailAddress untrustedEmail of
                 Just email ->
                     let
                         ( model2, loginToken ) =
@@ -405,7 +405,7 @@ updateFromFrontend sessionId clientId msg model =
                 model
                 (\( userId, _ ) ->
                     case
-                        ( Untrusted.validateGroupName untrustedName
+                        ( Untrusted.groupName untrustedName
                         , Untrusted.description untrustedDescription
                         )
                     of
@@ -417,7 +417,7 @@ updateFromFrontend sessionId clientId msg model =
                 )
 
         ProfileFormRequest (ProfilePage.ChangeNameRequest untrustedName) ->
-            case Untrusted.validateName untrustedName of
+            case Untrusted.name untrustedName of
                 Just name ->
                     userAuthorization
                         sessionId
@@ -451,7 +451,7 @@ updateFromFrontend sessionId clientId msg model =
                     logUntrusted
 
         ProfileFormRequest (ProfilePage.ChangeEmailAddressRequest untrustedEmailAddress) ->
-            case Untrusted.validateEmailAddress untrustedEmailAddress of
+            case Untrusted.emailAddress untrustedEmailAddress of
                 Just emailAddress ->
                     userAuthorization
                         sessionId
@@ -522,7 +522,7 @@ updateFromFrontend sessionId clientId msg model =
                 sessionId
                 model
                 (\( userId, user ) ->
-                    case Untrusted.validateProfileImage untrustedProfileImage of
+                    case Untrusted.profileImage untrustedProfileImage of
                         Just profileImage ->
                             let
                                 response =
@@ -592,7 +592,7 @@ updateFromFrontend sessionId clientId msg model =
                 ( model, Command.none )
 
         GroupRequest groupId (GroupPage.ChangeGroupNameRequest untrustedName) ->
-            case Untrusted.validateGroupName untrustedName of
+            case Untrusted.groupName untrustedName of
                 Just name ->
                     userWithGroupAuthorization
                         sessionId

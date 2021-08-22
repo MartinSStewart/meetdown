@@ -1,15 +1,15 @@
 module Untrusted exposing
     ( Untrusted
     , description
+    , emailAddress
     , eventDuration
     , eventName
     , eventType
+    , groupName
     , maxAttendees
+    , name
+    , profileImage
     , untrust
-    , validateEmailAddress
-    , validateGroupName
-    , validateName
-    , validateProfileImage
     )
 
 import Address
@@ -34,18 +34,18 @@ type Untrusted a
     = Untrusted a
 
 
-validateName : Untrusted Name -> Maybe Name
-validateName (Untrusted a) =
+name : Untrusted Name -> Maybe Name
+name (Untrusted a) =
     Name.toString a |> Name.fromString |> Result.toMaybe
 
 
-validateEmailAddress : Untrusted EmailAddress -> Maybe EmailAddress
-validateEmailAddress (Untrusted a) =
+emailAddress : Untrusted EmailAddress -> Maybe EmailAddress
+emailAddress (Untrusted a) =
     EmailAddress.toString a |> EmailAddress.fromString
 
 
-validateGroupName : Untrusted GroupName -> Maybe GroupName
-validateGroupName (Untrusted a) =
+groupName : Untrusted GroupName -> Maybe GroupName
+groupName (Untrusted a) =
     GroupName.toString a |> GroupName.fromString |> Result.toMaybe
 
 
@@ -80,9 +80,9 @@ description (Untrusted a) =
     Description.toString a |> Description.fromString |> Result.toMaybe
 
 
-validateProfileImage : Untrusted ProfileImage -> Maybe ProfileImage
-validateProfileImage (Untrusted profileImage) =
-    case ProfileImage.getCustomImageUrl profileImage of
+profileImage : Untrusted ProfileImage -> Maybe ProfileImage
+profileImage (Untrusted a) =
+    case ProfileImage.getCustomImageUrl a of
         Just dataUrl ->
             ProfileImage.customImage dataUrl |> Result.toMaybe
 
