@@ -6,14 +6,14 @@ module Tests exposing
 
 import AssocList as Dict
 import Backend
+import Bytes exposing (Bytes)
+import Bytes.Encode
 import Codec
 import CreateGroupPage
 import Date
 import Dict as RegularDict
 import Duration
-import Effect.Command exposing (PortToJs)
 import Effect.Http as Http
-import Effect.Internal exposing (HttpBody(..))
 import Effect.Lamdera as Lamdera exposing (ClientId, SessionId)
 import Effect.Test as TF
 import EmailAddress exposing (EmailAddress)
@@ -44,21 +44,17 @@ import Untrusted
 import Url
 
 
-frontendApp =
-    { init = Frontend.init
-    , update = Frontend.update
-    , onUrlRequest = UrlClicked
-    , onUrlChange = UrlChanged
-    , updateFromBackend = Frontend.updateFromBackend
-    , subscriptions = Frontend.subscriptions
-    , view = Frontend.view
-    }
-
-
 testApp : TF.TestApp ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 testApp =
     TF.testApp
-        frontendApp
+        { init = Frontend.init
+        , update = Frontend.update
+        , onUrlRequest = UrlClicked
+        , onUrlChange = UrlChanged
+        , updateFromBackend = Frontend.updateFromBackend
+        , subscriptions = Frontend.subscriptions
+        , view = Frontend.view
+        }
         { init = Backend.init
         , update = Backend.update
         , updateFromFrontend = Backend.updateFromFrontend
@@ -70,7 +66,7 @@ testApp =
         (Unsafe.url Env.domain)
 
 
-handleHttpRequests : { currentRequest : TF.HttpRequest, httpRequests : List TF.HttpRequest } -> Http.Response String
+handleHttpRequests : { currentRequest : TF.HttpRequest, httpRequests : List TF.HttpRequest } -> Http.Response Bytes
 handleHttpRequests { currentRequest, httpRequests } =
     Http.GoodStatus_
         { url = currentRequest.url
@@ -78,11 +74,11 @@ handleHttpRequests { currentRequest, httpRequests } =
         , statusText = "OK"
         , headers = RegularDict.empty
         }
-        ""
+        (Bytes.Encode.sequence [] |> Bytes.Encode.encode)
 
 
 handlePortToJs :
-    { currentRequest : PortToJs, portRequests : List PortToJs }
+    { currentRequest : TF.PortToJs, portRequests : List TF.PortToJs }
     -> Maybe ( String, Json.Decode.Value )
 handlePortToJs { currentRequest, portRequests } =
     if currentRequest.portName == Ports.cropImageToJsName then
@@ -152,7 +148,7 @@ loginFromHomepage loginWithEnterKey sessionId sessionIdFromEmail emailAddress st
         (\( state3, clientId ) ->
             state3
                 |> testApp.simulateTime Duration.second
-                |> testApp.clickButton clientId (HtmlId.toString Frontend.signUpOrLoginButtonId)
+                |> testApp.clickButton { clientId = clientId, htmlId = HtmlId.toString Frontend.signUpOrLoginButtonId }
                 |> handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress stateFunc
         )
 
@@ -171,13 +167,21 @@ handleLoginForm :
 handleLoginForm loginWithEnterKey clientId sessionIdFromEmail emailAddress andThenFunc state =
     state
         |> testApp.simulateTime Duration.second
-        |> testApp.inputText clientId (HtmlId.toString LoginForm.emailAddressInputId) (EmailAddress.toString emailAddress)
+        |> testApp.inputText
+            { clientId = clientId
+            , htmlId = HtmlId.toString LoginForm.emailAddressInputId
+            , text = EmailAddress.toString emailAddress
+            }
         |> testApp.simulateTime Duration.second
         |> (if loginWithEnterKey then
-                testApp.keyDownEvent clientId (HtmlId.toString LoginForm.emailAddressInputId) Ui.enterKeyCode
+                testApp.keyDownEvent
+                    { clientId = clientId
+                    , htmlId = HtmlId.toString LoginForm.emailAddressInputId
+                    , keyCode = Ui.enterKeyCode
+                    }
 
             else
-                testApp.clickButton clientId (HtmlId.toString LoginForm.submitButtonId)
+                testApp.clickButton { clientId = clientId, htmlId = HtmlId.toString LoginForm.submitButtonId }
            )
         |> testApp.simulateTime Duration.second
         |> TF.andThen
@@ -245,7 +249,7 @@ isLoginEmail :
 isLoginEmail httpRequest =
     if String.startsWith (Postmark.endpoint ++ "/email") httpRequest.url then
         case httpRequest.body of
-            JsonBody value ->
+            TF.JsonBody value ->
                 case Json.Decode.decodeValue decodePostmark value of
                     Ok ( subject, to, body ) ->
                         case ( subject, getRoutesFromHtml body ) of
@@ -276,7 +280,7 @@ isReminderEmail :
 isReminderEmail httpRequest =
     if String.startsWith (Postmark.endpoint ++ "/email") httpRequest.url then
         case httpRequest.body of
-            JsonBody value ->
+            TF.JsonBody value ->
                 case Json.Decode.decodeValue decodePostmark value of
                     Ok ( _, to, body ) ->
                         case getRoutesFromHtml body of
@@ -317,7 +321,7 @@ isDeleteUserEmail :
 isDeleteUserEmail httpRequest =
     if String.startsWith (Postmark.endpoint ++ "/email") httpRequest.url then
         case httpRequest.body of
-            JsonBody value ->
+            TF.JsonBody value ->
                 case Json.Decode.decodeValue decodePostmark value of
                     Ok ( subject, to, body ) ->
                         case ( subject, getRoutesFromHtml body ) of
@@ -749,12 +753,16 @@ suite =
                             findSingleGroup
                                 (\groupId inProgress2 ->
                                     inProgress2
-                                        |> testApp.inputText clientId (HtmlId.toString Frontend.groupSearchId) "my group!"
-                                        |> testApp.keyDownEvent clientId (HtmlId.toString Frontend.groupSearchId) Ui.enterKeyCode
+                                        |> testApp.inputText
+                                            { clientId = clientId, htmlId = HtmlId.toString Frontend.groupSearchId, text = "my group!" }
+                                        |> testApp.keyDownEvent
+                                            { clientId = clientId, htmlId = HtmlId.toString Frontend.groupSearchId, keyCode = Ui.enterKeyCode }
                                         |> testApp.simulateTime Duration.second
-                                        |> testApp.clickLink clientId (Route.GroupRoute groupId groupName |> Route.encode)
+                                        |> testApp.clickLink
+                                            { clientId = clientId, href = Route.GroupRoute groupId groupName |> Route.encode }
                                         |> testApp.simulateTime Duration.second
-                                        |> testApp.clickButton clientId (HtmlId.toString GroupPage.joinEventButtonId)
+                                        |> testApp.clickButton
+                                            { clientId = clientId, htmlId = HtmlId.toString GroupPage.joinEventButtonId }
                                         |> testApp.simulateTime Duration.second
                                         |> TF.fastForward (Duration.hours 14)
                                         |> testApp.simulateTime (Duration.seconds 30)
@@ -784,9 +792,9 @@ suite =
                             (\( state, clientId ) ->
                                 state
                                     |> testApp.simulateTime Duration.second
-                                    |> testApp.clickButton clientId (HtmlId.toString Frontend.signUpOrLoginButtonId)
-                                    |> testApp.inputText clientId (HtmlId.toString LoginForm.emailAddressInputId) "my+good@email.eu"
-                                    |> testApp.clickButton clientId (HtmlId.toString LoginForm.submitButtonId)
+                                    |> testApp.clickButton { clientId = clientId, htmlId = HtmlId.toString Frontend.signUpOrLoginButtonId }
+                                    |> testApp.inputText { clientId = clientId, htmlId = HtmlId.toString LoginForm.emailAddressInputId, text = "my+good@email.eu" }
+                                    |> testApp.clickButton { clientId = clientId, htmlId = HtmlId.toString LoginForm.submitButtonId }
                                     |> testApp.simulateTime Duration.second
                             )
                 in
@@ -827,21 +835,21 @@ suite =
                         (\( state, clientId ) ->
                             state
                                 |> testApp.simulateTime Duration.second
-                                |> testApp.clickButton clientId (HtmlId.toString Frontend.signUpOrLoginButtonId)
-                                |> testApp.inputText clientId (HtmlId.toString LoginForm.emailAddressInputId) "a@email.eu"
-                                |> testApp.clickButton clientId (HtmlId.toString LoginForm.submitButtonId)
+                                |> testApp.clickButton { clientId = clientId, htmlId = HtmlId.toString Frontend.signUpOrLoginButtonId }
+                                |> testApp.inputText { clientId = clientId, htmlId = HtmlId.toString LoginForm.emailAddressInputId, text = "a@email.eu" }
+                                |> testApp.clickButton { clientId = clientId, htmlId = HtmlId.toString LoginForm.submitButtonId }
                                 |> testApp.simulateTime Duration.second
-                                |> testApp.inputText clientId (HtmlId.toString LoginForm.emailAddressInputId) "b@email.eu"
-                                |> testApp.clickButton clientId (HtmlId.toString LoginForm.submitButtonId)
+                                |> testApp.inputText { clientId = clientId, htmlId = HtmlId.toString LoginForm.emailAddressInputId, text = "b@email.eu" }
+                                |> testApp.clickButton { clientId = clientId, htmlId = HtmlId.toString LoginForm.submitButtonId }
                                 |> testApp.simulateTime Duration.second
-                                |> testApp.inputText clientId (HtmlId.toString LoginForm.emailAddressInputId) "c@email.eu"
-                                |> testApp.clickButton clientId (HtmlId.toString LoginForm.submitButtonId)
+                                |> testApp.inputText { clientId = clientId, htmlId = HtmlId.toString LoginForm.emailAddressInputId, text = "c@email.eu" }
+                                |> testApp.clickButton { clientId = clientId, htmlId = HtmlId.toString LoginForm.submitButtonId }
                                 |> testApp.simulateTime Duration.second
-                                |> testApp.inputText clientId (HtmlId.toString LoginForm.emailAddressInputId) "d@email.eu"
-                                |> testApp.clickButton clientId (HtmlId.toString LoginForm.submitButtonId)
+                                |> testApp.inputText { clientId = clientId, htmlId = HtmlId.toString LoginForm.emailAddressInputId, text = "d@email.eu" }
+                                |> testApp.clickButton { clientId = clientId, htmlId = HtmlId.toString LoginForm.submitButtonId }
                                 |> testApp.simulateTime Duration.second
-                                |> testApp.inputText clientId (HtmlId.toString LoginForm.emailAddressInputId) "e@email.eu"
-                                |> testApp.clickButton clientId (HtmlId.toString LoginForm.submitButtonId)
+                                |> testApp.inputText { clientId = clientId, htmlId = HtmlId.toString LoginForm.emailAddressInputId, text = "e@email.eu" }
+                                |> testApp.clickButton { clientId = clientId, htmlId = HtmlId.toString LoginForm.submitButtonId }
                                 |> testApp.simulateTime Duration.second
                                 |> TF.checkState
                                     (\state2 ->
@@ -859,8 +867,8 @@ suite =
                                                 |> Err
                                     )
                                 |> testApp.simulateTime Duration.minute
-                                |> testApp.inputText clientId (HtmlId.toString LoginForm.emailAddressInputId) "e@email.eu"
-                                |> testApp.clickButton clientId (HtmlId.toString LoginForm.submitButtonId)
+                                |> testApp.inputText { clientId = clientId, htmlId = HtmlId.toString LoginForm.emailAddressInputId, text = "e@email.eu" }
+                                |> testApp.clickButton { clientId = clientId, htmlId = HtmlId.toString LoginForm.submitButtonId }
                                 |> testApp.simulateTime Duration.second
                                 |> TF.checkState
                                     (\state2 ->
@@ -897,14 +905,14 @@ suite =
                         (\{ instructions, clientId, clientIdFromEmail } ->
                             instructions
                                 |> testApp.simulateTime Duration.second
-                                |> testApp.clickLink clientId (Route.encode Route.MyProfileRoute)
-                                |> testApp.clickButton clientId (HtmlId.toString ProfilePage.deleteAccountButtonId)
+                                |> testApp.clickLink { clientId = clientId, href = Route.encode Route.MyProfileRoute }
+                                |> testApp.clickButton { clientId = clientId, htmlId = HtmlId.toString ProfilePage.deleteAccountButtonId }
                                 |> testApp.simulateTime Duration.second
-                                |> testApp.clickButton clientId (HtmlId.toString ProfilePage.deleteAccountButtonId)
+                                |> testApp.clickButton { clientId = clientId, htmlId = HtmlId.toString ProfilePage.deleteAccountButtonId }
                                 |> testApp.simulateTime Duration.second
-                                |> testApp.clickButton clientId (HtmlId.toString ProfilePage.deleteAccountButtonId)
+                                |> testApp.clickButton { clientId = clientId, htmlId = HtmlId.toString ProfilePage.deleteAccountButtonId }
                                 |> testApp.simulateTime Duration.second
-                                |> testApp.clickButton clientId (HtmlId.toString ProfilePage.deleteAccountButtonId)
+                                |> testApp.clickButton { clientId = clientId, htmlId = HtmlId.toString ProfilePage.deleteAccountButtonId }
                                 |> testApp.simulateTime Duration.second
                                 |> TF.checkState
                                     (\state2 ->
@@ -931,7 +939,7 @@ suite =
                                                 |> Err
                                     )
                                 |> testApp.simulateTime (Duration.minutes 1.5)
-                                |> testApp.clickButton clientId (HtmlId.toString ProfilePage.deleteAccountButtonId)
+                                |> testApp.clickButton { clientId = clientId, htmlId = HtmlId.toString ProfilePage.deleteAccountButtonId }
                                 |> testApp.simulateTime Duration.second
                                 |> TF.checkState
                                     (\state2 ->
@@ -1115,12 +1123,12 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
                     (\groupId inProgress2 ->
                         inProgress2
                             |> testApp.simulateTime Duration.second
-                            |> testApp.inputText clientId (HtmlId.toString Frontend.groupSearchId) "my group!"
-                            |> testApp.keyDownEvent clientId (HtmlId.toString Frontend.groupSearchId) Ui.enterKeyCode
+                            |> testApp.inputText { clientId = clientId, htmlId = HtmlId.toString Frontend.groupSearchId, text = "my group!" }
+                            |> testApp.keyDownEvent { clientId = clientId, htmlId = HtmlId.toString Frontend.groupSearchId, keyCode = Ui.enterKeyCode }
                             |> testApp.simulateTime Duration.second
-                            |> testApp.clickLink clientId (Route.GroupRoute groupId groupName |> Route.encode)
+                            |> testApp.clickLink { clientId = clientId, href = Route.GroupRoute groupId groupName |> Route.encode }
                             |> testApp.simulateTime Duration.second
-                            |> testApp.clickButton clientId (HtmlId.toString GroupPage.joinEventButtonId)
+                            |> testApp.clickButton { clientId = clientId, htmlId = HtmlId.toString GroupPage.joinEventButtonId }
                             |> testApp.simulateTime Duration.second
                             |> handleLoginForm
                                 True
@@ -1131,7 +1139,7 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
                                     a.instructions
                                         |> testApp.simulateTime Duration.second
                                         -- We are just clicking the leave button to test that we had joined the event.
-                                        |> testApp.clickButton a.clientIdFromEmail (HtmlId.toString GroupPage.leaveEventButtonId)
+                                        |> testApp.clickButton { clientId = a.clientIdFromEmail, htmlId = HtmlId.toString GroupPage.leaveEventButtonId }
                                 )
                     )
                     instructions
@@ -1182,7 +1190,7 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
             (\{ instructions, clientIdFromEmail } ->
                 instructions
                     |> testApp.simulateTime Duration.second
-                    |> testApp.clickButton clientIdFromEmail (HtmlId.toString Frontend.logOutButtonId)
+                    |> testApp.clickButton { clientId = clientIdFromEmail, htmlId = HtmlId.toString Frontend.logOutButtonId }
                     |> testApp.simulateTime Duration.minute
             )
         |> testApp.connectFrontend session1
@@ -1192,12 +1200,12 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
                     (\groupId inProgress2 ->
                         inProgress2
                             |> testApp.simulateTime Duration.second
-                            |> testApp.inputText clientId (HtmlId.toString Frontend.groupSearchId) "my group!"
-                            |> testApp.keyDownEvent clientId (HtmlId.toString Frontend.groupSearchId) Ui.enterKeyCode
+                            |> testApp.inputText { clientId = clientId, htmlId = HtmlId.toString Frontend.groupSearchId, text = "my group!" }
+                            |> testApp.keyDownEvent { clientId = clientId, htmlId = HtmlId.toString Frontend.groupSearchId, keyCode = Ui.enterKeyCode }
                             |> testApp.simulateTime Duration.second
-                            |> testApp.clickLink clientId (Route.GroupRoute groupId groupName |> Route.encode)
+                            |> testApp.clickLink { clientId = clientId, href = Route.GroupRoute groupId groupName |> Route.encode }
                             |> testApp.simulateTime Duration.second
-                            |> testApp.clickButton clientId (HtmlId.toString GroupPage.joinEventButtonId)
+                            |> testApp.clickButton { clientId = clientId, htmlId = HtmlId.toString GroupPage.joinEventButtonId }
                             |> testApp.simulateTime Duration.second
                             |> handleLoginForm
                                 True
@@ -1208,7 +1216,7 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
                                     a.instructions
                                         |> testApp.simulateTime Duration.second
                                         -- We are just clicking the leave button to test that we had joined the event.
-                                        |> testApp.clickButton a.clientIdFromEmail (HtmlId.toString GroupPage.leaveEventButtonId)
+                                        |> testApp.clickButton { clientId = a.clientIdFromEmail, htmlId = HtmlId.toString GroupPage.leaveEventButtonId }
                                 )
                     )
                     instructions
@@ -1223,12 +1231,12 @@ createGroup :
     -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 createGroup loggedInClient groupName groupDescription state =
     state
-        |> testApp.clickLink loggedInClient (Route.encode Route.CreateGroupRoute)
+        |> testApp.clickLink { clientId = loggedInClient, href = Route.encode Route.CreateGroupRoute }
         |> testApp.simulateTime Duration.second
-        |> testApp.inputText loggedInClient (HtmlId.toString CreateGroupPage.nameInputId) groupName
-        |> testApp.inputText loggedInClient (HtmlId.toString CreateGroupPage.descriptionInputId) groupDescription
-        |> testApp.clickButton loggedInClient (CreateGroupPage.groupVisibilityId Group.PublicGroup |> HtmlId.toString)
-        |> testApp.clickButton loggedInClient (HtmlId.toString CreateGroupPage.submitButtonId)
+        |> testApp.inputText { clientId = loggedInClient, htmlId = HtmlId.toString CreateGroupPage.nameInputId, text = groupName }
+        |> testApp.inputText { clientId = loggedInClient, htmlId = HtmlId.toString CreateGroupPage.descriptionInputId, text = groupDescription }
+        |> testApp.clickButton { clientId = loggedInClient, htmlId = CreateGroupPage.groupVisibilityId Group.PublicGroup |> HtmlId.toString }
+        |> testApp.clickButton { clientId = loggedInClient, htmlId = HtmlId.toString CreateGroupPage.submitButtonId }
         |> testApp.simulateTime Duration.second
 
 
@@ -1248,12 +1256,12 @@ createGroupAndEvent :
     -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 createGroupAndEvent loggedInClient { groupName, groupDescription, eventName, eventDescription, eventDate, eventHour, eventMinute, eventDuration } state =
     createGroup loggedInClient groupName groupDescription state
-        |> testApp.clickButton loggedInClient (HtmlId.toString GroupPage.createNewEventId)
-        |> testApp.inputText loggedInClient (HtmlId.toString GroupPage.eventNameInputId) eventName
-        |> testApp.inputText loggedInClient (HtmlId.toString GroupPage.eventDescriptionInputId) eventDescription
-        |> testApp.clickButton loggedInClient (GroupPage.eventMeetingTypeId GroupPage.MeetOnline |> HtmlId.toString)
-        |> testApp.inputText loggedInClient (HtmlId.toString GroupPage.createEventStartDateId) (Ui.datestamp eventDate)
-        |> testApp.inputText loggedInClient (HtmlId.toString GroupPage.createEventStartTimeId) (Ui.timestamp eventHour eventMinute)
-        |> testApp.inputText loggedInClient (HtmlId.toString GroupPage.eventDurationId) eventDuration
-        |> testApp.clickButton loggedInClient (HtmlId.toString GroupPage.createEventSubmitId)
+        |> testApp.clickButton { clientId = loggedInClient, htmlId = HtmlId.toString GroupPage.createNewEventId }
+        |> testApp.inputText { clientId = loggedInClient, htmlId = HtmlId.toString GroupPage.eventNameInputId, text = eventName }
+        |> testApp.inputText { clientId = loggedInClient, htmlId = HtmlId.toString GroupPage.eventDescriptionInputId, text = eventDescription }
+        |> testApp.clickButton { clientId = loggedInClient, htmlId = GroupPage.eventMeetingTypeId GroupPage.MeetOnline |> HtmlId.toString }
+        |> testApp.inputText { clientId = loggedInClient, htmlId = HtmlId.toString GroupPage.createEventStartDateId, text = Ui.datestamp eventDate }
+        |> testApp.inputText { clientId = loggedInClient, htmlId = HtmlId.toString GroupPage.createEventStartTimeId, text = Ui.timestamp eventHour eventMinute }
+        |> testApp.inputText { clientId = loggedInClient, htmlId = HtmlId.toString GroupPage.eventDurationId, text = eventDuration }
+        |> testApp.clickButton { clientId = loggedInClient, htmlId = HtmlId.toString GroupPage.createEventSubmitId }
         |> testApp.simulateTime Duration.second
