@@ -93,36 +93,6 @@ type Msg
     | PressedCopyPreviousEvent
 
 
-
---type alias Effects cmd =
---    { none : cmd
---    , changeName : Untrusted GroupName -> cmd
---    , changeDescription : Untrusted Description -> cmd
---    , createEvent :
---        Untrusted EventName
---        -> Untrusted Description
---        -> Untrusted Event.EventType
---        -> Time.Posix
---        -> Untrusted EventDuration
---        -> Untrusted MaxAttendees.MaxAttendees
---        -> cmd
---    , editEvent :
---        EventId
---        -> Untrusted EventName
---        -> Untrusted Description
---        -> Untrusted Event.EventType
---        -> Time.Posix
---        -> Untrusted EventDuration
---        -> Untrusted MaxAttendees.MaxAttendees
---        -> cmd
---    , joinEvent : EventId -> cmd
---    , leaveEvent : EventId -> cmd
---    , changeCancellationStatus : EventId -> Event.CancellationStatus -> cmd
---    , changeVisibility : Group.GroupVisibility -> cmd
---    , deleteGroup : cmd
---    }
-
-
 type SubmitStatus error
     = NotSubmitted { pressedSubmit : Bool }
     | IsSubmitting
@@ -1324,12 +1294,16 @@ ongoingEventView isMobile currentTime timezone isOwner maybeLoggedIn ( eventId, 
             ]
         , case Event.eventType event of
             Event.MeetOnline (Just link) ->
-                Element.paragraph []
-                    [ Element.text "• The event is taking place now at "
-                    , Element.link
-                        [ Element.Font.color Ui.linkColor ]
-                        { url = Link.toString link, label = Element.text (Link.toString link) }
-                    ]
+                if isAttending then
+                    Element.paragraph []
+                        [ Element.text "• The event is taking place now at "
+                        , Element.link
+                            [ Element.Font.color Ui.linkColor ]
+                            { url = Link.toString link, label = Element.text (Link.toString link) }
+                        ]
+
+                else
+                    Element.none
 
             _ ->
                 Element.none
@@ -1513,12 +1487,16 @@ futureEventView isMobile currentTime timezone isOwner maybeLoggedIn pendingJoinO
         , if Duration.from currentTime (Event.startTime event) |> Quantity.lessThan Duration.day then
             case Event.eventType event of
                 Event.MeetOnline (Just link) ->
-                    Element.paragraph []
-                        [ Element.text "• The event will take place at "
-                        , Element.link
-                            [ Element.Font.color Ui.linkColor ]
-                            { url = Link.toString link, label = Element.text (Link.toString link) }
-                        ]
+                    if isAttending then
+                        Element.paragraph []
+                            [ Element.text "• The event will take place at "
+                            , Element.link
+                                [ Element.Font.color Ui.linkColor ]
+                                { url = Link.toString link, label = Element.text (Link.toString link) }
+                            ]
+
+                    else
+                        Element.none
 
                 _ ->
                     Element.none
