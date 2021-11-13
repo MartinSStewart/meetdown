@@ -1,6 +1,7 @@
 module LoginForm exposing (cancelButtonId, emailAddressInputId, submitButtonId, submitForm, typedEmail, view)
 
 import AssocList as Dict exposing (Dict)
+import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Effect.Command as Command exposing (Command, FrontendOnly)
 import Effect.Lamdera as Lamdera
 import Element exposing (Element)
@@ -9,8 +10,7 @@ import Element.Input
 import EmailAddress exposing (EmailAddress)
 import Group exposing (EventId, Group)
 import GroupName
-import Html.Attributes
-import HtmlId exposing (ButtonId, HtmlId, TextInputId)
+import HtmlId
 import Id exposing (GroupId, Id)
 import Route exposing (Route)
 import Types exposing (Cache(..), FrontendMsg(..), LoginForm, ToBackend(..))
@@ -18,7 +18,7 @@ import Ui
 import Untrusted
 
 
-emailInput : HtmlId TextInputId -> msg -> (String -> msg) -> String -> String -> Maybe String -> Element msg
+emailInput : HtmlId -> msg -> (String -> msg) -> String -> String -> Maybe String -> Element msg
 emailInput id onSubmit onChange text labelText maybeError =
     Element.column
         [ Element.width Element.fill ]
@@ -26,7 +26,7 @@ emailInput id onSubmit onChange text labelText maybeError =
             [ Element.width Element.fill
             , Ui.onEnter onSubmit
             , Ui.inputBorder (maybeError /= Nothing)
-            , HtmlId.toString id |> Html.Attributes.id |> Element.htmlAttribute
+            , Dom.idToAttribute id |> Element.htmlAttribute
             ]
             { text = text
             , onChange = onChange
@@ -146,16 +146,16 @@ typedEmail emailText loginForm =
     { loginForm | email = emailText }
 
 
-emailAddressInputId : HtmlId TextInputId
+emailAddressInputId : HtmlId
 emailAddressInputId =
     HtmlId.textInputId "loginTextInput"
 
 
-submitButtonId : HtmlId ButtonId
+submitButtonId : HtmlId
 submitButtonId =
     HtmlId.buttonId "loginSubmit"
 
 
-cancelButtonId : HtmlId ButtonId
+cancelButtonId : HtmlId
 cancelButtonId =
     HtmlId.buttonId "loginCancel"

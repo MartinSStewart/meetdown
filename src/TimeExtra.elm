@@ -2,6 +2,7 @@ module TimeExtra exposing (..)
 
 import Duration exposing (Duration)
 import Quantity
+import Round
 import Time
 
 
@@ -54,7 +55,7 @@ diffToString start end =
         String.fromInt hours ++ "\u{00A0}hours" ++ suffix
 
     else if Duration.inHours difference >= 1.2 then
-        (removeTrailing0s (Duration.inHours difference) |> String.left 3) ++ "\u{00A0}hours" ++ suffix
+        removeTrailing0s 1 (Duration.inHours difference) ++ "\u{00A0}hours" ++ suffix
 
     else if minutes > 1 then
         String.fromInt minutes ++ "\u{00A0}minutes" ++ suffix
@@ -66,22 +67,41 @@ diffToString start end =
         "now"
 
 
-removeTrailing0s : Float -> String
-removeTrailing0s =
-    String.fromFloat
-        >> String.foldl
-            (\char newText ->
-                if newText == "" && (char == '0' || char == '.') then
-                    newText
+removeTrailing0s : Int -> Float -> String
+removeTrailing0s decimalPoints value =
+    case Round.round decimalPoints value |> String.split "." of
+        [ nonDecimal, decimal ] ->
+            if decimalPoints > 0 then
+                nonDecimal
+                    ++ "."
+                    ++ (String.foldr
+                            (\char ( text, reachedNonZero ) ->
+                                if reachedNonZero || char /= '0' then
+                                    ( text, True )
 
-                else
-                    newText ++ String.fromChar char
-            )
-            ""
-        >> (\a ->
-                if a == "" then
-                    "0"
+                                else
+                                    ( String.dropRight 1 text, False )
+                            )
+                            ( decimal, False )
+                            decimal
+                            |> Tuple.first
+                       )
+                    |> dropSuffix "."
 
-                else
-                    a
-           )
+            else
+                nonDecimal
+
+        [ nonDecimal ] ->
+            nonDecimal
+
+        _ ->
+            "0"
+
+
+dropSuffix : String -> String -> String
+dropSuffix suffix string =
+    if String.endsWith suffix string then
+        String.dropRight (String.length suffix) string
+
+    else
+        string

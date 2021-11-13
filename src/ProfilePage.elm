@@ -17,7 +17,7 @@ module ProfilePage exposing
 import Colors exposing (..)
 import Description exposing (Description, Error(..))
 import Duration exposing (Duration)
-import Effect.Browser.Dom as BrowserDom
+import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Effect.Command as Command exposing (Command, FrontendOnly)
 import Effect.File as File exposing (File)
 import Effect.File.Select as FileSelect
@@ -35,7 +35,7 @@ import Html
 import Html.Attributes
 import Html.Events
 import Html.Events.Extra.Touch
-import HtmlId exposing (ButtonId)
+import HtmlId
 import Json.Decode
 import List.Extra as List
 import Name exposing (Error(..), Name)
@@ -60,7 +60,7 @@ type Msg
     | TouchEndImageEditor
     | PressedConfirmImage
     | PressedCancelImage
-    | GotImageSize (Result BrowserDom.Error BrowserDom.Element)
+    | GotImageSize (Result Dom.Error Dom.Element)
     | CroppedImage (Result String CropImageDataResponse)
 
 
@@ -207,7 +207,7 @@ update windowSize msg model =
                 | profileImage =
                     Editting (Just { x = 0.1, y = 0.1, size = 0.8, imageUrl = imageUrl, dragState = Nothing, imageSize = Nothing })
               }
-            , BrowserDom.getElement profileImagePlaceholderId |> Task.attempt GotImageSize
+            , Dom.getElement profileImagePlaceholderId |> Task.attempt GotImageSize
             )
 
         MouseDownImageEditor x y ->
@@ -333,7 +333,7 @@ update windowSize msg model =
                 ( Ok { element }, Editting (Just imageData) ) ->
                     if element.height <= 0 then
                         ( model
-                        , BrowserDom.getElement profileImagePlaceholderId |> Task.attempt GotImageSize
+                        , Dom.getElement profileImagePlaceholderId |> Task.attempt GotImageSize
                         )
 
                     else
@@ -520,9 +520,9 @@ imageEditorWidth windowSize =
     min 400 (Pixels.inPixels windowSize.windowWidth)
 
 
-profileImagePlaceholderId : String
+profileImagePlaceholderId : HtmlId
 profileImagePlaceholderId =
-    "profile-image-placeholder-id"
+    Dom.id "profile-image-placeholder-id"
 
 
 imageEditorIsActive : Model -> Bool
@@ -606,7 +606,7 @@ imageEditorView windowSize imageEdit =
                         ]
                         (Element.html <|
                             Html.img
-                                [ Html.Attributes.id profileImagePlaceholderId
+                                [ Dom.idToAttribute profileImagePlaceholderId
                                 , Html.Attributes.src imageUrl
                                 ]
                                 []
@@ -807,7 +807,7 @@ view windowSize currentValues ({ form } as model) =
                 ]
 
 
-deleteAccountButtonId : HtmlId.HtmlId ButtonId
+deleteAccountButtonId : HtmlId
 deleteAccountButtonId =
     HtmlId.buttonId "profileDeleteAccount"
 

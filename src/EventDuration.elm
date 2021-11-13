@@ -60,8 +60,7 @@ toString eventDuration =
             toFloat minutes / 60
     in
     if minutes >= 60 then
-        TimeExtra.removeTrailing0s hours
-            |> String.left 4
+        TimeExtra.removeTrailing0s 2 hours
             |> (\a ->
                     if a == "1" then
                         "1\u{00A0}hour"

@@ -1,64 +1,33 @@
 module HtmlId exposing (..)
 
-
-type HtmlId a
-    = HtmlId String
+import Effect.Browser.Dom as Dom exposing (HtmlId)
 
 
-toString : HtmlId a -> String
-toString (HtmlId a) =
-    a
-
-
-type ButtonId
-    = ButtonId Never
-
-
-buttonId : String -> HtmlId ButtonId
+buttonId : String -> HtmlId
 buttonId =
-    (++) "a_" >> HtmlId
+    (++) "a_" >> Dom.id
 
 
-type TextInputId
-    = TextInputId Never
-
-
-textInputId : String -> HtmlId TextInputId
+textInputId : String -> HtmlId
 textInputId =
-    (++) "b_" >> HtmlId
+    (++) "b_" >> Dom.id
 
 
-type RadioButtonId
-    = RadioButtonId Never
-
-
-radioButtonId : String -> (a -> String) -> a -> HtmlId RadioButtonId
+radioButtonId : String -> (a -> String) -> a -> HtmlId
 radioButtonId radioGroupName valueToString value =
-    "c_" ++ radioGroupName ++ "_" ++ valueToString value |> HtmlId
+    "c_" ++ radioGroupName ++ "_" ++ valueToString value |> Dom.id
 
 
-type NumberInputId
-    = NumberInputId Never
-
-
-numberInputId : String -> HtmlId NumberInputId
+numberInputId : String -> HtmlId
 numberInputId =
-    (++) "d_" >> HtmlId
+    (++) "d_" >> Dom.id
 
 
-type DateInputId
-    = DateInputId Never
-
-
-dateInputId : String -> HtmlId DateInputId
+dateInputId : String -> HtmlId
 dateInputId =
-    (++) "e_" >> HtmlId
+    (++) "e_" >> Dom.id
 
 
-type TimeInputId
-    = TimeInputId Never
-
-
-timeInputId : String -> HtmlId TimeInputId
+timeInputId : String -> HtmlId
 timeInputId =
-    (++) "f_" >> HtmlId
+    (++) "f_" >> Dom.id

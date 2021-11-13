@@ -21,12 +21,10 @@ import Colors
 import CreateGroupPage
 import DictExtra as Dict
 import Duration exposing (Duration)
-import Effect.Browser.Dom as BrowserDom
+import Effect.Browser.Dom as Dom
 import Effect.Browser.Events as BrowserEvents
 import Effect.Browser.Navigation as BrowserNavigation exposing (Key)
 import Effect.Command as Command exposing (Command, FrontendOnly)
-import Effect.File as File
-import Effect.File.Select as FileSelect
 import Effect.Lamdera
 import Effect.Subscription as Subscription exposing (Subscription)
 import Effect.Task as Task
@@ -121,7 +119,7 @@ init url key =
         }
     , Command.batch
         [ Time.now |> Task.perform GotTime
-        , BrowserDom.getViewport
+        , Dom.getViewport
             |> Task.perform
                 (\{ scene } -> GotWindowSize (round scene.width) (round scene.height))
         , TimeZone.getZone |> Task.attempt GotTimeZone
@@ -371,7 +369,7 @@ updateLoaded msg model =
                     (\a ->
                         Command.batch
                             [ a
-                            , BrowserDom.setViewport 0 0
+                            , Dom.setViewport 0 0
                                 |> Task.perform (\() -> ScrolledToTop)
                             ]
                     )
@@ -1408,7 +1406,7 @@ searchInput searchText =
         , Element.Border.color Colors.darkGrey
         , Element.paddingEach { left = 24, right = 8, top = 4, bottom = 4 }
         , Ui.onEnter SubmittedSearchBox
-        , HtmlId.toString groupSearchId |> Html.Attributes.id |> Element.htmlAttribute
+        , Dom.idToAttribute groupSearchId |> Element.htmlAttribute
         , Element.inFront
             (Element.el
                 [ Element.Font.size 12
@@ -1439,7 +1437,7 @@ searchInputLarge searchText =
             , Element.Border.widthEach { bottom = 1, left = 1, right = 0, top = 1 }
             , Element.paddingEach { left = 30, right = 8, top = 8, bottom = 8 }
             , Ui.onEnter SubmittedSearchBox
-            , HtmlId.toString groupSearchLargeId |> Html.Attributes.id |> Element.htmlAttribute
+            , Dom.idToAttribute groupSearchLargeId |> Element.htmlAttribute
             , Element.inFront
                 (Element.el
                     [ Element.Font.size 14

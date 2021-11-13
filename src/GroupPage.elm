@@ -8,6 +8,7 @@ import Colors exposing (..)
 import Date
 import Description exposing (Description)
 import Duration exposing (Duration)
+import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Effect.Command as Command exposing (Command, FrontendOnly)
 import Effect.Lamdera as Lamdera
 import Effect.Time
@@ -23,7 +24,7 @@ import FrontendUser exposing (FrontendUser)
 import Group exposing (EditEventError(..), EventId, Group, GroupVisibility, PastOngoingOrFuture(..))
 import GroupName exposing (GroupName)
 import Html.Attributes
-import HtmlId exposing (ButtonId, HtmlId)
+import HtmlId
 import Id exposing (Id, UserId)
 import Link exposing (Link)
 import List.Nonempty exposing (Nonempty(..))
@@ -559,8 +560,7 @@ update config group maybeLoggedIn msg model =
                                         Event.duration event
                                             |> EventDuration.toDuration
                                             |> Duration.inHours
-                                            |> Time.removeTrailing0s
-                                            |> String.left 4
+                                            |> Time.removeTrailing0s 1
                                     , maxAttendees =
                                         case Event.maxAttendees event |> MaxAttendees.toMaybe of
                                             Just value ->
@@ -826,8 +826,7 @@ fillInEmptyNewEventInputs timezone copyFrom newEvent =
             (Event.duration copyFrom
                 |> EventDuration.toDuration
                 |> Duration.inHours
-                |> Time.removeTrailing0s
-                |> String.left 3
+                |> Time.removeTrailing0s 1
             )
             newEvent.duration
     , maxAttendees =
@@ -2281,7 +2280,7 @@ section hasError title headerExtra content =
         ]
 
 
-smallButton : HtmlId ButtonId -> msg -> String -> Element msg
+smallButton : HtmlId -> msg -> String -> Element msg
 smallButton htmlId onPress label =
     Element.Input.button
         [ Element.Border.width 2
@@ -2289,7 +2288,7 @@ smallButton htmlId onPress label =
         , Element.paddingXY 8 2
         , Element.Border.rounded 4
         , Element.Font.center
-        , HtmlId.toString htmlId |> Html.Attributes.id |> Element.htmlAttribute
+        , Dom.idToAttribute htmlId |> Element.htmlAttribute
         ]
         { onPress = Just onPress
         , label = Element.text label
@@ -2321,7 +2320,7 @@ groupNameTextInput onChange text labelText =
     Element.Input.text
         [ Element.width Element.fill
         , Element.paddingXY 8 4
-        , HtmlId.toString groupNameInputId |> Html.Attributes.id |> Element.htmlAttribute
+        , Dom.idToAttribute groupNameInputId |> Element.htmlAttribute
         ]
         { text = text
         , onChange = onChange
