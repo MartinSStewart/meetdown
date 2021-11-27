@@ -22,7 +22,7 @@ Also make sure to add your name to the Credits.txt if it's your first PR!
 
 ### How do I log in locally?
 
-Easy way: Uncomment these lines in `BackendLogic.elm`
+Easy way: Uncomment these lines in `Backend.elm`
 ```elm
         --_ =
         --    Debug.log "login" loginLink
