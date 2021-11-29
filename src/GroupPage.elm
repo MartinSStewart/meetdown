@@ -769,6 +769,7 @@ latestEvent group =
     Group.allEvents group
         |> Dict.values
         |> List.sortBy (Event.startTime >> Time.posixToMillis)
+        |> List.reverse
         |> List.head
 
 
