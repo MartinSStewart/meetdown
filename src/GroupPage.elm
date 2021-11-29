@@ -769,7 +769,7 @@ latestEvent group =
     Group.allEvents group
         |> Dict.values
         |> List.sortBy (Event.startTime >> Time.posixToMillis)
-        |> List.head
+        |> List.tail
 
 
 fillInEmptyNewEventInputs : Time.Zone -> Event -> NewEvent -> NewEvent
