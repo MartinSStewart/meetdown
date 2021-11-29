@@ -1,5 +1,5 @@
 module Untrusted exposing
-    ( Untrusted
+    ( Untrusted(..)
     , description
     , emailAddress
     , eventDuration

@@ -1,4 +1,4 @@
-module ProfileImage exposing (ProfileImage, customImage, defaultImage, getCustomImageUrl, image, size, smallImage)
+module ProfileImage exposing (ProfileImage(..), customImage, defaultImage, getCustomImageUrl, image, size, smallImage)
 
 import Colors exposing (..)
 import Element exposing (Element)

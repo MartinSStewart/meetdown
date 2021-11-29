@@ -1,4 +1,4 @@
-module Event exposing (CancellationStatus(..), Event, EventType(..), addAttendee, attendees, cancellationStatus, description, duration, endTime, eventType, isCancelled, isOngoing, maxAttendees, name, newEvent, overlaps, removeAttendee, startTime, withCancellationStatus, withDescription, withDuration, withEventType, withMaxAttendees, withName, withStartTime)
+module Event exposing (CancellationStatus(..), Event(..), EventType(..), addAttendee, attendees, cancellationStatus, description, duration, endTime, eventType, isCancelled, isOngoing, maxAttendees, name, newEvent, overlaps, removeAttendee, startTime, withCancellationStatus, withDescription, withDuration, withEventType, withMaxAttendees, withName, withStartTime)
 
 import Address exposing (Address)
 import AssocSet as Set exposing (Set)
