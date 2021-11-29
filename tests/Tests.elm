@@ -44,8 +44,8 @@ import Untrusted
 import Url
 
 
-testApp =
-    TF.init
+config =
+    TF.Config
         { init = Frontend.init
         , update = Frontend.update
         , onUrlRequest = UrlClicked
@@ -400,7 +400,7 @@ suite =
             emailAddress =
                 Unsafe.emailAddress "the@email.com"
           in
-          testApp "Login from homepage and submit with login button"
+          TF.start config "Login from homepage and submit with login button"
             |> loginFromHomepage False
                 sessionId
                 sessionId
@@ -432,7 +432,7 @@ suite =
             emailAddress =
                 Unsafe.emailAddress "the@email.com"
           in
-          testApp "Login from homepage and submit with enter key"
+          TF.start config "Login from homepage and submit with enter key"
             |> loginFromHomepage
                 True
                 sessionId
@@ -465,7 +465,7 @@ suite =
             emailAddress =
                 Unsafe.emailAddress "the@email.com"
           in
-          testApp "Login from homepage and check that original clientId also got logged in since it's on the same session"
+          TF.start config "Login from homepage and check that original clientId also got logged in since it's on the same session"
             |> loginFromHomepage
                 True
                 sessionId
@@ -491,7 +491,7 @@ suite =
                             )
                 )
             |> TF.toTest
-        , testApp "Login from homepage and check that original clientId did not get logged since it has a different sessionId"
+        , TF.start config "Login from homepage and check that original clientId did not get logged since it has a different sessionId"
             |> loginFromHomepage
                 True
                 (Lamdera.sessionIdFromString "session0")
@@ -521,7 +521,7 @@ suite =
             sessionId =
                 Lamdera.sessionIdFromString "session0"
           in
-          testApp "Login from homepage and check it's not possible to use the same login token twice"
+          TF.start config "Login from homepage and check it's not possible to use the same login token twice"
             |> loginFromHomepage True
                 sessionId
                 sessionId
@@ -580,7 +580,7 @@ suite =
             groupDescription =
                 "This is the best group"
           in
-          testApp "Creating a group redirects to newly created group page"
+          TF.start config "Creating a group redirects to newly created group page"
             |> loginFromHomepage False
                 session0
                 session0
@@ -616,7 +616,7 @@ suite =
             emailAddress =
                 Unsafe.emailAddress "the@email.com"
           in
-          testApp "Create an event and get an email a day before it occurs"
+          TF.start config "Create an event and get an email a day before it occurs"
             |> loginFromHomepage False
                 session0
                 session0
@@ -661,7 +661,7 @@ suite =
             emailAddress =
                 Unsafe.emailAddress "the@email.com"
           in
-          testApp "Create an event and but don't get a notification if it's occurring within 24 hours"
+          TF.start config "Create an event and but don't get a notification if it's occurring within 24 hours"
             |> loginFromHomepage False
                 session0
                 session0
@@ -707,7 +707,7 @@ suite =
             groupName =
                 Unsafe.groupName "It's my Group!"
           in
-          testApp "Create an event and another user joins it and gets an event reminder"
+          TF.start config "Create an event and another user joins it and gets an event reminder"
             |> loginFromHomepage False
                 session0
                 session0
@@ -772,7 +772,7 @@ suite =
                             |> TF.simulateTime Duration.second
                     )
           in
-          testApp "Rate limit login for a given email address"
+          TF.start config "Rate limit login for a given email address"
             |> connectAndLogin 1
             |> connectAndLogin 2
             |> connectAndLogin 3
@@ -800,7 +800,7 @@ suite =
             session0 =
                 Lamdera.sessionIdFromString "session0"
           in
-          testApp "Rate limit login for a given session"
+          TF.start config "Rate limit login for a given session"
             |> TF.connectFrontend
                 session0
                 (Unsafe.url Env.domain)
@@ -867,7 +867,7 @@ suite =
             emailAddress =
                 Unsafe.emailAddress "a@email.eu"
           in
-          testApp "Rate limit delete account email"
+          TF.start config "Rate limit delete account email"
             |> loginFromHomepage
                 True
                 session0
@@ -942,7 +942,7 @@ suite =
             sessionId =
                 Lamdera.sessionIdFromString "sessionId"
           in
-          testApp "Not logged in users can't create groups"
+          TF.start config "Not logged in users can't create groups"
             |> TF.connectFrontend
                 sessionId
                 (Env.domain ++ Route.encode Route.HomepageRoute |> Unsafe.url)
@@ -981,7 +981,7 @@ suite =
             attackerEmailAddress =
                 Unsafe.emailAddress "hacker@email.com"
           in
-          testApp "Non-admin users can't delete groups"
+          TF.start config "Non-admin users can't delete groups"
             |> loginFromHomepage
                 True
                 sessionId
@@ -1065,7 +1065,7 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
         groupName =
             Unsafe.groupName "It's my Group!"
     in
-    testApp "Create an event and another user (who isn't logged in) joins it"
+    TF.start config "Create an event and another user (who isn't logged in) joins it"
         |> loginFromHomepage False
             session0
             session0
@@ -1133,7 +1133,7 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
         groupName =
             Unsafe.groupName "It's my Group!"
     in
-    testApp "Create an event and another user (who isn't logged in but has an account) joins it"
+    TF.start config "Create an event and another user (who isn't logged in but has an account) joins it"
         |> loginFromHomepage False
             session0
             session0
