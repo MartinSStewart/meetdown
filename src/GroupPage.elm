@@ -1,4 +1,4 @@
-module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, ToBackend(..), addedNewEvent, changeVisibilityResponse, createEventCancelId, createEventStartDateId, createEventStartTimeId, createEventSubmitId, createNewEventId, editCancellationStatusResponse, editDescriptionId, editEventResponse, editGroupNameId, eventDescriptionInputId, eventDurationId, eventMeetingInPersonInputId, eventMeetingOnlineInputId, eventMeetingTypeId, eventNameInputId, init, joinEventButtonId, joinEventResponse, leaveEventButtonId, leaveEventResponse, resetDescriptionId, resetGroupNameId, saveDescriptionId, saveGroupNameId, savedDescription, savedName, update, view)
+module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, ToBackend(..), addedNewEvent, changeVisibilityResponse, createEventCancelId, createEventStartDateId, createEventStartTimeId, createEventSubmitId, createNewEventId, editCancellationStatusResponse, editDescriptionId, editEventResponse, editGroupNameId, eventDescriptionInputId, eventDurationId, eventMeetingInPersonInputId, eventMeetingOnlineInputId, eventMeetingTypeId, eventNameInputId, init, joinEventButtonId, joinEventResponse, leaveEventButtonId, leaveEventResponse, notifyMeOfNewEvents, resetDescriptionId, resetGroupNameId, saveDescriptionId, saveGroupNameId, savedDescription, savedName, subscribeButtonId, unsubscribeButtonId, update, view)
 
 import Address exposing (Address, Error(..))
 import AdminStatus exposing (AdminStatus(..))
@@ -11,7 +11,6 @@ import Duration exposing (Duration)
 import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Effect.Command as Command exposing (Command, FrontendOnly)
 import Effect.Lamdera as Lamdera
-import Effect.Time
 import Element exposing (Element)
 import Element.Border
 import Element.Font
@@ -23,9 +22,8 @@ import EventName exposing (EventName)
 import FrontendUser exposing (FrontendUser)
 import Group exposing (EditEventError(..), EventId, Group, GroupVisibility, PastOngoingOrFuture(..))
 import GroupName exposing (GroupName)
-import Html.Attributes
 import HtmlId
-import Id exposing (Id, UserId)
+import Id exposing (GroupId, Id, UserId)
 import Link exposing (Link)
 import List.Nonempty exposing (Nonempty(..))
 import MaxAttendees exposing (Error(..), MaxAttendees)
@@ -49,6 +47,7 @@ type alias Model =
     , showAllFutureEvents : Bool
     , pendingEventCancelOrUncancel : Set EventId
     , pendingToggleVisibility : Bool
+    , subscribePending : SubscribeStatus
     }
 
 
@@ -92,6 +91,8 @@ type Msg
     | PressedMakeGroupUnlisted
     | PressedDeleteGroup
     | PressedCopyPreviousEvent
+    | PressedSubscribe
+    | PressedUnsubscribe
 
 
 type SubmitStatus error
@@ -138,7 +139,14 @@ init =
     , showAllFutureEvents = False
     , pendingEventCancelOrUncancel = Set.empty
     , pendingToggleVisibility = False
+    , subscribePending = NotPendingSubscribe
     }
+
+
+type SubscribeStatus
+    = NotPendingSubscribe
+    | PendingSubscribe
+    | PendingUnsubscribe
 
 
 type EventOverlay
@@ -237,7 +245,7 @@ editCancellationStatusResponse eventId _ model =
     { model | pendingEventCancelOrUncancel = Set.remove eventId model.pendingEventCancelOrUncancel }
 
 
-canEdit : Group -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus } -> Bool
+canEdit : Group -> Maybe LoggedInData -> Bool
 canEdit group maybeLoggedIn =
     case maybeLoggedIn of
         Just loggedIn ->
@@ -267,12 +275,14 @@ type ToBackend
     | LeaveEventRequest EventId
     | ChangeEventCancellationStatusRequest EventId CancellationStatus
     | DeleteGroupAdminRequest
+    | SubscribeRequest
+    | UnsubscribeRequest
 
 
 update :
     { a | time : Time.Posix, timezone : Time.Zone }
     -> Group
-    -> Maybe { b | userId : Id UserId, adminStatus : AdminStatus }
+    -> Maybe LoggedInData
     -> Msg
     -> Model
     -> ( Model, Command FrontendOnly ToBackend Msg, { joinEvent : Maybe EventId } )
@@ -763,6 +773,12 @@ update config group maybeLoggedIn msg model =
                 Nothing ->
                     noChange
 
+        PressedSubscribe ->
+            ( { model | subscribePending = PendingSubscribe }, Lamdera.sendToBackend SubscribeRequest, { joinEvent = Nothing } )
+
+        PressedUnsubscribe ->
+            ( { model | subscribePending = PendingUnsubscribe }, Lamdera.sendToBackend UnsubscribeRequest, { joinEvent = Nothing } )
+
 
 latestEvent : Group -> Maybe Event
 latestEvent group =
@@ -921,7 +937,7 @@ view :
     -> FrontendUser
     -> Group
     -> Model
-    -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus }
+    -> Maybe LoggedInData
     -> Element Msg
 view isMobile currentTime timezone owner group model maybeLoggedIn =
     Element.el
@@ -943,6 +959,132 @@ view isMobile currentTime timezone owner group model maybeLoggedIn =
         )
 
 
+titlePart :
+    Model
+    -> FrontendUser
+    -> Group
+    -> Maybe LoggedInData
+    -> Element Msg
+titlePart model owner group maybeLoggedIn =
+    let
+        canEdit_ =
+            canEdit group maybeLoggedIn
+    in
+    Element.wrappedRow
+        [ Element.width Element.fill, Element.spacing 8 ]
+        [ Element.column
+            [ Element.alignTop, Element.width Element.fill, Element.spacing 4 ]
+            ((case model.name of
+                Editting name ->
+                    let
+                        error : Maybe String
+                        error =
+                            case GroupName.fromString name of
+                                Ok _ ->
+                                    Nothing
+
+                                Err GroupName.GroupNameTooShort ->
+                                    "Name must be at least "
+                                        ++ String.fromInt GroupName.minLength
+                                        ++ " characters long."
+                                        |> Just
+
+                                Err GroupName.GroupNameTooLong ->
+                                    "Name is too long. Keep it under "
+                                        ++ String.fromInt (GroupName.maxLength + 1)
+                                        ++ " characters."
+                                        |> Just
+                    in
+                    [ Element.el
+                        [ Ui.titleFontSize, Ui.contentWidth ]
+                        (groupNameTextInput TypedName name "Group name")
+                    , Maybe.map Ui.error error |> Maybe.withDefault Element.none
+                    , Element.row
+                        [ Element.spacing 16, Element.paddingXY 8 0 ]
+                        [ smallButton resetGroupNameId PressedResetName "Reset"
+                        , Ui.smallSubmitButton saveGroupNameId False { onPress = PressedSaveName, label = "Save" }
+                        ]
+                    ]
+
+                Submitting name ->
+                    [ Element.el
+                        [ Ui.titleFontSize, Ui.contentWidth ]
+                        (groupNameTextInput TypedName (GroupName.toString name) "Group name")
+                    , Element.row
+                        [ Element.spacing 16, Element.paddingXY 8 0 ]
+                        [ smallButton resetGroupNameId PressedResetName "Reset"
+                        , Ui.smallSubmitButton saveGroupNameId True { onPress = PressedSaveName, label = "Save" }
+                        ]
+                    ]
+
+                Unchanged ->
+                    [ group
+                        |> Group.name
+                        |> GroupName.toString
+                        |> Ui.title
+                        |> Element.el [ Element.paddingXY 8 4 ]
+                    , if canEdit_ then
+                        Element.el [ Element.paddingXY 8 0 ] (smallButton editGroupNameId PressedEditName "Edit")
+
+                      else
+                        Element.none
+                    ]
+             )
+                ++ [ case ( canEdit_, maybeLoggedIn ) of
+                        ( False, Just loggedIn ) ->
+                            Element.el
+                                []
+                                (if loggedIn.isSubscribed then
+                                    Ui.submitButton
+                                        unsubscribeButtonId
+                                        (PendingUnsubscribe == model.subscribePending)
+                                        { onPress = PressedUnsubscribe, label = "Stop notifying me of new events" }
+
+                                 else
+                                    Ui.submitButton
+                                        subscribeButtonId
+                                        (PendingSubscribe == model.subscribePending)
+                                        { onPress = PressedSubscribe, label = notifyMeOfNewEvents }
+                                )
+
+                        _ ->
+                            Element.none
+                   ]
+            )
+        , Ui.section "Organizer"
+            (Element.link
+                []
+                { url = Route.encode (Route.UserRoute (Group.ownerId group) owner.name)
+                , label =
+                    Element.row
+                        [ Element.spacing 16 ]
+                        [ ProfileImage.smallImage owner.profileImage
+                        , Element.text (Name.toString owner.name)
+                        ]
+                }
+            )
+        ]
+
+
+notifyMeOfNewEvents : String
+notifyMeOfNewEvents =
+    "Notify me of new events"
+
+
+subscribeButtonId : HtmlId
+subscribeButtonId =
+    Dom.id "groupPage_subscribeButton"
+
+
+unsubscribeButtonId : HtmlId
+unsubscribeButtonId =
+    Dom.id "groupPage_unsubscribeButton"
+
+
+type alias LoggedInData =
+    { userId : Id UserId, adminStatus : AdminStatus, isSubscribed : Bool }
+
+
 groupView :
     Bool
     -> Time.Posix
@@ -950,7 +1092,7 @@ groupView :
     -> FrontendUser
     -> Group
     -> Model
-    -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus }
+    -> Maybe LoggedInData
     -> Element Msg
 groupView isMobile currentTime timezone owner group model maybeLoggedIn =
     let
@@ -962,78 +1104,7 @@ groupView isMobile currentTime timezone owner group model maybeLoggedIn =
     in
     Element.column
         [ Element.spacing 24, Ui.contentWidth, Element.centerX ]
-        [ Element.wrappedRow
-            [ Element.width Element.fill, Element.spacing 8 ]
-            [ Element.column [ Element.alignTop, Element.width Element.fill, Element.spacing 4 ]
-                (case model.name of
-                    Editting name ->
-                        let
-                            error : Maybe String
-                            error =
-                                case GroupName.fromString name of
-                                    Ok _ ->
-                                        Nothing
-
-                                    Err GroupName.GroupNameTooShort ->
-                                        "Name must be at least "
-                                            ++ String.fromInt GroupName.minLength
-                                            ++ " characters long."
-                                            |> Just
-
-                                    Err GroupName.GroupNameTooLong ->
-                                        "Name is too long. Keep it under "
-                                            ++ String.fromInt (GroupName.maxLength + 1)
-                                            ++ " characters."
-                                            |> Just
-                        in
-                        [ Element.el
-                            [ Ui.titleFontSize, Ui.contentWidth ]
-                            (groupNameTextInput TypedName name "Group name")
-                        , Maybe.map Ui.error error |> Maybe.withDefault Element.none
-                        , Element.row
-                            [ Element.spacing 16, Element.paddingXY 8 0 ]
-                            [ smallButton resetGroupNameId PressedResetName "Reset"
-                            , Ui.smallSubmitButton saveGroupNameId False { onPress = PressedSaveName, label = "Save" }
-                            ]
-                        ]
-
-                    Submitting name ->
-                        [ Element.el
-                            [ Ui.titleFontSize, Ui.contentWidth ]
-                            (groupNameTextInput TypedName (GroupName.toString name) "Group name")
-                        , Element.row
-                            [ Element.spacing 16, Element.paddingXY 8 0 ]
-                            [ smallButton resetGroupNameId PressedResetName "Reset"
-                            , Ui.smallSubmitButton saveGroupNameId True { onPress = PressedSaveName, label = "Save" }
-                            ]
-                        ]
-
-                    Unchanged ->
-                        [ group
-                            |> Group.name
-                            |> GroupName.toString
-                            |> Ui.title
-                            |> Element.el [ Element.paddingXY 8 4 ]
-                        , if canEdit_ then
-                            Element.el [ Element.paddingXY 8 0 ] (smallButton editGroupNameId PressedEditName "Edit")
-
-                          else
-                            Element.none
-                        ]
-                )
-            , Ui.section "Organizer"
-                (Element.link
-                    []
-                    { url = Route.encode (Route.UserRoute (Group.ownerId group) owner.name)
-                    , label =
-                        Element.row
-                            [ Element.spacing 16 ]
-                            [ ProfileImage.smallImage owner.profileImage
-                            , Element.text (Name.toString owner.name)
-                            ]
-                    }
-                )
-            ]
+        [ titlePart model owner group maybeLoggedIn
         , case model.description of
             Editting description ->
                 let

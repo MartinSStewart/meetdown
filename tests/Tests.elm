@@ -23,7 +23,6 @@ import Group exposing (EventId)
 import GroupName exposing (GroupName)
 import GroupPage
 import Html.Parser
-import HtmlId
 import Id exposing (GroupId, Id)
 import Json.Decode
 import List.Extra as List
@@ -285,9 +284,39 @@ isReminderEmail httpRequest =
         case httpRequest.body of
             TF.JsonBody value ->
                 case Json.Decode.decodeValue decodePostmark value of
-                    Ok ( _, to, body ) ->
-                        case getRoutesFromHtml body of
-                            [ ( Route.GroupRoute groupId groupName, Route.NoToken ) ] ->
+                    Ok ( subject, to, body ) ->
+                        case ( String.contains "next event starts tomorrow" subject, getRoutesFromHtml body ) of
+                            ( True, [ ( Route.GroupRoute groupId groupName, Route.NoToken ) ] ) ->
+                                { emailAddress = to
+                                , groupId = groupId
+                                , groupName = groupName
+                                }
+                                    |> Just
+
+                            _ ->
+                                Nothing
+
+                    Err _ ->
+                        Nothing
+
+            _ ->
+                Nothing
+
+    else
+        Nothing
+
+
+isNewEventNotificationEmail :
+    TF.HttpRequest
+    -> Maybe { emailAddress : EmailAddress, groupId : Id GroupId, groupName : GroupName }
+isNewEventNotificationEmail httpRequest =
+    if String.startsWith (Postmark.endpoint ++ "/email") httpRequest.url then
+        case httpRequest.body of
+            TF.JsonBody value ->
+                case Json.Decode.decodeValue decodePostmark value of
+                    Ok ( subject, to, body ) ->
+                        case ( String.contains "has planned a new event" subject, getRoutesFromHtml body ) of
+                            ( True, [ ( Route.GroupRoute groupId groupName, Route.NoToken ) ] ) ->
                                 { emailAddress = to
                                 , groupId = groupId
                                 , groupName = groupName
@@ -1017,7 +1046,92 @@ suite =
                         Err "No group should have been deleted"
                 )
             |> TF.toTest
+        , let
+            sessionId =
+                Lamdera.sessionIdFromString "sessionId"
+
+            subscriberSessionId =
+                Lamdera.sessionIdFromString "sessionIdAttacker"
+
+            emailAddress =
+                Unsafe.emailAddress "my@email.com"
+
+            subscriberEmail =
+                Unsafe.emailAddress "a@email.com"
+
+            groupName =
+                Unsafe.groupName "group"
+          in
+          TF.start config "Get new event notification"
+            |> loginFromHomepage
+                True
+                sessionId
+                sessionId
+                emailAddress
+                (\{ instructions, client } ->
+                    instructions
+                        |> createGroup client (GroupName.toString groupName) "description"
+                        |> shortWait
+                        |> loginFromHomepage
+                            False
+                            subscriberSessionId
+                            subscriberSessionId
+                            subscriberEmail
+                            (\a ->
+                                findSingleGroup
+                                    (\groupId instructions2 ->
+                                        instructions2
+                                            |> shortWait
+                                            |> a.client.inputText Frontend.groupSearchId "my group!"
+                                            |> a.client.keyDownEvent Frontend.groupSearchId { keyCode = Ui.enterKeyCode }
+                                            |> shortWait
+                                            |> a.client.clickLink { href = Route.GroupRoute groupId groupName |> Route.encode }
+                                            |> shortWait
+                                            |> a.client.clickButton GroupPage.subscribeButtonId
+                                    )
+                                    a.instructions
+                            )
+                        |> shortWait
+                        |> client.clickButton GroupPage.createNewEventId
+                        |> client.inputText GroupPage.eventNameInputId "Event!"
+                        |> client.inputText GroupPage.eventDescriptionInputId "Event description"
+                        |> client.clickButton (GroupPage.eventMeetingTypeId GroupPage.MeetOnline)
+                        |> client.inputText GroupPage.createEventStartDateId (Ui.datestamp (Date.fromRataDie 737485))
+                        |> client.inputText GroupPage.createEventStartTimeId (Ui.timestamp 10 12)
+                        |> client.inputText GroupPage.eventDurationId "1"
+                        |> client.clickButton GroupPage.createEventSubmitId
+                        |> TF.simulateTime Duration.second
+                )
+            |> shortWait
+            |> TF.checkState
+                (\state ->
+                    case
+                        ( Dict.toList state.backend.groups
+                        , List.filterMap isNewEventNotificationEmail state.httpRequests
+                        )
+                    of
+                        ( [ ( groupId, group ) ], [ newEventNotification ] ) ->
+                            if
+                                newEventNotification
+                                    == { emailAddress = subscriberEmail
+                                       , groupId = groupId
+                                       , groupName = Group.name group
+                                       }
+                            then
+                                Ok ()
+
+                            else
+                                Err "Incorrect notification"
+
+                        _ ->
+                            Err "New event notification email not found"
+                )
+            |> TF.toTest
         ]
+
+
+shortWait =
+    TF.simulateTime (Duration.milliseconds 100)
 
 
 findSingleGroup :

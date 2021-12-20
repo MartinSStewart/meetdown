@@ -119,6 +119,7 @@ type alias LoggedIn_ =
     , emailAddress : EmailAddress
     , profileForm : ProfilePage.Model
     , myGroups : Maybe (Set (Id GroupId))
+    , subscribedGroups : Set (Id GroupId)
     , adminState : AdminCache
     , adminStatus : AdminStatus
     }
@@ -159,6 +160,7 @@ type Log
     | LogLoginEmail Time.Posix (Result Http.Error Postmark.PostmarkSendResponse) EmailAddress
     | LogDeleteAccountEmail Time.Posix (Result Http.Error Postmark.PostmarkSendResponse) (Id UserId)
     | LogEventReminderEmail Time.Posix (Result Http.Error Postmark.PostmarkSendResponse) (Id UserId) (Id GroupId) EventId
+    | LogNewEventNotificationEmail Time.Posix (Result Http.Error Postmark.PostmarkSendResponse) (Id UserId) (Id GroupId)
     | LogLoginTokenEmailRequestRateLimited Time.Posix EmailAddress SessionIdFirst4Chars
     | LogDeleteAccountEmailRequestRateLimited Time.Posix (Id UserId) SessionIdFirst4Chars
 
@@ -238,6 +240,24 @@ logData model log =
                         emailErrorToString (getEmailAddress userId) error
             }
 
+        LogNewEventNotificationEmail time result userId groupId ->
+            { time = time
+            , isError =
+                case result of
+                    Ok _ ->
+                        False
+
+                    Err _ ->
+                        True
+            , message =
+                case result of
+                    Ok _ ->
+                        "Sent an email to " ++ getEmailAddress userId ++ " to notify of a new event"
+
+                    Err error ->
+                        emailErrorToString (getEmailAddress userId) error
+            }
+
         LogLoginTokenEmailRequestRateLimited time emailAddress sessionId ->
             { time = time
             , isError = False
@@ -266,6 +286,7 @@ type alias BackendUser =
     , profileImage : ProfileImage
     , timezone : Time.Zone
     , allowEventReminders : Bool
+    , subscribedGroups : Set (Id GroupId)
     }
 
 
@@ -319,6 +340,7 @@ type BackendMsg
     = SentLoginEmail EmailAddress (Result Http.Error Postmark.PostmarkSendResponse)
     | SentDeleteUserEmail (Id UserId) (Result Http.Error Postmark.PostmarkSendResponse)
     | SentEventReminderEmail (Id UserId) (Id GroupId) EventId (Result Http.Error Postmark.PostmarkSendResponse)
+    | SentNewEventNotificationEmail (Id UserId) (Id GroupId) (Result Http.Error Postmark.PostmarkSendResponse)
     | BackendGotTime Time.Posix
     | Connected SessionId ClientId
     | Disconnected SessionId ClientId
@@ -337,7 +359,7 @@ type ToFrontend
     | ChangeEmailAddressResponse EmailAddress
     | DeleteUserResponse (Result () ())
     | ChangeProfileImageResponse ProfileImage
-    | GetMyGroupsResponse (List ( Id GroupId, Group ))
+    | GetMyGroupsResponse { myGroups : List ( Id GroupId, Group ), subscribedGroups : List ( Id GroupId, Group ) }
     | SearchGroupsResponse String (List ( Id GroupId, Group ))
     | ChangeGroupNameResponse (Id GroupId) GroupName
     | ChangeGroupDescriptionResponse (Id GroupId) Description
@@ -348,3 +370,5 @@ type ToFrontend
     | LeaveEventResponse (Id GroupId) EventId (Result () ())
     | ChangeEventCancellationStatusResponse (Id GroupId) EventId (Result Group.EditCancellationStatusError CancellationStatus) Time.Posix
     | DeleteGroupAdminResponse (Id GroupId)
+    | SubscribeResponse (Id GroupId)
+    | UnsubscribeResponse (Id GroupId)

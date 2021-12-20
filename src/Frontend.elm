@@ -38,6 +38,7 @@ import Element.Region
 import Env
 import FrontendUser exposing (FrontendUser)
 import Group exposing (Group)
+import GroupName
 import GroupPage
 import Html
 import Html.Attributes
@@ -484,7 +485,11 @@ updateLoaded msg model =
                                         group
                                         (case model.loginStatus of
                                             LoggedIn loggedIn ->
-                                                Just loggedIn
+                                                Just
+                                                    { userId = loggedIn.userId
+                                                    , adminStatus = loggedIn.adminStatus
+                                                    , isSubscribed = Set.member groupId loggedIn.subscribedGroups
+                                                    }
 
                                             LoginStatusPending ->
                                                 Nothing
@@ -654,6 +659,7 @@ updateLoadedFromBackend msg model =
                                 , emailAddress = user.emailAddress
                                 , profileForm = ProfilePage.init
                                 , myGroups = Nothing
+                                , subscribedGroups = user.subscribedGroups
                                 , adminState = AdminCacheNotRequested
                                 , adminStatus =
                                     if isAdmin then
@@ -684,6 +690,7 @@ updateLoadedFromBackend msg model =
                                 , emailAddress = user.emailAddress
                                 , profileForm = ProfilePage.init
                                 , myGroups = Nothing
+                                , subscribedGroups = user.subscribedGroups
                                 , adminState = AdminCacheNotRequested
                                 , adminStatus =
                                     if isAdmin then
@@ -826,7 +833,7 @@ updateLoadedFromBackend msg model =
                 NotLoggedIn _ ->
                     ( model, Command.none )
 
-        GetMyGroupsResponse myGroups ->
+        GetMyGroupsResponse { myGroups, subscribedGroups } ->
             ( case model.loginStatus of
                 LoggedIn loggedIn ->
                     { model
@@ -838,7 +845,7 @@ updateLoadedFromBackend msg model =
                                     Dict.insert groupId (ItemCached group) cached
                                 )
                                 model.cachedGroups
-                                myGroups
+                                (myGroups ++ subscribedGroups)
                     }
 
                 NotLoggedIn _ ->
@@ -1050,6 +1057,38 @@ updateLoadedFromBackend msg model =
             , Command.none
             )
 
+        SubscribeResponse groupId ->
+            ( case model.loginStatus of
+                LoggedIn loggedIn ->
+                    { model
+                        | loginStatus =
+                            LoggedIn { loggedIn | subscribedGroups = Set.insert groupId loggedIn.subscribedGroups }
+                    }
+
+                LoginStatusPending ->
+                    model
+
+                NotLoggedIn _ ->
+                    model
+            , Command.none
+            )
+
+        UnsubscribeResponse groupId ->
+            ( case model.loginStatus of
+                LoggedIn loggedIn ->
+                    { model
+                        | loginStatus =
+                            LoggedIn { loggedIn | subscribedGroups = Set.remove groupId loggedIn.subscribedGroups }
+                    }
+
+                LoginStatusPending ->
+                    model
+
+                NotLoggedIn _ ->
+                    model
+            , Command.none
+            )
+
 
 view : FrontendModel -> Browser.Document FrontendMsg
 view model =
@@ -1198,7 +1237,11 @@ viewPage model =
                                 (Dict.get groupId model.groupPage |> Maybe.withDefault GroupPage.init)
                                 (case model.loginStatus of
                                     LoggedIn loggedIn ->
-                                        Just loggedIn
+                                        Just
+                                            { userId = loggedIn.userId
+                                            , adminStatus = loggedIn.adminStatus
+                                            , isSubscribed = Set.member groupId loggedIn.subscribedGroups
+                                            }
 
                                     NotLoggedIn _ ->
                                         Nothing
@@ -1351,27 +1394,22 @@ myGroupsView model loggedIn =
                             (\( groupId, group ) ->
                                 SearchPage.groupPreview (isMobile model) model.time groupId group
                             )
-
-                mySubscriptionsList =
-                    []
             in
             Element.column
                 Ui.pageContentAttributes
                 [ Ui.title "My groups"
-                , if List.isEmpty myGroupsList && List.isEmpty mySubscriptionsList then
+                , if List.isEmpty myGroupsList && Set.isEmpty loggedIn.subscribedGroups then
                     Element.paragraph
                         []
                         [ Element.text "You don't have any groups. Get started by "
                         , Ui.routeLink CreateGroupRoute "creating one"
-                        , Element.text "."
-
-                        --, Element.text " or "
-                        --, Ui.routeLink (SearchGroupsRoute "") "joining one."
+                        , Element.text " or "
+                        , Ui.routeLink (SearchGroupsRoute "") "subscribing to one."
                         ]
 
                   else
                     Element.column
-                        [ Element.width Element.fill, Element.spacing 8 ]
+                        [ Element.width Element.fill, Element.spacing 32 ]
                         [ if List.isEmpty myGroupsList then
                             Element.paragraph []
                                 [ Element.text "You haven't created any groups. "
@@ -1380,17 +1418,25 @@ myGroupsView model loggedIn =
 
                           else
                             Element.column [ Element.spacing 8, Element.width Element.fill ] myGroupsList
+                        , Element.column
+                            [ Element.width Element.fill, Element.spacing 20 ]
+                            [ Ui.title "Subscribed groups"
+                            , if Set.isEmpty loggedIn.subscribedGroups then
+                                Element.paragraph []
+                                    [ "You haven't subscribed to any groups. You can do that by pressing the \""
+                                        ++ GroupPage.notifyMeOfNewEvents
+                                        ++ "\" button on a group page."
+                                        |> Element.text
+                                    ]
 
-                        --, Ui.section "Events I've joined"
-                        --    (if List.isEmpty mySubscriptionsList then
-                        --        Element.paragraph []
-                        --            [ Element.text "You haven't joined any events. "
-                        --            , Ui.routeLink (SearchGroupsRoute "") "You can do that here."
-                        --            ]
-                        --
-                        --     else
-                        --        Element.column [ Element.spacing 8 ] []
-                        --    )
+                              else
+                                SearchPage.getGroupsFromIds (Set.toList loggedIn.subscribedGroups) model
+                                    |> List.map
+                                        (\( groupId, group ) ->
+                                            SearchPage.groupPreview (isMobile model) model.time groupId group
+                                        )
+                                    |> Element.column [ Element.spacing 8, Element.width Element.fill ]
+                            ]
                         ]
                 ]
 
