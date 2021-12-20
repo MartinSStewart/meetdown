@@ -1,4 +1,4 @@
-module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, ToBackend(..), addedNewEvent, changeVisibilityResponse, createEventCancelId, createEventStartDateId, createEventStartTimeId, createEventSubmitId, createNewEventId, editCancellationStatusResponse, editDescriptionId, editEventResponse, editGroupNameId, eventDescriptionInputId, eventDurationId, eventMeetingInPersonInputId, eventMeetingOnlineInputId, eventMeetingTypeId, eventNameInputId, init, joinEventButtonId, joinEventResponse, leaveEventButtonId, leaveEventResponse, notifyMeOfNewEvents, resetDescriptionId, resetGroupNameId, saveDescriptionId, saveGroupNameId, savedDescription, savedName, update, view)
+module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, ToBackend(..), addedNewEvent, changeVisibilityResponse, createEventCancelId, createEventStartDateId, createEventStartTimeId, createEventSubmitId, createNewEventId, editCancellationStatusResponse, editDescriptionId, editEventResponse, editGroupNameId, eventDescriptionInputId, eventDurationId, eventMeetingInPersonInputId, eventMeetingOnlineInputId, eventMeetingTypeId, eventNameInputId, init, joinEventButtonId, joinEventResponse, leaveEventButtonId, leaveEventResponse, notifyMeOfNewEvents, resetDescriptionId, resetGroupNameId, saveDescriptionId, saveGroupNameId, savedDescription, savedName, subscribeButtonId, unsubscribeButtonId, update, view)
 
 import Address exposing (Address, Error(..))
 import AdminStatus exposing (AdminStatus(..))
@@ -1036,7 +1036,7 @@ titlePart model owner group maybeLoggedIn =
                                 []
                                 (if loggedIn.isSubscribed then
                                     Ui.submitButton
-                                        subscribeButtonId
+                                        unsubscribeButtonId
                                         (PendingUnsubscribe == model.subscribePending)
                                         { onPress = PressedUnsubscribe, label = "Stop notifying me of new events" }
 
@@ -1074,6 +1074,11 @@ notifyMeOfNewEvents =
 subscribeButtonId : HtmlId
 subscribeButtonId =
     Dom.id "groupPage_subscribeButton"
+
+
+unsubscribeButtonId : HtmlId
+unsubscribeButtonId =
+    Dom.id "groupPage_unsubscribeButton"
 
 
 type alias LoggedInData =
