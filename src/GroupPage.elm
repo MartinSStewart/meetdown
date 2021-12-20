@@ -1,4 +1,4 @@
-module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, ToBackend(..), addedNewEvent, changeVisibilityResponse, createEventCancelId, createEventStartDateId, createEventStartTimeId, createEventSubmitId, createNewEventId, editCancellationStatusResponse, editDescriptionId, editEventResponse, editGroupNameId, eventDescriptionInputId, eventDurationId, eventMeetingInPersonInputId, eventMeetingOnlineInputId, eventMeetingTypeId, eventNameInputId, init, joinEventButtonId, joinEventResponse, leaveEventButtonId, leaveEventResponse, resetDescriptionId, resetGroupNameId, saveDescriptionId, saveGroupNameId, savedDescription, savedName, update, view)
+module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, ToBackend(..), addedNewEvent, changeVisibilityResponse, createEventCancelId, createEventStartDateId, createEventStartTimeId, createEventSubmitId, createNewEventId, editCancellationStatusResponse, editDescriptionId, editEventResponse, editGroupNameId, eventDescriptionInputId, eventDurationId, eventMeetingInPersonInputId, eventMeetingOnlineInputId, eventMeetingTypeId, eventNameInputId, init, joinEventButtonId, joinEventResponse, leaveEventButtonId, leaveEventResponse, notifyMeOfNewEvents, resetDescriptionId, resetGroupNameId, saveDescriptionId, saveGroupNameId, savedDescription, savedName, update, view)
 
 import Address exposing (Address, Error(..))
 import AdminStatus exposing (AdminStatus(..))
@@ -1044,7 +1044,7 @@ titlePart model owner group maybeLoggedIn =
                                     Ui.submitButton
                                         subscribeButtonId
                                         (PendingSubscribe == model.subscribePending)
-                                        { onPress = PressedSubscribe, label = "Notify me of new events" }
+                                        { onPress = PressedSubscribe, label = notifyMeOfNewEvents }
                                 )
 
                         _ ->
@@ -1064,6 +1064,11 @@ titlePart model owner group maybeLoggedIn =
                 }
             )
         ]
+
+
+notifyMeOfNewEvents : String
+notifyMeOfNewEvents =
+    "Notify me of new events"
 
 
 subscribeButtonId : HtmlId

@@ -23,7 +23,6 @@ import Group exposing (EventId)
 import GroupName exposing (GroupName)
 import GroupPage
 import Html.Parser
-import HtmlId
 import Id exposing (GroupId, Id)
 import Json.Decode
 import List.Extra as List

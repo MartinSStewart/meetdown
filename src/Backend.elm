@@ -13,6 +13,7 @@ import AssocList as Dict exposing (Dict)
 import AssocSet as Set exposing (Set)
 import BiDict.Assoc as BiDict
 import CreateGroupPage exposing (CreateGroupError(..))
+import Date
 import Description exposing (Description)
 import Duration exposing (Duration)
 import Effect.Command as Command exposing (BackendOnly, Command)
@@ -189,6 +190,9 @@ update msg model =
         SentEventReminderEmail userId groupId eventId result ->
             ( addLog (LogEventReminderEmail model.time result userId groupId eventId) model, Command.none )
 
+        SentNewEventNotificationEmail userId groupId result ->
+            ( addLog (LogNewEventNotificationEmail model.time result userId groupId) model, Command.none )
+
 
 addLog : Log -> BackendModel -> BackendModel
 addLog log model =
@@ -262,6 +266,32 @@ sendEventReminderEmail msg groupId groupName event timezone emailAddress =
             , to = List.Nonempty.fromElement { name = "", email = emailAddress }
             , subject = eventReminderEmailSubject groupName event timezone
             , body = Postmark.BodyHtml <| eventReminderEmailContent groupId groupName event
+            , messageStream = "broadcast"
+            }
+                |> Postmark.sendEmail msg Env.postmarkServerToken
+
+        Nothing ->
+            Command.none
+
+
+sendNewEventNotificationEmail :
+    (Result Http.Error Postmark.PostmarkSendResponse -> backendMsg)
+    -> Id GroupId
+    -> GroupName
+    -> Event
+    -> Time.Posix
+    -> Time.Zone
+    -> EmailAddress
+    -> Command BackendOnly toFrontend backendMsg
+sendNewEventNotificationEmail msg groupId groupName event currentTime timezone emailAddress =
+    case noReplyEmailAddress of
+        Just sender ->
+            { from = { name = "Meetdown", email = sender }
+            , to = List.Nonempty.fromElement { name = "", email = emailAddress }
+            , subject = newEventNotificationEmailSubject groupName event currentTime timezone
+            , body =
+                newEventNotificationEmailContent groupId groupName event currentTime timezone
+                    |> Postmark.BodyHtml
             , messageStream = "broadcast"
             }
                 |> Postmark.sendEmail msg Env.postmarkServerToken
@@ -546,12 +576,17 @@ updateFromFrontend sessionId clientId msg model =
             userAuthorization
                 sessionId
                 model
-                (\( userId, _ ) ->
+                (\( userId, user ) ->
                     ( model
-                    , Dict.toList model.groups
-                        |> List.filter
-                            (\( _, group ) -> Group.ownerId group == userId)
-                        |> GetMyGroupsResponse
+                    , GetMyGroupsResponse
+                        { myGroups =
+                            Dict.toList model.groups
+                                |> List.filter (\( _, group ) -> Group.ownerId group == userId)
+                        , subscribedGroups =
+                            List.filterMap
+                                (\groupId -> getGroup groupId model |> Maybe.map (Tuple.pair groupId))
+                                (Set.toList user.subscribedGroups)
+                        }
                         |> Effect.Lamdera.sendToFrontend clientId
                     )
                 )
@@ -673,6 +708,27 @@ updateFromFrontend sessionId clientId msg model =
                                             eventDuration
                                             model.time
                                             maxAttendees
+
+                                    subscriptionEmails : List (Command BackendOnly toFrontend BackendMsg)
+                                    subscriptionEmails =
+                                        List.filterMap
+                                            (\subscriberId ->
+                                                case getUser subscriberId model of
+                                                    Just subscriber ->
+                                                        sendNewEventNotificationEmail
+                                                            (SentNewEventNotificationEmail subscriberId groupId)
+                                                            groupId
+                                                            (Group.name group)
+                                                            newEvent
+                                                            model.time
+                                                            subscriber.timezone
+                                                            subscriber.emailAddress
+                                                            |> Just
+
+                                                    Nothing ->
+                                                        Nothing
+                                            )
+                                            (getGroupSubscribers groupId model)
                                 in
                                 case Group.addEvent newEvent group of
                                     Ok newGroup ->
@@ -680,6 +736,8 @@ updateFromFrontend sessionId clientId msg model =
                                         , sendToFrontends
                                             (getClientIdsForUser userId model)
                                             (CreateEventResponse groupId (Ok newEvent))
+                                            :: subscriptionEmails
+                                            |> Command.batch
                                         )
 
                                     Err overlappingEvents ->
@@ -872,7 +930,7 @@ updateFromFrontend sessionId clientId msg model =
                 )
 
 
-getGroupSubscribers : Id GroupId -> BackendModel -> Set (Id UserId)
+getGroupSubscribers : Id GroupId -> BackendModel -> List (Id UserId)
 getGroupSubscribers groupId model =
     Dict.toList model.users
         |> List.filterMap
@@ -883,7 +941,6 @@ getGroupSubscribers groupId model =
                 else
                     Nothing
             )
-        |> Set.fromList
 
 
 loginIsRateLimited : SessionId -> EmailAddress -> BackendModel -> Bool
@@ -1302,6 +1359,99 @@ eventReminderEmailContent groupId groupName event =
 
                     Event.MeetInPerson Nothing ->
                         [ Email.Html.text " in person tomorrow." ]
+               )
+            ++ [ Email.Html.br [] []
+               , Email.Html.br [] []
+               , Email.Html.a
+                    [ Email.Html.Attributes.href groupRoute ]
+                    [ Email.Html.text "Click here to go to their group page" ]
+               ]
+        )
+
+
+newEventNotificationEmailSubject : GroupName -> Event -> Time.Posix -> Time.Zone -> NonemptyString
+newEventNotificationEmailSubject groupName event currentTime timezone =
+    let
+        startDateOrTime_ =
+            startDateOrTime (Event.startTime event) currentTime timezone
+    in
+    String.Nonempty.append_
+        (GroupName.toNonemptyString groupName)
+        ("'s has planned a new event " ++ startDateOrTime_)
+
+
+startDateOrTime : Time.Posix -> Time.Posix -> Time.Zone -> String
+startDateOrTime startTime currentTime timezone =
+    let
+        startDate =
+            Date.fromPosix timezone startTime
+
+        hour =
+            String.fromInt (Time.toHour timezone startTime)
+
+        minute =
+            Time.toMinute timezone startTime |> String.fromInt |> String.padLeft 2 '0'
+
+        startText =
+            hour
+                ++ ":"
+                ++ minute
+                ++ (if timezone == Time.utc then
+                        " (UTC)"
+
+                    else
+                        ""
+                   )
+
+        today : Date.Date
+        today =
+            Date.fromPosix timezone currentTime
+    in
+    if startDate == today then
+        "today at " ++ startText
+
+    else if startDate == Date.add Date.Days 1 today then
+        "tomrrow at " ++ startText
+
+    else
+        "on " ++ Date.toIsoString startDate
+
+
+newEventNotificationEmailContent : Id GroupId -> GroupName -> Event -> Time.Posix -> Time.Zone -> Email.Html.Html
+newEventNotificationEmailContent groupId groupName event currentTime timezone =
+    let
+        groupRoute =
+            Env.domain ++ Route.encode (Route.GroupRoute groupId groupName)
+
+        startDateOrTime_ =
+            startDateOrTime (Event.startTime event) currentTime timezone
+    in
+    Email.Html.div
+        [ Email.Html.Attributes.padding "8px" ]
+        (Email.Html.b [] [ Event.name event |> EventName.toString |> Email.Html.text ]
+            :: Email.Html.text " will be taking place "
+            :: (case Event.eventType event of
+                    Event.MeetOnline (Just meetingLink) ->
+                        [ "online "
+                            ++ startDateOrTime_
+                            ++ ". The event will be accessible with this link "
+                            |> Email.Html.text
+                        , Email.Html.a
+                            [ Email.Html.Attributes.href (Link.toString meetingLink) ]
+                            [ Email.Html.text (Link.toString meetingLink) ]
+                        , Email.Html.text ". "
+                        ]
+
+                    Event.MeetOnline Nothing ->
+                        [ Email.Html.text ("online " ++ startDateOrTime_ ++ ".") ]
+
+                    Event.MeetInPerson (Just address) ->
+                        [ Email.Html.text
+                            (" in person at " ++ Address.toString address ++ " " ++ startDateOrTime_ ++ ".")
+                        ]
+
+                    Event.MeetInPerson Nothing ->
+                        [ Email.Html.text (" in person " ++ startDateOrTime_ ++ ".") ]
                )
             ++ [ Email.Html.br [] []
                , Email.Html.br [] []

@@ -37,6 +37,7 @@ getGroupsFromIds groups model =
                     )
         )
         groups
+        |> List.sortBy (Tuple.second >> Group.name >> GroupName.toString)
 
 
 view : Bool -> String -> LoadedFrontend -> Element FrontendMsg
