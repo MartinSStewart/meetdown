@@ -10,7 +10,7 @@ module Backend exposing
 import Address
 import Array
 import AssocList as Dict exposing (Dict)
-import AssocSet as Set
+import AssocSet as Set exposing (Set)
 import BiDict.Assoc as BiDict
 import CreateGroupPage exposing (CreateGroupError(..))
 import Description exposing (Description)
@@ -594,7 +594,7 @@ updateFromFrontend sessionId clientId msg model =
         GroupRequest groupId (GroupPage.ChangeGroupNameRequest untrustedName) ->
             case Untrusted.groupName untrustedName of
                 Just name ->
-                    userWithGroupAuthorization
+                    userWithGroupOwnerAuthorization
                         sessionId
                         groupId
                         model
@@ -615,7 +615,7 @@ updateFromFrontend sessionId clientId msg model =
         GroupRequest groupId (GroupPage.ChangeGroupDescriptionRequest untrustedDescription) ->
             case Untrusted.description untrustedDescription of
                 Just description ->
-                    userWithGroupAuthorization
+                    userWithGroupOwnerAuthorization
                         sessionId
                         groupId
                         model
@@ -643,7 +643,7 @@ updateFromFrontend sessionId clientId msg model =
                     (Untrusted.maxAttendees maxAttendees_)
             of
                 T5 (Just eventName) (Just description) (Just eventType) (Just eventDuration) (Just maxAttendees) ->
-                    userWithGroupAuthorization
+                    userWithGroupOwnerAuthorization
                         sessionId
                         groupId
                         model
@@ -733,7 +733,7 @@ updateFromFrontend sessionId clientId msg model =
                     (Untrusted.maxAttendees maxAttendees_)
             of
                 T5 (Just eventName) (Just description) (Just eventType) (Just eventDuration) (Just maxAttendees) ->
-                    userWithGroupAuthorization
+                    userWithGroupOwnerAuthorization
                         sessionId
                         groupId
                         model
@@ -769,7 +769,7 @@ updateFromFrontend sessionId clientId msg model =
                     logUntrusted
 
         GroupRequest groupId (GroupPage.ChangeEventCancellationStatusRequest eventId cancellationStatus) ->
-            userWithGroupAuthorization
+            userWithGroupOwnerAuthorization
                 sessionId
                 groupId
                 model
@@ -796,7 +796,7 @@ updateFromFrontend sessionId clientId msg model =
                 )
 
         GroupRequest groupId (GroupPage.ChangeGroupVisibilityRequest groupVisibility) ->
-            userWithGroupAuthorization
+            userWithGroupOwnerAuthorization
                 sessionId
                 groupId
                 model
@@ -827,6 +827,63 @@ updateFromFrontend sessionId clientId msg model =
                         Nothing ->
                             ( model, Command.none )
                 )
+
+        GroupRequest groupId GroupPage.SubscribeRequest ->
+            userAuthorization
+                sessionId
+                model
+                (\( userId, user ) ->
+                    case getGroup groupId model of
+                        Just group ->
+                            if Group.ownerId group == userId then
+                                ( model, Command.none )
+
+                            else
+                                ( { model
+                                    | users =
+                                        Dict.insert
+                                            userId
+                                            { user | subscribedGroups = Set.insert groupId user.subscribedGroups }
+                                            model.users
+                                  }
+                                , sendToFrontends
+                                    (getClientIdsForUser userId model)
+                                    (SubscribeResponse groupId)
+                                )
+
+                        Nothing ->
+                            ( model, Command.none )
+                )
+
+        GroupRequest groupId GroupPage.UnsubscribeRequest ->
+            userAuthorization
+                sessionId
+                model
+                (\( userId, user ) ->
+                    ( { model
+                        | users =
+                            Dict.insert
+                                userId
+                                { user | subscribedGroups = Set.remove groupId user.subscribedGroups }
+                                model.users
+                      }
+                    , sendToFrontends (getClientIdsForUser userId model) (UnsubscribeResponse groupId)
+                    )
+                )
+
+
+getGroupSubscribers : Id GroupId -> BackendModel -> Set (Id UserId)
+getGroupSubscribers groupId model =
+    Dict.toList model.users
+        |> List.filterMap
+            (\( userId, user ) ->
+                if Set.member groupId user.subscribedGroups then
+                    Just userId
+
+                else
+                    Nothing
+            )
+        |> Set.fromList
 
 
 loginIsRateLimited : SessionId -> EmailAddress -> BackendModel -> Bool
@@ -958,6 +1015,7 @@ loginWithToken sessionId clientId maybeJoinEvent maybeLoginTokenData model =
                                 , profileImage = ProfileImage.defaultImage
                                 , timezone = Time.utc
                                 , allowEventReminders = True
+                                , subscribedGroups = Set.empty
                                 }
 
                             ( model3, effects ) =
@@ -1063,13 +1121,13 @@ userAuthorization sessionId model updateFunc =
             ( model, Command.none )
 
 
-userWithGroupAuthorization :
+userWithGroupOwnerAuthorization :
     SessionId
     -> Id GroupId
     -> BackendModel
     -> (( Id UserId, BackendUser, Group ) -> ( BackendModel, Command BackendOnly ToFrontend BackendMsg ))
     -> ( BackendModel, Command BackendOnly ToFrontend BackendMsg )
-userWithGroupAuthorization sessionId groupId model updateFunc =
+userWithGroupOwnerAuthorization sessionId groupId model updateFunc =
     case checkLogin sessionId model of
         Just { userId, user } ->
             case getGroup groupId model of
@@ -1153,8 +1211,8 @@ loginEmailContent route loginToken maybeJoinEvent =
         loginLink =
             loginEmailLink route loginToken maybeJoinEvent
 
-        --_ =
-        --    Debug.log "login" loginLink
+        _ =
+            Debug.log "login" loginLink
     in
     Email.Html.div
         [ Email.Html.Attributes.padding "8px" ]

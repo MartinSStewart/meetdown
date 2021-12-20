@@ -119,6 +119,7 @@ type alias LoggedIn_ =
     , emailAddress : EmailAddress
     , profileForm : ProfilePage.Model
     , myGroups : Maybe (Set (Id GroupId))
+    , subscribedGroups : Set (Id GroupId)
     , adminState : AdminCache
     , adminStatus : AdminStatus
     }
@@ -266,6 +267,7 @@ type alias BackendUser =
     , profileImage : ProfileImage
     , timezone : Time.Zone
     , allowEventReminders : Bool
+    , subscribedGroups : Set (Id GroupId)
     }
 
 
@@ -348,3 +350,5 @@ type ToFrontend
     | LeaveEventResponse (Id GroupId) EventId (Result () ())
     | ChangeEventCancellationStatusResponse (Id GroupId) EventId (Result Group.EditCancellationStatusError CancellationStatus) Time.Posix
     | DeleteGroupAdminResponse (Id GroupId)
+    | SubscribeResponse (Id GroupId)
+    | UnsubscribeResponse (Id GroupId)

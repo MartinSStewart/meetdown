@@ -484,7 +484,11 @@ updateLoaded msg model =
                                         group
                                         (case model.loginStatus of
                                             LoggedIn loggedIn ->
-                                                Just loggedIn
+                                                Just
+                                                    { userId = loggedIn.userId
+                                                    , adminStatus = loggedIn.adminStatus
+                                                    , isSubscribed = Set.member groupId loggedIn.subscribedGroups
+                                                    }
 
                                             LoginStatusPending ->
                                                 Nothing
@@ -654,6 +658,7 @@ updateLoadedFromBackend msg model =
                                 , emailAddress = user.emailAddress
                                 , profileForm = ProfilePage.init
                                 , myGroups = Nothing
+                                , subscribedGroups = user.subscribedGroups
                                 , adminState = AdminCacheNotRequested
                                 , adminStatus =
                                     if isAdmin then
@@ -684,6 +689,7 @@ updateLoadedFromBackend msg model =
                                 , emailAddress = user.emailAddress
                                 , profileForm = ProfilePage.init
                                 , myGroups = Nothing
+                                , subscribedGroups = user.subscribedGroups
                                 , adminState = AdminCacheNotRequested
                                 , adminStatus =
                                     if isAdmin then
@@ -1050,6 +1056,38 @@ updateLoadedFromBackend msg model =
             , Command.none
             )
 
+        SubscribeResponse groupId ->
+            ( case model.loginStatus of
+                LoggedIn loggedIn ->
+                    { model
+                        | loginStatus =
+                            LoggedIn { loggedIn | subscribedGroups = Set.insert groupId loggedIn.subscribedGroups }
+                    }
+
+                LoginStatusPending ->
+                    model
+
+                NotLoggedIn _ ->
+                    model
+            , Command.none
+            )
+
+        UnsubscribeResponse groupId ->
+            ( case model.loginStatus of
+                LoggedIn loggedIn ->
+                    { model
+                        | loginStatus =
+                            LoggedIn { loggedIn | subscribedGroups = Set.remove groupId loggedIn.subscribedGroups }
+                    }
+
+                LoginStatusPending ->
+                    model
+
+                NotLoggedIn _ ->
+                    model
+            , Command.none
+            )
+
 
 view : FrontendModel -> Browser.Document FrontendMsg
 view model =
@@ -1198,7 +1236,11 @@ viewPage model =
                                 (Dict.get groupId model.groupPage |> Maybe.withDefault GroupPage.init)
                                 (case model.loginStatus of
                                     LoggedIn loggedIn ->
-                                        Just loggedIn
+                                        Just
+                                            { userId = loggedIn.userId
+                                            , adminStatus = loggedIn.adminStatus
+                                            , isSubscribed = Set.member groupId loggedIn.subscribedGroups
+                                            }
 
                                     NotLoggedIn _ ->
                                         Nothing
