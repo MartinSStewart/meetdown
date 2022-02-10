@@ -79,7 +79,7 @@ css =
         []
         [ Html.text """
           @import url('https://rsms.me/inter/inter.css');
-          html { font-family: 'Inter', sans-serif; overflow-y: scroll; }
+          html { font-family: 'Inter', sans-serif; scrollbar-gutter: stable; }
           @supports (font-variation-settings: normal) {
             html { font-family: 'Inter var', sans-serif; }
           }
