@@ -1162,7 +1162,15 @@ groupView isMobile currentTime timezone owner group model maybeLoggedIn =
                     False
                     "Ongoing event"
                     Element.none
-                    (ongoingEventView isMobile currentTime timezone canEdit_ maybeLoggedIn event)
+                    (ongoingEventView
+                        isMobile
+                        currentTime
+                        timezone
+                        canEdit_
+                        maybeLoggedIn
+                        model.pendingJoinOrLeave
+                        event
+                    )
 
             Nothing ->
                 Element.none
@@ -1323,14 +1331,19 @@ ongoingEventView :
     -> Time.Zone
     -> Bool
     -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus }
+    -> Dict EventId EventJoinOrLeaveStatus
     -> ( EventId, Event )
     -> Element Msg
-ongoingEventView isMobile currentTime timezone isOwner maybeLoggedIn ( eventId, event ) =
+ongoingEventView isMobile currentTime timezone isOwner maybeLoggedIn pendingJoinOrLeaveStatuses ( eventId, event ) =
     let
         isAttending =
             maybeLoggedIn
                 |> Maybe.map (\{ userId } -> Set.member userId (Event.attendees event))
                 |> Maybe.withDefault False
+
+        maybeJoinOrLeaveStatus : Maybe EventJoinOrLeaveStatus
+        maybeJoinOrLeaveStatus =
+            Dict.get eventId pendingJoinOrLeaveStatuses
 
         attendeeCount =
             Event.attendees event |> Set.size
@@ -1378,6 +1391,25 @@ ongoingEventView isMobile currentTime timezone isOwner maybeLoggedIn ( eventId, 
 
             _ ->
                 Element.none
+        , case Event.cancellationStatus event of
+            Just ( Event.EventUncancelled, _ ) ->
+                joinOrLeaveButton isAttending maybeJoinOrLeaveStatus eventId event attendeeCount
+
+            Just ( Event.EventCancelled, cancelTime ) ->
+                Ui.error
+                    ("This event was cancelled "
+                        ++ Time.diffToString
+                            (if Duration.from currentTime cancelTime |> Quantity.lessThanZero then
+                                currentTime
+
+                             else
+                                cancelTime
+                            )
+                            cancelTime
+                    )
+
+            Nothing ->
+                joinOrLeaveButton isAttending maybeJoinOrLeaveStatus eventId event attendeeCount
         , if isOwner then
             Element.el
                 []
@@ -1490,42 +1522,6 @@ futureEventView isMobile currentTime timezone isOwner maybeLoggedIn pendingJoinO
 
         attendeeCount =
             Event.attendees event |> Set.size
-
-        joinOrLeaveButton =
-            if isAttending then
-                Ui.submitButton
-                    leaveEventButtonId
-                    (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
-                    { onPress = PressedLeaveEvent eventId, label = "Leave event" }
-
-            else
-                case Event.maxAttendees event |> MaxAttendees.toMaybe of
-                    Just value ->
-                        let
-                            spotsLeft : Int
-                            spotsLeft =
-                                value - attendeeCount
-                        in
-                        if spotsLeft == 1 then
-                            Ui.submitButton
-                                joinEventButtonId
-                                (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
-                                { onPress = PressedJoinEvent eventId, label = "Join event (1 spot left)" }
-
-                        else if spotsLeft > 0 then
-                            Ui.submitButton
-                                joinEventButtonId
-                                (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
-                                { onPress = PressedJoinEvent eventId, label = "Join event (" ++ String.fromInt spotsLeft ++ " spots left)" }
-
-                        else
-                            Ui.error "No spots left"
-
-                    Nothing ->
-                        Ui.submitButton
-                            joinEventButtonId
-                            (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
-                            { onPress = PressedJoinEvent eventId, label = "Join event" }
     in
     eventCard
         [ eventCardHeader isMobile currentTime timezone IsFutureEvent event
@@ -1587,7 +1583,7 @@ futureEventView isMobile currentTime timezone isOwner maybeLoggedIn pendingJoinO
             ]
             [ case Event.cancellationStatus event of
                 Just ( Event.EventUncancelled, _ ) ->
-                    joinOrLeaveButton
+                    joinOrLeaveButton isAttending maybeJoinOrLeaveStatus eventId event attendeeCount
 
                 Just ( Event.EventCancelled, cancelTime ) ->
                     Ui.error
@@ -1603,7 +1599,7 @@ futureEventView isMobile currentTime timezone isOwner maybeLoggedIn pendingJoinO
                         )
 
                 Nothing ->
-                    joinOrLeaveButton
+                    joinOrLeaveButton isAttending maybeJoinOrLeaveStatus eventId event attendeeCount
             , if isOwner then
                 Ui.button editEventId { onPress = PressedEditEvent eventId, label = "Edit event" }
 
@@ -1627,6 +1623,44 @@ futureEventView isMobile currentTime timezone isOwner maybeLoggedIn pendingJoinO
                 Element.none
         , Event.description event |> Description.toParagraph False
         ]
+
+
+joinOrLeaveButton : Bool -> Maybe EventJoinOrLeaveStatus -> EventId -> Event -> Int -> Element Msg
+joinOrLeaveButton isAttending maybeJoinOrLeaveStatus eventId event attendeeCount =
+    if isAttending then
+        Ui.submitButton
+            leaveEventButtonId
+            (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
+            { onPress = PressedLeaveEvent eventId, label = "Leave event" }
+
+    else
+        case Event.maxAttendees event |> MaxAttendees.toMaybe of
+            Just value ->
+                let
+                    spotsLeft : Int
+                    spotsLeft =
+                        value - attendeeCount
+                in
+                if spotsLeft == 1 then
+                    Ui.submitButton
+                        joinEventButtonId
+                        (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
+                        { onPress = PressedJoinEvent eventId, label = "Join event (1 spot left)" }
+
+                else if spotsLeft > 0 then
+                    Ui.submitButton
+                        joinEventButtonId
+                        (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
+                        { onPress = PressedJoinEvent eventId, label = "Join event (" ++ String.fromInt spotsLeft ++ " spots left)" }
+
+                else
+                    Ui.error "No spots left"
+
+            Nothing ->
+                Ui.submitButton
+                    joinEventButtonId
+                    (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
+                    { onPress = PressedJoinEvent eventId, label = "Join event" }
 
 
 maxAttendeesView event =
