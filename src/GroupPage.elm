@@ -565,7 +565,10 @@ update config group maybeLoggedIn msg model =
                                             Event.MeetInPerson Nothing ->
                                                 ""
                                     , startDate = Event.startTime event |> Date.fromPosix config.timezone |> Ui.datestamp
-                                    , startTime = Ui.timeToString config.timezone (Event.startTime event)
+                                    , startTime =
+                                        Ui.timestamp
+                                            (Time.toHour config.timezone (Event.startTime event))
+                                            (Time.toMinute config.timezone (Event.startTime event))
                                     , duration =
                                         Event.duration event
                                             |> EventDuration.toDuration
