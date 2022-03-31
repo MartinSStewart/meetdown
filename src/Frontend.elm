@@ -1378,7 +1378,7 @@ viewPage model =
                     ]
                 , questionAndAnswer
                     "If this website is free and doesn't run ads or sell data, how does it sustain itself?"
-                    [ Element.text "I just spend my own money to host it. That's okay because it's designed to cost very little to run. In the unlikely even that Meetdown gets very popular and hosting costs become too expensive, I'll ask for donations." ]
+                    [ Element.text "I just spend my own money to host it. That's okay because it's designed to cost very little to run. In the unlikely event that Meetdown gets very popular and hosting costs become too expensive, I'll ask for donations." ]
                 ]
 
 
