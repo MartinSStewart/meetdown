@@ -31,20 +31,22 @@ import EventName
 import Group exposing (EventId, Group, GroupVisibility)
 import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError(..))
-import Id exposing (DeleteUserToken, GroupId, Id, LoginToken, UserId)
+import Id exposing (DeleteUserToken, GroupId, Id(..), LoginToken, UserId)
 import Lamdera
 import Link
 import List.Extra as List
 import List.Nonempty
+import MaxAttendees exposing (MaxAttendees(..))
 import Name
 import Postmark
-import ProfileImage
+import ProfileImage exposing (ProfileImage(..))
 import ProfilePage
 import Quantity
 import Route exposing (Route(..))
 import String.Nonempty exposing (NonemptyString(..))
 import Toop exposing (T3(..), T4(..), T5(..))
 import Types exposing (..)
+import Unsafe
 import Untrusted
 
 
@@ -52,7 +54,7 @@ app =
     Effect.Lamdera.backend
         Lamdera.broadcast
         Lamdera.sendToFrontend
-        { init = init
+        { init = fakeInit
         , update = update
         , updateFromFrontend = updateFromFrontend
         , subscriptions = subscriptions
@@ -68,6 +70,78 @@ init : ( BackendModel, Command BackendOnly ToFrontend BackendMsg )
 init =
     ( { users = Dict.empty
       , groups = Dict.empty
+      , deletedGroups = Dict.empty
+      , sessions = BiDict.empty
+      , loginAttempts = Dict.empty
+      , connections = Dict.empty
+      , logs = Array.empty
+      , time = Time.millisToPosix 0
+      , secretCounter = 0
+      , pendingLoginTokens = Dict.empty
+      , pendingDeleteUserTokens = Dict.empty
+      }
+    , Time.now |> Task.perform BackendGotTime
+    )
+
+
+fakeInit : ( BackendModel, Command BackendOnly ToFrontend BackendMsg )
+fakeInit =
+    ( { users =
+            Dict.fromList
+                [ ( Id "a"
+                  , { name = Unsafe.name "Jim"
+                    , description = Unsafe.description "asdf"
+                    , emailAddress = Unsafe.emailAddress "as2df@asdf.com"
+                    , profileImage = DefaultImage
+                    , timezone = Time.utc
+                    , allowEventReminders = False
+                    , subscribedGroups = Set.empty
+                    }
+                  )
+                , ( Id "b"
+                  , { name = Unsafe.name "Steve"
+                    , description = Unsafe.description "asdf"
+                    , emailAddress = Unsafe.emailAddress "asd2f@asdf.com"
+                    , profileImage = DefaultImage
+                    , timezone = Time.utc
+                    , allowEventReminders = False
+                    , subscribedGroups = Set.empty
+                    }
+                  )
+                , ( Id "c"
+                  , { name = Unsafe.name "Falth"
+                    , description = Unsafe.description "asdf"
+                    , emailAddress = Unsafe.emailAddress "asdf@asdf.com"
+                    , profileImage = DefaultImage
+                    , timezone = Time.utc
+                    , allowEventReminders = False
+                    , subscribedGroups = Set.empty
+                    }
+                  )
+                ]
+      , groups =
+            Dict.fromList
+                [ ( Id "10001"
+                  , Group.init
+                        (Id "a")
+                        (Unsafe.groupName "groupName")
+                        (Unsafe.description "asdf")
+                        Group.PublicGroup
+                        (Time.millisToPosix 0)
+                        |> Unsafe.addEvent
+                            (Event.newEvent
+                                (Id "a")
+                                (Unsafe.eventName "event")
+                                (Unsafe.description "asdf")
+                                (Event.MeetOnline Nothing)
+                                (Time.millisToPosix 20000)
+                                (Unsafe.eventDurationFromMinutes 10000)
+                                (Time.millisToPosix 10000)
+                                NoLimit
+                                |> Unsafe.addAttendee (Id "b")
+                            )
+                  )
+                ]
       , deletedGroups = Dict.empty
       , sessions = BiDict.empty
       , loginAttempts = Dict.empty
