@@ -14,6 +14,6 @@ view user =
         (Ui.pageContentAttributes ++ [ Element.spacing 32 ])
         [ Element.row
             [ Element.spacing 16 ]
-            [ ProfileImage.image user.profileImage, Ui.title (Name.toString user.name) ]
+            [ ProfileImage.image ProfileImage.defaultSize user.profileImage, Ui.title (Name.toString user.name) ]
         , Description.toParagraph False user.description
         ]

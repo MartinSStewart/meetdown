@@ -4,6 +4,7 @@ import Address exposing (Address, Error(..))
 import AdminStatus exposing (AdminStatus(..))
 import AssocList as Dict exposing (Dict)
 import AssocSet as Set exposing (Set)
+import Cache exposing (Cache)
 import Colors exposing (..)
 import Date
 import Description exposing (Description)
@@ -12,6 +13,7 @@ import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Effect.Command as Command exposing (Command, FrontendOnly)
 import Effect.Lamdera as Lamdera
 import Element exposing (Element)
+import Element.Background
 import Element.Border
 import Element.Font
 import Element.Input
@@ -28,6 +30,7 @@ import Link exposing (Link)
 import List.Nonempty exposing (Nonempty(..))
 import MaxAttendees exposing (Error(..), MaxAttendees)
 import Name
+import Pixels
 import ProfileImage
 import Quantity exposing (Quantity)
 import Route
@@ -938,11 +941,12 @@ view :
     -> Time.Posix
     -> Time.Zone
     -> FrontendUser
+    -> Dict (Id UserId) (Cache FrontendUser)
     -> Group
     -> Model
     -> Maybe LoggedInData
     -> Element Msg
-view isMobile currentTime timezone owner group model maybeLoggedIn =
+view isMobile currentTime timezone owner cachedUsers group model maybeLoggedIn =
     Element.el
         Ui.pageContentAttributes
         (case model.eventOverlay of
@@ -958,7 +962,7 @@ view isMobile currentTime timezone owner group model maybeLoggedIn =
                         Element.text "This event doesn't exist"
 
             Nothing ->
-                groupView isMobile currentTime timezone owner group model maybeLoggedIn
+                groupView isMobile currentTime timezone owner cachedUsers group model maybeLoggedIn
         )
 
 
@@ -1093,11 +1097,12 @@ groupView :
     -> Time.Posix
     -> Time.Zone
     -> FrontendUser
+    -> Dict (Id UserId) (Cache FrontendUser)
     -> Group
     -> Model
     -> Maybe LoggedInData
     -> Element Msg
-groupView isMobile currentTime timezone owner group model maybeLoggedIn =
+groupView isMobile currentTime timezone owner cachedUsers group model maybeLoggedIn =
     let
         { pastEvents, ongoingEvent, futureEvents } =
             Group.events currentTime group
@@ -1234,7 +1239,7 @@ groupView isMobile currentTime timezone owner group model maybeLoggedIn =
                     False
                     "Past events"
                     Element.none
-                    (List.map (Tuple.second >> pastEventView isMobile currentTime timezone maybeLoggedIn) (head :: rest)
+                    (List.map (Tuple.second >> pastEventView isMobile cachedUsers currentTime timezone maybeLoggedIn) (head :: rest)
                         |> Element.column [ Element.width Element.fill, Element.spacing 8 ]
                     )
 
@@ -1426,12 +1431,13 @@ ongoingEventView isMobile currentTime timezone isOwner maybeLoggedIn pendingJoin
 
 pastEventView :
     Bool
+    -> Dict (Id UserId) (Cache FrontendUser)
     -> Time.Posix
     -> Time.Zone
     -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus }
     -> Event
     -> Element Msg
-pastEventView isMobile currentTime timezone maybeLoggedIn event =
+pastEventView isMobile cachedUsers currentTime timezone maybeLoggedIn event =
     let
         isAttending =
             maybeLoggedIn |> Maybe.map (\{ userId } -> Set.member userId (Event.attendees event)) |> Maybe.withDefault False
@@ -1467,6 +1473,23 @@ pastEventView isMobile currentTime timezone maybeLoggedIn event =
                            )
                         |> Element.text
             ]
+        , Event.attendees event
+            |> Set.toList
+            |> List.map
+                (\userId ->
+                    case Cache.get userId cachedUsers of
+                        Just user ->
+                            ProfileImage.image (Pixels.pixels 24) user.profileImage
+
+                        Nothing ->
+                            Element.el
+                                [ Element.width (Element.px 24)
+                                , Element.height (Element.px 24)
+                                , Element.Background.color (Element.rgb 0.5 0.5 0.5)
+                                ]
+                                Element.none
+                )
+            |> Element.row []
         , Event.description event |> Description.toParagraph False
         ]
 

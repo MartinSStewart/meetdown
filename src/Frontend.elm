@@ -17,6 +17,7 @@ import AdminStatus exposing (AdminStatus(..))
 import AssocList as Dict
 import AssocSet as Set
 import Browser as Browser exposing (UrlRequest(..))
+import Cache exposing (Cache(..))
 import Colors
 import CreateGroupPage
 import DictExtra as Dict
@@ -757,7 +758,7 @@ updateLoadedFromBackend msg model =
                         | cachedUsers =
                             Dict.updateJust
                                 loggedIn.userId
-                                (Types.mapCache (\a -> { a | name = name }))
+                                (Cache.map (\a -> { a | name = name }))
                                 model.cachedUsers
                       }
                     , Command.none
@@ -776,7 +777,7 @@ updateLoadedFromBackend msg model =
                         | cachedUsers =
                             Dict.updateJust
                                 loggedIn.userId
-                                (Types.mapCache (\a -> { a | description = description }))
+                                (Cache.map (\a -> { a | description = description }))
                                 model.cachedUsers
                       }
                     , Command.none
@@ -821,7 +822,7 @@ updateLoadedFromBackend msg model =
                         | cachedUsers =
                             Dict.updateJust
                                 loggedIn.userId
-                                (Types.mapCache (\a -> { a | profileImage = profileImage }))
+                                (Cache.map (\a -> { a | profileImage = profileImage }))
                                 model.cachedUsers
                       }
                     , Command.none
@@ -874,7 +875,7 @@ updateLoadedFromBackend msg model =
             ( { model
                 | cachedGroups =
                     Dict.updateJust groupId
-                        (Types.mapCache (Group.withName groupName))
+                        (Cache.map (Group.withName groupName))
                         model.cachedGroups
                 , groupPage = Dict.updateJust groupId GroupPage.savedName model.groupPage
               }
@@ -885,7 +886,7 @@ updateLoadedFromBackend msg model =
             ( { model
                 | cachedGroups =
                     Dict.updateJust groupId
-                        (Types.mapCache (Group.withDescription description))
+                        (Cache.map (Group.withDescription description))
                         model.cachedGroups
                 , groupPage = Dict.updateJust groupId GroupPage.savedDescription model.groupPage
               }
@@ -898,7 +899,7 @@ updateLoadedFromBackend msg model =
                     case result of
                         Ok event ->
                             Dict.updateJust groupId
-                                (Types.mapCache (\group -> Group.addEvent event group |> Result.withDefault group))
+                                (Cache.map (\group -> Group.addEvent event group |> Result.withDefault group))
                                 model.cachedGroups
 
                         Err _ ->
@@ -916,7 +917,7 @@ updateLoadedFromBackend msg model =
                             { model
                                 | cachedGroups =
                                     Dict.updateJust groupId
-                                        (Types.mapCache
+                                        (Cache.map
                                             (\group ->
                                                 case Group.joinEvent loggedIn.userId eventId group of
                                                     Ok newGroup ->
@@ -959,7 +960,7 @@ updateLoadedFromBackend msg model =
                             { model
                                 | cachedGroups =
                                     Dict.updateJust groupId
-                                        (Types.mapCache (Group.leaveEvent loggedIn.userId eventId))
+                                        (Cache.map (Group.leaveEvent loggedIn.userId eventId))
                                         model.cachedGroups
                                 , groupPage =
                                     Dict.updateJust
@@ -991,7 +992,7 @@ updateLoadedFromBackend msg model =
                     case result of
                         Ok event ->
                             Dict.updateJust groupId
-                                (Types.mapCache
+                                (Cache.map
                                     (\group ->
                                         case Group.editEvent backendTime eventId (\_ -> event) group of
                                             Ok ( _, newGroup ) ->
@@ -1017,7 +1018,7 @@ updateLoadedFromBackend msg model =
                     case result of
                         Ok cancellationStatus ->
                             Dict.updateJust groupId
-                                (Types.mapCache
+                                (Cache.map
                                     (\group ->
                                         case
                                             Group.editCancellationStatus
@@ -1046,7 +1047,7 @@ updateLoadedFromBackend msg model =
         ChangeGroupVisibilityResponse groupId visibility ->
             ( { model
                 | cachedGroups =
-                    Dict.updateJust groupId (Types.mapCache (Group.withVisibility visibility)) model.cachedGroups
+                    Dict.updateJust groupId (Cache.map (Group.withVisibility visibility)) model.cachedGroups
                 , groupPage = Dict.updateJust groupId (GroupPage.changeVisibilityResponse visibility) model.groupPage
               }
             , Command.none
@@ -1233,6 +1234,7 @@ viewPage model =
                                 model.time
                                 model.timezone
                                 owner
+                                model.cachedUsers
                                 group
                                 (Dict.get groupId model.groupPage |> Maybe.withDefault GroupPage.init)
                                 (case model.loginStatus of

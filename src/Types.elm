@@ -6,6 +6,7 @@ import AssocList as Dict exposing (Dict)
 import AssocSet exposing (Set)
 import BiDict.Assoc exposing (BiDict)
 import Browser exposing (UrlRequest)
+import Cache exposing (Cache)
 import CreateGroupPage exposing (CreateGroupError, GroupFormValidated)
 import Description exposing (Description)
 import Effect.Browser.Navigation exposing (Key)
@@ -76,29 +77,10 @@ type GroupRequest
     | GroupFound_ Group (Dict (Id UserId) FrontendUser)
 
 
-type Cache item
-    = ItemDoesNotExist
-    | ItemCached item
-    | ItemRequestPending
-
-
 type AdminCache
     = AdminCacheNotRequested
     | AdminCached AdminModel
     | AdminCachePending
-
-
-mapCache : (a -> a) -> Cache a -> Cache a
-mapCache mapFunc userCache =
-    case userCache of
-        ItemDoesNotExist ->
-            ItemDoesNotExist
-
-        ItemCached item ->
-            mapFunc item |> ItemCached
-
-        ItemRequestPending ->
-            ItemRequestPending
 
 
 type alias LoginForm =

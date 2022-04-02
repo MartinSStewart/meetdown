@@ -139,6 +139,7 @@ fakeInit =
                                 (Time.millisToPosix 10000)
                                 NoLimit
                                 |> Unsafe.addAttendee (Id "b")
+                                |> Unsafe.addAttendee (Id "c")
                             )
                   )
                 ]

@@ -1,6 +1,7 @@
 module SearchPage exposing (getGroupsFromIds, groupPreview, view)
 
 import AssocList as Dict
+import Cache exposing (Cache(..))
 import Colors
 import Description
 import Element exposing (Element)
@@ -14,7 +15,7 @@ import Id exposing (GroupId, Id)
 import Route exposing (Route(..))
 import Time
 import TimeExtra as Time
-import Types exposing (Cache(..), FrontendMsg, LoadedFrontend)
+import Types exposing (FrontendMsg, LoadedFrontend)
 import Ui
 
 

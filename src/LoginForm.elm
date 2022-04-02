@@ -1,6 +1,7 @@
 module LoginForm exposing (cancelButtonId, emailAddressInputId, submitButtonId, submitForm, typedEmail, view)
 
 import AssocList as Dict exposing (Dict)
+import Cache exposing (Cache(..))
 import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Effect.Command as Command exposing (Command, FrontendOnly)
 import Effect.Lamdera as Lamdera
@@ -13,7 +14,7 @@ import GroupName
 import HtmlId
 import Id exposing (GroupId, Id)
 import Route exposing (Route)
-import Types exposing (Cache(..), FrontendMsg(..), LoginForm, ToBackend(..))
+import Types exposing (FrontendMsg(..), LoginForm, ToBackend(..))
 import Ui
 import Untrusted
 
