@@ -101,7 +101,7 @@ url urlText =
             url_
 
         Nothing ->
-            Debug.todo ("Invalid url " ++ urlText)
+            unreachable ()
 
 
 id : String -> Id a
@@ -111,7 +111,7 @@ id text =
             a
 
         Nothing ->
-            Debug.todo ("Invalid id " ++ text)
+            unreachable ()
 
 
 address : String -> Address
@@ -121,7 +121,7 @@ address text =
             address_
 
         Err _ ->
-            Debug.todo ("Invalid email address " ++ text)
+            unreachable ()
 
 
 link : String -> Link
@@ -131,7 +131,7 @@ link text =
             value
 
         Nothing ->
-            Debug.todo ("Invalid link " ++ text)
+            unreachable ()
 
 
 eventDuration : Int -> EventDuration
@@ -141,7 +141,7 @@ eventDuration minutes =
             duration
 
         Err _ ->
-            Debug.todo ("Invalid event duration " ++ String.fromInt minutes)
+            unreachable ()
 
 
 {-| Be very careful when using this!
