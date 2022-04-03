@@ -6,36 +6,25 @@ module GroupPage exposing
     , ToBackend(..)
     , addedNewEvent
     , changeVisibilityResponse
-    , createEventCancelId
     , createEventStartDateId
     , createEventStartTimeId
     , createEventSubmitId
     , createNewEventId
     , editCancellationStatusResponse
-    , editDescriptionId
     , editEventResponse
-    , editGroupNameId
     , eventDescriptionInputId
     , eventDurationId
-    , eventMeetingInPersonInputId
-    , eventMeetingOnlineInputId
     , eventMeetingTypeId
     , eventNameInputId
-    , hideAttendeesButtonId
     , init
     , joinEventButtonId
     , joinEventResponse
     , leaveEventButtonId
     , leaveEventResponse
     , notifyMeOfNewEvents
-    , resetDescriptionId
-    , resetGroupNameId
-    , saveDescriptionId
-    , saveGroupNameId
     , savedDescription
     , savedName
     , subscribeButtonId
-    , unsubscribeButtonId
     , update
     , view
     )
@@ -48,12 +37,11 @@ import Cache exposing (Cache)
 import Colors exposing (..)
 import Date
 import Description exposing (Description)
-import Duration exposing (Duration)
+import Duration
 import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Effect.Command as Command exposing (Command, FrontendOnly)
 import Effect.Lamdera as Lamdera
 import Element exposing (Element)
-import Element.Background
 import Element.Border
 import Element.Font
 import Element.Input
@@ -65,14 +53,14 @@ import FrontendUser exposing (FrontendUser)
 import Group exposing (EditEventError(..), EventId, Group, GroupVisibility, PastOngoingOrFuture(..))
 import GroupName exposing (GroupName)
 import HtmlId
-import Id exposing (GroupId, Id, UserId)
+import Id exposing (Id, UserId)
 import Link exposing (Link)
 import List.Nonempty exposing (Nonempty(..))
 import MaxAttendees exposing (Error(..), MaxAttendees)
 import Name
 import Pixels
 import ProfileImage
-import Quantity exposing (Quantity)
+import Quantity
 import Route
 import Time
 import Time.Extra as Time
@@ -127,7 +115,6 @@ type Msg
     | PressedEditEvent EventId
     | ChangedEditEvent EditEvent
     | PressedCancelEvent
-    | PressedRecancelEvent
     | PressedUncancelEvent
     | PressedSubmitEditEvent
     | PressedCancelEditEvent
@@ -757,18 +744,6 @@ update config group maybeLoggedIn msg model =
                 Just (EdittingEvent eventId _) ->
                     ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
                     , ChangeEventCancellationStatusRequest eventId Event.EventUncancelled
-                        |> Lamdera.sendToBackend
-                    , noOutMsg
-                    )
-
-                _ ->
-                    noChange
-
-        PressedRecancelEvent ->
-            case model.eventOverlay of
-                Just (EdittingEvent eventId _) ->
-                    ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
-                    , ChangeEventCancellationStatusRequest eventId Event.EventCancelled
                         |> Lamdera.sendToBackend
                     , noOutMsg
                     )

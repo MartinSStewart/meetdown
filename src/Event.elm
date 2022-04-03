@@ -29,7 +29,7 @@ module Event exposing
 import Address exposing (Address)
 import AssocSet as Set exposing (Set)
 import Description exposing (Description)
-import Duration exposing (Duration)
+import Duration
 import EventDuration exposing (EventDuration)
 import EventName exposing (EventName)
 import Id exposing (Id, UserId)

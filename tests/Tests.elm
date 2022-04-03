@@ -1,8 +1,4 @@
-module Tests exposing
-    ( createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt
-    , createEventAndAnotherUserNotLoggedInJoinsIt
-    , suite
-    )
+module Tests exposing (suite)
 
 import AssocList as Dict
 import Backend
@@ -434,7 +430,7 @@ suite =
                 sessionId
                 sessionId
                 emailAddress
-                (\{ instructions, client, clientFromEmail } ->
+                (\{ instructions, clientFromEmail } ->
                     instructions
                         |> checkLoadedFrontend
                             clientFromEmail.clientId
@@ -467,7 +463,7 @@ suite =
                 sessionId
                 sessionId
                 emailAddress
-                (\{ instructions, client, clientFromEmail } ->
+                (\{ instructions, clientFromEmail } ->
                     instructions
                         |> checkLoadedFrontend
                             clientFromEmail.clientId
@@ -500,7 +496,7 @@ suite =
                 sessionId
                 sessionId
                 emailAddress
-                (\{ instructions, client, clientFromEmail } ->
+                (\{ instructions, client } ->
                     instructions
                         |> checkLoadedFrontend
                             client.clientId
@@ -526,7 +522,7 @@ suite =
                 (Lamdera.sessionIdFromString "session0")
                 (Lamdera.sessionIdFromString "session1")
                 (Unsafe.emailAddress "the@email.com")
-                (\{ instructions, client, clientFromEmail } ->
+                (\{ instructions, client } ->
                     instructions
                         |> checkLoadedFrontend
                             client.clientId
@@ -555,7 +551,7 @@ suite =
                 sessionId
                 sessionId
                 emailAddress
-                (\{ instructions, client, clientFromEmail } ->
+                (\{ instructions } ->
                     instructions
                         |> TF.andThen
                             (\state ->
@@ -614,7 +610,7 @@ suite =
                 session0
                 session0
                 (Unsafe.emailAddress "the@email.com")
-                (\{ instructions, client, clientFromEmail } ->
+                (\{ instructions, clientFromEmail } ->
                     createGroup clientFromEmail groupName groupDescription instructions
                         |> checkLoadedFrontend
                             clientFromEmail.clientId
@@ -650,7 +646,7 @@ suite =
                 session0
                 session0
                 emailAddress
-                (\{ instructions, client, clientFromEmail } ->
+                (\{ instructions, client } ->
                     createGroupAndEvent
                         client
                         { groupName = "It's my Group!"
@@ -695,7 +691,7 @@ suite =
                 session0
                 session0
                 emailAddress
-                (\{ instructions, client, clientFromEmail } ->
+                (\{ instructions, client } ->
                     createGroupAndEvent
                         client
                         { groupName = "It's my Group!"
@@ -741,7 +737,7 @@ suite =
                 session0
                 session0
                 emailAddress0
-                (\{ instructions, client, clientFromEmail } ->
+                (\{ instructions, client } ->
                     createGroupAndEvent
                         client
                         { groupName = GroupName.toString groupName
@@ -759,7 +755,7 @@ suite =
                 session1
                 session1
                 emailAddress1
-                (\{ instructions, client, clientFromEmail } ->
+                (\{ instructions, client } ->
                     findSingleGroup
                         (\groupId inProgress2 ->
                             inProgress2
@@ -902,7 +898,7 @@ suite =
                 session0
                 session0
                 emailAddress
-                (\{ instructions, client, clientFromEmail } ->
+                (\{ instructions, client } ->
                     instructions
                         |> TF.simulateTime Duration.second
                         |> client.clickLink { href = Route.encode Route.MyProfileRoute }
@@ -1184,7 +1180,7 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
             session0
             session0
             emailAddress0
-            (\{ instructions, client, clientFromEmail } ->
+            (\{ instructions, client } ->
                 createGroupAndEvent
                     client
                     { groupName = GroupName.toString groupName
@@ -1252,7 +1248,7 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
             session0
             session0
             emailAddress0
-            (\{ instructions, client, clientFromEmail } ->
+            (\{ instructions, client } ->
                 createGroupAndEvent
                     client
                     { groupName = GroupName.toString groupName

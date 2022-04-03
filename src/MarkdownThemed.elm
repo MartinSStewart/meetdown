@@ -6,7 +6,7 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Region as Region
-import Html exposing (Html)
+import Html
 import Html.Attributes
 import Markdown.Block exposing (..)
 import Markdown.Html
@@ -120,7 +120,7 @@ renderer searchPreview =
                     |> List.map
                         (\listItem ->
                             case listItem of
-                                ListItem task children ->
+                                ListItem _ children ->
                                     wrappedRow
                                         [ spacing 5
                                         , paddingEach { top = 0, right = 0, bottom = 0, left = 20 }
@@ -150,7 +150,7 @@ renderer searchPreview =
                         )
                 )
     , codeBlock =
-        \{ body, language } ->
+        \{ body } ->
             column
                 [ Font.family [ Font.monospace ]
                 , Background.color lightGrey
@@ -171,8 +171,8 @@ renderer searchPreview =
     , tableHeader = \children -> column [] children
     , tableBody = \children -> column [] children
     , tableRow = \children -> row [ width fill ] children
-    , tableCell = \alignment children -> column [ width fill ] children
-    , tableHeaderCell = \alignmentM children -> column [ width fill ] children
+    , tableCell = \_ children -> column [ width fill ] children
+    , tableHeaderCell = \_ children -> column [ width fill ] children
     , strikethrough = \children -> paragraph [ Font.strike ] children
     }
 
@@ -235,15 +235,6 @@ rawTextToId rawText =
 
 fromHtml =
     html
-
-
-asHtml children =
-    children
-        |> List.map toHtml
-
-
-toHtml e =
-    layout [] e
 
 
 justs =

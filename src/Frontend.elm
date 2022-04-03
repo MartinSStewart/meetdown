@@ -3,8 +3,6 @@ module Frontend exposing
     , groupSearchId
     , init
     , logOutButtonId
-    , onUrlChange
-    , onUrlRequest
     , signUpOrLoginButtonId
     , subscriptions
     , update
@@ -16,12 +14,12 @@ import AdminPage
 import AdminStatus exposing (AdminStatus(..))
 import AssocList as Dict exposing (Dict)
 import AssocSet as Set
-import Browser as Browser exposing (UrlRequest(..))
+import Browser exposing (UrlRequest(..))
 import Cache exposing (Cache(..))
 import Colors
 import CreateGroupPage
 import DictExtra as Dict
-import Duration exposing (Duration)
+import Duration
 import Effect.Browser.Dom as Dom
 import Effect.Browser.Events as BrowserEvents
 import Effect.Browser.Navigation as BrowserNavigation exposing (Key)
@@ -38,13 +36,12 @@ import Element.Input
 import Element.Region
 import Env
 import FrontendUser exposing (FrontendUser)
-import Group exposing (Group)
-import GroupName
+import Group
 import GroupPage
 import Html
 import Html.Attributes
 import HtmlId
-import Id exposing (GroupId, Id, UserId)
+import Id exposing (Id, UserId)
 import Lamdera
 import List.Nonempty
 import LoginForm

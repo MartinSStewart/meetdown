@@ -1,6 +1,6 @@
 module Colors exposing (..)
 
-import Color exposing (rgb)
+import Color
 import Color.Convert exposing (hexToColor)
 import Element exposing (..)
 

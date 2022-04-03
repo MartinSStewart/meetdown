@@ -15,7 +15,6 @@ module Ui exposing
     , enterKeyCode
     , error
     , externalLink
-    , filler
     , formError
     , formLabelAbove
     , formLabelAboveEl
@@ -59,7 +58,6 @@ import Element.Font
 import Element.Input
 import Element.Region
 import EmailAddress exposing (EmailAddress)
-import Env
 import Html exposing (Html)
 import Html.Attributes
 import Html.Events
@@ -364,11 +362,6 @@ labelWithHourglass isSubmitting label =
             Element.inFront Element.none
         ]
         (Element.text label)
-
-
-filler : Element.Length -> Element msg
-filler length =
-    Element.el [ Element.height length ] Element.none
 
 
 titleFontSize : Element.Attr decorative msg

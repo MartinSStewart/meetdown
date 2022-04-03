@@ -1,4 +1,4 @@
-module LoginForm exposing (cancelButtonId, emailAddressInputId, submitButtonId, submitForm, typedEmail, view)
+module LoginForm exposing (emailAddressInputId, submitButtonId, submitForm, typedEmail, view)
 
 import AssocList as Dict exposing (Dict)
 import Cache exposing (Cache(..))
