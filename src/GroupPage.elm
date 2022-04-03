@@ -1605,7 +1605,7 @@ attendeeView cachedUsers userId =
                         [ Element.spacing 2 ]
                         [ ProfileImage.image (Pixels.pixels size) user.profileImage
                         , Element.paragraph
-                            [ Element.Font.size 12
+                            [ Element.Font.size 11
                             , Element.Font.center
                             , Element.width (Element.px size)
                             ]
