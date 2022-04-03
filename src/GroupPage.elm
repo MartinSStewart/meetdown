@@ -1609,15 +1609,18 @@ attendeesView cachedUsers event =
             ++ [ if anonymousAttendees == 0 then
                     Element.none
 
+                 else if List.isEmpty visibleAttendees then
+                    (if anonymousAttendees == 1 then
+                        "• Just 1 anonymous attendee"
+
+                     else
+                        "• Just " ++ String.fromInt anonymousAttendees ++ " anonymous attendees"
+                    )
+                        |> Element.text
+                        |> Element.el [ Element.moveRight 24 ]
+
                  else
-                    (if List.isEmpty visibleAttendees then
-                        if anonymousAttendees == 1 then
-                            "1 anonymous attendee"
-
-                        else
-                            String.fromInt anonymousAttendees ++ " anonymous attendees"
-
-                     else if anonymousAttendees == 1 then
+                    (if anonymousAttendees == 1 then
                         "And one\nanonymous\nattendee"
 
                      else
