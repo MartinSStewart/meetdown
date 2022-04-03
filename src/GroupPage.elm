@@ -1471,10 +1471,7 @@ ongoingEventView isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn
             , showAttendeesButton eventId showAttendees_
             ]
         , if showAttendees_ then
-            Event.attendees event
-                |> Set.toList
-                |> List.map (attendeeView cachedUsers)
-                |> Element.wrappedRow [ Element.spacing 4 ]
+            attendeesView cachedUsers event
 
           else
             Element.none
@@ -1574,10 +1571,7 @@ pastEventView isMobile cachedUsers currentTime timezone maybeLoggedIn showAttend
             , showAttendeesButton eventId showAttendees_
             ]
         , if showAttendees_ then
-            Event.attendees event
-                |> Set.toList
-                |> List.map (attendeeView cachedUsers)
-                |> Element.wrappedRow [ Element.spacing 4 ]
+            attendeesView cachedUsers event
 
           else
             Element.none
@@ -1585,47 +1579,92 @@ pastEventView isMobile cachedUsers currentTime timezone maybeLoggedIn showAttend
         ]
 
 
-attendeeView : Dict (Id UserId) (Cache FrontendUser) -> Id UserId -> Element msg
-attendeeView cachedUsers userId =
+attendeesView : Dict (Id UserId) (Cache FrontendUser) -> Event -> Element msg
+attendeesView cachedUsers event =
     let
-        size =
-            64
+        visibleAttendees : List (Element msg)
+        visibleAttendees =
+            Event.attendees event
+                |> Set.toList
+                |> List.filterMap
+                    (\userId ->
+                        case Cache.get userId cachedUsers of
+                            Just user ->
+                                if user.name /= Name.anonymous || user.profileImage /= ProfileImage.DefaultImage then
+                                    attendeeView userId user |> Just
+
+                                else
+                                    Nothing
+
+                            Nothing ->
+                                Nothing
+                    )
+
+        anonymousAttendees : Int
+        anonymousAttendees =
+            Set.size (Event.attendees event) - List.length visibleAttendees
     in
-    case Cache.get userId cachedUsers of
-        Just user ->
-            let
-                nameText =
-                    Name.toString user.name
-            in
-            Element.link
-                [ Ui.inputFocusClass, Element.alignTop ]
-                { url = Route.UserRoute userId user.name |> Route.encode
-                , label =
-                    Element.column
-                        [ Element.spacing 2 ]
-                        [ ProfileImage.image (Pixels.pixels size) user.profileImage
-                        , Element.paragraph
-                            [ Element.Font.size 11
+    Element.wrappedRow [ Element.spacing 4 ]
+        (visibleAttendees
+            ++ [ if anonymousAttendees == 0 then
+                    Element.none
+
+                 else
+                    (if List.isEmpty visibleAttendees then
+                        if anonymousAttendees == 1 then
+                            "1 anonymous attendee"
+
+                        else
+                            String.fromInt anonymousAttendees ++ " anonymous attendees"
+
+                     else if anonymousAttendees == 1 then
+                        "And one\nanonymous\nattendee"
+
+                     else
+                        "And " ++ String.fromInt anonymousAttendees ++ "\nanonymous\nattendees"
+                    )
+                        |> Element.text
+                        |> Element.el
+                            [ Element.alignTop
                             , Element.Font.center
-                            , Element.width (Element.px size)
+                            , Element.paddingXY 8 8
                             ]
-                            [ (if String.length nameText > 23 then
-                                String.left 20 nameText ++ "..."
+               ]
+        )
 
-                               else
-                                nameText
-                              )
-                                |> Element.text
-                            ]
-                        ]
-                }
 
-        Nothing ->
-            Element.el
-                [ Element.width (Element.px size)
-                , Element.height (Element.px size)
+attendeeImageSize =
+    64
+
+
+attendeeView : Id UserId -> FrontendUser -> Element msg
+attendeeView userId user =
+    let
+        nameText =
+            Name.toString user.name
+    in
+    Element.link
+        [ Ui.inputFocusClass, Element.alignTop ]
+        { url = Route.UserRoute userId user.name |> Route.encode
+        , label =
+            Element.column
+                [ Element.spacing 2 ]
+                [ ProfileImage.image (Pixels.pixels attendeeImageSize) user.profileImage
+                , Element.paragraph
+                    [ Element.Font.size 11
+                    , Element.Font.center
+                    , Element.width (Element.px attendeeImageSize)
+                    ]
+                    [ (if String.length nameText > 23 then
+                        String.left 20 nameText ++ "..."
+
+                       else
+                        nameText
+                      )
+                        |> Element.text
+                    ]
                 ]
-                Element.none
+        }
 
 
 showAttendeesButton : EventId -> Bool -> Element Msg
@@ -1753,10 +1792,7 @@ futureEventView isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn 
             , showAttendeesButton eventId showAttendees_
             ]
         , if showAttendees_ then
-            Event.attendees event
-                |> Set.toList
-                |> List.map (attendeeView cachedUsers)
-                |> Element.wrappedRow [ Element.spacing 4 ]
+            attendeesView cachedUsers event
 
           else
             Element.none
