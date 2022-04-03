@@ -417,9 +417,6 @@ updateLoaded msg model =
                 LoggedIn _ ->
                     ( model, Command.none )
 
-        PressedCreateGroup ->
-            ( model, navigationPushRoute model.navigationKey CreateGroupRoute )
-
         CreateGroupPageMsg groupFormMsg ->
             case model.loginStatus of
                 LoggedIn loggedIn ->

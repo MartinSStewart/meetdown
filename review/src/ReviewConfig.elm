@@ -27,10 +27,10 @@ config =
     [ NoUnused.CustomTypeConstructors.rule []
     , NoUnused.Variables.rule
     , NoUnused.Patterns.rule
-    , NoUnused.CustomTypeConstructorArgs.rule
     , NoUnused.Dependencies.rule
     , NoUnused.Exports.rule
     , NoUnused.Modules.rule
     , NoUnused.Parameters.rule
     ]
         |> List.map (Review.Rule.ignoreErrorsForDirectories [ "src/Evergreen", "justinmimbs", "send-grid" ])
+        |> List.map (Review.Rule.ignoreErrorsForFiles [ "src/Postmark.elm", "src/Unsafe.elm" ])

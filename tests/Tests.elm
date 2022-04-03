@@ -61,7 +61,7 @@ config =
 
 
 handleHttpRequests : { currentRequest : TF.HttpRequest, pastRequests : List TF.HttpRequest } -> Http.Response Bytes
-handleHttpRequests { currentRequest, pastRequests } =
+handleHttpRequests { currentRequest } =
     Http.GoodStatus_
         { url = currentRequest.url
         , statusCode = 200
@@ -74,7 +74,7 @@ handleHttpRequests { currentRequest, pastRequests } =
 handlePortToJs :
     { currentRequest : TF.PortToJs, pastRequests : List TF.PortToJs }
     -> Maybe ( String, Json.Decode.Value )
-handlePortToJs { currentRequest, pastRequests } =
+handlePortToJs { currentRequest } =
     if currentRequest.portName == Ports.cropImageToJsName then
         case Codec.decodeValue Ports.cropImageDataCodec currentRequest.value of
             Ok request ->

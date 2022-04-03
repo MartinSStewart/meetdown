@@ -289,7 +289,6 @@ type FrontendMsg
     | TypedEmail String
     | PressedSubmitLogin
     | PressedCancelLogin
-    | PressedCreateGroup
     | CreateGroupPageMsg CreateGroupPage.Msg
     | ProfileFormMsg ProfilePage.Msg
     | TypedSearchText String
