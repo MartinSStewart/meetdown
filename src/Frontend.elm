@@ -14,7 +14,7 @@ module Frontend exposing
 
 import AdminPage
 import AdminStatus exposing (AdminStatus(..))
-import AssocList as Dict
+import AssocList as Dict exposing (Dict)
 import AssocSet as Set
 import Browser as Browser exposing (UrlRequest(..))
 import Cache exposing (Cache(..))
@@ -46,6 +46,7 @@ import Html.Attributes
 import HtmlId
 import Id exposing (GroupId, Id, UserId)
 import Lamdera
+import List.Nonempty
 import LoginForm
 import Pixels exposing (Pixels)
 import Privacy
@@ -259,7 +260,9 @@ routeRequest route model =
 
                         Nothing ->
                             ( { model | cachedUsers = Dict.insert ownerId ItemRequestPending model.cachedUsers }
-                            , Effect.Lamdera.sendToBackend (GetUserRequest ownerId)
+                            , List.Nonempty.fromElement ownerId
+                                |> GetUserRequest
+                                |> Effect.Lamdera.sendToBackend
                             )
 
                 Just ItemRequestPending ->
@@ -297,7 +300,9 @@ routeRequest route model =
 
                 Nothing ->
                     ( { model | cachedUsers = Dict.insert userId ItemRequestPending model.cachedUsers }
-                    , Effect.Lamdera.sendToBackend (GetUserRequest userId)
+                    , List.Nonempty.fromElement userId
+                        |> GetUserRequest
+                        |> Effect.Lamdera.sendToBackend
                     )
 
         PrivacyRoute ->
@@ -480,7 +485,7 @@ updateLoaded msg model =
                     case Dict.get groupId model.cachedGroups of
                         Just (ItemCached group) ->
                             let
-                                ( newModel, effects, { joinEvent } ) =
+                                ( newModel, effects, { joinEvent, requestUserData } ) =
                                     GroupPage.update
                                         model
                                         group
@@ -515,8 +520,23 @@ updateLoaded msg model =
 
                                         _ ->
                                             model.loginStatus
+                                , cachedUsers =
+                                    Dict.union
+                                        model.cachedUsers
+                                        (Set.toList requestUserData
+                                            |> List.map (\userId -> ( userId, ItemRequestPending ))
+                                            |> Dict.fromList
+                                        )
                               }
-                            , Command.map (GroupRequest groupId) GroupPageMsg effects
+                            , Command.batch
+                                [ Command.map (GroupRequest groupId) GroupPageMsg effects
+                                , case Set.toList requestUserData |> List.Nonempty.fromList of
+                                    Just userIds ->
+                                        Effect.Lamdera.sendToBackend (GetUserRequest userIds)
+
+                                    Nothing ->
+                                        Command.none
+                                ]
                             )
 
                         _ ->
@@ -633,22 +653,22 @@ updateLoadedFromBackend msg model =
                     Command.none
             )
 
-        GetUserResponse userId result ->
-            ( { model
-                | cachedUsers =
-                    Dict.insert
-                        userId
-                        (case result of
-                            Ok user ->
-                                ItemCached user
+        GetUserResponse userData ->
+            let
+                newUserData : Dict (Id UserId) (Cache FrontendUser)
+                newUserData =
+                    Dict.map
+                        (\_ result ->
+                            case result of
+                                Ok user ->
+                                    ItemCached user
 
-                            Err () ->
-                                ItemDoesNotExist
+                                Err () ->
+                                    ItemDoesNotExist
                         )
-                        model.cachedUsers
-              }
-            , Command.none
-            )
+                        userData
+            in
+            ( { model | cachedUsers = Dict.union newUserData model.cachedUsers }, Command.none )
 
         LoginWithTokenResponse result ->
             case result of

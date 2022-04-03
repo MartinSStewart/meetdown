@@ -86,10 +86,14 @@ init =
 
 fakeInit : ( BackendModel, Command BackendOnly ToFrontend BackendMsg )
 fakeInit =
+    let
+        _ =
+            Debug.log "This prevents accidentally deploying fakeInit to production" ""
+    in
     ( { users =
             Dict.fromList
                 [ ( Id "a"
-                  , { name = Unsafe.name "Jim"
+                  , { name = Unsafe.name "Person H Personson"
                     , description = Unsafe.description "asdf"
                     , emailAddress = Unsafe.emailAddress "as2df@asdf.com"
                     , profileImage = DefaultImage
@@ -99,7 +103,7 @@ fakeInit =
                     }
                   )
                 , ( Id "b"
-                  , { name = Unsafe.name "Steve"
+                  , { name = Unsafe.name "Steve Longlastnameerson"
                     , description = Unsafe.description "asdf"
                     , emailAddress = Unsafe.emailAddress "asd2f@asdf.com"
                     , profileImage = DefaultImage
@@ -137,6 +141,19 @@ fakeInit =
                                 (Time.millisToPosix 20000)
                                 (Unsafe.eventDurationFromMinutes 10000)
                                 (Time.millisToPosix 10000)
+                                NoLimit
+                                |> Unsafe.addAttendee (Id "b")
+                                |> Unsafe.addAttendee (Id "c")
+                            )
+                        |> Unsafe.addEvent
+                            (Event.newEvent
+                                (Id "a")
+                                (Unsafe.eventName "event")
+                                (Unsafe.description "asdf")
+                                (Event.MeetOnline Nothing)
+                                (Time.millisToPosix 2000000000000000)
+                                (Unsafe.eventDurationFromMinutes 10000)
+                                (Time.millisToPosix 1000000000000000)
                                 NoLimit
                                 |> Unsafe.addAttendee (Id "b")
                                 |> Unsafe.addAttendee (Id "c")
@@ -421,15 +438,26 @@ updateFromFrontend sessionId clientId msg model =
                 |> Effect.Lamdera.sendToFrontend clientId
             )
 
-        GetUserRequest userId ->
-            case getUser userId model of
-                Just user ->
-                    ( model
-                    , Ok (Types.userToFrontend user) |> GetUserResponse userId |> Effect.Lamdera.sendToFrontend clientId
-                    )
+        GetUserRequest userIds ->
+            ( model
+            , List.Nonempty.toList userIds
+                |> List.foldl
+                    (\userId response ->
+                        Dict.insert
+                            userId
+                            (case getUser userId model of
+                                Just user ->
+                                    Ok (Types.userToFrontend user)
 
-                Nothing ->
-                    ( model, Err () |> GetUserResponse userId |> Effect.Lamdera.sendToFrontend clientId )
+                                Nothing ->
+                                    Err ()
+                            )
+                            response
+                    )
+                    Dict.empty
+                |> GetUserResponse
+                |> Effect.Lamdera.sendToFrontend clientId
+            )
 
         CheckLoginRequest ->
             ( model, checkLogin sessionId model |> CheckLoginResponse |> Effect.Lamdera.sendToFrontend clientId )

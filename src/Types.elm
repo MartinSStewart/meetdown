@@ -304,7 +304,7 @@ type FrontendMsg
 
 type ToBackend
     = GetGroupRequest (Id GroupId)
-    | GetUserRequest (Id UserId)
+    | GetUserRequest (Nonempty (Id UserId))
     | CheckLoginRequest
     | LoginWithTokenRequest (Id LoginToken) (Maybe ( Id GroupId, EventId ))
     | GetLoginTokenRequest Route (Untrusted EmailAddress) (Maybe ( Id GroupId, EventId ))
@@ -330,7 +330,7 @@ type BackendMsg
 
 type ToFrontend
     = GetGroupResponse (Id GroupId) GroupRequest
-    | GetUserResponse (Id UserId) (Result () FrontendUser)
+    | GetUserResponse (Dict (Id UserId) (Result () FrontendUser))
     | CheckLoginResponse (Maybe { userId : Id UserId, user : BackendUser, isAdmin : Bool })
     | LoginWithTokenResponse (Result () { userId : Id UserId, user : BackendUser, isAdmin : Bool })
     | GetAdminDataResponse AdminModel
