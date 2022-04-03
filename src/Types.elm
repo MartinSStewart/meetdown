@@ -6,6 +6,7 @@ import AssocList as Dict exposing (Dict)
 import AssocSet exposing (Set)
 import BiDict.Assoc exposing (BiDict)
 import Browser exposing (UrlRequest)
+import Cache exposing (Cache)
 import CreateGroupPage exposing (CreateGroupError, GroupFormValidated)
 import Description exposing (Description)
 import Effect.Browser.Navigation exposing (Key)
@@ -76,29 +77,10 @@ type GroupRequest
     | GroupFound_ Group (Dict (Id UserId) FrontendUser)
 
 
-type Cache item
-    = ItemDoesNotExist
-    | ItemCached item
-    | ItemRequestPending
-
-
 type AdminCache
     = AdminCacheNotRequested
     | AdminCached AdminModel
     | AdminCachePending
-
-
-mapCache : (a -> a) -> Cache a -> Cache a
-mapCache mapFunc userCache =
-    case userCache of
-        ItemDoesNotExist ->
-            ItemDoesNotExist
-
-        ItemCached item ->
-            mapFunc item |> ItemCached
-
-        ItemRequestPending ->
-            ItemRequestPending
 
 
 type alias LoginForm =
@@ -322,7 +304,7 @@ type FrontendMsg
 
 type ToBackend
     = GetGroupRequest (Id GroupId)
-    | GetUserRequest (Id UserId)
+    | GetUserRequest (Nonempty (Id UserId))
     | CheckLoginRequest
     | LoginWithTokenRequest (Id LoginToken) (Maybe ( Id GroupId, EventId ))
     | GetLoginTokenRequest Route (Untrusted EmailAddress) (Maybe ( Id GroupId, EventId ))
@@ -348,7 +330,7 @@ type BackendMsg
 
 type ToFrontend
     = GetGroupResponse (Id GroupId) GroupRequest
-    | GetUserResponse (Id UserId) (Result () FrontendUser)
+    | GetUserResponse (Dict (Id UserId) (Result () FrontendUser))
     | CheckLoginResponse (Maybe { userId : Id UserId, user : BackendUser, isAdmin : Bool })
     | LoginWithTokenResponse (Result () { userId : Id UserId, user : BackendUser, isAdmin : Bool })
     | GetAdminDataResponse AdminModel

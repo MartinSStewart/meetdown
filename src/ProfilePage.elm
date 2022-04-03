@@ -312,8 +312,8 @@ update windowSize msg model =
                                 , imageUrl = imageData.imageUrl
                                 , cropX = imageData.x * toFloat w |> round |> Pixels.pixels
                                 , cropY = imageData.y * toFloat w |> round |> Pixels.pixels
-                                , cropWidth = ProfileImage.size
-                                , cropHeight = ProfileImage.size
+                                , cropWidth = ProfileImage.defaultSize
+                                , cropHeight = ProfileImage.defaultSize
                                 , width = toFloat w * imageData.size |> round |> Pixels.pixels
                                 , height = toFloat w * imageData.size |> round |> Pixels.pixels
                                 }
@@ -743,7 +743,7 @@ view windowSize currentValues ({ form } as model) =
                         , Element.Background.color grey
                         ]
                         { onPress = Just PressedProfileImage
-                        , label = ProfileImage.image currentValues.profileImage
+                        , label = ProfileImage.image ProfileImage.defaultSize currentValues.profileImage
                         }
                     ]
                 , Ui.columnCard

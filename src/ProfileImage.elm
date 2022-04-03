@@ -1,4 +1,4 @@
-module ProfileImage exposing (ProfileImage(..), customImage, defaultImage, getCustomImageUrl, image, size, smallImage)
+module ProfileImage exposing (ProfileImage(..), customImage, defaultImage, defaultSize, getCustomImageUrl, image, smallImage)
 
 import Colors exposing (..)
 import Element exposing (Element)
@@ -36,8 +36,8 @@ customImage data =
         CustomImage data |> Ok
 
 
-size : Quantity Int Pixels
-size =
+defaultSize : Quantity Int Pixels
+defaultSize =
     Pixels.pixels 128
 
 
@@ -51,8 +51,8 @@ getCustomImageUrl profileImage =
             Just dataUrl
 
 
-image : ProfileImage -> Element msg
-image profileImage =
+image : Quantity Int Pixels -> ProfileImage -> Element msg
+image size profileImage =
     Element.image
         [ Element.width (Element.px (Pixels.inPixels size))
         , Element.height (Element.px (Pixels.inPixels size))
@@ -74,8 +74,8 @@ image profileImage =
 smallImage : ProfileImage -> Element msg
 smallImage profileImage =
     Element.image
-        [ Element.width (Element.px <| Pixels.inPixels size // 2)
-        , Element.height (Element.px <| Pixels.inPixels size // 2)
+        [ Element.width (Element.px <| Pixels.inPixels defaultSize // 2)
+        , Element.height (Element.px <| Pixels.inPixels defaultSize // 2)
         , Element.Border.rounded 9999
         , Element.clip
         , Element.Background.color grey

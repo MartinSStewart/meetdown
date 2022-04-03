@@ -14,9 +14,10 @@ module Frontend exposing
 
 import AdminPage
 import AdminStatus exposing (AdminStatus(..))
-import AssocList as Dict
+import AssocList as Dict exposing (Dict)
 import AssocSet as Set
 import Browser as Browser exposing (UrlRequest(..))
+import Cache exposing (Cache(..))
 import Colors
 import CreateGroupPage
 import DictExtra as Dict
@@ -45,6 +46,7 @@ import Html.Attributes
 import HtmlId
 import Id exposing (GroupId, Id, UserId)
 import Lamdera
+import List.Nonempty
 import LoginForm
 import Pixels exposing (Pixels)
 import Privacy
@@ -258,7 +260,9 @@ routeRequest route model =
 
                         Nothing ->
                             ( { model | cachedUsers = Dict.insert ownerId ItemRequestPending model.cachedUsers }
-                            , Effect.Lamdera.sendToBackend (GetUserRequest ownerId)
+                            , List.Nonempty.fromElement ownerId
+                                |> GetUserRequest
+                                |> Effect.Lamdera.sendToBackend
                             )
 
                 Just ItemRequestPending ->
@@ -296,7 +300,9 @@ routeRequest route model =
 
                 Nothing ->
                     ( { model | cachedUsers = Dict.insert userId ItemRequestPending model.cachedUsers }
-                    , Effect.Lamdera.sendToBackend (GetUserRequest userId)
+                    , List.Nonempty.fromElement userId
+                        |> GetUserRequest
+                        |> Effect.Lamdera.sendToBackend
                     )
 
         PrivacyRoute ->
@@ -479,7 +485,7 @@ updateLoaded msg model =
                     case Dict.get groupId model.cachedGroups of
                         Just (ItemCached group) ->
                             let
-                                ( newModel, effects, { joinEvent } ) =
+                                ( newModel, effects, { joinEvent, requestUserData } ) =
                                     GroupPage.update
                                         model
                                         group
@@ -514,8 +520,23 @@ updateLoaded msg model =
 
                                         _ ->
                                             model.loginStatus
+                                , cachedUsers =
+                                    Dict.union
+                                        model.cachedUsers
+                                        (Set.toList requestUserData
+                                            |> List.map (\userId -> ( userId, ItemRequestPending ))
+                                            |> Dict.fromList
+                                        )
                               }
-                            , Command.map (GroupRequest groupId) GroupPageMsg effects
+                            , Command.batch
+                                [ Command.map (GroupRequest groupId) GroupPageMsg effects
+                                , case Set.toList requestUserData |> List.Nonempty.fromList of
+                                    Just userIds ->
+                                        Effect.Lamdera.sendToBackend (GetUserRequest userIds)
+
+                                    Nothing ->
+                                        Command.none
+                                ]
                             )
 
                         _ ->
@@ -632,22 +653,22 @@ updateLoadedFromBackend msg model =
                     Command.none
             )
 
-        GetUserResponse userId result ->
-            ( { model
-                | cachedUsers =
-                    Dict.insert
-                        userId
-                        (case result of
-                            Ok user ->
-                                ItemCached user
+        GetUserResponse userData ->
+            let
+                newUserData : Dict (Id UserId) (Cache FrontendUser)
+                newUserData =
+                    Dict.map
+                        (\_ result ->
+                            case result of
+                                Ok user ->
+                                    ItemCached user
 
-                            Err () ->
-                                ItemDoesNotExist
+                                Err () ->
+                                    ItemDoesNotExist
                         )
-                        model.cachedUsers
-              }
-            , Command.none
-            )
+                        userData
+            in
+            ( { model | cachedUsers = Dict.union newUserData model.cachedUsers }, Command.none )
 
         LoginWithTokenResponse result ->
             case result of
@@ -757,7 +778,7 @@ updateLoadedFromBackend msg model =
                         | cachedUsers =
                             Dict.updateJust
                                 loggedIn.userId
-                                (Types.mapCache (\a -> { a | name = name }))
+                                (Cache.map (\a -> { a | name = name }))
                                 model.cachedUsers
                       }
                     , Command.none
@@ -776,7 +797,7 @@ updateLoadedFromBackend msg model =
                         | cachedUsers =
                             Dict.updateJust
                                 loggedIn.userId
-                                (Types.mapCache (\a -> { a | description = description }))
+                                (Cache.map (\a -> { a | description = description }))
                                 model.cachedUsers
                       }
                     , Command.none
@@ -821,7 +842,7 @@ updateLoadedFromBackend msg model =
                         | cachedUsers =
                             Dict.updateJust
                                 loggedIn.userId
-                                (Types.mapCache (\a -> { a | profileImage = profileImage }))
+                                (Cache.map (\a -> { a | profileImage = profileImage }))
                                 model.cachedUsers
                       }
                     , Command.none
@@ -874,7 +895,7 @@ updateLoadedFromBackend msg model =
             ( { model
                 | cachedGroups =
                     Dict.updateJust groupId
-                        (Types.mapCache (Group.withName groupName))
+                        (Cache.map (Group.withName groupName))
                         model.cachedGroups
                 , groupPage = Dict.updateJust groupId GroupPage.savedName model.groupPage
               }
@@ -885,7 +906,7 @@ updateLoadedFromBackend msg model =
             ( { model
                 | cachedGroups =
                     Dict.updateJust groupId
-                        (Types.mapCache (Group.withDescription description))
+                        (Cache.map (Group.withDescription description))
                         model.cachedGroups
                 , groupPage = Dict.updateJust groupId GroupPage.savedDescription model.groupPage
               }
@@ -898,7 +919,7 @@ updateLoadedFromBackend msg model =
                     case result of
                         Ok event ->
                             Dict.updateJust groupId
-                                (Types.mapCache (\group -> Group.addEvent event group |> Result.withDefault group))
+                                (Cache.map (\group -> Group.addEvent event group |> Result.withDefault group))
                                 model.cachedGroups
 
                         Err _ ->
@@ -916,7 +937,7 @@ updateLoadedFromBackend msg model =
                             { model
                                 | cachedGroups =
                                     Dict.updateJust groupId
-                                        (Types.mapCache
+                                        (Cache.map
                                             (\group ->
                                                 case Group.joinEvent loggedIn.userId eventId group of
                                                     Ok newGroup ->
@@ -959,7 +980,7 @@ updateLoadedFromBackend msg model =
                             { model
                                 | cachedGroups =
                                     Dict.updateJust groupId
-                                        (Types.mapCache (Group.leaveEvent loggedIn.userId eventId))
+                                        (Cache.map (Group.leaveEvent loggedIn.userId eventId))
                                         model.cachedGroups
                                 , groupPage =
                                     Dict.updateJust
@@ -991,7 +1012,7 @@ updateLoadedFromBackend msg model =
                     case result of
                         Ok event ->
                             Dict.updateJust groupId
-                                (Types.mapCache
+                                (Cache.map
                                     (\group ->
                                         case Group.editEvent backendTime eventId (\_ -> event) group of
                                             Ok ( _, newGroup ) ->
@@ -1017,7 +1038,7 @@ updateLoadedFromBackend msg model =
                     case result of
                         Ok cancellationStatus ->
                             Dict.updateJust groupId
-                                (Types.mapCache
+                                (Cache.map
                                     (\group ->
                                         case
                                             Group.editCancellationStatus
@@ -1046,7 +1067,7 @@ updateLoadedFromBackend msg model =
         ChangeGroupVisibilityResponse groupId visibility ->
             ( { model
                 | cachedGroups =
-                    Dict.updateJust groupId (Types.mapCache (Group.withVisibility visibility)) model.cachedGroups
+                    Dict.updateJust groupId (Cache.map (Group.withVisibility visibility)) model.cachedGroups
                 , groupPage = Dict.updateJust groupId (GroupPage.changeVisibilityResponse visibility) model.groupPage
               }
             , Command.none
@@ -1233,6 +1254,7 @@ viewPage model =
                                 model.time
                                 model.timezone
                                 owner
+                                model.cachedUsers
                                 group
                                 (Dict.get groupId model.groupPage |> Maybe.withDefault GroupPage.init)
                                 (case model.loginStatus of

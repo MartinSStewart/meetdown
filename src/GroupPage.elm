@@ -1,9 +1,50 @@
-module GroupPage exposing (CreateEventError(..), EventType(..), Model, Msg, ToBackend(..), addedNewEvent, changeVisibilityResponse, createEventCancelId, createEventStartDateId, createEventStartTimeId, createEventSubmitId, createNewEventId, editCancellationStatusResponse, editDescriptionId, editEventResponse, editGroupNameId, eventDescriptionInputId, eventDurationId, eventMeetingInPersonInputId, eventMeetingOnlineInputId, eventMeetingTypeId, eventNameInputId, init, joinEventButtonId, joinEventResponse, leaveEventButtonId, leaveEventResponse, notifyMeOfNewEvents, resetDescriptionId, resetGroupNameId, saveDescriptionId, saveGroupNameId, savedDescription, savedName, subscribeButtonId, unsubscribeButtonId, update, view)
+module GroupPage exposing
+    ( CreateEventError(..)
+    , EventType(..)
+    , Model
+    , Msg
+    , ToBackend(..)
+    , addedNewEvent
+    , changeVisibilityResponse
+    , createEventCancelId
+    , createEventStartDateId
+    , createEventStartTimeId
+    , createEventSubmitId
+    , createNewEventId
+    , editCancellationStatusResponse
+    , editDescriptionId
+    , editEventResponse
+    , editGroupNameId
+    , eventDescriptionInputId
+    , eventDurationId
+    , eventMeetingInPersonInputId
+    , eventMeetingOnlineInputId
+    , eventMeetingTypeId
+    , eventNameInputId
+    , hideAttendeesButtonId
+    , init
+    , joinEventButtonId
+    , joinEventResponse
+    , leaveEventButtonId
+    , leaveEventResponse
+    , notifyMeOfNewEvents
+    , resetDescriptionId
+    , resetGroupNameId
+    , saveDescriptionId
+    , saveGroupNameId
+    , savedDescription
+    , savedName
+    , subscribeButtonId
+    , unsubscribeButtonId
+    , update
+    , view
+    )
 
 import Address exposing (Address, Error(..))
 import AdminStatus exposing (AdminStatus(..))
 import AssocList as Dict exposing (Dict)
 import AssocSet as Set exposing (Set)
+import Cache exposing (Cache)
 import Colors exposing (..)
 import Date
 import Description exposing (Description)
@@ -12,6 +53,7 @@ import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Effect.Command as Command exposing (Command, FrontendOnly)
 import Effect.Lamdera as Lamdera
 import Element exposing (Element)
+import Element.Background
 import Element.Border
 import Element.Font
 import Element.Input
@@ -28,6 +70,7 @@ import Link exposing (Link)
 import List.Nonempty exposing (Nonempty(..))
 import MaxAttendees exposing (Error(..), MaxAttendees)
 import Name
+import Pixels
 import ProfileImage
 import Quantity exposing (Quantity)
 import Route
@@ -48,6 +91,7 @@ type alias Model =
     , pendingEventCancelOrUncancel : Set EventId
     , pendingToggleVisibility : Bool
     , subscribePending : SubscribeStatus
+    , showAttendees : Set EventId
     }
 
 
@@ -93,6 +137,8 @@ type Msg
     | PressedCopyPreviousEvent
     | PressedSubscribe
     | PressedUnsubscribe
+    | PressedShowAttendees EventId
+    | PressedHideAttendees EventId
 
 
 type SubmitStatus error
@@ -140,6 +186,7 @@ init =
     , pendingEventCancelOrUncancel = Set.empty
     , pendingToggleVisibility = False
     , subscribePending = NotPendingSubscribe
+    , showAttendees = Set.empty
     }
 
 
@@ -280,26 +327,29 @@ type ToBackend
 
 
 update :
-    { a | time : Time.Posix, timezone : Time.Zone }
+    { a | time : Time.Posix, timezone : Time.Zone, cachedUsers : Dict (Id UserId) (Cache FrontendUser) }
     -> Group
     -> Maybe LoggedInData
     -> Msg
     -> Model
-    -> ( Model, Command FrontendOnly ToBackend Msg, { joinEvent : Maybe EventId } )
+    -> ( Model, Command FrontendOnly ToBackend Msg, { joinEvent : Maybe EventId, requestUserData : Set (Id UserId) } )
 update config group maybeLoggedIn msg model =
     let
         canEdit_ =
             canEdit group maybeLoggedIn
 
+        noOutMsg =
+            { joinEvent = Nothing, requestUserData = Set.empty }
+
         noChange =
-            ( model, Command.none, { joinEvent = Nothing } )
+            ( model, Command.none, noOutMsg )
     in
     case msg of
         PressedEditName ->
             if canEdit_ then
                 ( { model | name = Group.name group |> GroupName.toString |> Editting }
                 , Command.none
-                , { joinEvent = Nothing }
+                , noOutMsg
                 )
 
             else
@@ -316,7 +366,7 @@ update config group maybeLoggedIn msg model =
                             Ok name ->
                                 ( { model | name = Submitting name }
                                 , Untrusted.untrust name |> ChangeGroupNameRequest |> Lamdera.sendToBackend
-                                , { joinEvent = Nothing }
+                                , noOutMsg
                                 )
 
                             Err _ ->
@@ -330,7 +380,7 @@ update config group maybeLoggedIn msg model =
 
         PressedResetName ->
             if canEdit_ then
-                ( { model | name = Unchanged }, Command.none, { joinEvent = Nothing } )
+                ( { model | name = Unchanged }, Command.none, noOutMsg )
 
             else
                 noChange
@@ -339,7 +389,7 @@ update config group maybeLoggedIn msg model =
             if canEdit_ then
                 case model.name of
                     Editting _ ->
-                        ( { model | name = Editting name }, Command.none, { joinEvent = Nothing } )
+                        ( { model | name = Editting name }, Command.none, noOutMsg )
 
                     _ ->
                         noChange
@@ -351,7 +401,7 @@ update config group maybeLoggedIn msg model =
             if canEdit_ then
                 ( { model | description = Group.description group |> Description.toString |> Editting }
                 , Command.none
-                , { joinEvent = Nothing }
+                , noOutMsg
                 )
 
             else
@@ -370,7 +420,7 @@ update config group maybeLoggedIn msg model =
                                 , Untrusted.untrust description
                                     |> ChangeGroupDescriptionRequest
                                     |> Lamdera.sendToBackend
-                                , { joinEvent = Nothing }
+                                , noOutMsg
                                 )
 
                             Err _ ->
@@ -384,7 +434,7 @@ update config group maybeLoggedIn msg model =
 
         PressedResetDescription ->
             if canEdit_ then
-                ( { model | description = Unchanged }, Command.none, { joinEvent = Nothing } )
+                ( { model | description = Unchanged }, Command.none, noOutMsg )
 
             else
                 noChange
@@ -395,7 +445,7 @@ update config group maybeLoggedIn msg model =
                     Editting _ ->
                         ( { model | description = Editting description }
                         , Command.none
-                        , { joinEvent = Nothing }
+                        , noOutMsg
                         )
 
                     _ ->
@@ -406,20 +456,20 @@ update config group maybeLoggedIn msg model =
 
         PressedAddEvent ->
             if canEdit_ && model.eventOverlay == Nothing then
-                ( { model | eventOverlay = Just AddingNewEvent }, Command.none, { joinEvent = Nothing } )
+                ( { model | eventOverlay = Just AddingNewEvent }, Command.none, noOutMsg )
 
             else
                 noChange
 
         PressedShowAllFutureEvents ->
-            ( { model | showAllFutureEvents = True }, Command.none, { joinEvent = Nothing } )
+            ( { model | showAllFutureEvents = True }, Command.none, noOutMsg )
 
         PressedShowFirstFutureEvents ->
-            ( { model | showAllFutureEvents = False }, Command.none, { joinEvent = Nothing } )
+            ( { model | showAllFutureEvents = False }, Command.none, noOutMsg )
 
         ChangedNewEvent newEvent ->
             if canEdit_ then
-                ( { model | newEvent = newEvent }, Command.none, { joinEvent = Nothing } )
+                ( { model | newEvent = newEvent }, Command.none, noOutMsg )
 
             else
                 noChange
@@ -428,7 +478,7 @@ update config group maybeLoggedIn msg model =
             if canEdit_ then
                 case model.eventOverlay of
                     Just AddingNewEvent ->
-                        ( { model | eventOverlay = Nothing }, Command.none, { joinEvent = Nothing } )
+                        ( { model | eventOverlay = Nothing }, Command.none, noOutMsg )
 
                     _ ->
                         noChange
@@ -473,7 +523,7 @@ update config group maybeLoggedIn msg model =
                             (Untrusted.untrust duration)
                             (Untrusted.untrust maxAttendees)
                             |> Lamdera.sendToBackend
-                        , { joinEvent = Nothing }
+                        , noOutMsg
                         )
                     )
                     (EventName.fromString newEvent.eventName |> Result.toMaybe)
@@ -487,7 +537,7 @@ update config group maybeLoggedIn msg model =
                     |> Maybe.withDefault
                         ( { model | newEvent = pressSubmit model.newEvent }
                         , Command.none
-                        , { joinEvent = Nothing }
+                        , noOutMsg
                         )
 
             else
@@ -501,7 +551,7 @@ update config group maybeLoggedIn msg model =
                 _ ->
                     ( { model | pendingJoinOrLeave = Dict.insert eventId JoinOrLeavePending model.pendingJoinOrLeave }
                     , LeaveEventRequest eventId |> Lamdera.sendToBackend
-                    , { joinEvent = Nothing }
+                    , noOutMsg
                     )
 
         PressedJoinEvent eventId ->
@@ -514,11 +564,11 @@ update config group maybeLoggedIn msg model =
                         _ ->
                             ( { model | pendingJoinOrLeave = Dict.insert eventId JoinOrLeavePending model.pendingJoinOrLeave }
                             , JoinEventRequest eventId |> Lamdera.sendToBackend
-                            , { joinEvent = Nothing }
+                            , noOutMsg
                             )
 
                 Nothing ->
-                    ( model, Command.none, { joinEvent = Just eventId } )
+                    ( model, Command.none, { joinEvent = Just eventId, requestUserData = Set.empty } )
 
         PressedEditEvent eventId ->
             if canEdit_ && model.eventOverlay == Nothing then
@@ -585,7 +635,7 @@ update config group maybeLoggedIn msg model =
                                     |> Just
                           }
                         , Command.none
-                        , { joinEvent = Nothing }
+                        , noOutMsg
                         )
 
             else
@@ -602,7 +652,7 @@ update config group maybeLoggedIn msg model =
                             model.eventOverlay
               }
             , Command.none
-            , { joinEvent = Nothing }
+            , noOutMsg
             )
 
         PressedSubmitEditEvent ->
@@ -654,7 +704,7 @@ update config group maybeLoggedIn msg model =
                                             (Untrusted.untrust duration)
                                             (Untrusted.untrust maxAttendees)
                                             |> Lamdera.sendToBackend
-                                        , { joinEvent = Nothing }
+                                        , noOutMsg
                                         )
                                     )
                                     (EventName.fromString editEvent.eventName |> Result.toMaybe)
@@ -670,7 +720,7 @@ update config group maybeLoggedIn msg model =
                                             | eventOverlay = EdittingEvent eventId (pressSubmit editEvent) |> Just
                                           }
                                         , Command.none
-                                        , { joinEvent = Nothing }
+                                        , noOutMsg
                                         )
 
                             else
@@ -685,7 +735,7 @@ update config group maybeLoggedIn msg model =
         PressedCancelEditEvent ->
             case model.eventOverlay of
                 Just (EdittingEvent _ _) ->
-                    ( { model | eventOverlay = Nothing }, Command.none, { joinEvent = Nothing } )
+                    ( { model | eventOverlay = Nothing }, Command.none, noOutMsg )
 
                 _ ->
                     noChange
@@ -696,7 +746,7 @@ update config group maybeLoggedIn msg model =
                     ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
                     , ChangeEventCancellationStatusRequest eventId Event.EventCancelled
                         |> Lamdera.sendToBackend
-                    , { joinEvent = Nothing }
+                    , noOutMsg
                     )
 
                 _ ->
@@ -708,7 +758,7 @@ update config group maybeLoggedIn msg model =
                     ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
                     , ChangeEventCancellationStatusRequest eventId Event.EventUncancelled
                         |> Lamdera.sendToBackend
-                    , { joinEvent = Nothing }
+                    , noOutMsg
                     )
 
                 _ ->
@@ -720,7 +770,7 @@ update config group maybeLoggedIn msg model =
                     ( { model | pendingEventCancelOrUncancel = Set.insert eventId model.pendingEventCancelOrUncancel }
                     , ChangeEventCancellationStatusRequest eventId Event.EventCancelled
                         |> Lamdera.sendToBackend
-                    , { joinEvent = Nothing }
+                    , noOutMsg
                     )
 
                 _ ->
@@ -730,7 +780,7 @@ update config group maybeLoggedIn msg model =
             if canEdit_ && not model.pendingToggleVisibility then
                 ( { model | pendingToggleVisibility = True }
                 , ChangeGroupVisibilityRequest Group.PublicGroup |> Lamdera.sendToBackend
-                , { joinEvent = Nothing }
+                , noOutMsg
                 )
 
             else
@@ -740,7 +790,7 @@ update config group maybeLoggedIn msg model =
             if canEdit_ && not model.pendingToggleVisibility then
                 ( { model | pendingToggleVisibility = True }
                 , ChangeGroupVisibilityRequest Group.UnlistedGroup |> Lamdera.sendToBackend
-                , { joinEvent = Nothing }
+                , noOutMsg
                 )
 
             else
@@ -749,7 +799,7 @@ update config group maybeLoggedIn msg model =
         PressedDeleteGroup ->
             case Maybe.map (.adminStatus >> AdminStatus.isAdminEnabled) maybeLoggedIn of
                 Just True ->
-                    ( model, Lamdera.sendToBackend DeleteGroupAdminRequest, { joinEvent = Nothing } )
+                    ( model, Lamdera.sendToBackend DeleteGroupAdminRequest, noOutMsg )
 
                 _ ->
                     noChange
@@ -764,7 +814,7 @@ update config group maybeLoggedIn msg model =
                                     fillInEmptyNewEventInputs config.timezone latestEvent_ model.newEvent
                               }
                             , Command.none
-                            , { joinEvent = Nothing }
+                            , noOutMsg
                             )
 
                         Nothing ->
@@ -777,10 +827,37 @@ update config group maybeLoggedIn msg model =
                     noChange
 
         PressedSubscribe ->
-            ( { model | subscribePending = PendingSubscribe }, Lamdera.sendToBackend SubscribeRequest, { joinEvent = Nothing } )
+            ( { model | subscribePending = PendingSubscribe }, Lamdera.sendToBackend SubscribeRequest, noOutMsg )
 
         PressedUnsubscribe ->
-            ( { model | subscribePending = PendingUnsubscribe }, Lamdera.sendToBackend UnsubscribeRequest, { joinEvent = Nothing } )
+            ( { model | subscribePending = PendingUnsubscribe }, Lamdera.sendToBackend UnsubscribeRequest, noOutMsg )
+
+        PressedShowAttendees eventId ->
+            let
+                attendees : Set (Id UserId)
+                attendees =
+                    case Group.getEvent config.time eventId group of
+                        Just ( event, _ ) ->
+                            Event.attendees event
+
+                        Nothing ->
+                            Set.empty
+            in
+            ( { model | showAttendees = Set.insert eventId model.showAttendees }
+            , Command.none
+            , { joinEvent = Nothing
+              , requestUserData =
+                    Dict.keys config.cachedUsers
+                        |> Set.fromList
+                        |> Set.diff attendees
+              }
+            )
+
+        PressedHideAttendees eventId ->
+            ( { model | showAttendees = Set.remove eventId model.showAttendees }
+            , Command.none
+            , noOutMsg
+            )
 
 
 latestEvent : Group -> Maybe Event
@@ -938,11 +1015,12 @@ view :
     -> Time.Posix
     -> Time.Zone
     -> FrontendUser
+    -> Dict (Id UserId) (Cache FrontendUser)
     -> Group
     -> Model
     -> Maybe LoggedInData
     -> Element Msg
-view isMobile currentTime timezone owner group model maybeLoggedIn =
+view isMobile currentTime timezone owner cachedUsers group model maybeLoggedIn =
     Element.el
         Ui.pageContentAttributes
         (case model.eventOverlay of
@@ -958,7 +1036,7 @@ view isMobile currentTime timezone owner group model maybeLoggedIn =
                         Element.text "This event doesn't exist"
 
             Nothing ->
-                groupView isMobile currentTime timezone owner group model maybeLoggedIn
+                groupView isMobile currentTime timezone owner cachedUsers group model maybeLoggedIn
         )
 
 
@@ -1093,11 +1171,12 @@ groupView :
     -> Time.Posix
     -> Time.Zone
     -> FrontendUser
+    -> Dict (Id UserId) (Cache FrontendUser)
     -> Group
     -> Model
     -> Maybe LoggedInData
     -> Element Msg
-groupView isMobile currentTime timezone owner group model maybeLoggedIn =
+groupView isMobile currentTime timezone owner cachedUsers group model maybeLoggedIn =
     let
         { pastEvents, ongoingEvent, futureEvents } =
             Group.events currentTime group
@@ -1167,11 +1246,13 @@ groupView isMobile currentTime timezone owner group model maybeLoggedIn =
                     Element.none
                     (ongoingEventView
                         isMobile
+                        cachedUsers
                         currentTime
                         timezone
                         canEdit_
                         maybeLoggedIn
                         model.pendingJoinOrLeave
+                        model.showAttendees
                         event
                     )
 
@@ -1219,11 +1300,13 @@ groupView isMobile currentTime timezone owner group model maybeLoggedIn =
                         |> List.map
                             (futureEventView
                                 isMobile
+                                cachedUsers
                                 currentTime
                                 timezone
                                 canEdit_
                                 maybeLoggedIn
                                 model.pendingJoinOrLeave
+                                model.showAttendees
                             )
              )
                 |> Element.column [ Element.width Element.fill, Element.spacing 8 ]
@@ -1234,7 +1317,9 @@ groupView isMobile currentTime timezone owner group model maybeLoggedIn =
                     False
                     "Past events"
                     Element.none
-                    (List.map (Tuple.second >> pastEventView isMobile currentTime timezone maybeLoggedIn) (head :: rest)
+                    (List.map
+                        (pastEventView isMobile cachedUsers currentTime timezone maybeLoggedIn model.showAttendees)
+                        (head :: rest)
                         |> Element.column [ Element.width Element.fill, Element.spacing 8 ]
                     )
 
@@ -1330,14 +1415,16 @@ createNewEventId =
 
 ongoingEventView :
     Bool
+    -> Dict (Id UserId) (Cache FrontendUser)
     -> Time.Posix
     -> Time.Zone
     -> Bool
     -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus }
     -> Dict EventId EventJoinOrLeaveStatus
+    -> Set EventId
     -> ( EventId, Event )
     -> Element Msg
-ongoingEventView isMobile currentTime timezone isOwner maybeLoggedIn pendingJoinOrLeaveStatuses ( eventId, event ) =
+ongoingEventView isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn pendingJoinOrLeaveStatuses showAttendees ( eventId, event ) =
     let
         isAttending =
             maybeLoggedIn
@@ -1350,6 +1437,9 @@ ongoingEventView isMobile currentTime timezone isOwner maybeLoggedIn pendingJoin
 
         attendeeCount =
             Event.attendees event |> Set.size
+
+        showAttendees_ =
+            Set.member eventId showAttendees
     in
     eventCard
         [ eventCardHeader isMobile currentTime timezone IsOngoingEvent event
@@ -1378,7 +1468,16 @@ ongoingEventView isMobile currentTime timezone isOwner maybeLoggedIn pendingJoin
                                 ""
                            )
                         |> Element.text
+            , showAttendeesButton eventId showAttendees_
             ]
+        , if showAttendees_ then
+            Event.attendees event
+                |> Set.toList
+                |> List.map (attendeeView cachedUsers)
+                |> Element.wrappedRow [ Element.spacing 4 ]
+
+          else
+            Element.none
         , case Event.eventType event of
             Event.MeetOnline (Just link) ->
                 if isAttending then
@@ -1426,18 +1525,23 @@ ongoingEventView isMobile currentTime timezone isOwner maybeLoggedIn pendingJoin
 
 pastEventView :
     Bool
+    -> Dict (Id UserId) (Cache FrontendUser)
     -> Time.Posix
     -> Time.Zone
     -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus }
-    -> Event
+    -> Set EventId
+    -> ( EventId, Event )
     -> Element Msg
-pastEventView isMobile currentTime timezone maybeLoggedIn event =
+pastEventView isMobile cachedUsers currentTime timezone maybeLoggedIn showAttendees ( eventId, event ) =
     let
         isAttending =
             maybeLoggedIn |> Maybe.map (\{ userId } -> Set.member userId (Event.attendees event)) |> Maybe.withDefault False
 
         attendeeCount =
             Event.attendees event |> Set.size
+
+        showAttendees_ =
+            Set.member eventId showAttendees
     in
     eventCard
         [ eventCardHeader isMobile currentTime timezone IsPastEvent event
@@ -1466,9 +1570,96 @@ pastEventView isMobile currentTime timezone maybeLoggedIn event =
                                 ""
                            )
                         |> Element.text
+            , Element.text " "
+            , showAttendeesButton eventId showAttendees_
             ]
+        , if showAttendees_ then
+            Event.attendees event
+                |> Set.toList
+                |> List.map (attendeeView cachedUsers)
+                |> Element.wrappedRow [ Element.spacing 4 ]
+
+          else
+            Element.none
         , Event.description event |> Description.toParagraph False
         ]
+
+
+attendeeView : Dict (Id UserId) (Cache FrontendUser) -> Id UserId -> Element msg
+attendeeView cachedUsers userId =
+    let
+        size =
+            64
+    in
+    case Cache.get userId cachedUsers of
+        Just user ->
+            let
+                nameText =
+                    Name.toString user.name
+            in
+            Element.link
+                [ Ui.inputFocusClass, Element.alignTop ]
+                { url = Route.UserRoute userId user.name |> Route.encode
+                , label =
+                    Element.column
+                        [ Element.spacing 2 ]
+                        [ ProfileImage.image (Pixels.pixels size) user.profileImage
+                        , Element.paragraph
+                            [ Element.Font.size 12
+                            , Element.Font.center
+                            , Element.width (Element.px size)
+                            ]
+                            [ (if String.length nameText > 23 then
+                                String.left 20 nameText ++ "..."
+
+                               else
+                                nameText
+                              )
+                                |> Element.text
+                            ]
+                        ]
+                }
+
+        Nothing ->
+            Element.el
+                [ Element.width (Element.px size)
+                , Element.height (Element.px size)
+                ]
+                Element.none
+
+
+showAttendeesButton : EventId -> Bool -> Element Msg
+showAttendeesButton eventId showAttendees =
+    Element.el
+        []
+        (if showAttendees then
+            Element.Input.button
+                [ Element.Font.color Colors.blue
+                , Element.htmlAttribute (Dom.idToAttribute hideAttendeesButtonId)
+                ]
+                { onPress = PressedHideAttendees eventId |> Just
+                , label = Element.text "(Hide\u{00A0}attendees)"
+                }
+
+         else
+            Element.Input.button
+                [ Element.Font.color Colors.blue
+                , Element.htmlAttribute (Dom.idToAttribute showAttendeesButtonId)
+                ]
+                { onPress = PressedShowAttendees eventId |> Just
+                , label = Element.text "(Show\u{00A0}attendees)"
+                }
+        )
+
+
+showAttendeesButtonId : HtmlId
+showAttendeesButtonId =
+    Dom.id "groupPage_showAttendeesButton"
+
+
+hideAttendeesButtonId : HtmlId
+hideAttendeesButtonId =
+    Dom.id "groupPage_hideAttendeesButton"
 
 
 eventCardHeader : Bool -> Time.Posix -> Time.Zone -> PastOngoingOrFuture -> Event -> Element msg
@@ -1507,14 +1698,16 @@ eventCardHeader isMobile currentTime timezone eventStatus event =
 
 futureEventView :
     Bool
+    -> Dict (Id UserId) (Cache FrontendUser)
     -> Time.Posix
     -> Time.Zone
     -> Bool
     -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus }
     -> Dict EventId EventJoinOrLeaveStatus
+    -> Set EventId
     -> ( EventId, Event )
     -> Element Msg
-futureEventView isMobile currentTime timezone isOwner maybeLoggedIn pendingJoinOrLeaveStatuses ( eventId, event ) =
+futureEventView isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn pendingJoinOrLeaveStatuses showAttendees ( eventId, event ) =
     let
         isAttending =
             maybeLoggedIn |> Maybe.map (\{ userId } -> Set.member userId (Event.attendees event)) |> Maybe.withDefault False
@@ -1525,6 +1718,9 @@ futureEventView isMobile currentTime timezone isOwner maybeLoggedIn pendingJoinO
 
         attendeeCount =
             Event.attendees event |> Set.size
+
+        showAttendees_ =
+            Set.member eventId showAttendees
     in
     eventCard
         [ eventCardHeader isMobile currentTime timezone IsFutureEvent event
@@ -1553,7 +1749,17 @@ futureEventView isMobile currentTime timezone isOwner maybeLoggedIn pendingJoinO
                                 ""
                            )
                         |> Element.text
+            , Element.text " "
+            , showAttendeesButton eventId showAttendees_
             ]
+        , if showAttendees_ then
+            Event.attendees event
+                |> Set.toList
+                |> List.map (attendeeView cachedUsers)
+                |> Element.wrappedRow [ Element.spacing 4 ]
+
+          else
+            Element.none
         , if Duration.from currentTime (Event.startTime event) |> Quantity.lessThan Duration.day then
             case Event.eventType event of
                 Event.MeetOnline (Just link) ->
