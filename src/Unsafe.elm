@@ -1,5 +1,6 @@
-module Unsafe exposing (addAttendee, addEvent, description, emailAddress, eventDurationFromMinutes, eventName, groupName, name)
+module Unsafe exposing (addAttendee, addEvent, address, description, emailAddress, eventDuration, eventDurationFromMinutes, eventName, groupName, id, link, name, url)
 
+import Address exposing (Address)
 import Description exposing (Description)
 import EmailAddress exposing (EmailAddress)
 import Event exposing (Event)
@@ -8,7 +9,9 @@ import EventName exposing (EventName)
 import Group exposing (Group)
 import GroupName exposing (GroupName)
 import Id exposing (Id, UserId)
+import Link exposing (Link)
 import Name exposing (Name)
+import Url exposing (Url)
 
 
 name : String -> Name
@@ -52,8 +55,8 @@ addEvent event group =
 
 
 addAttendee : Id UserId -> Event -> Event
-addAttendee id event =
-    case Event.addAttendee id event of
+addAttendee id_ event =
+    case Event.addAttendee id_ event of
         Ok ok ->
             ok
 
@@ -89,6 +92,56 @@ emailAddress text =
 
         Nothing ->
             unreachable ()
+
+
+url : String -> Url
+url urlText =
+    case Url.fromString urlText of
+        Just url_ ->
+            url_
+
+        Nothing ->
+            Debug.todo ("Invalid url " ++ urlText)
+
+
+id : String -> Id a
+id text =
+    case Id.cryptoHashFromString text of
+        Just a ->
+            a
+
+        Nothing ->
+            Debug.todo ("Invalid id " ++ text)
+
+
+address : String -> Address
+address text =
+    case Address.fromString text of
+        Ok address_ ->
+            address_
+
+        Err _ ->
+            Debug.todo ("Invalid email address " ++ text)
+
+
+link : String -> Link
+link text =
+    case Link.fromString text of
+        Just value ->
+            value
+
+        Nothing ->
+            Debug.todo ("Invalid link " ++ text)
+
+
+eventDuration : Int -> EventDuration
+eventDuration minutes =
+    case EventDuration.fromMinutes minutes of
+        Ok duration ->
+            duration
+
+        Err _ ->
+            Debug.todo ("Invalid event duration " ++ String.fromInt minutes)
 
 
 {-| Be very careful when using this!

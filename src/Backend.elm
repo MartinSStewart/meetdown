@@ -54,7 +54,7 @@ app =
     Effect.Lamdera.backend
         Lamdera.broadcast
         Lamdera.sendToFrontend
-        { init = fakeInit
+        { init = init
         , update = update
         , updateFromFrontend = updateFromFrontend
         , subscriptions = subscriptions
@@ -84,94 +84,95 @@ init =
     )
 
 
-fakeInit : ( BackendModel, Command BackendOnly ToFrontend BackendMsg )
-fakeInit =
-    let
-        _ =
-            Debug.log "This prevents accidentally deploying fakeInit to production" ""
-    in
-    ( { users =
-            Dict.fromList
-                [ ( Id "a"
-                  , { name = Unsafe.name "Person H Personson"
-                    , description = Unsafe.description "asdf"
-                    , emailAddress = Unsafe.emailAddress "as2df@asdf.com"
-                    , profileImage = DefaultImage
-                    , timezone = Time.utc
-                    , allowEventReminders = False
-                    , subscribedGroups = Set.empty
-                    }
-                  )
-                , ( Id "b"
-                  , { name = Unsafe.name "Steve Longlastnameerson"
-                    , description = Unsafe.description "asdf"
-                    , emailAddress = Unsafe.emailAddress "asd2f@asdf.com"
-                    , profileImage = DefaultImage
-                    , timezone = Time.utc
-                    , allowEventReminders = False
-                    , subscribedGroups = Set.empty
-                    }
-                  )
-                , ( Id "c"
-                  , { name = Unsafe.name "Falth"
-                    , description = Unsafe.description "asdf"
-                    , emailAddress = Unsafe.emailAddress "asdf@asdf.com"
-                    , profileImage = DefaultImage
-                    , timezone = Time.utc
-                    , allowEventReminders = False
-                    , subscribedGroups = Set.empty
-                    }
-                  )
-                ]
-      , groups =
-            Dict.fromList
-                [ ( Id "10001"
-                  , Group.init
-                        (Id "a")
-                        (Unsafe.groupName "groupName")
-                        (Unsafe.description "asdf")
-                        Group.PublicGroup
-                        (Time.millisToPosix 0)
-                        |> Unsafe.addEvent
-                            (Event.newEvent
-                                (Id "a")
-                                (Unsafe.eventName "event")
-                                (Unsafe.description "asdf")
-                                (Event.MeetOnline Nothing)
-                                (Time.millisToPosix 20000)
-                                (Unsafe.eventDurationFromMinutes 10000)
-                                (Time.millisToPosix 10000)
-                                NoLimit
-                                |> Unsafe.addAttendee (Id "b")
-                                |> Unsafe.addAttendee (Id "c")
-                            )
-                        |> Unsafe.addEvent
-                            (Event.newEvent
-                                (Id "a")
-                                (Unsafe.eventName "event")
-                                (Unsafe.description "asdf")
-                                (Event.MeetOnline Nothing)
-                                (Time.millisToPosix 2000000000000000)
-                                (Unsafe.eventDurationFromMinutes 10000)
-                                (Time.millisToPosix 1000000000000000)
-                                NoLimit
-                                |> Unsafe.addAttendee (Id "b")
-                                |> Unsafe.addAttendee (Id "c")
-                            )
-                  )
-                ]
-      , deletedGroups = Dict.empty
-      , sessions = BiDict.empty
-      , loginAttempts = Dict.empty
-      , connections = Dict.empty
-      , logs = Array.empty
-      , time = Time.millisToPosix 0
-      , secretCounter = 0
-      , pendingLoginTokens = Dict.empty
-      , pendingDeleteUserTokens = Dict.empty
-      }
-    , Time.now |> Task.perform BackendGotTime
-    )
+
+--fakeInit : ( BackendModel, Command BackendOnly ToFrontend BackendMsg )
+--fakeInit =
+--    let
+--        _ =
+--            Debug.log "This prevents accidentally deploying fakeInit to production" ""
+--    in
+--    ( { users =
+--            Dict.fromList
+--                [ ( Id "a"
+--                  , { name = Unsafe.name "Person H Personson"
+--                    , description = Unsafe.description "asdf"
+--                    , emailAddress = Unsafe.emailAddress "as2df@asdf.com"
+--                    , profileImage = DefaultImage
+--                    , timezone = Time.utc
+--                    , allowEventReminders = False
+--                    , subscribedGroups = Set.empty
+--                    }
+--                  )
+--                , ( Id "b"
+--                  , { name = Unsafe.name "Steve Longlastnameerson"
+--                    , description = Unsafe.description "asdf"
+--                    , emailAddress = Unsafe.emailAddress "asd2f@asdf.com"
+--                    , profileImage = DefaultImage
+--                    , timezone = Time.utc
+--                    , allowEventReminders = False
+--                    , subscribedGroups = Set.empty
+--                    }
+--                  )
+--                , ( Id "c"
+--                  , { name = Unsafe.name "Falth"
+--                    , description = Unsafe.description "asdf"
+--                    , emailAddress = Unsafe.emailAddress "asdf@asdf.com"
+--                    , profileImage = DefaultImage
+--                    , timezone = Time.utc
+--                    , allowEventReminders = False
+--                    , subscribedGroups = Set.empty
+--                    }
+--                  )
+--                ]
+--      , groups =
+--            Dict.fromList
+--                [ ( Id "10001"
+--                  , Group.init
+--                        (Id "a")
+--                        (Unsafe.groupName "groupName")
+--                        (Unsafe.description "asdf")
+--                        Group.PublicGroup
+--                        (Time.millisToPosix 0)
+--                        |> Unsafe.addEvent
+--                            (Event.newEvent
+--                                (Id "a")
+--                                (Unsafe.eventName "event")
+--                                (Unsafe.description "asdf")
+--                                (Event.MeetOnline Nothing)
+--                                (Time.millisToPosix 20000)
+--                                (Unsafe.eventDurationFromMinutes 10000)
+--                                (Time.millisToPosix 10000)
+--                                NoLimit
+--                                |> Unsafe.addAttendee (Id "b")
+--                                |> Unsafe.addAttendee (Id "c")
+--                            )
+--                        |> Unsafe.addEvent
+--                            (Event.newEvent
+--                                (Id "a")
+--                                (Unsafe.eventName "event")
+--                                (Unsafe.description "asdf")
+--                                (Event.MeetOnline Nothing)
+--                                (Time.millisToPosix 2000000000000000)
+--                                (Unsafe.eventDurationFromMinutes 10000)
+--                                (Time.millisToPosix 1000000000000000)
+--                                NoLimit
+--                                |> Unsafe.addAttendee (Id "b")
+--                                |> Unsafe.addAttendee (Id "c")
+--                            )
+--                  )
+--                ]
+--      , deletedGroups = Dict.empty
+--      , sessions = BiDict.empty
+--      , loginAttempts = Dict.empty
+--      , connections = Dict.empty
+--      , logs = Array.empty
+--      , time = Time.millisToPosix 0
+--      , secretCounter = 0
+--      , pendingLoginTokens = Dict.empty
+--      , pendingDeleteUserTokens = Dict.empty
+--      }
+--    , Time.now |> Task.perform BackendGotTime
+--    )
 
 
 subscriptions : BackendModel -> Subscription BackendOnly BackendMsg
