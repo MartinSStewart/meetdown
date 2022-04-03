@@ -1,4 +1,4 @@
-module Route exposing (Route(..), Token(..), decode, encode, encodeWithToken, loginTokenName)
+module Route exposing (Route(..), Token(..), decode, encode, encodeWithToken)
 
 import Group exposing (EventId)
 import GroupName exposing (GroupName)

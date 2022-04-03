@@ -1,6 +1,6 @@
 module Link exposing (Link(..), fromString, toString)
 
-import Parser exposing ((|.), (|=), Parser)
+import Parser exposing ((|.), Parser)
 
 
 type Link

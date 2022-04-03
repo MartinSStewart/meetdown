@@ -2,10 +2,8 @@ module AdminPage exposing (..)
 
 import AdminStatus exposing (AdminStatus(..))
 import Array
-import Date
 import Element exposing (Element)
 import HtmlId
-import Id
 import Time
 import Types exposing (AdminCache(..), AdminModel, FrontendMsg(..), Log)
 import Ui

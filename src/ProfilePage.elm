@@ -4,19 +4,17 @@ module ProfilePage exposing
     , Model
     , Msg
     , ToBackend(..)
-    , cancelImageButtonId
     , deleteAccountButtonId
     , imageEditorIsActive
     , init
     , subscriptions
     , update
-    , uploadImageButtonId
     , view
     )
 
 import Colors exposing (..)
 import Description exposing (Description, Error(..))
-import Duration exposing (Duration)
+import Duration
 import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Effect.Command as Command exposing (Command, FrontendOnly)
 import Effect.File as File exposing (File)
@@ -212,7 +210,7 @@ update windowSize msg model =
 
         MouseDownImageEditor x y ->
             case model.profileImage of
-                Editting (Just ({ dragState } as imageData)) ->
+                Editting (Just imageData) ->
                     let
                         ( tx, ty ) =
                             ( pixelToT windowSize x, pixelToT windowSize y )

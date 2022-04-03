@@ -4,7 +4,6 @@ module CreateGroupPage exposing
     , Model
     , Msg
     , OutMsg(..)
-    , clearButtonId
     , descriptionInputId
     , groupVisibilityId
     , init
@@ -51,7 +50,6 @@ validatedToForm validated =
 type Msg
     = FormChanged Form
     | PressedSubmit
-    | PressedClear
 
 
 type alias Form =
@@ -121,9 +119,6 @@ updateForm wrapper msg form =
 
                 Nothing ->
                     ( wrapper { form | pressedSubmit = True }, NoChange )
-
-        PressedClear ->
-            ( wrapper initForm, NoChange )
 
 
 view : Bool -> Bool -> Model -> Element Msg
@@ -270,11 +265,6 @@ descriptionInputId =
     HtmlId.textInputId "createGroupDescription"
 
 
-clearButtonId : HtmlId
-clearButtonId =
-    HtmlId.buttonId "createGroupClear"
-
-
 submitButtonId : HtmlId
 submitButtonId =
     HtmlId.buttonId "createGroupSubmit"
@@ -292,8 +282,3 @@ groupVisibilityId =
                 PublicGroup ->
                     "PublicGroup"
         )
-
-
-termsOfServiceId : () -> HtmlId
-termsOfServiceId =
-    HtmlId.radioButtonId "termsOfServiceId" (\() -> "")

@@ -9,13 +9,13 @@ module Backend exposing
 
 import Address
 import Array
-import AssocList as Dict exposing (Dict)
-import AssocSet as Set exposing (Set)
+import AssocList as Dict
+import AssocSet as Set
 import BiDict.Assoc as BiDict
 import CreateGroupPage exposing (CreateGroupError(..))
 import Date
 import Description exposing (Description)
-import Duration exposing (Duration)
+import Duration
 import Effect.Command as Command exposing (BackendOnly, Command)
 import Effect.Http as Http
 import Effect.Lamdera exposing (ClientId, SessionId)
@@ -31,22 +31,20 @@ import EventName
 import Group exposing (EventId, Group, GroupVisibility)
 import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError(..))
-import Id exposing (DeleteUserToken, GroupId, Id(..), LoginToken, UserId)
+import Id exposing (DeleteUserToken, GroupId, Id, LoginToken, UserId)
 import Lamdera
 import Link
 import List.Extra as List
 import List.Nonempty
-import MaxAttendees exposing (MaxAttendees(..))
 import Name
 import Postmark
-import ProfileImage exposing (ProfileImage(..))
+import ProfileImage
 import ProfilePage
 import Quantity
 import Route exposing (Route(..))
 import String.Nonempty exposing (NonemptyString(..))
-import Toop exposing (T3(..), T4(..), T5(..))
+import Toop exposing (T5(..))
 import Types exposing (..)
-import Unsafe
 import Untrusted
 
 
@@ -408,7 +406,7 @@ updateFromFrontend sessionId clientId msg model =
             , (case getGroup groupId model of
                 Just group ->
                     case getUserFromSessionId sessionId model of
-                        Just ( userId, user ) ->
+                        Just ( userId, _ ) ->
                             GroupFound_
                                 group
                                 (if userId == Group.ownerId group then

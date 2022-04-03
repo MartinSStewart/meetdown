@@ -7,13 +7,13 @@ import AssocSet exposing (Set)
 import BiDict.Assoc exposing (BiDict)
 import Browser exposing (UrlRequest)
 import Cache exposing (Cache)
-import CreateGroupPage exposing (CreateGroupError, GroupFormValidated)
+import CreateGroupPage exposing (CreateGroupError)
 import Description exposing (Description)
 import Effect.Browser.Navigation exposing (Key)
 import Effect.Http as Http
 import Effect.Lamdera exposing (ClientId, SessionId)
 import EmailAddress exposing (EmailAddress)
-import Event exposing (CancellationStatus, Event, EventType)
+import Event exposing (CancellationStatus, Event)
 import FrontendUser exposing (FrontendUser)
 import Group exposing (EventId, Group, GroupVisibility, JoinEventError)
 import GroupName exposing (GroupName)
@@ -179,7 +179,7 @@ logData model log =
                         True
             , message =
                 case result of
-                    Ok response ->
+                    Ok _ ->
                         "Sent an email to " ++ EmailAddress.toString emailAddress
 
                     Err error ->
@@ -204,7 +204,7 @@ logData model log =
                         emailErrorToString (getEmailAddress userId) error
             }
 
-        LogEventReminderEmail time result userId groupId eventId ->
+        LogEventReminderEmail time result userId _ _ ->
             { time = time
             , isError =
                 case result of
@@ -222,7 +222,7 @@ logData model log =
                         emailErrorToString (getEmailAddress userId) error
             }
 
-        LogNewEventNotificationEmail time result userId groupId ->
+        LogNewEventNotificationEmail time result userId _ ->
             { time = time
             , isError =
                 case result of
@@ -289,7 +289,6 @@ type FrontendMsg
     | TypedEmail String
     | PressedSubmitLogin
     | PressedCancelLogin
-    | PressedCreateGroup
     | CreateGroupPageMsg CreateGroupPage.Msg
     | ProfileFormMsg ProfilePage.Msg
     | TypedSearchText String

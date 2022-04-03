@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "elm-review": "^2.7.1"
+  }
+}

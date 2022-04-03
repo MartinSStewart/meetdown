@@ -1,4 +1,4 @@
-module EventName exposing (Error(..), EventName(..), errorToString, fromString, maxLength, minLength, toString)
+module EventName exposing (Error(..), EventName(..), errorToString, fromString, toString)
 
 
 type EventName
