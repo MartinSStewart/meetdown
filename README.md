@@ -9,7 +9,7 @@ https://meetdown.app/
 ### Contributing
 
 If you want to fix something or add a feature, I recommend asking me about it on Elm slack (I am `@Martin Stewart`) or creating an issue here first.
-It's much less stressful to turn down a feature *before* you have spent time implementing it!
+It's much less stressful to turn down a feature _before_ you have spent time implementing it!
 
 Also make sure to add your name to the Credits.txt if it's your first PR!
 
@@ -23,16 +23,21 @@ Also make sure to add your name to the Credits.txt if it's your first PR!
 ### How do I log in locally?
 
 Easy way: Uncomment these lines in `Backend.elm`
+
 ```elm
         --_ =
         --    Debug.log "login" loginLink
 ```
+
 and then click on the link that appears in the console when you try logging in.
 
 Hard way: Create a postmark account, generate an API key, and paste it in `Env.elm` here:
+
 ```elm
 postmarkServerToken =
     ""
 ```
+
 (Make sure to not accidentally commit it!)
 
+Charlon: I'm currently working on Internationalization, so if you want to help with that, please let me know!
