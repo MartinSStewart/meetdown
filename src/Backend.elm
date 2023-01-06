@@ -1462,6 +1462,33 @@ eventReminderEmailContent groupId groupName event =
 
                     Event.MeetInPerson Nothing ->
                         [ Email.Html.text " in person tomorrow." ]
+
+                    Event.MeetOnlineAndInPerson (Just meetingLink) (Just address) ->
+                        [ Email.Html.text " online and in person tomorrow. The event will be accessible with this link "
+                        , Email.Html.a
+                            [ Email.Html.Attributes.href (Link.toString meetingLink) ]
+                            [ Email.Html.text (Link.toString meetingLink) ]
+                        , Email.Html.text " and will be taking place at "
+                        , Email.Html.text (Address.toString address)
+                        , Email.Html.text ". "
+                        ]
+
+                    Event.MeetOnlineAndInPerson (Just meetingLink) Nothing ->
+                        [ Email.Html.text " online and in person tomorrow. The event will be accessible with this link "
+                        , Email.Html.a
+                            [ Email.Html.Attributes.href (Link.toString meetingLink) ]
+                            [ Email.Html.text (Link.toString meetingLink) ]
+                        , Email.Html.text ". "
+                        ]
+
+                    Event.MeetOnlineAndInPerson Nothing (Just address) ->
+                        [ Email.Html.text " online and in person tomorrow. The event will be taking place at "
+                        , Email.Html.text (Address.toString address)
+                        , Email.Html.text ". "
+                        ]
+
+                    Event.MeetOnlineAndInPerson Nothing Nothing ->
+                        [ Email.Html.text " online and in person tomorrow." ]
                )
             ++ [ Email.Html.br [] []
                , Email.Html.br [] []
@@ -1555,6 +1582,38 @@ newEventNotificationEmailContent groupId groupName event currentTime timezone =
 
                     Event.MeetInPerson Nothing ->
                         [ Email.Html.text (" in person " ++ startDateOrTime_ ++ ".") ]
+
+                    Event.MeetOnlineAndInPerson (Just meetingLink) (Just address) ->
+                        [ " online and in person at "
+                            ++ Address.toString address
+                            ++ " "
+                            ++ startDateOrTime_
+                            ++ ". The event will be accessible with this link "
+                            |> Email.Html.text
+                        , Email.Html.a
+                            [ Email.Html.Attributes.href (Link.toString meetingLink) ]
+                            [ Email.Html.text (Link.toString meetingLink) ]
+                        , Email.Html.text ". "
+                        ]
+
+                    Event.MeetOnlineAndInPerson (Just meetingLink) Nothing ->
+                        [ " online and in person "
+                            ++ startDateOrTime_
+                            ++ ". The event will be accessible with this link "
+                            |> Email.Html.text
+                        , Email.Html.a
+                            [ Email.Html.Attributes.href (Link.toString meetingLink) ]
+                            [ Email.Html.text (Link.toString meetingLink) ]
+                        , Email.Html.text ". "
+                        ]
+
+                    Event.MeetOnlineAndInPerson Nothing (Just address) ->
+                        [ Email.Html.text
+                            (" online and in person at " ++ Address.toString address ++ " " ++ startDateOrTime_ ++ ".")
+                        ]
+
+                    Event.MeetOnlineAndInPerson Nothing Nothing ->
+                        [ Email.Html.text (" online and in person " ++ startDateOrTime_ ++ ".") ]
                )
             ++ [ Email.Html.br [] []
                , Email.Html.br [] []

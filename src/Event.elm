@@ -102,6 +102,7 @@ removeAttendee userId (Event event) =
 type EventType
     = MeetOnline (Maybe Link)
     | MeetInPerson (Maybe Address)
+    | MeetOnlineAndInPerson (Maybe Link) (Maybe Address)
 
 
 name : Event -> EventName

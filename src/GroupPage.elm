@@ -491,6 +491,14 @@ update config group maybeLoggedIn msg model =
                                 |> Result.toMaybe
                                 |> Maybe.map Event.MeetInPerson
 
+                        Just MeetOnlineAndInPerson ->
+                            case ( validateLink newEvent.meetOnlineLink, validateAddress newEvent.meetInPersonAddress ) of
+                                ( Ok link, Ok address ) ->
+                                    Just <| Event.MeetOnlineAndInPerson link address
+
+                                _ ->
+                                    Nothing
+
                         Nothing ->
                             Nothing
 
@@ -581,6 +589,9 @@ update config group maybeLoggedIn msg model =
 
                                             Event.MeetInPerson _ ->
                                                 MeetInPerson
+
+                                            Event.MeetOnlineAndInPerson _ _ ->
+                                                MeetOnlineAndInPerson
                                     , meetOnlineLink =
                                         case Event.eventType event of
                                             Event.MeetOnline (Just link) ->
@@ -591,6 +602,12 @@ update config group maybeLoggedIn msg model =
 
                                             Event.MeetInPerson _ ->
                                                 ""
+
+                                            Event.MeetOnlineAndInPerson (Just link) _ ->
+                                                Link.toString link
+
+                                            Event.MeetOnlineAndInPerson Nothing _ ->
+                                                ""
                                     , meetInPersonAddress =
                                         case Event.eventType event of
                                             Event.MeetOnline _ ->
@@ -600,6 +617,12 @@ update config group maybeLoggedIn msg model =
                                                 Address.toString address
 
                                             Event.MeetInPerson Nothing ->
+                                                ""
+
+                                            Event.MeetOnlineAndInPerson _ (Just address) ->
+                                                Address.toString address
+
+                                            Event.MeetOnlineAndInPerson _ Nothing ->
                                                 ""
                                     , startDate = Event.startTime event |> Date.fromPosix config.timezone |> Ui.datestamp
                                     , startTime =
@@ -664,6 +687,14 @@ update config group maybeLoggedIn msg model =
                                                 validateAddress editEvent.meetInPersonAddress
                                                     |> Result.toMaybe
                                                     |> Maybe.map Event.MeetInPerson
+
+                                            MeetOnlineAndInPerson ->
+                                                case ( validateLink editEvent.meetOnlineLink, validateAddress editEvent.meetInPersonAddress ) of
+                                                    ( Ok link, Ok address ) ->
+                                                        Just (Event.MeetOnlineAndInPerson link address)
+
+                                                    _ ->
+                                                        Nothing
 
                                     maybeStartTime =
                                         case eventStatus of
@@ -867,6 +898,9 @@ fillInEmptyNewEventInputs timezone copyFrom newEvent =
 
                     Event.MeetInPerson _ ->
                         Just MeetInPerson
+
+                    Event.MeetOnlineAndInPerson _ _ ->
+                        Just MeetOnlineAndInPerson
     , meetOnlineLink =
         case Event.eventType copyFrom of
             Event.MeetOnline (Just link) ->
@@ -1963,6 +1997,11 @@ eventTypeView isPastEvent event =
                 []
                 [ Element.text (thisIsA ++ duration ++ " long online event 💻") ]
 
+        Event.MeetOnlineAndInPerson _ _ ->
+            Element.paragraph
+                []
+                [ Element.text (thisIsA ++ duration ++ " long online and in-person event 🤝💻") ]
+
 
 cancelEventId =
     HtmlId.buttonId "groupCancelEvent"
@@ -2034,6 +2073,7 @@ intToMonth value =
 type EventType
     = MeetOnline
     | MeetInPerson
+    | MeetOnlineAndInPerson
 
 
 eventNameInputId =
@@ -2054,6 +2094,9 @@ eventMeetingTypeId =
 
                 MeetInPerson ->
                     "MeetInPerson"
+
+                MeetOnlineAndInPerson ->
+                    "MeetOnlineAndInPerson"
         )
 
 
@@ -2124,7 +2167,7 @@ editEventView currentTime timezone maybeCancellationStatus eventStatus event =
             , Ui.radioGroup
                 eventMeetingTypeId
                 (\meetingType -> ChangedEditEvent { event | meetingType = meetingType })
-                (Nonempty MeetOnline [ MeetInPerson ])
+                (Nonempty MeetOnline [ MeetInPerson, MeetOnlineAndInPerson ])
                 (Just event.meetingType)
                 (\a ->
                     case a of
@@ -2133,6 +2176,9 @@ editEventView currentTime timezone maybeCancellationStatus eventStatus event =
 
                         MeetInPerson ->
                             "This event will be in person"
+
+                        MeetOnlineAndInPerson ->
+                            "This event will be online and in person"
                 )
                 Nothing
             , case event.meetingType of
@@ -2163,6 +2209,34 @@ editEventView currentTime timezone maybeCancellationStatus eventStatus event =
                             _ ->
                                 Nothing
                         )
+
+                MeetOnlineAndInPerson ->
+                    Element.column [ Element.spacing 32 ]
+                        [ Ui.textInput
+                            eventMeetingOnlineInputId
+                            (\text -> ChangedEditEvent { event | meetOnlineLink = text })
+                            event.meetOnlineLink
+                            "Link that will be shown when the event starts (optional)"
+                            (case ( pressedSubmit, validateLink event.meetOnlineLink ) of
+                                ( True, Err error ) ->
+                                    Just error
+
+                                _ ->
+                                    Nothing
+                            )
+                        , Ui.textInput
+                            eventMeetingInPersonInputId
+                            (\text -> ChangedEditEvent { event | meetInPersonAddress = text })
+                            event.meetInPersonAddress
+                            "Meeting address (optional)"
+                            (case ( pressedSubmit, validateAddress event.meetInPersonAddress ) of
+                                ( True, Err error ) ->
+                                    Just error
+
+                                _ ->
+                                    Nothing
+                            )
+                        ]
             , Element.column
                 [ Element.width Element.fill, Element.spacing 8 ]
                 [ Ui.dateTimeInput
@@ -2356,7 +2430,7 @@ newEventView currentTime timezone group event =
                 [ Ui.radioGroup
                     eventMeetingTypeId
                     (\meetingType -> ChangedNewEvent { event | meetingType = Just meetingType })
-                    (Nonempty MeetOnline [ MeetInPerson ])
+                    (Nonempty MeetOnline [ MeetInPerson, MeetOnlineAndInPerson ])
                     event.meetingType
                     (\a ->
                         case a of
@@ -2365,6 +2439,9 @@ newEventView currentTime timezone group event =
 
                             MeetInPerson ->
                                 "This event will be in-person"
+
+                            MeetOnlineAndInPerson ->
+                                "This event will be online and in-person"
                     )
                     (case ( pressedSubmit, event.meetingType ) of
                         ( True, Nothing ) ->
@@ -2401,6 +2478,35 @@ newEventView currentTime timezone group event =
                                 _ ->
                                     Nothing
                             )
+
+                    Just MeetOnlineAndInPerson ->
+                        Element.column
+                            [ Element.spacing 8, Element.width Element.fill ]
+                            [ Ui.textInput
+                                eventMeetingOnlineInputId
+                                (\text -> ChangedNewEvent { event | meetOnlineLink = text })
+                                event.meetOnlineLink
+                                "Link that will be shown when the event starts (optional)"
+                                (case ( pressedSubmit, validateLink event.meetOnlineLink ) of
+                                    ( True, Err error ) ->
+                                        Just error
+
+                                    _ ->
+                                        Nothing
+                                )
+                            , Ui.textInput
+                                eventMeetingInPersonInputId
+                                (\text -> ChangedNewEvent { event | meetInPersonAddress = text })
+                                event.meetInPersonAddress
+                                "Meeting address (optional)"
+                                (case ( pressedSubmit, validateAddress event.meetInPersonAddress ) of
+                                    ( True, Err error ) ->
+                                        Just error
+
+                                    _ ->
+                                        Nothing
+                                )
+                            ]
 
                     Nothing ->
                         Element.none

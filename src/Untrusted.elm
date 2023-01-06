@@ -74,6 +74,18 @@ eventType (Untrusted a) =
         MeetInPerson Nothing ->
             MeetInPerson Nothing |> Just
 
+        MeetOnlineAndInPerson (Just link) Nothing ->
+            Link.toString link |> Link.fromString |> Maybe.map (\result -> MeetOnlineAndInPerson (Just result) Nothing)
+
+        MeetOnlineAndInPerson Nothing (Just address) ->
+            Address.toString address |> Address.fromString |> Result.toMaybe |> Maybe.map (\result -> MeetOnlineAndInPerson Nothing (Just result))
+
+        MeetOnlineAndInPerson Nothing Nothing ->
+            MeetOnlineAndInPerson Nothing Nothing |> Just
+
+        MeetOnlineAndInPerson (Just link) (Just address) ->
+            MeetOnlineAndInPerson (Link.toString link |> Link.fromString) (Address.toString address |> Address.fromString |> Result.toMaybe) |> Just
+
 
 description : Untrusted Description -> Maybe Description
 description (Untrusted a) =

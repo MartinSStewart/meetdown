@@ -26,6 +26,7 @@ domain =
     "http://localhost:8000"
 
 
+postmarkServerToken : String
 postmarkServerToken =
     ""
 

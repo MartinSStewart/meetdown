@@ -39,5 +39,3 @@ postmarkServerToken =
 ```
 
 (Make sure to not accidentally commit it!)
-
-Charlon: I'm currently working on Internationalization, so if you want to help with that, please let me know!
