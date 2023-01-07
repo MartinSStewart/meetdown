@@ -1997,10 +1997,21 @@ eventTypeView isPastEvent event =
                 []
                 [ Element.text (thisIsA ++ duration ++ " long online event 💻") ]
 
-        Event.MeetOnlineAndInPerson _ _ ->
+        Event.MeetOnlineAndInPerson _ maybeAddress ->
             Element.paragraph
                 []
-                [ Element.text (thisIsA ++ duration ++ " long online and in-person event 🤝💻") ]
+                (Element.text (thisIsA ++ duration ++ " long online and in-person event 🤝💻")
+                    :: (case maybeAddress of
+                            Just address ->
+                                [ Element.text itsTakingPlaceAt
+                                , Element.el [ Element.Font.bold ] (Element.text (Address.toString address))
+                                , Element.text "."
+                                ]
+
+                            Nothing ->
+                                []
+                       )
+                )
 
 
 cancelEventId =
