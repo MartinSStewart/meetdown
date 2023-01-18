@@ -7,6 +7,7 @@ import AssocSet exposing (Set)
 import BiDict.Assoc exposing (BiDict)
 import Browser exposing (UrlRequest)
 import Cache exposing (Cache)
+import Colors exposing (UserConfig)
 import CreateGroupPage exposing (CreateGroupError)
 import Description exposing (Description)
 import Effect.Browser.Navigation exposing (Key)
@@ -69,6 +70,7 @@ type alias LoadedFrontend =
     , windowWidth : Quantity Int Pixels
     , windowHeight : Quantity Int Pixels
     , groupPage : Dict (Id GroupId) GroupPage.Model
+    , userConfig : UserConfig
     }
 
 

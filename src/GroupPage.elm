@@ -1020,7 +1020,8 @@ leaveEventResponse eventId result model =
 
 
 view :
-    Bool
+    UserConfig
+    -> Bool
     -> Time.Posix
     -> Time.Zone
     -> FrontendUser
@@ -1029,33 +1030,34 @@ view :
     -> Model
     -> Maybe LoggedInData
     -> Element Msg
-view isMobile currentTime timezone owner cachedUsers group model maybeLoggedIn =
+view userConfig isMobile currentTime timezone owner cachedUsers group model maybeLoggedIn =
     Element.el
         Ui.pageContentAttributes
         (case model.eventOverlay of
             Just AddingNewEvent ->
-                newEventView currentTime timezone group model.newEvent
+                newEventView userConfig currentTime timezone group model.newEvent
 
             Just (EdittingEvent eventId editEvent) ->
                 case Group.getEvent currentTime eventId group of
                     Just ( event, eventStatus ) ->
-                        editEventView currentTime timezone (Event.cancellationStatus event) eventStatus editEvent
+                        editEventView userConfig currentTime timezone (Event.cancellationStatus event) eventStatus editEvent
 
                     Nothing ->
                         Element.text "This event doesn't exist"
 
             Nothing ->
-                groupView isMobile currentTime timezone owner cachedUsers group model maybeLoggedIn
+                groupView userConfig isMobile currentTime timezone owner cachedUsers group model maybeLoggedIn
         )
 
 
 titlePart :
-    Model
+    UserConfig
+    -> Model
     -> FrontendUser
     -> Group
     -> Maybe LoggedInData
     -> Element Msg
-titlePart model owner group maybeLoggedIn =
+titlePart userConfig model owner group maybeLoggedIn =
     let
         canEdit_ =
             canEdit group maybeLoggedIn
@@ -1088,10 +1090,10 @@ titlePart model owner group maybeLoggedIn =
                     [ Element.el
                         [ Ui.titleFontSize, Ui.contentWidth ]
                         (groupNameTextInput TypedName name "Group name")
-                    , Maybe.map Ui.error error |> Maybe.withDefault Element.none
+                    , Maybe.map (Ui.error userConfig) error |> Maybe.withDefault Element.none
                     , Element.row
                         [ Element.spacing 16, Element.paddingXY 8 0 ]
-                        [ smallButton resetGroupNameId PressedResetName "Reset"
+                        [ smallButton userConfig resetGroupNameId PressedResetName "Reset"
                         , Ui.smallSubmitButton saveGroupNameId False { onPress = PressedSaveName, label = "Save" }
                         ]
                     ]
@@ -1102,7 +1104,7 @@ titlePart model owner group maybeLoggedIn =
                         (groupNameTextInput TypedName (GroupName.toString name) "Group name")
                     , Element.row
                         [ Element.spacing 16, Element.paddingXY 8 0 ]
-                        [ smallButton resetGroupNameId PressedResetName "Reset"
+                        [ smallButton userConfig resetGroupNameId PressedResetName "Reset"
                         , Ui.smallSubmitButton saveGroupNameId True { onPress = PressedSaveName, label = "Save" }
                         ]
                     ]
@@ -1114,7 +1116,7 @@ titlePart model owner group maybeLoggedIn =
                         |> Ui.title
                         |> Element.el [ Element.paddingXY 8 4 ]
                     , if canEdit_ then
-                        Element.el [ Element.paddingXY 8 0 ] (smallButton editGroupNameId PressedEditName "Edit")
+                        Element.el [ Element.paddingXY 8 0 ] (smallButton userConfig editGroupNameId PressedEditName "Edit")
 
                       else
                         Element.none
@@ -1126,12 +1128,14 @@ titlePart model owner group maybeLoggedIn =
                                 []
                                 (if loggedIn.isSubscribed then
                                     Ui.submitButton
+                                        userConfig
                                         unsubscribeButtonId
                                         (PendingUnsubscribe == model.subscribePending)
                                         { onPress = PressedUnsubscribe, label = "Stop notifying me of new events" }
 
                                  else
                                     Ui.submitButton
+                                        userConfig
                                         subscribeButtonId
                                         (PendingSubscribe == model.subscribePending)
                                         { onPress = PressedSubscribe, label = notifyMeOfNewEvents }
@@ -1141,14 +1145,16 @@ titlePart model owner group maybeLoggedIn =
                             Element.none
                    ]
             )
-        , Ui.section "Organizer"
+        , Ui.section
+            userConfig
+            "Organizer"
             (Element.link
                 []
                 { url = Route.encode (Route.UserRoute (Group.ownerId group) owner.name)
                 , label =
                     Element.row
                         [ Element.spacing 16 ]
-                        [ ProfileImage.smallImage owner.profileImage
+                        [ ProfileImage.smallImage userConfig owner.profileImage
                         , Element.text (Name.toString owner.name)
                         ]
                 }
@@ -1176,7 +1182,8 @@ type alias LoggedInData =
 
 
 groupView :
-    Bool
+    UserConfig
+    -> Bool
     -> Time.Posix
     -> Time.Zone
     -> FrontendUser
@@ -1185,7 +1192,7 @@ groupView :
     -> Model
     -> Maybe LoggedInData
     -> Element Msg
-groupView isMobile currentTime timezone owner cachedUsers group model maybeLoggedIn =
+groupView userConfig isMobile currentTime timezone owner cachedUsers group model maybeLoggedIn =
     let
         { pastEvents, ongoingEvent, futureEvents } =
             Group.events currentTime group
@@ -1195,7 +1202,7 @@ groupView isMobile currentTime timezone owner cachedUsers group model maybeLogge
     in
     Element.column
         [ Element.spacing 24, Ui.contentWidth, Element.centerX ]
-        [ titlePart model owner group maybeLoggedIn
+        [ titlePart userConfig model owner group maybeLoggedIn
         , case model.description of
             Editting description ->
                 let
@@ -1209,27 +1216,29 @@ groupView isMobile currentTime timezone owner cachedUsers group model maybeLogge
                                 Description.errorToString description error_ |> Just
                 in
                 section
+                    userConfig
                     (error /= Nothing)
                     "Description"
                     (Element.row
                         [ Element.spacing 8 ]
-                        [ smallButton resetDescriptionId PressedResetDescription "Reset"
+                        [ smallButton userConfig resetDescriptionId PressedResetDescription "Reset"
                         , Ui.smallSubmitButton saveDescriptionId False { onPress = PressedSaveDescription, label = "Save" }
                         ]
                     )
                     (Element.column
                         [ Element.spacing 8, Element.width Element.fill ]
                         [ multiline TypedDescription description "Group description"
-                        , Maybe.map Ui.error error |> Maybe.withDefault Element.none
+                        , Maybe.map (Ui.error userConfig) error |> Maybe.withDefault Element.none
                         ]
                     )
 
             Submitting description ->
                 section
+                    userConfig
                     False
                     "Description"
                     (Element.row [ Element.spacing 8 ]
-                        [ smallButton resetDescriptionId PressedResetDescription "Reset"
+                        [ smallButton userConfig resetDescriptionId PressedResetDescription "Reset"
                         , Ui.smallSubmitButton saveDescriptionId True { onPress = PressedSaveDescription, label = "Save" }
                         ]
                     )
@@ -1237,23 +1246,26 @@ groupView isMobile currentTime timezone owner cachedUsers group model maybeLogge
 
             Unchanged ->
                 section
+                    userConfig
                     False
                     "Description"
                     (if canEdit_ then
                         -- Extra el prevents focus on both reset and save buttons
-                        Element.el [] (smallButton editDescriptionId PressedEditDescription "Edit")
+                        Element.el [] (smallButton userConfig editDescriptionId PressedEditDescription "Edit")
 
                      else
                         Element.none
                     )
-                    (Description.toParagraph False (Group.description group))
+                    (Description.toParagraph userConfig False (Group.description group))
         , case ongoingEvent of
             Just event ->
                 section
+                    userConfig
                     False
                     "Ongoing event"
                     Element.none
                     (ongoingEventView
+                        userConfig
                         isMobile
                         cachedUsers
                         currentTime
@@ -1268,16 +1280,17 @@ groupView isMobile currentTime timezone owner cachedUsers group model maybeLogge
             Nothing ->
                 Element.none
         , section
+            userConfig
             False
             "Future events"
             (let
                 showAllButton =
                     if List.length futureEvents > 1 then
                         if model.showAllFutureEvents then
-                            smallButton showFirstFutureEventsId PressedShowFirstFutureEvents "Show first"
+                            smallButton userConfig showFirstFutureEventsId PressedShowFirstFutureEvents "Show first"
 
                         else
-                            smallButton showAllFutureEventsId PressedShowAllFutureEvents "Show all"
+                            smallButton userConfig showAllFutureEventsId PressedShowAllFutureEvents "Show all"
 
                     else
                         Element.none
@@ -1286,7 +1299,7 @@ groupView isMobile currentTime timezone owner cachedUsers group model maybeLogge
                 Element.row
                     [ Element.spacing 16 ]
                     [ showAllButton
-                    , smallButton createNewEventId PressedAddEvent "Add event"
+                    , smallButton userConfig createNewEventId PressedAddEvent "Add event"
                     ]
 
              else
@@ -1308,6 +1321,7 @@ groupView isMobile currentTime timezone owner cachedUsers group model maybeLogge
                     )
                         |> List.map
                             (futureEventView
+                                userConfig
                                 isMobile
                                 cachedUsers
                                 currentTime
@@ -1323,18 +1337,21 @@ groupView isMobile currentTime timezone owner cachedUsers group model maybeLogge
         , case pastEvents of
             head :: rest ->
                 section
+                    userConfig
                     False
                     "Past events"
                     Element.none
                     (List.map
-                        (pastEventView isMobile cachedUsers currentTime timezone maybeLoggedIn model.showAttendees)
+                        (pastEventView userConfig isMobile cachedUsers currentTime timezone maybeLoggedIn model.showAttendees)
                         (head :: rest)
                         |> Element.column [ Element.width Element.fill, Element.spacing 8 ]
                     )
 
             [] ->
                 Element.none
-        , Ui.section "Info"
+        , Ui.section
+            userConfig
+            "Info"
             (Element.paragraph
                 [ Element.alignRight ]
                 [ Element.text ("This group was created on " ++ dateToString (Just timezone) (Group.createdAt group)) ]
@@ -1344,12 +1361,14 @@ groupView isMobile currentTime timezone owner cachedUsers group model maybeLogge
                 (case Group.visibility group of
                     Group.PublicGroup ->
                         Ui.submitButton
+                            userConfig
                             makeUnlistedGroupId
                             model.pendingToggleVisibility
                             { onPress = PressedMakeGroupUnlisted, label = "Make group unlisted" }
 
                     Group.UnlistedGroup ->
                         Ui.submitButton
+                            userConfig
                             makePublicGroupId
                             model.pendingToggleVisibility
                             { onPress = PressedMakeGroupPublic, label = "Make group public" }
@@ -1359,7 +1378,7 @@ groupView isMobile currentTime timezone owner cachedUsers group model maybeLogge
             Element.none
         , case Maybe.map (.adminStatus >> AdminStatus.isAdminEnabled) maybeLoggedIn of
             Just True ->
-                Ui.dangerButton deleteGroupButtonId False { onPress = PressedDeleteGroup, label = "Delete group" }
+                Ui.dangerButton userConfig deleteGroupButtonId False { onPress = PressedDeleteGroup, label = "Delete group" }
 
             _ ->
                 Element.none
@@ -1423,7 +1442,8 @@ createNewEventId =
 
 
 ongoingEventView :
-    Bool
+    UserConfig
+    -> Bool
     -> Dict (Id UserId) (Cache FrontendUser)
     -> Time.Posix
     -> Time.Zone
@@ -1433,7 +1453,7 @@ ongoingEventView :
     -> Set EventId
     -> ( EventId, Event )
     -> Element Msg
-ongoingEventView isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn pendingJoinOrLeaveStatuses showAttendees ( eventId, event ) =
+ongoingEventView userConfig isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn pendingJoinOrLeaveStatuses showAttendees ( eventId, event ) =
     let
         isAttending =
             maybeLoggedIn
@@ -1451,6 +1471,7 @@ ongoingEventView isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn
             Set.member eventId showAttendees
     in
     eventCard
+        userConfig
         [ eventCardHeader isMobile currentTime timezone IsOngoingEvent event
         , eventTypeView False event
         , Element.paragraph
@@ -1477,10 +1498,10 @@ ongoingEventView isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn
                                 ""
                            )
                         |> Element.text
-            , showAttendeesButton eventId showAttendees_
+            , showAttendeesButton userConfig eventId showAttendees_
             ]
         , if showAttendees_ then
-            attendeesView cachedUsers event
+            attendeesView userConfig cachedUsers event
 
           else
             Element.none
@@ -1490,7 +1511,7 @@ ongoingEventView isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn
                     Element.paragraph []
                         [ Element.text "• The event is taking place now at "
                         , Element.link
-                            [ Element.Font.color Ui.linkColor ]
+                            [ Element.Font.color (Ui.linkColor userConfig) ]
                             { url = Link.toString link, label = Element.text (Link.toString link) }
                         ]
 
@@ -1501,10 +1522,11 @@ ongoingEventView isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn
                 Element.none
         , case Event.cancellationStatus event of
             Just ( Event.EventUncancelled, _ ) ->
-                joinOrLeaveButton isAttending maybeJoinOrLeaveStatus eventId event attendeeCount
+                joinOrLeaveButton userConfig isAttending maybeJoinOrLeaveStatus eventId event attendeeCount
 
             Just ( Event.EventCancelled, cancelTime ) ->
                 Ui.error
+                    userConfig
                     ("This event was cancelled "
                         ++ Time.diffToString
                             (if Duration.from currentTime cancelTime |> Quantity.lessThanZero then
@@ -1517,20 +1539,21 @@ ongoingEventView isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn
                     )
 
             Nothing ->
-                joinOrLeaveButton isAttending maybeJoinOrLeaveStatus eventId event attendeeCount
+                joinOrLeaveButton userConfig isAttending maybeJoinOrLeaveStatus eventId event attendeeCount
         , if isOwner then
             Element.el
                 []
-                (Ui.button editEventId { onPress = PressedEditEvent eventId, label = "Edit event" })
+                (Ui.button userConfig editEventId { onPress = PressedEditEvent eventId, label = "Edit event" })
 
           else
             Element.none
-        , Event.description event |> Description.toParagraph False
+        , Event.description event |> Description.toParagraph userConfig False
         ]
 
 
 pastEventView :
-    Bool
+    UserConfig
+    -> Bool
     -> Dict (Id UserId) (Cache FrontendUser)
     -> Time.Posix
     -> Time.Zone
@@ -1538,7 +1561,7 @@ pastEventView :
     -> Set EventId
     -> ( EventId, Event )
     -> Element Msg
-pastEventView isMobile cachedUsers currentTime timezone maybeLoggedIn showAttendees ( eventId, event ) =
+pastEventView userConfig isMobile cachedUsers currentTime timezone maybeLoggedIn showAttendees ( eventId, event ) =
     let
         isAttending =
             maybeLoggedIn |> Maybe.map (\{ userId } -> Set.member userId (Event.attendees event)) |> Maybe.withDefault False
@@ -1550,6 +1573,7 @@ pastEventView isMobile cachedUsers currentTime timezone maybeLoggedIn showAttend
             Set.member eventId showAttendees
     in
     eventCard
+        userConfig
         [ eventCardHeader isMobile currentTime timezone IsPastEvent event
         , eventTypeView True event
         , Element.paragraph
@@ -1577,19 +1601,19 @@ pastEventView isMobile cachedUsers currentTime timezone maybeLoggedIn showAttend
                            )
                         |> Element.text
             , Element.text " "
-            , showAttendeesButton eventId showAttendees_
+            , showAttendeesButton userConfig eventId showAttendees_
             ]
         , if showAttendees_ then
-            attendeesView cachedUsers event
+            attendeesView userConfig cachedUsers event
 
           else
             Element.none
-        , Event.description event |> Description.toParagraph False
+        , Event.description event |> Description.toParagraph userConfig False
         ]
 
 
-attendeesView : Dict (Id UserId) (Cache FrontendUser) -> Event -> Element msg
-attendeesView cachedUsers event =
+attendeesView : UserConfig -> Dict (Id UserId) (Cache FrontendUser) -> Event -> Element msg
+attendeesView userConfig cachedUsers event =
     let
         visibleAttendees : List (Element msg)
         visibleAttendees =
@@ -1600,7 +1624,7 @@ attendeesView cachedUsers event =
                         case Cache.get userId cachedUsers of
                             Just user ->
                                 if user.name /= Name.anonymous || user.profileImage /= ProfileImage.DefaultImage then
-                                    attendeeView userId user |> Just
+                                    attendeeView userConfig userId user |> Just
 
                                 else
                                     Nothing
@@ -1649,8 +1673,8 @@ attendeeImageSize =
     64
 
 
-attendeeView : Id UserId -> FrontendUser -> Element msg
-attendeeView userId user =
+attendeeView : UserConfig -> Id UserId -> FrontendUser -> Element msg
+attendeeView userConfig userId user =
     let
         nameText =
             Name.toString user.name
@@ -1661,7 +1685,7 @@ attendeeView userId user =
         , label =
             Element.column
                 [ Element.spacing 2 ]
-                [ ProfileImage.image (Pixels.pixels attendeeImageSize) user.profileImage
+                [ ProfileImage.image userConfig (Pixels.pixels attendeeImageSize) user.profileImage
                 , Element.paragraph
                     [ Element.Font.size 12
                     , Element.Font.center
@@ -1679,13 +1703,13 @@ attendeeView userId user =
         }
 
 
-showAttendeesButton : EventId -> Bool -> Element Msg
-showAttendeesButton eventId showAttendees =
+showAttendeesButton : UserConfig -> EventId -> Bool -> Element Msg
+showAttendeesButton userConfig eventId showAttendees =
     Element.el
         []
         (if showAttendees then
             Element.Input.button
-                [ Element.Font.color Colors.blue
+                [ Element.Font.color userConfig.blue
                 , Element.htmlAttribute (Dom.idToAttribute hideAttendeesButtonId)
                 ]
                 { onPress = PressedHideAttendees eventId |> Just
@@ -1694,7 +1718,7 @@ showAttendeesButton eventId showAttendees =
 
          else
             Element.Input.button
-                [ Element.Font.color Colors.blue
+                [ Element.Font.color userConfig.blue
                 , Element.htmlAttribute (Dom.idToAttribute showAttendeesButtonId)
                 ]
                 { onPress = PressedShowAttendees eventId |> Just
@@ -1748,7 +1772,8 @@ eventCardHeader isMobile currentTime timezone eventStatus event =
 
 
 futureEventView :
-    Bool
+    UserConfig
+    -> Bool
     -> Dict (Id UserId) (Cache FrontendUser)
     -> Time.Posix
     -> Time.Zone
@@ -1758,7 +1783,7 @@ futureEventView :
     -> Set EventId
     -> ( EventId, Event )
     -> Element Msg
-futureEventView isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn pendingJoinOrLeaveStatuses showAttendees ( eventId, event ) =
+futureEventView userConfig isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn pendingJoinOrLeaveStatuses showAttendees ( eventId, event ) =
     let
         isAttending =
             maybeLoggedIn |> Maybe.map (\{ userId } -> Set.member userId (Event.attendees event)) |> Maybe.withDefault False
@@ -1774,6 +1799,7 @@ futureEventView isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn 
             Set.member eventId showAttendees
     in
     eventCard
+        userConfig
         [ eventCardHeader isMobile currentTime timezone IsFutureEvent event
         , eventTypeView False event
         , Element.paragraph
@@ -1801,10 +1827,10 @@ futureEventView isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn 
                            )
                         |> Element.text
             , Element.text " "
-            , showAttendeesButton eventId showAttendees_
+            , showAttendeesButton userConfig eventId showAttendees_
             ]
         , if showAttendees_ then
-            attendeesView cachedUsers event
+            attendeesView userConfig cachedUsers event
 
           else
             Element.none
@@ -1815,7 +1841,7 @@ futureEventView isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn 
                         Element.paragraph []
                             [ Element.text "• The event will take place at "
                             , Element.link
-                                [ Element.Font.color Ui.linkColor ]
+                                [ Element.Font.color (Ui.linkColor userConfig) ]
                                 { url = Link.toString link, label = Element.text (Link.toString link) }
                             ]
 
@@ -1840,10 +1866,11 @@ futureEventView isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn 
             ]
             [ case Event.cancellationStatus event of
                 Just ( Event.EventUncancelled, _ ) ->
-                    joinOrLeaveButton isAttending maybeJoinOrLeaveStatus eventId event attendeeCount
+                    joinOrLeaveButton userConfig isAttending maybeJoinOrLeaveStatus eventId event attendeeCount
 
                 Just ( Event.EventCancelled, cancelTime ) ->
                     Ui.error
+                        userConfig
                         ("This event was cancelled "
                             ++ Time.diffToString
                                 (if Duration.from currentTime cancelTime |> Quantity.lessThanZero then
@@ -1856,36 +1883,37 @@ futureEventView isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn 
                         )
 
                 Nothing ->
-                    joinOrLeaveButton isAttending maybeJoinOrLeaveStatus eventId event attendeeCount
+                    joinOrLeaveButton userConfig isAttending maybeJoinOrLeaveStatus eventId event attendeeCount
             , if isOwner then
-                Ui.button editEventId { onPress = PressedEditEvent eventId, label = "Edit event" }
+                Ui.button userConfig editEventId { onPress = PressedEditEvent eventId, label = "Edit event" }
 
               else
                 Element.none
             ]
         , case maybeJoinOrLeaveStatus of
             Just LeaveFailure ->
-                Ui.error "Failed to leave event"
+                Ui.error userConfig "Failed to leave event"
 
             Just (JoinFailure Group.EventNotFound) ->
-                Ui.error "Failed to join, this event doesn't exist (try refreshing the page?)"
+                Ui.error userConfig "Failed to join, this event doesn't exist (try refreshing the page?)"
 
             Just (JoinFailure Group.NoSpotsLeftInEvent) ->
-                Ui.error "Failed to join event, there aren't any spots left."
+                Ui.error userConfig "Failed to join event, there aren't any spots left."
 
             Just JoinOrLeavePending ->
                 Element.none
 
             Nothing ->
                 Element.none
-        , Event.description event |> Description.toParagraph False
+        , Event.description event |> Description.toParagraph userConfig False
         ]
 
 
-joinOrLeaveButton : Bool -> Maybe EventJoinOrLeaveStatus -> EventId -> Event -> Int -> Element Msg
-joinOrLeaveButton isAttending maybeJoinOrLeaveStatus eventId event attendeeCount =
+joinOrLeaveButton : UserConfig -> Bool -> Maybe EventJoinOrLeaveStatus -> EventId -> Event -> Int -> Element Msg
+joinOrLeaveButton userConfig isAttending maybeJoinOrLeaveStatus eventId event attendeeCount =
     if isAttending then
         Ui.submitButton
+            userConfig
             leaveEventButtonId
             (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
             { onPress = PressedLeaveEvent eventId, label = "Leave event" }
@@ -1900,21 +1928,24 @@ joinOrLeaveButton isAttending maybeJoinOrLeaveStatus eventId event attendeeCount
                 in
                 if spotsLeft == 1 then
                     Ui.submitButton
+                        userConfig
                         joinEventButtonId
                         (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
                         { onPress = PressedJoinEvent eventId, label = "Join event (1 spot left)" }
 
                 else if spotsLeft > 0 then
                     Ui.submitButton
+                        userConfig
                         joinEventButtonId
                         (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
                         { onPress = PressedJoinEvent eventId, label = "Join event (" ++ String.fromInt spotsLeft ++ " spots left)" }
 
                 else
-                    Ui.error "No spots left"
+                    Ui.error userConfig "No spots left"
 
             Nothing ->
                 Ui.submitButton
+                    userConfig
                     joinEventButtonId
                     (maybeJoinOrLeaveStatus == Just JoinOrLeavePending)
                     { onPress = PressedJoinEvent eventId, label = "Join event" }
@@ -1943,16 +1974,16 @@ eventTitle event =
         |> Element.paragraph [ Element.Region.heading 2, Element.Font.size 20, Element.Font.bold ]
 
 
-eventCard : List (Element msg) -> Element msg
-eventCard =
+eventCard : UserConfig -> List (Element msg) -> Element msg
+eventCard userConfig =
     Element.column
         [ Element.width Element.fill
         , Element.spacing 16
         , Element.Border.rounded 4
         , Element.padding 15
         , Element.Border.width 1
-        , Element.Border.color grey
-        , Element.Border.shadow { offset = ( 0, 3 ), size = -1, blur = 3, color = grey }
+        , Element.Border.color userConfig.grey
+        , Element.Border.shadow { offset = ( 0, 3 ), size = -1, blur = 3, color = userConfig.grey }
         ]
 
 
@@ -2120,13 +2151,14 @@ eventMeetingInPersonInputId =
 
 
 editEventView :
-    Time.Posix
+    UserConfig
+    -> Time.Posix
     -> Time.Zone
     -> Maybe ( Event.CancellationStatus, Time.Posix )
     -> Group.PastOngoingOrFuture
     -> EditEvent
     -> Element Msg
-editEventView currentTime timezone maybeCancellationStatus eventStatus event =
+editEventView userConfig currentTime timezone maybeCancellationStatus eventStatus event =
     let
         pressedSubmit =
             case event.submitStatus of
@@ -2151,7 +2183,9 @@ editEventView currentTime timezone maybeCancellationStatus eventStatus event =
         [ Element.spacing 20, Element.padding 8, Ui.contentWidth, Element.centerX ]
         [ Ui.title "Edit event"
         , Ui.columnCard
+            userConfig
             [ Ui.textInput
+                userConfig
                 eventNameInputId
                 (\text -> ChangedEditEvent { event | eventName = text })
                 event.eventName
@@ -2164,6 +2198,7 @@ editEventView currentTime timezone maybeCancellationStatus eventStatus event =
                         Nothing
                 )
             , Ui.multiline
+                userConfig
                 eventDescriptionInputId
                 (\text -> ChangedEditEvent { event | description = text })
                 event.description
@@ -2176,6 +2211,7 @@ editEventView currentTime timezone maybeCancellationStatus eventStatus event =
                         Nothing
                 )
             , Ui.radioGroup
+                userConfig
                 eventMeetingTypeId
                 (\meetingType -> ChangedEditEvent { event | meetingType = meetingType })
                 (Nonempty MeetOnline [ MeetInPerson, MeetOnlineAndInPerson ])
@@ -2195,6 +2231,7 @@ editEventView currentTime timezone maybeCancellationStatus eventStatus event =
             , case event.meetingType of
                 MeetOnline ->
                     Ui.textInput
+                        userConfig
                         eventMeetingOnlineInputId
                         (\text -> ChangedEditEvent { event | meetOnlineLink = text })
                         event.meetOnlineLink
@@ -2209,6 +2246,7 @@ editEventView currentTime timezone maybeCancellationStatus eventStatus event =
 
                 MeetInPerson ->
                     Ui.textInput
+                        userConfig
                         eventMeetingInPersonInputId
                         (\text -> ChangedEditEvent { event | meetInPersonAddress = text })
                         event.meetInPersonAddress
@@ -2224,6 +2262,7 @@ editEventView currentTime timezone maybeCancellationStatus eventStatus event =
                 MeetOnlineAndInPerson ->
                     Element.column [ Element.spacing 32 ]
                         [ Ui.textInput
+                            userConfig
                             eventMeetingOnlineInputId
                             (\text -> ChangedEditEvent { event | meetOnlineLink = text })
                             event.meetOnlineLink
@@ -2236,6 +2275,7 @@ editEventView currentTime timezone maybeCancellationStatus eventStatus event =
                                     Nothing
                             )
                         , Ui.textInput
+                            userConfig
                             eventMeetingInPersonInputId
                             (\text -> ChangedEditEvent { event | meetInPersonAddress = text })
                             event.meetInPersonAddress
@@ -2251,6 +2291,7 @@ editEventView currentTime timezone maybeCancellationStatus eventStatus event =
             , Element.column
                 [ Element.width Element.fill, Element.spacing 8 ]
                 [ Ui.dateTimeInput
+                    userConfig
                     { dateInputId = createEventStartDateId
                     , timeInputId = createEventStartTimeId
                     , dateChanged = \text -> ChangedEditEvent { event | startDate = text }
@@ -2285,6 +2326,7 @@ editEventView currentTime timezone maybeCancellationStatus eventStatus event =
                             [ Element.text "The start time can't be changed since the event has already started." ]
                 ]
             , Ui.numberInput
+                userConfig
                 eventDurationId
                 (\text -> ChangedEditEvent { event | duration = text })
                 event.duration
@@ -2297,6 +2339,7 @@ editEventView currentTime timezone maybeCancellationStatus eventStatus event =
                         Nothing
                 )
             , Ui.numberInput
+                userConfig
                 eventMaxAttendeesId
                 (\text -> ChangedEditEvent { event | maxAttendees = text })
                 event.maxAttendees
@@ -2310,24 +2353,24 @@ editEventView currentTime timezone maybeCancellationStatus eventStatus event =
                 )
             , Element.wrappedRow
                 [ Element.spacing 8, Element.width Element.fill ]
-                [ Ui.submitButton createEventSubmitId isSubmitting { onPress = PressedSubmitEditEvent, label = "Save changes" }
-                , Ui.button createEventCancelId { onPress = PressedCancelEditEvent, label = "Cancel changes" }
+                [ Ui.submitButton userConfig createEventSubmitId isSubmitting { onPress = PressedSubmitEditEvent, label = "Save changes" }
+                , Ui.button userConfig createEventCancelId { onPress = PressedCancelEditEvent, label = "Cancel changes" }
                 ]
             , case event.submitStatus of
                 Failed EditEventStartsInThePast ->
-                    Ui.error "Event can't start in the past"
+                    Ui.error userConfig "Event can't start in the past"
 
                 Failed (EditEventOverlapsOtherEvents _) ->
-                    Ui.error "Event overlaps other events"
+                    Ui.error userConfig "Event overlaps other events"
 
                 Failed CantEditPastEvent ->
-                    Ui.error "You can't edit events that have already happened"
+                    Ui.error userConfig "You can't edit events that have already happened"
 
                 Failed CantChangeStartTimeOfOngoingEvent ->
-                    Ui.error "You can't edit the start time of an event that is ongoing"
+                    Ui.error userConfig "You can't edit the start time of an event that is ongoing"
 
                 Failed EditEventNotFound ->
-                    Ui.error "This event somehow doesn't exist. Try refreshing the page?"
+                    Ui.error userConfig "This event somehow doesn't exist. Try refreshing the page?"
 
                 NotSubmitted _ ->
                     Element.none
@@ -2350,18 +2393,21 @@ editEventView currentTime timezone maybeCancellationStatus eventStatus event =
                         (case maybeCancellationStatus of
                             Just ( Event.EventCancelled, _ ) ->
                                 Ui.dangerButton
+                                    userConfig
                                     uncancelEventId
                                     False
                                     { onPress = PressedUncancelEvent, label = "Uncancel event" }
 
                             Just ( Event.EventUncancelled, _ ) ->
                                 Ui.dangerButton
+                                    userConfig
                                     recancelEventId
                                     False
                                     { onPress = PressedCancelEvent, label = "Recancel event" }
 
                             Nothing ->
                                 Ui.dangerButton
+                                    userConfig
                                     cancelEventId
                                     False
                                     { onPress = PressedCancelEvent, label = "Cancel event" }
@@ -2376,8 +2422,8 @@ editEventView currentTime timezone maybeCancellationStatus eventStatus event =
         ]
 
 
-newEventView : Time.Posix -> Time.Zone -> Group -> NewEvent -> Element Msg
-newEventView currentTime timezone group event =
+newEventView : UserConfig -> Time.Posix -> Time.Zone -> Group -> NewEvent -> Element Msg
+newEventView userConfig currentTime timezone group event =
     let
         pressedSubmit =
             case event.submitStatus of
@@ -2402,10 +2448,12 @@ newEventView currentTime timezone group event =
         [ Element.spacing 20, Element.padding 8, Ui.contentWidth, Element.centerX ]
         [ Ui.title "New event"
         , Ui.columnCard
+            userConfig
             [ case latestEvent group of
                 Just _ ->
                     Element.el []
                         (Ui.button
+                            userConfig
                             copyPreviousEventButtonId
                             { onPress = PressedCopyPreviousEvent, label = "Copy previous event" }
                         )
@@ -2413,6 +2461,7 @@ newEventView currentTime timezone group event =
                 Nothing ->
                     Element.none
             , Ui.textInput
+                userConfig
                 eventNameInputId
                 (\text -> ChangedNewEvent { event | eventName = text })
                 event.eventName
@@ -2425,6 +2474,7 @@ newEventView currentTime timezone group event =
                         Nothing
                 )
             , Ui.multiline
+                userConfig
                 eventDescriptionInputId
                 (\text -> ChangedNewEvent { event | description = text })
                 event.description
@@ -2439,6 +2489,7 @@ newEventView currentTime timezone group event =
             , Element.column
                 [ Element.spacing 8, Element.width Element.fill ]
                 [ Ui.radioGroup
+                    userConfig
                     eventMeetingTypeId
                     (\meetingType -> ChangedNewEvent { event | meetingType = Just meetingType })
                     (Nonempty MeetOnline [ MeetInPerson, MeetOnlineAndInPerson ])
@@ -2464,6 +2515,7 @@ newEventView currentTime timezone group event =
                 , case event.meetingType of
                     Just MeetOnline ->
                         Ui.textInput
+                            userConfig
                             eventMeetingOnlineInputId
                             (\text -> ChangedNewEvent { event | meetOnlineLink = text })
                             event.meetOnlineLink
@@ -2478,6 +2530,7 @@ newEventView currentTime timezone group event =
 
                     Just MeetInPerson ->
                         Ui.textInput
+                            userConfig
                             eventMeetingInPersonInputId
                             (\text -> ChangedNewEvent { event | meetInPersonAddress = text })
                             event.meetInPersonAddress
@@ -2494,6 +2547,7 @@ newEventView currentTime timezone group event =
                         Element.column
                             [ Element.spacing 8, Element.width Element.fill ]
                             [ Ui.textInput
+                                userConfig
                                 eventMeetingOnlineInputId
                                 (\text -> ChangedNewEvent { event | meetOnlineLink = text })
                                 event.meetOnlineLink
@@ -2506,6 +2560,7 @@ newEventView currentTime timezone group event =
                                         Nothing
                                 )
                             , Ui.textInput
+                                userConfig
                                 eventMeetingInPersonInputId
                                 (\text -> ChangedNewEvent { event | meetInPersonAddress = text })
                                 event.meetInPersonAddress
@@ -2523,6 +2578,7 @@ newEventView currentTime timezone group event =
                         Element.none
                 ]
             , Ui.dateTimeInput
+                userConfig
                 { dateInputId = createEventStartDateId
                 , timeInputId = createEventStartTimeId
                 , dateChanged = \text -> ChangedNewEvent { event | startDate = text }
@@ -2542,6 +2598,7 @@ newEventView currentTime timezone group event =
                             Nothing
                 }
             , Ui.numberInput
+                userConfig
                 eventDurationId
                 (\text -> ChangedNewEvent { event | duration = text })
                 event.duration
@@ -2554,6 +2611,7 @@ newEventView currentTime timezone group event =
                         Nothing
                 )
             , Ui.numberInput
+                userConfig
                 eventMaxAttendeesId
                 (\text -> ChangedNewEvent { event | maxAttendees = text })
                 event.maxAttendees
@@ -2568,20 +2626,21 @@ newEventView currentTime timezone group event =
             , Element.wrappedRow
                 [ Element.spacing 8 ]
                 [ Ui.submitButton
+                    userConfig
                     createEventSubmitId
                     isSubmitting
                     { onPress = PressedCreateNewEvent, label = "Create event" }
-                , Ui.button createEventCancelId { onPress = PressedCancelNewEvent, label = "Cancel" }
+                , Ui.button userConfig createEventCancelId { onPress = PressedCancelNewEvent, label = "Cancel" }
                 ]
             , case event.submitStatus of
                 Failed EventStartsInThePast ->
-                    Ui.error "Events can't start in the past"
+                    Ui.error userConfig "Events can't start in the past"
 
                 Failed (EventOverlapsOtherEvents _) ->
-                    Ui.error "Event overlaps with another event"
+                    Ui.error userConfig "Event overlaps with another event"
 
                 Failed TooManyEvents ->
-                    Ui.error "This group has too many events"
+                    Ui.error userConfig "This group has too many events"
 
                 NotSubmitted _ ->
                     Element.none
@@ -2709,12 +2768,12 @@ validateAddress text =
                 Address.errorToString text error |> Err
 
 
-section : Bool -> String -> Element msg -> Element msg -> Element msg
-section hasError title headerExtra content =
+section : UserConfig -> Bool -> String -> Element msg -> Element msg -> Element msg
+section userConfig hasError title headerExtra content =
     Element.column
         [ Element.spacing 8
         , Element.Border.rounded 4
-        , Ui.inputBackground hasError
+        , Ui.inputBackground userConfig hasError
         , Element.width Element.fill
         ]
         [ Element.row
@@ -2726,11 +2785,11 @@ section hasError title headerExtra content =
         ]
 
 
-smallButton : HtmlId -> msg -> String -> Element msg
-smallButton htmlId onPress label =
+smallButton : UserConfig -> HtmlId -> msg -> String -> Element msg
+smallButton userConfig htmlId onPress label =
     Element.Input.button
         [ Element.Border.width 2
-        , Element.Border.color <| grey
+        , Element.Border.color <| userConfig.grey
         , Element.paddingXY 8 2
         , Element.Border.rounded 4
         , Element.Font.center

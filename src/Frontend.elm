@@ -16,7 +16,7 @@ import AssocList as Dict exposing (Dict)
 import AssocSet as Set
 import Browser exposing (UrlRequest(..))
 import Cache exposing (Cache(..))
-import Colors
+import Colors exposing (UserConfig)
 import CreateGroupPage
 import DictExtra as Dict
 import Duration
@@ -174,6 +174,7 @@ initLoadedFrontend navigationKey windowWidth windowHeight route maybeLoginToken 
             , windowWidth = windowWidth
             , windowHeight = windowHeight
             , groupPage = Dict.empty
+            , userConfig = Colors.lightTheme
             }
 
         ( model2, cmd ) =
@@ -1112,7 +1113,15 @@ view model =
         [ Ui.css
         , Element.layoutWith
             { options = [ Element.noStaticStyleSheet ] }
-            [ Ui.defaultFontSize, Ui.defaultFont, Ui.defaultFontColor ]
+            [ Ui.defaultFontSize
+            , Ui.defaultFont
+            , case model of
+                Loading _ ->
+                    Ui.defaultFontColor Colors.lightTheme
+
+                Loaded loaded ->
+                    Ui.defaultFontColor loaded.userConfig
+            ]
             (case model of
                 Loading _ ->
                     Element.none
@@ -1161,14 +1170,14 @@ viewLoaded model =
                         [ Element.text "The link you used is either invalid or has expired." ]
                     , Element.el
                         [ Element.centerX ]
-                        (Ui.linkButton { route = Route.HomepageRoute, label = "Go to homepage" })
+                        (Ui.linkButton model.userConfig { route = Route.HomepageRoute, label = "Go to homepage" })
                     ]
 
              else
                 case model.loginStatus of
                     NotLoggedIn { showLogin, joiningEvent } ->
                         if showLogin then
-                            LoginForm.view joiningEvent model.cachedGroups model.loginForm
+                            LoginForm.view model.userConfig joiningEvent model.cachedGroups model.loginForm
 
                         else
                             viewPage model
@@ -1179,7 +1188,9 @@ viewLoaded model =
                     LoginStatusPending ->
                         Element.none
             )
-        , footer (isMobile model)
+        , footer
+            model.userConfig
+            (isMobile model)
             model.route
             (case model.loginStatus of
                 LoggedIn loggedIn ->
@@ -1201,7 +1212,7 @@ loginRequiredPage model pageView =
             pageView loggedIn
 
         NotLoggedIn { joiningEvent } ->
-            LoginForm.view joiningEvent model.cachedGroups model.loginForm
+            LoginForm.view model.userConfig joiningEvent model.cachedGroups model.loginForm
 
         LoginStatusPending ->
             Element.none
@@ -1233,9 +1244,9 @@ viewPage model =
                 , Element.paragraph
                     [ Element.Font.center ]
                     [ Element.text " We don't sell your data, we don't show ads, and it's free. "
-                    , Ui.routeLink Route.FrequentQuestionsRoute "Read more"
+                    , Ui.routeLink model.userConfig Route.FrequentQuestionsRoute "Read more"
                     ]
-                , searchInputLarge model.searchText
+                , searchInputLarge model.userConfig model.searchText
                 ]
 
         GroupRoute groupId _ ->
@@ -1244,6 +1255,7 @@ viewPage model =
                     case getCachedUser (Group.ownerId group) model of
                         Just owner ->
                             GroupPage.view
+                                model.userConfig
                                 (isMobile model)
                                 model.time
                                 model.timezone
@@ -1271,7 +1283,7 @@ viewPage model =
                             Ui.loadingView
 
                 Just ItemDoesNotExist ->
-                    Ui.loadingError "Group not found"
+                    Ui.loadingError model.userConfig "Group not found"
 
                 Just ItemRequestPending ->
                     Ui.loadingView
@@ -1280,7 +1292,7 @@ viewPage model =
                     Element.none
 
         AdminRoute ->
-            loginRequiredPage model (AdminPage.view model.timezone)
+            loginRequiredPage model (AdminPage.view model.userConfig model.timezone)
 
         CreateGroupRoute ->
             loginRequiredPage
@@ -1288,7 +1300,7 @@ viewPage model =
                 (\loggedIn ->
                     case loggedIn.myGroups of
                         Just myGroups ->
-                            CreateGroupPage.view (isMobile model) (Set.isEmpty myGroups) model.groupForm
+                            CreateGroupPage.view model.userConfig (isMobile model) (Set.isEmpty myGroups) model.groupForm
                                 |> Element.map CreateGroupPageMsg
 
                         Nothing ->
@@ -1305,6 +1317,7 @@ viewPage model =
                     case Dict.get loggedIn.userId model.cachedUsers of
                         Just (ItemCached user) ->
                             ProfilePage.view
+                                model.userConfig
                                 model
                                 { name = user.name
                                 , description = user.description
@@ -1318,28 +1331,28 @@ viewPage model =
                             Ui.loadingView
 
                         Just ItemDoesNotExist ->
-                            Ui.loadingError "User not found"
+                            Ui.loadingError model.userConfig "User not found"
 
                         Nothing ->
-                            Ui.loadingError "User not found"
+                            Ui.loadingError model.userConfig "User not found"
                 )
 
         SearchGroupsRoute searchText ->
-            SearchPage.view (isMobile model) searchText model
+            SearchPage.view model.userConfig (isMobile model) searchText model
 
         UserRoute userId _ ->
             case getCachedUser userId model of
                 Just user ->
-                    UserPage.view user
+                    UserPage.view model.userConfig user
 
                 Nothing ->
                     Ui.loadingView
 
         PrivacyRoute ->
-            Privacy.view
+            Privacy.view model.userConfig
 
         TermsOfServiceRoute ->
-            Terms.view
+            Terms.view model.userConfig
 
         CodeOfConductRoute ->
             Element.column
@@ -1361,7 +1374,7 @@ viewPage model =
                 , Element.paragraph
                     []
                     [ Element.text "• If someone is being a jerk that is not an excuse to be a jerk back. Ask them to stop, and if that doesn't work, avoid them and explain the problem here "
-                    , Ui.mailToLink Env.contactEmailAddress (Just "Moderation help request")
+                    , Ui.mailToLink model.userConfig Env.contactEmailAddress (Just "Moderation help request")
                     , Element.text "."
                     ]
                 ]
@@ -1381,15 +1394,15 @@ viewPage model =
                 [ Ui.title "Frequently asked questions"
                 , questionAndAnswer "Who is behind all this?"
                     [ Element.text "It is I, "
-                    , Ui.externalLink "https://github.com/MartinSStewart/" "Martin"
+                    , Ui.externalLink model.userConfig "https://github.com/MartinSStewart/" "Martin"
                     , Element.text ". Credit goes to "
-                    , Ui.externalLink "https://twitter.com/realmario" "Mario Rogic"
+                    , Ui.externalLink model.userConfig "https://twitter.com/realmario" "Mario Rogic"
                     , Element.text " for helping me out with parts of the app."
                     ]
                 , questionAndAnswer
                     "Why was this website made?"
                     [ Element.text "I dislike that meetup.com charges money, spams me with emails, and feels bloated. Also I wanted to try making something more substantial using "
-                    , Ui.externalLink "https://www.lamdera.com/" "Lamdera"
+                    , Ui.externalLink model.userConfig "https://www.lamdera.com/" "Lamdera"
                     , Element.text " to see if it's feasible to use at work."
                     ]
                 , questionAndAnswer
@@ -1408,7 +1421,7 @@ myGroupsView model loggedIn =
                     SearchPage.getGroupsFromIds (Set.toList myGroups) model
                         |> List.map
                             (\( groupId, group ) ->
-                                SearchPage.groupPreview (isMobile model) model.time groupId group
+                                SearchPage.groupPreview model.userConfig (isMobile model) model.time groupId group
                             )
             in
             Element.column
@@ -1418,9 +1431,9 @@ myGroupsView model loggedIn =
                     Element.paragraph
                         []
                         [ Element.text "You don't have any groups. Get started by "
-                        , Ui.routeLink CreateGroupRoute "creating one"
+                        , Ui.routeLink model.userConfig CreateGroupRoute "creating one"
                         , Element.text " or "
-                        , Ui.routeLink (SearchGroupsRoute "") "subscribing to one."
+                        , Ui.routeLink model.userConfig (SearchGroupsRoute "") "subscribing to one."
                         ]
 
                   else
@@ -1429,7 +1442,7 @@ myGroupsView model loggedIn =
                         [ if List.isEmpty myGroupsList then
                             Element.paragraph []
                                 [ Element.text "You haven't created any groups. "
-                                , Ui.routeLink CreateGroupRoute "You can do that here."
+                                , Ui.routeLink model.userConfig CreateGroupRoute "You can do that here."
                                 ]
 
                           else
@@ -1449,7 +1462,7 @@ myGroupsView model loggedIn =
                                 SearchPage.getGroupsFromIds (Set.toList loggedIn.subscribedGroups) model
                                     |> List.map
                                         (\( groupId, group ) ->
-                                            SearchPage.groupPreview (isMobile model) model.time groupId group
+                                            SearchPage.groupPreview model.userConfig (isMobile model) model.time groupId group
                                         )
                                     |> Element.column [ Element.spacing 8, Element.width Element.fill ]
                             ]
@@ -1460,12 +1473,12 @@ myGroupsView model loggedIn =
             Ui.loadingView
 
 
-searchInput : String -> Element FrontendMsg
-searchInput searchText =
+searchInput : UserConfig -> String -> Element FrontendMsg
+searchInput userConfig searchText =
     Element.Input.text
         [ Element.width (Element.maximum 400 Element.fill)
         , Element.Border.rounded 5
-        , Element.Border.color Colors.darkGrey
+        , Element.Border.color userConfig.darkGrey
         , Element.paddingEach { left = 24, right = 8, top = 4, bottom = 4 }
         , Ui.onEnter SubmittedSearchBox
         , Dom.idToAttribute groupSearchId |> Element.htmlAttribute
@@ -1487,15 +1500,15 @@ searchInput searchText =
         }
 
 
-searchInputLarge : String -> Element FrontendMsg
-searchInputLarge searchText =
+searchInputLarge : UserConfig -> String -> Element FrontendMsg
+searchInputLarge userConfig searchText =
     Element.row
         [ Element.width <| Element.maximum 400 Element.fill
         , Element.centerX
         ]
         [ Element.Input.text
             [ Element.Border.roundEach { topLeft = 5, bottomLeft = 5, bottomRight = 0, topRight = 0 }
-            , Element.Border.color Colors.darkGrey
+            , Element.Border.color userConfig.darkGrey
             , Element.Border.widthEach { bottom = 1, left = 1, right = 0, top = 1 }
             , Element.paddingEach { left = 30, right = 8, top = 8, bottom = 8 }
             , Ui.onEnter SubmittedSearchBox
@@ -1517,10 +1530,10 @@ searchInputLarge searchText =
             , label = Element.Input.labelHidden "Search for groups"
             }
         , Element.Input.button
-            [ Element.Background.color Ui.submitColor
+            [ Element.Background.color (Ui.submitColor userConfig)
             , Element.Border.roundEach { topLeft = 0, bottomLeft = 0, bottomRight = 5, topRight = 5 }
             , Element.height Element.fill
-            , Element.Font.color Colors.white
+            , Element.Font.color userConfig.white
             , Element.paddingXY 16 0
             ]
             { onPress = Just SubmittedSearchBox
@@ -1529,35 +1542,35 @@ searchInputLarge searchText =
         ]
 
 
-adminStatusColor maybeLoggedIn =
+adminStatusColor userConfig maybeLoggedIn =
     case Maybe.map .adminStatus maybeLoggedIn of
         Just IsNotAdmin ->
             if Env.isProduction then
-                Colors.grey
+                userConfig.grey
 
             else
-                Colors.green
+                userConfig.green
 
         Just IsAdminButDisabled ->
             if Env.isProduction then
-                Colors.grey
+                userConfig.grey
 
             else
-                Colors.green
+                userConfig.green
 
         Just IsAdminAndEnabled ->
             if Env.isProduction then
-                Colors.red
+                userConfig.error
 
             else
-                Colors.green
+                userConfig.green
 
         Nothing ->
             if Env.isProduction then
-                Colors.grey
+                userConfig.grey
 
             else
-                Colors.green
+                userConfig.green
 
 
 header : Maybe LoggedIn_ -> LoadedFrontend -> Element FrontendMsg
@@ -1587,12 +1600,12 @@ header maybeLoggedIn model =
                             , Element.text "Meetdown"
                             ]
                     }
-            , searchInput model.searchText
+            , searchInput model.userConfig model.searchText
             , Element.row
                 [ Element.alignRight ]
                 (case maybeLoggedIn of
                     Just loggedIn ->
-                        headerButtons isMobile_ (loggedIn.adminStatus /= IsNotAdmin) model.route
+                        headerButtons model.userConfig isMobile_ (loggedIn.adminStatus /= IsNotAdmin) model.route
                             ++ [ Ui.headerButton isMobile_
                                     logOutButtonId
                                     { onPress = PressedLogout
@@ -1610,42 +1623,44 @@ header maybeLoggedIn model =
                         ]
                 )
             ]
-        , largeLine maybeLoggedIn
+        , largeLine model.userConfig maybeLoggedIn
         ]
 
 
-largeLine : Maybe LoggedIn_ -> Element msg
-largeLine maybeLoggedIn =
+largeLine : UserConfig -> Maybe LoggedIn_ -> Element msg
+largeLine userConfig maybeLoggedIn =
     Element.row
-        [ Element.Background.color (adminStatusColor maybeLoggedIn)
+        [ Element.Background.color (adminStatusColor userConfig maybeLoggedIn)
         , Element.width Element.fill
         , Element.height (Element.px 2)
         ]
         []
 
 
-footer : Bool -> Route -> Maybe LoggedIn_ -> Element msg
-footer isMobile_ route maybeLoggedIn =
+footer : UserConfig -> Bool -> Route -> Maybe LoggedIn_ -> Element msg
+footer userConfig isMobile_ route maybeLoggedIn =
     Element.column
         [ Element.width Element.fill
         , Element.spacing 8
         , Element.padding 8
         ]
-        [ largeLine maybeLoggedIn
+        [ largeLine userConfig maybeLoggedIn
         , Element.row
             [ Element.width Element.fill, Element.alignBottom, Element.spacing 8 ]
-            [ Ui.headerLink isMobile_ (route == PrivacyRoute) { route = PrivacyRoute, label = "Privacy" }
-            , Ui.headerLink isMobile_ (route == TermsOfServiceRoute) { route = TermsOfServiceRoute, label = "Terms of service" }
-            , Ui.headerLink isMobile_ (route == CodeOfConductRoute) { route = CodeOfConductRoute, label = "Code of conduct" }
-            , Ui.headerLink isMobile_ (route == FrequentQuestionsRoute) { route = FrequentQuestionsRoute, label = "FaQ" }
+            [ Ui.headerLink userConfig isMobile_ (route == PrivacyRoute) { route = PrivacyRoute, label = "Privacy" }
+            , Ui.headerLink userConfig isMobile_ (route == TermsOfServiceRoute) { route = TermsOfServiceRoute, label = "Terms of service" }
+            , Ui.headerLink userConfig isMobile_ (route == CodeOfConductRoute) { route = CodeOfConductRoute, label = "Code of conduct" }
+            , Ui.headerLink userConfig isMobile_ (route == FrequentQuestionsRoute) { route = FrequentQuestionsRoute, label = "FaQ" }
             ]
         ]
 
 
-headerButtons : Bool -> Bool -> Route -> List (Element msg)
-headerButtons isMobile_ isAdmin route =
+headerButtons : UserConfig -> Bool -> Bool -> Route -> List (Element msg)
+headerButtons userConfig isMobile_ isAdmin route =
     [ if isAdmin then
-        Ui.headerLink isMobile_
+        Ui.headerLink
+            userConfig
+            isMobile_
             (route == AdminRoute)
             { route = AdminRoute
             , label = "Admin"
@@ -1653,17 +1668,23 @@ headerButtons isMobile_ isAdmin route =
 
       else
         Element.none
-    , Ui.headerLink isMobile_
+    , Ui.headerLink
+        userConfig
+        isMobile_
         (route == CreateGroupRoute)
         { route = CreateGroupRoute
         , label = "New group"
         }
-    , Ui.headerLink isMobile_
+    , Ui.headerLink
+        userConfig
+        isMobile_
         (route == MyGroupsRoute)
         { route = MyGroupsRoute
         , label = "My groups"
         }
-    , Ui.headerLink isMobile_
+    , Ui.headerLink
+        userConfig
+        isMobile_
         (route == MyProfileRoute)
         { route = MyProfileRoute
         , label = "Profile"

@@ -2,7 +2,7 @@ module SearchPage exposing (getGroupsFromIds, groupPreview, view)
 
 import AssocList as Dict
 import Cache exposing (Cache(..))
-import Colors
+import Colors exposing (UserConfig)
 import Description
 import Element exposing (Element)
 import Element.Background
@@ -41,8 +41,8 @@ getGroupsFromIds groups model =
         |> List.sortBy (Tuple.second >> Group.name >> GroupName.toString)
 
 
-view : Bool -> String -> LoadedFrontend -> Element FrontendMsg
-view isMobile searchText model =
+view : UserConfig -> Bool -> String -> LoadedFrontend -> Element FrontendMsg
+view userConfig isMobile searchText model =
     Element.column
         [ Element.padding 8
         , Ui.contentWidth
@@ -57,19 +57,19 @@ view isMobile searchText model =
         , Element.column
             [ Element.width Element.fill, Element.spacing 16 ]
             (getGroupsFromIds model.searchList model
-                |> List.map (\( groupId, group ) -> groupPreview isMobile model.time groupId group)
+                |> List.map (\( groupId, group ) -> groupPreview userConfig isMobile model.time groupId group)
             )
         ]
 
 
-groupPreview : Bool -> Time.Posix -> Id GroupId -> Group -> Element msg
-groupPreview isMobile currentTime groupId group =
+groupPreview : UserConfig -> Bool -> Time.Posix -> Id GroupId -> Group -> Element msg
+groupPreview userConfig isMobile currentTime groupId group =
     Element.link
         (Element.width Element.fill
             :: Ui.inputFocusClass
-            :: Ui.cardAttributes
+            :: Ui.cardAttributes userConfig
             ++ [ Element.paddingEach { top = 15, left = 15, right = 15, bottom = 0 }
-               , Element.Border.color Colors.darkGrey
+               , Element.Border.color userConfig.darkGrey
                ]
         )
         { url = Route.encode (GroupRoute groupId (Group.name group))
@@ -136,6 +136,6 @@ groupPreview isMobile currentTime groupId group =
                             Element.none
                     ]
                 , Group.description group
-                    |> Description.toParagraph True
+                    |> Description.toParagraph userConfig True
                 ]
         }

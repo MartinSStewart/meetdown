@@ -1,5 +1,6 @@
 module Privacy exposing (view)
 
+import Colors exposing (UserConfig)
 import Element exposing (Element)
 import Env
 import MarkdownThemed
@@ -7,12 +8,12 @@ import Route
 import Ui
 
 
-view : Element msg
-view =
+view : UserConfig -> Element msg
+view userConfig =
     Element.column
         Ui.pageContentAttributes
         [ Ui.title "Privacy notice"
-        , MarkdownThemed.renderFull text
+        , MarkdownThemed.renderFull userConfig text
         ]
 
 

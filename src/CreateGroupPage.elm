@@ -14,6 +14,7 @@ module CreateGroupPage exposing
     , view
     )
 
+import Colors exposing (UserConfig)
 import Description exposing (Description)
 import Effect.Browser.Dom exposing (HtmlId)
 import Element exposing (Element)
@@ -121,17 +122,18 @@ updateForm wrapper msg form =
                     ( wrapper { form | pressedSubmit = True }, NoChange )
 
 
-view : Bool -> Bool -> Model -> Element Msg
-view isMobile isFirstGroup model =
+view : UserConfig -> Bool -> Bool -> Model -> Element Msg
+view userConfig isMobile isFirstGroup model =
     case model of
         Editting form ->
-            formView isMobile isFirstGroup Nothing False form
+            formView userConfig isMobile isFirstGroup Nothing False form
 
         Submitting validated ->
-            formView isMobile isFirstGroup Nothing True (validatedToForm validated)
+            formView userConfig isMobile isFirstGroup Nothing True (validatedToForm validated)
 
         SubmitFailed error form ->
             formView
+                userConfig
                 isMobile
                 isFirstGroup
                 (case error of
@@ -159,8 +161,8 @@ submitFailed error model =
             SubmitFailed createGroupError form
 
 
-formView : Bool -> Bool -> Maybe String -> Bool -> Form -> Element Msg
-formView isMobile firstGroup maybeSubmitError isSubmitting form =
+formView : UserConfig -> Bool -> Bool -> Maybe String -> Bool -> Form -> Element Msg
+formView userConfig isMobile firstGroup maybeSubmitError isSubmitting form =
     Element.column
         (Element.width Element.fill
             :: Element.spacing 20
@@ -168,6 +170,7 @@ formView isMobile firstGroup maybeSubmitError isSubmitting form =
         )
         [ Ui.title "Create group"
         , Ui.textInput
+            userConfig
             nameInputId
             (\a -> FormChanged { form | name = a })
             form.name
@@ -191,6 +194,7 @@ formView isMobile firstGroup maybeSubmitError isSubmitting form =
                     Nothing
             )
         , Ui.multiline
+            userConfig
             descriptionInputId
             (\a -> FormChanged { form | description = a })
             form.description
@@ -203,6 +207,7 @@ formView isMobile firstGroup maybeSubmitError isSubmitting form =
                     Nothing
             )
         , Ui.radioGroup
+            userConfig
             groupVisibilityId
             (\a -> FormChanged { form | visibility = Just a })
             (Nonempty PublicGroup [ UnlistedGroup ])
@@ -228,7 +233,7 @@ formView isMobile firstGroup maybeSubmitError isSubmitting form =
                 [ Element.paragraph
                     []
                     [ Element.text "Since this is your first group, we recommend you read the "
-                    , Ui.routeLinkNewTab Route.CodeOfConductRoute "code of conduct"
+                    , Ui.routeLinkNewTab userConfig Route.CodeOfConductRoute "code of conduct"
                     , Element.text "."
                     ]
                 ]
@@ -239,7 +244,7 @@ formView isMobile firstGroup maybeSubmitError isSubmitting form =
             [ Element.spacing 8, Element.paddingXY 0 16, Element.width Element.fill ]
             [ case maybeSubmitError of
                 Just error ->
-                    Ui.formError error
+                    Ui.formError userConfig error
 
                 Nothing ->
                     Element.none
@@ -250,7 +255,7 @@ formView isMobile firstGroup maybeSubmitError isSubmitting form =
                   else
                     Element.width (Element.px 200)
                 ]
-                (Ui.submitButton submitButtonId isSubmitting { onPress = PressedSubmit, label = "Submit" })
+                (Ui.submitButton userConfig submitButtonId isSubmitting { onPress = PressedSubmit, label = "Submit" })
             ]
         ]
 
