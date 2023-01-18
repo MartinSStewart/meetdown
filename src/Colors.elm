@@ -40,17 +40,17 @@ lightTheme =
 
 darkTheme : UserConfig
 darkTheme =
-    { defaultText = fromHex "#d5d9de"
+    { defaultText = fromHex "#e8ecf1"
     , mutedText = fromHex "#c7ccd3"
-    , error = fromHex "#7c191d"
-    , submit = fromHex "#3e9182"
-    , link = fromHex "#396f9b"
+    , error = fromHex "#f1484e"
+    , submit = fromHex "#54c0ad"
+    , link = fromHex "#5aaff5"
     , errorBackground = Element.rgb 0.349 0.2745 0.2745
     , lightGrey = fromHex "#4c4d4d"
     , grey = fromHex "#6e7072"
     , blueGrey = fromHex "#394a60"
     , darkGrey = fromHex "#7e858d"
-    , invertedText = fromHex "#1a1a1a"
+    , invertedText = fromHex "#151515"
     , background = fromHex "#1a1a1a"
     }
 
