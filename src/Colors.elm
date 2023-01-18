@@ -6,33 +6,52 @@ import Element exposing (Color)
 
 
 type alias UserConfig =
-    { readingBlack : Color
-    , readingMuted : Color
+    { defaultText : Color
+    , mutedText : Color
     , error : Color
-    , green : Color
-    , blue : Color
+    , submit : Color
+    , link : Color
     , errorBackground : Color
     , lightGrey : Color
     , grey : Color
     , blueGrey : Color
     , darkGrey : Color
-    , white : Color
+    , invertedText : Color
+    , background : Color
     }
 
 
 lightTheme : UserConfig
 lightTheme =
-    { readingBlack = fromHex "#022047"
-    , readingMuted = fromHex "#4A5E7A"
+    { defaultText = fromHex "#022047"
+    , mutedText = fromHex "#4A5E7A"
     , error = fromHex "#F8777B"
-    , green = fromHex "#55CCB6"
-    , blue = fromHex "#509CDB"
+    , submit = fromHex "#55CCB6"
+    , link = fromHex "#509CDB"
     , errorBackground = Element.rgb 1 0.9059 0.9059
     , lightGrey = fromHex "#f4f6f8"
     , grey = fromHex "#E0E4E8"
     , blueGrey = fromHex "#4A5E7A"
     , darkGrey = fromHex "#AEB7C4"
-    , white = fromHex "#FFF"
+    , invertedText = fromHex "#FFF"
+    , background = fromHex "#FFF"
+    }
+
+
+darkTheme : UserConfig
+darkTheme =
+    { defaultText = fromHex "#d5d9de"
+    , mutedText = fromHex "#c7ccd3"
+    , error = fromHex "#7c191d"
+    , submit = fromHex "#3e9182"
+    , link = fromHex "#396f9b"
+    , errorBackground = Element.rgb 0.349 0.2745 0.2745
+    , lightGrey = fromHex "#4c4d4d"
+    , grey = fromHex "#6e7072"
+    , blueGrey = fromHex "#394a60"
+    , darkGrey = fromHex "#7e858d"
+    , invertedText = fromHex "#1a1a1a"
+    , background = fromHex "#1a1a1a"
     }
 
 

@@ -174,7 +174,7 @@ initLoadedFrontend navigationKey windowWidth windowHeight route maybeLoginToken 
             , windowWidth = windowWidth
             , windowHeight = windowHeight
             , groupPage = Dict.empty
-            , userConfig = Colors.lightTheme
+            , theme = DarkTheme
             }
 
         ( model2, cmd ) =
@@ -1108,6 +1108,20 @@ updateLoadedFromBackend msg model =
 
 view : FrontendModel -> Browser.Document FrontendMsg
 view model =
+    let
+        theme =
+            case model of
+                Loading _ ->
+                    Colors.lightTheme
+
+                Loaded loaded ->
+                    case loaded.theme of
+                        LightTheme ->
+                            Colors.lightTheme
+
+                        DarkTheme ->
+                            Colors.darkTheme
+    in
     { title = "Meetdown"
     , body =
         [ Ui.css
@@ -1115,19 +1129,15 @@ view model =
             { options = [ Element.noStaticStyleSheet ] }
             [ Ui.defaultFontSize
             , Ui.defaultFont
-            , case model of
-                Loading _ ->
-                    Ui.defaultFontColor Colors.lightTheme
-
-                Loaded loaded ->
-                    Ui.defaultFontColor loaded.userConfig
+            , Ui.defaultFontColor theme
+            , Element.Background.color theme.background
             ]
             (case model of
                 Loading _ ->
                     Element.none
 
                 Loaded loaded ->
-                    viewLoaded loaded
+                    viewLoaded theme loaded
             )
         ]
     }
@@ -1138,8 +1148,8 @@ isMobile { windowWidth } =
     windowWidth |> Quantity.lessThan (Pixels.pixels 600)
 
 
-viewLoaded : LoadedFrontend -> Element FrontendMsg
-viewLoaded model =
+viewLoaded : UserConfig -> LoadedFrontend -> Element FrontendMsg
+viewLoaded userConfig model =
     Element.column
         [ Element.width Element.fill
         , Element.height Element.fill
@@ -1153,10 +1163,10 @@ viewLoaded model =
                     Element.none
 
                 else
-                    header (Just loggedIn) model
+                    header userConfig (Just loggedIn) model
 
             NotLoggedIn _ ->
-                header Nothing model
+                header userConfig Nothing model
         , Element.el
             [ Element.Region.mainContent
             , Element.width Element.fill
@@ -1170,26 +1180,26 @@ viewLoaded model =
                         [ Element.text "The link you used is either invalid or has expired." ]
                     , Element.el
                         [ Element.centerX ]
-                        (Ui.linkButton model.userConfig { route = Route.HomepageRoute, label = "Go to homepage" })
+                        (Ui.linkButton userConfig { route = Route.HomepageRoute, label = "Go to homepage" })
                     ]
 
              else
                 case model.loginStatus of
                     NotLoggedIn { showLogin, joiningEvent } ->
                         if showLogin then
-                            LoginForm.view model.userConfig joiningEvent model.cachedGroups model.loginForm
+                            LoginForm.view userConfig joiningEvent model.cachedGroups model.loginForm
 
                         else
-                            viewPage model
+                            viewPage userConfig model
 
                     LoggedIn _ ->
-                        viewPage model
+                        viewPage userConfig model
 
                     LoginStatusPending ->
                         Element.none
             )
         , footer
-            model.userConfig
+            userConfig
             (isMobile model)
             model.route
             (case model.loginStatus of
@@ -1205,14 +1215,14 @@ viewLoaded model =
         ]
 
 
-loginRequiredPage : LoadedFrontend -> (LoggedIn_ -> Element FrontendMsg) -> Element FrontendMsg
-loginRequiredPage model pageView =
+loginRequiredPage : UserConfig -> LoadedFrontend -> (LoggedIn_ -> Element FrontendMsg) -> Element FrontendMsg
+loginRequiredPage userConfig model pageView =
     case model.loginStatus of
         LoggedIn loggedIn ->
             pageView loggedIn
 
         NotLoggedIn { joiningEvent } ->
-            LoginForm.view model.userConfig joiningEvent model.cachedGroups model.loginForm
+            LoginForm.view userConfig joiningEvent model.cachedGroups model.loginForm
 
         LoginStatusPending ->
             Element.none
@@ -1228,8 +1238,8 @@ getCachedUser userId loadedFrontend =
             Nothing
 
 
-viewPage : LoadedFrontend -> Element FrontendMsg
-viewPage model =
+viewPage : UserConfig -> LoadedFrontend -> Element FrontendMsg
+viewPage userConfig model =
     case model.route of
         HomepageRoute ->
             Element.column
@@ -1237,16 +1247,16 @@ viewPage model =
                 [ Element.el [ Element.paddingEach { top = 40, right = 0, bottom = 20, left = 0 }, Element.centerX ] <|
                     Element.image
                         [ Element.width <| (Element.fill |> Element.maximum 650) ]
-                        { src = "/homepage-hero.jpg", description = "Two people on a video conference" }
+                        { src = "/homepage-hero.svg", description = "Two people on a video conference" }
                 , Element.paragraph
                     [ Element.Font.center ]
                     [ Element.text "A place to join groups of people with shared interests." ]
                 , Element.paragraph
                     [ Element.Font.center ]
                     [ Element.text " We don't sell your data, we don't show ads, and it's free. "
-                    , Ui.routeLink model.userConfig Route.FrequentQuestionsRoute "Read more"
+                    , Ui.routeLink userConfig Route.FrequentQuestionsRoute "Read more"
                     ]
-                , searchInputLarge model.userConfig model.searchText
+                , searchInputLarge userConfig model.searchText
                 ]
 
         GroupRoute groupId _ ->
@@ -1255,7 +1265,7 @@ viewPage model =
                     case getCachedUser (Group.ownerId group) model of
                         Just owner ->
                             GroupPage.view
-                                model.userConfig
+                                userConfig
                                 (isMobile model)
                                 model.time
                                 model.timezone
@@ -1283,7 +1293,7 @@ viewPage model =
                             Ui.loadingView
 
                 Just ItemDoesNotExist ->
-                    Ui.loadingError model.userConfig "Group not found"
+                    Ui.loadingError userConfig "Group not found"
 
                 Just ItemRequestPending ->
                     Ui.loadingView
@@ -1292,15 +1302,16 @@ viewPage model =
                     Element.none
 
         AdminRoute ->
-            loginRequiredPage model (AdminPage.view model.userConfig model.timezone)
+            loginRequiredPage userConfig model (AdminPage.view userConfig model.timezone)
 
         CreateGroupRoute ->
             loginRequiredPage
+                userConfig
                 model
                 (\loggedIn ->
                     case loggedIn.myGroups of
                         Just myGroups ->
-                            CreateGroupPage.view model.userConfig (isMobile model) (Set.isEmpty myGroups) model.groupForm
+                            CreateGroupPage.view userConfig (isMobile model) (Set.isEmpty myGroups) model.groupForm
                                 |> Element.map CreateGroupPageMsg
 
                         Nothing ->
@@ -1308,16 +1319,17 @@ viewPage model =
                 )
 
         MyGroupsRoute ->
-            loginRequiredPage model (myGroupsView model)
+            loginRequiredPage userConfig model (myGroupsView userConfig model)
 
         MyProfileRoute ->
             loginRequiredPage
+                userConfig
                 model
                 (\loggedIn ->
                     case Dict.get loggedIn.userId model.cachedUsers of
                         Just (ItemCached user) ->
                             ProfilePage.view
-                                model.userConfig
+                                userConfig
                                 model
                                 { name = user.name
                                 , description = user.description
@@ -1331,28 +1343,28 @@ viewPage model =
                             Ui.loadingView
 
                         Just ItemDoesNotExist ->
-                            Ui.loadingError model.userConfig "User not found"
+                            Ui.loadingError userConfig "User not found"
 
                         Nothing ->
-                            Ui.loadingError model.userConfig "User not found"
+                            Ui.loadingError userConfig "User not found"
                 )
 
         SearchGroupsRoute searchText ->
-            SearchPage.view model.userConfig (isMobile model) searchText model
+            SearchPage.view userConfig (isMobile model) searchText model
 
         UserRoute userId _ ->
             case getCachedUser userId model of
                 Just user ->
-                    UserPage.view model.userConfig user
+                    UserPage.view userConfig user
 
                 Nothing ->
                     Ui.loadingView
 
         PrivacyRoute ->
-            Privacy.view model.userConfig
+            Privacy.view userConfig
 
         TermsOfServiceRoute ->
-            Terms.view model.userConfig
+            Terms.view userConfig
 
         CodeOfConductRoute ->
             Element.column
@@ -1374,7 +1386,7 @@ viewPage model =
                 , Element.paragraph
                     []
                     [ Element.text "• If someone is being a jerk that is not an excuse to be a jerk back. Ask them to stop, and if that doesn't work, avoid them and explain the problem here "
-                    , Ui.mailToLink model.userConfig Env.contactEmailAddress (Just "Moderation help request")
+                    , Ui.mailToLink userConfig Env.contactEmailAddress (Just "Moderation help request")
                     , Element.text "."
                     ]
                 ]
@@ -1394,15 +1406,15 @@ viewPage model =
                 [ Ui.title "Frequently asked questions"
                 , questionAndAnswer "Who is behind all this?"
                     [ Element.text "It is I, "
-                    , Ui.externalLink model.userConfig "https://github.com/MartinSStewart/" "Martin"
+                    , Ui.externalLink userConfig "https://github.com/MartinSStewart/" "Martin"
                     , Element.text ". Credit goes to "
-                    , Ui.externalLink model.userConfig "https://twitter.com/realmario" "Mario Rogic"
+                    , Ui.externalLink userConfig "https://twitter.com/realmario" "Mario Rogic"
                     , Element.text " for helping me out with parts of the app."
                     ]
                 , questionAndAnswer
                     "Why was this website made?"
                     [ Element.text "I dislike that meetup.com charges money, spams me with emails, and feels bloated. Also I wanted to try making something more substantial using "
-                    , Ui.externalLink model.userConfig "https://www.lamdera.com/" "Lamdera"
+                    , Ui.externalLink userConfig "https://www.lamdera.com/" "Lamdera"
                     , Element.text " to see if it's feasible to use at work."
                     ]
                 , questionAndAnswer
@@ -1411,8 +1423,8 @@ viewPage model =
                 ]
 
 
-myGroupsView : LoadedFrontend -> LoggedIn_ -> Element FrontendMsg
-myGroupsView model loggedIn =
+myGroupsView : UserConfig -> LoadedFrontend -> LoggedIn_ -> Element FrontendMsg
+myGroupsView userConfig model loggedIn =
     case loggedIn.myGroups of
         Just myGroups ->
             let
@@ -1421,7 +1433,7 @@ myGroupsView model loggedIn =
                     SearchPage.getGroupsFromIds (Set.toList myGroups) model
                         |> List.map
                             (\( groupId, group ) ->
-                                SearchPage.groupPreview model.userConfig (isMobile model) model.time groupId group
+                                SearchPage.groupPreview userConfig (isMobile model) model.time groupId group
                             )
             in
             Element.column
@@ -1431,9 +1443,9 @@ myGroupsView model loggedIn =
                     Element.paragraph
                         []
                         [ Element.text "You don't have any groups. Get started by "
-                        , Ui.routeLink model.userConfig CreateGroupRoute "creating one"
+                        , Ui.routeLink userConfig CreateGroupRoute "creating one"
                         , Element.text " or "
-                        , Ui.routeLink model.userConfig (SearchGroupsRoute "") "subscribing to one."
+                        , Ui.routeLink userConfig (SearchGroupsRoute "") "subscribing to one."
                         ]
 
                   else
@@ -1442,7 +1454,7 @@ myGroupsView model loggedIn =
                         [ if List.isEmpty myGroupsList then
                             Element.paragraph []
                                 [ Element.text "You haven't created any groups. "
-                                , Ui.routeLink model.userConfig CreateGroupRoute "You can do that here."
+                                , Ui.routeLink userConfig CreateGroupRoute "You can do that here."
                                 ]
 
                           else
@@ -1462,7 +1474,7 @@ myGroupsView model loggedIn =
                                 SearchPage.getGroupsFromIds (Set.toList loggedIn.subscribedGroups) model
                                     |> List.map
                                         (\( groupId, group ) ->
-                                            SearchPage.groupPreview model.userConfig (isMobile model) model.time groupId group
+                                            SearchPage.groupPreview userConfig (isMobile model) model.time groupId group
                                         )
                                     |> Element.column [ Element.spacing 8, Element.width Element.fill ]
                             ]
@@ -1530,10 +1542,10 @@ searchInputLarge userConfig searchText =
             , label = Element.Input.labelHidden "Search for groups"
             }
         , Element.Input.button
-            [ Element.Background.color (Ui.submitColor userConfig)
+            [ Element.Background.color userConfig.submit
             , Element.Border.roundEach { topLeft = 0, bottomLeft = 0, bottomRight = 5, topRight = 5 }
             , Element.height Element.fill
-            , Element.Font.color userConfig.white
+            , Element.Font.color userConfig.invertedText
             , Element.paddingXY 16 0
             ]
             { onPress = Just SubmittedSearchBox
@@ -1549,32 +1561,32 @@ adminStatusColor userConfig maybeLoggedIn =
                 userConfig.grey
 
             else
-                userConfig.green
+                userConfig.submit
 
         Just IsAdminButDisabled ->
             if Env.isProduction then
                 userConfig.grey
 
             else
-                userConfig.green
+                userConfig.submit
 
         Just IsAdminAndEnabled ->
             if Env.isProduction then
                 userConfig.error
 
             else
-                userConfig.green
+                userConfig.submit
 
         Nothing ->
             if Env.isProduction then
                 userConfig.grey
 
             else
-                userConfig.green
+                userConfig.submit
 
 
-header : Maybe LoggedIn_ -> LoadedFrontend -> Element FrontendMsg
-header maybeLoggedIn model =
+header : UserConfig -> Maybe LoggedIn_ -> LoadedFrontend -> Element FrontendMsg
+header userConfig maybeLoggedIn model =
     let
         isMobile_ =
             isMobile model
@@ -1600,12 +1612,12 @@ header maybeLoggedIn model =
                             , Element.text "Meetdown"
                             ]
                     }
-            , searchInput model.userConfig model.searchText
+            , searchInput userConfig model.searchText
             , Element.row
                 [ Element.alignRight ]
                 (case maybeLoggedIn of
                     Just loggedIn ->
-                        headerButtons model.userConfig isMobile_ (loggedIn.adminStatus /= IsNotAdmin) model.route
+                        headerButtons userConfig isMobile_ (loggedIn.adminStatus /= IsNotAdmin) model.route
                             ++ [ Ui.headerButton isMobile_
                                     logOutButtonId
                                     { onPress = PressedLogout
@@ -1623,7 +1635,7 @@ header maybeLoggedIn model =
                         ]
                 )
             ]
-        , largeLine model.userConfig maybeLoggedIn
+        , largeLine userConfig maybeLoggedIn
         ]
 
 

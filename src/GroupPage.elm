@@ -1511,7 +1511,7 @@ ongoingEventView userConfig isMobile cachedUsers currentTime timezone isOwner ma
                     Element.paragraph []
                         [ Element.text "• The event is taking place now at "
                         , Element.link
-                            [ Element.Font.color (Ui.linkColor userConfig) ]
+                            [ Element.Font.color userConfig.link ]
                             { url = Link.toString link, label = Element.text (Link.toString link) }
                         ]
 
@@ -1709,7 +1709,7 @@ showAttendeesButton userConfig eventId showAttendees =
         []
         (if showAttendees then
             Element.Input.button
-                [ Element.Font.color userConfig.blue
+                [ Element.Font.color userConfig.link
                 , Element.htmlAttribute (Dom.idToAttribute hideAttendeesButtonId)
                 ]
                 { onPress = PressedHideAttendees eventId |> Just
@@ -1718,7 +1718,7 @@ showAttendeesButton userConfig eventId showAttendees =
 
          else
             Element.Input.button
-                [ Element.Font.color userConfig.blue
+                [ Element.Font.color userConfig.link
                 , Element.htmlAttribute (Dom.idToAttribute showAttendeesButtonId)
                 ]
                 { onPress = PressedShowAttendees eventId |> Just
@@ -1841,7 +1841,7 @@ futureEventView userConfig isMobile cachedUsers currentTime timezone isOwner may
                         Element.paragraph []
                             [ Element.text "• The event will take place at "
                             , Element.link
-                                [ Element.Font.color (Ui.linkColor userConfig) ]
+                                [ Element.Font.color userConfig.link ]
                                 { url = Link.toString link, label = Element.text (Link.toString link) }
                             ]
 

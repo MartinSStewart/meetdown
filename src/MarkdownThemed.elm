@@ -65,7 +65,7 @@ renderer userConfig searchPreview =
                 , Font.italic
                 , Border.widthEach { bottom = 0, left = 4, right = 0, top = 0 }
                 , Border.color userConfig.grey
-                , Font.color userConfig.readingMuted
+                , Font.color userConfig.mutedText
                 , padding 10
                 ]
                 children
@@ -82,10 +82,10 @@ renderer userConfig searchPreview =
                 [ Font.underline
                 , Font.color
                     (if searchPreview then
-                        userConfig.readingMuted
+                        userConfig.mutedText
 
                      else
-                        userConfig.blue
+                        userConfig.link
                     )
                 ]
                 { url = destination
@@ -184,26 +184,26 @@ heading userConfig { level, rawText, children } =
             1 ->
                 [ Font.size 28
                 , Font.bold
-                , Font.color userConfig.readingBlack
+                , Font.color userConfig.defaultText
                 , paddingXY 0 20
                 ]
 
             2 ->
-                [ Font.color userConfig.readingBlack
+                [ Font.color userConfig.defaultText
                 , Font.size 20
                 , Font.bold
                 , paddingEach { top = 50, right = 0, bottom = 20, left = 0 }
                 ]
 
             3 ->
-                [ Font.color userConfig.readingBlack
+                [ Font.color userConfig.defaultText
                 , Font.size 18
                 , Font.bold
                 , paddingEach { top = 30, right = 0, bottom = 10, left = 0 }
                 ]
 
             4 ->
-                [ Font.color userConfig.readingBlack
+                [ Font.color userConfig.defaultText
                 , Font.size 16
                 , Font.bold
                 , paddingEach { top = 0, right = 0, bottom = 10, left = 0 }

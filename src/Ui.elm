@@ -26,7 +26,6 @@ module Ui exposing
     , inputBorderWidth
     , inputFocusClass
     , linkButton
-    , linkColor
     , loadingError
     , loadingView
     , mailToLink
@@ -40,7 +39,6 @@ module Ui exposing
     , section
     , smallSubmitButton
     , submitButton
-    , submitColor
     , textInput
     , timeToString
     , timestamp
@@ -48,7 +46,7 @@ module Ui exposing
     , titleFontSize
     )
 
-import Colors exposing (..)
+import Colors exposing (UserConfig)
 import Date exposing (Date)
 import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Element exposing (Element)
@@ -175,7 +173,7 @@ headerLink userConfig isMobile_ isSelected { route, label } =
                 Element.el
                     [ Element.paddingXY 4 0, Element.width Element.fill ]
                     (Element.el
-                        [ Element.Background.color userConfig.green
+                        [ Element.Background.color userConfig.submit
                         , Element.width Element.fill
                         , Element.height (Element.px 2)
                         ]
@@ -212,28 +210,28 @@ emailAddressText emailAddress =
 routeLink : UserConfig -> Route -> String -> Element msg
 routeLink userConfig route label =
     Element.link
-        [ Element.Font.color (linkColor userConfig), inputFocusClass, Element.Font.underline ]
+        [ Element.Font.color userConfig.link, inputFocusClass, Element.Font.underline ]
         { url = Route.encode route, label = Element.text label }
 
 
 routeLinkNewTab : UserConfig -> Route -> String -> Element msg
 routeLinkNewTab userConfig route label =
     Element.newTabLink
-        [ Element.Font.color (linkColor userConfig), inputFocusClass, Element.Font.underline ]
+        [ Element.Font.color userConfig.link, inputFocusClass, Element.Font.underline ]
         { url = "https://meetdown.app" ++ Route.encode route, label = Element.text label }
 
 
 externalLink : UserConfig -> String -> String -> Element msg
 externalLink userConfig url label =
     Element.newTabLink
-        [ Element.Font.color (linkColor userConfig), inputFocusClass, Element.Font.underline ]
+        [ Element.Font.color userConfig.link, inputFocusClass, Element.Font.underline ]
         { url = url, label = Element.text label }
 
 
 mailToLink : UserConfig -> String -> Maybe String -> Element msg
 mailToLink userConfig emailAddress maybeSubject =
     Element.link
-        [ Element.Font.color (linkColor userConfig), inputFocusClass ]
+        [ Element.Font.color userConfig.link, inputFocusClass ]
         { url =
             "mailto:"
                 ++ emailAddress
@@ -269,7 +267,7 @@ button userConfig htmlId { onPress, label } =
         , Element.padding 8
         , Element.Border.rounded 4
         , Element.Font.center
-        , Element.Font.color userConfig.readingMuted
+        , Element.Font.color userConfig.mutedText
         , Element.width (Element.minimum 150 Element.fill)
         , Dom.idToAttribute htmlId |> Element.htmlAttribute
         ]
@@ -286,7 +284,7 @@ linkButton userConfig { route, label } =
         , Element.padding 8
         , Element.Border.rounded 4
         , Element.Font.center
-        , Element.Font.color userConfig.readingMuted
+        , Element.Font.color userConfig.mutedText
         , Element.width (Element.minimum 150 Element.fill)
         ]
         { url = Route.encode route
@@ -294,24 +292,14 @@ linkButton userConfig { route, label } =
         }
 
 
-linkColor : UserConfig -> Element.Color
-linkColor userConfig =
-    userConfig.blue
-
-
-submitColor : UserConfig -> Element.Color
-submitColor userConfig =
-    userConfig.green
-
-
 submitButton : UserConfig -> HtmlId -> Bool -> { onPress : msg, label : String } -> Element msg
 submitButton userConfig htmlId isSubmitting { onPress, label } =
     Element.Input.button
-        [ Element.Background.color (submitColor userConfig)
+        [ Element.Background.color userConfig.submit
         , Element.padding 10
         , Element.Border.rounded 4
         , Element.Font.center
-        , Element.Font.color userConfig.white
+        , Element.Font.color userConfig.invertedText
         , Dom.idToAttribute htmlId |> Element.htmlAttribute
         , Element.width Element.fill
         ]
@@ -342,7 +330,7 @@ dangerButton userConfig htmlId isSubmitting { onPress, label } =
         , Element.padding 10
         , Element.Border.rounded 4
         , Element.Font.center
-        , Element.Font.color userConfig.white
+        , Element.Font.color userConfig.invertedText
         , Dom.idToAttribute htmlId |> Element.htmlAttribute
         ]
         { onPress = Just onPress
@@ -376,7 +364,7 @@ defaultFont =
 
 defaultFontColor : UserConfig -> Element.Attr decorative msg
 defaultFontColor userConfig =
-    Element.Font.color userConfig.readingBlack
+    Element.Font.color userConfig.defaultText
 
 
 defaultFontSize : Element.Attr decorative msg
@@ -525,6 +513,7 @@ textInput userConfig htmlId onChange text labelText maybeError =
             [ Element.width Element.fill
             , Dom.idToAttribute htmlId |> Element.htmlAttribute
             , inputBorder userConfig (maybeError /= Nothing)
+            , Element.Background.color userConfig.background
             ]
             { text = text
             , onChange = onChange
@@ -547,6 +536,7 @@ multiline userConfig htmlId onChange text labelText maybeError =
             , Dom.idToAttribute htmlId |> Element.htmlAttribute
             , inputBorder userConfig (maybeError /= Nothing)
             , inputBorderWidth (maybeError /= Nothing)
+            , Element.Background.color userConfig.background
             ]
             { text = text
             , onChange = onChange
@@ -751,7 +741,7 @@ loadingError userConfig text =
 
 
 htmlInputBorderStyles userConfig =
-    [ Html.Attributes.style "border-color" (toCssString userConfig.darkGrey)
+    [ Html.Attributes.style "border-color" (Colors.toCssString userConfig.darkGrey)
     , Html.Attributes.style "border-width" "1px"
     , Html.Attributes.style "border-style" "solid"
     , Html.Attributes.style "border-radius" "4px"

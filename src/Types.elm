@@ -70,8 +70,13 @@ type alias LoadedFrontend =
     , windowWidth : Quantity Int Pixels
     , windowHeight : Quantity Int Pixels
     , groupPage : Dict (Id GroupId) GroupPage.Model
-    , userConfig : UserConfig
+    , theme : ColorTheme
     }
+
+
+type ColorTheme
+    = LightTheme
+    | DarkTheme
 
 
 type GroupRequest
