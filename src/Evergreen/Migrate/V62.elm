@@ -1,27 +1,9 @@
-module Evergreen.Migrate.V61 exposing (..)
+module Evergreen.Migrate.V62 exposing (..)
 
 import Array
 import AssocList
 import AssocSet
 import BiDict.Assoc as BiDict
-import Evergreen.V56.Address
-import Evergreen.V56.Description
-import Evergreen.V56.EmailAddress
-import Evergreen.V56.Event
-import Evergreen.V56.EventDuration
-import Evergreen.V56.EventName
-import Evergreen.V56.Group
-import Evergreen.V56.GroupName
-import Evergreen.V56.GroupPage
-import Evergreen.V56.Id
-import Evergreen.V56.Link
-import Evergreen.V56.MaxAttendees
-import Evergreen.V56.Name
-import Evergreen.V56.ProfileImage
-import Evergreen.V56.ProfilePage
-import Evergreen.V56.Route
-import Evergreen.V56.Types as Old
-import Evergreen.V56.Untrusted
 import Evergreen.V61.Address
 import Evergreen.V61.Description
 import Evergreen.V61.EmailAddress
@@ -38,8 +20,26 @@ import Evergreen.V61.Name
 import Evergreen.V61.ProfileImage
 import Evergreen.V61.ProfilePage
 import Evergreen.V61.Route
-import Evergreen.V61.Types as New
+import Evergreen.V61.Types as Old
 import Evergreen.V61.Untrusted
+import Evergreen.V62.Address
+import Evergreen.V62.Description
+import Evergreen.V62.EmailAddress
+import Evergreen.V62.Event
+import Evergreen.V62.EventDuration
+import Evergreen.V62.EventName
+import Evergreen.V62.Group
+import Evergreen.V62.GroupName
+import Evergreen.V62.GroupPage
+import Evergreen.V62.Id
+import Evergreen.V62.Link
+import Evergreen.V62.MaxAttendees
+import Evergreen.V62.Name
+import Evergreen.V62.ProfileImage
+import Evergreen.V62.ProfilePage
+import Evergreen.V62.Route
+import Evergreen.V62.Types as New
+import Evergreen.V62.Untrusted
 import Lamdera.Migrations exposing (..)
 import List.Nonempty
 
@@ -49,24 +49,24 @@ frontendModel old =
     ModelUnchanged
 
 
-migrateName : Evergreen.V56.Name.Name -> Evergreen.V61.Name.Name
-migrateName (Evergreen.V56.Name.Name name) =
-    Evergreen.V61.Name.Name name
+migrateName : Evergreen.V61.Name.Name -> Evergreen.V62.Name.Name
+migrateName (Evergreen.V61.Name.Name name) =
+    Evergreen.V62.Name.Name name
 
 
-migrateDescription : Evergreen.V56.Description.Description -> Evergreen.V61.Description.Description
-migrateDescription (Evergreen.V56.Description.Description name) =
-    Evergreen.V61.Description.Description name
+migrateDescription : Evergreen.V61.Description.Description -> Evergreen.V62.Description.Description
+migrateDescription (Evergreen.V61.Description.Description name) =
+    Evergreen.V62.Description.Description name
 
 
-migrateProfileImage : Evergreen.V56.ProfileImage.ProfileImage -> Evergreen.V61.ProfileImage.ProfileImage
+migrateProfileImage : Evergreen.V61.ProfileImage.ProfileImage -> Evergreen.V62.ProfileImage.ProfileImage
 migrateProfileImage a =
     case a of
-        Evergreen.V56.ProfileImage.DefaultImage ->
-            Evergreen.V61.ProfileImage.DefaultImage
+        Evergreen.V61.ProfileImage.DefaultImage ->
+            Evergreen.V62.ProfileImage.DefaultImage
 
-        Evergreen.V56.ProfileImage.CustomImage b ->
-            Evergreen.V61.ProfileImage.CustomImage b
+        Evergreen.V61.ProfileImage.CustomImage b ->
+            Evergreen.V62.ProfileImage.CustomImage b
 
 
 migrateBackendUser : Old.BackendUser -> New.BackendUser
@@ -81,89 +81,94 @@ migrateBackendUser backendUser =
     }
 
 
-migrateId : Evergreen.V56.Id.Id a -> Evergreen.V61.Id.Id b
-migrateId (Evergreen.V56.Id.Id id) =
-    Evergreen.V61.Id.Id id
+migrateId : Evergreen.V61.Id.Id a -> Evergreen.V62.Id.Id b
+migrateId (Evergreen.V61.Id.Id id) =
+    Evergreen.V62.Id.Id id
 
 
-migrateUserId : Evergreen.V56.Id.Id Evergreen.V56.Id.UserId -> Evergreen.V61.Id.Id Evergreen.V61.Id.UserId
-migrateUserId (Evergreen.V56.Id.Id id) =
-    Evergreen.V61.Id.Id id
+migrateUserId : Evergreen.V61.Id.Id Evergreen.V61.Id.UserId -> Evergreen.V62.Id.Id Evergreen.V62.Id.UserId
+migrateUserId (Evergreen.V61.Id.Id id) =
+    Evergreen.V62.Id.Id id
 
 
-migrateSessionIdFirst4Chars : Evergreen.V56.Id.SessionIdFirst4Chars -> Evergreen.V61.Id.SessionIdFirst4Chars
-migrateSessionIdFirst4Chars (Evergreen.V56.Id.SessionIdFirst4Chars id) =
-    Evergreen.V61.Id.SessionIdFirst4Chars id
+migrateSessionIdFirst4Chars : Evergreen.V61.Id.SessionIdFirst4Chars -> Evergreen.V62.Id.SessionIdFirst4Chars
+migrateSessionIdFirst4Chars (Evergreen.V61.Id.SessionIdFirst4Chars id) =
+    Evergreen.V62.Id.SessionIdFirst4Chars id
 
 
-migrateGroupName : Evergreen.V56.GroupName.GroupName -> Evergreen.V61.GroupName.GroupName
-migrateGroupName (Evergreen.V56.GroupName.GroupName id) =
-    Evergreen.V61.GroupName.GroupName id
+migrateGroupName : Evergreen.V61.GroupName.GroupName -> Evergreen.V62.GroupName.GroupName
+migrateGroupName (Evergreen.V61.GroupName.GroupName id) =
+    Evergreen.V62.GroupName.GroupName id
 
 
-migrateEventId : Evergreen.V56.Group.EventId -> Evergreen.V61.Group.EventId
-migrateEventId (Evergreen.V56.Group.EventId id) =
-    Evergreen.V61.Group.EventId id
+migrateEventId : Evergreen.V61.Group.EventId -> Evergreen.V62.Group.EventId
+migrateEventId (Evergreen.V61.Group.EventId id) =
+    Evergreen.V62.Group.EventId id
 
 
-migrateGroupId : Evergreen.V56.Id.Id Evergreen.V56.Id.GroupId -> Evergreen.V61.Id.Id Evergreen.V61.Id.GroupId
-migrateGroupId (Evergreen.V56.Id.Id id) =
-    Evergreen.V61.Id.Id id
+migrateGroupId : Evergreen.V61.Id.Id Evergreen.V61.Id.GroupId -> Evergreen.V62.Id.Id Evergreen.V62.Id.GroupId
+migrateGroupId (Evergreen.V61.Id.Id id) =
+    Evergreen.V62.Id.Id id
 
 
-migrateEventName : Evergreen.V56.EventName.EventName -> Evergreen.V61.EventName.EventName
-migrateEventName (Evergreen.V56.EventName.EventName a) =
-    Evergreen.V61.EventName.EventName a
+migrateEventName : Evergreen.V61.EventName.EventName -> Evergreen.V62.EventName.EventName
+migrateEventName (Evergreen.V61.EventName.EventName a) =
+    Evergreen.V62.EventName.EventName a
 
 
-migrateLink : Evergreen.V56.Link.Link -> Evergreen.V61.Link.Link
-migrateLink (Evergreen.V56.Link.Link a) =
-    Evergreen.V61.Link.Link a
+migrateLink : Evergreen.V61.Link.Link -> Evergreen.V62.Link.Link
+migrateLink (Evergreen.V61.Link.Link a) =
+    Evergreen.V62.Link.Link a
 
 
-migrateAddress : Evergreen.V56.Address.Address -> Evergreen.V61.Address.Address
-migrateAddress (Evergreen.V56.Address.Address a) =
-    Evergreen.V61.Address.Address a
+migrateAddress : Evergreen.V61.Address.Address -> Evergreen.V62.Address.Address
+migrateAddress (Evergreen.V61.Address.Address a) =
+    Evergreen.V62.Address.Address a
 
 
-migrateEventType : Evergreen.V56.Event.EventType -> Evergreen.V61.Event.EventType
+migrateEventType : Evergreen.V61.Event.EventType -> Evergreen.V62.Event.EventType
 migrateEventType a =
     case a of
-        Evergreen.V56.Event.MeetOnline maybeLink ->
-            Maybe.map migrateLink maybeLink |> Evergreen.V61.Event.MeetOnline
+        Evergreen.V61.Event.MeetOnline maybeLink ->
+            Maybe.map migrateLink maybeLink |> Evergreen.V62.Event.MeetOnline
 
-        Evergreen.V56.Event.MeetInPerson maybeAddress ->
-            Maybe.map migrateAddress maybeAddress |> Evergreen.V61.Event.MeetInPerson
+        Evergreen.V61.Event.MeetInPerson maybeAddress ->
+            Maybe.map migrateAddress maybeAddress |> Evergreen.V62.Event.MeetInPerson
+
+        Evergreen.V61.Event.MeetOnlineAndInPerson maybeLink maybeAddress ->
+            Evergreen.V62.Event.MeetOnlineAndInPerson
+                (Maybe.map migrateLink maybeLink)
+                (Maybe.map migrateAddress maybeAddress)
 
 
-migrateEventDuration : Evergreen.V56.EventDuration.EventDuration -> Evergreen.V61.EventDuration.EventDuration
-migrateEventDuration (Evergreen.V56.EventDuration.EventDuration a) =
-    Evergreen.V61.EventDuration.EventDuration a
+migrateEventDuration : Evergreen.V61.EventDuration.EventDuration -> Evergreen.V62.EventDuration.EventDuration
+migrateEventDuration (Evergreen.V61.EventDuration.EventDuration a) =
+    Evergreen.V62.EventDuration.EventDuration a
 
 
-migrateCancellationStatus : Evergreen.V56.Event.CancellationStatus -> Evergreen.V61.Event.CancellationStatus
+migrateCancellationStatus : Evergreen.V61.Event.CancellationStatus -> Evergreen.V62.Event.CancellationStatus
 migrateCancellationStatus a =
     case a of
-        Evergreen.V56.Event.EventCancelled ->
-            Evergreen.V61.Event.EventCancelled
+        Evergreen.V61.Event.EventCancelled ->
+            Evergreen.V62.Event.EventCancelled
 
-        Evergreen.V56.Event.EventUncancelled ->
-            Evergreen.V61.Event.EventUncancelled
+        Evergreen.V61.Event.EventUncancelled ->
+            Evergreen.V62.Event.EventUncancelled
 
 
-migrateMaxAttendees : Evergreen.V56.MaxAttendees.MaxAttendees -> Evergreen.V61.MaxAttendees.MaxAttendees
+migrateMaxAttendees : Evergreen.V61.MaxAttendees.MaxAttendees -> Evergreen.V62.MaxAttendees.MaxAttendees
 migrateMaxAttendees a =
     case a of
-        Evergreen.V56.MaxAttendees.NoLimit ->
-            Evergreen.V61.MaxAttendees.NoLimit
+        Evergreen.V61.MaxAttendees.NoLimit ->
+            Evergreen.V62.MaxAttendees.NoLimit
 
-        Evergreen.V56.MaxAttendees.MaxAttendees b ->
-            Evergreen.V61.MaxAttendees.MaxAttendees b
+        Evergreen.V61.MaxAttendees.MaxAttendees b ->
+            Evergreen.V62.MaxAttendees.MaxAttendees b
 
 
-migrateEvent : Evergreen.V56.Event.Event -> Evergreen.V61.Event.Event
-migrateEvent (Evergreen.V56.Event.Event event) =
-    Evergreen.V61.Event.Event
+migrateEvent : Evergreen.V61.Event.Event -> Evergreen.V62.Event.Event
+migrateEvent (Evergreen.V61.Event.Event event) =
+    Evergreen.V62.Event.Event
         { name = migrateEventName event.name
         , description = migrateDescription event.description
         , eventType = migrateEventType event.eventType
@@ -176,19 +181,19 @@ migrateEvent (Evergreen.V56.Event.Event event) =
         }
 
 
-migrateGroupVisibility : Evergreen.V56.Group.GroupVisibility -> Evergreen.V61.Group.GroupVisibility
+migrateGroupVisibility : Evergreen.V61.Group.GroupVisibility -> Evergreen.V62.Group.GroupVisibility
 migrateGroupVisibility a =
     case a of
-        Evergreen.V56.Group.UnlistedGroup ->
-            Evergreen.V61.Group.UnlistedGroup
+        Evergreen.V61.Group.UnlistedGroup ->
+            Evergreen.V62.Group.UnlistedGroup
 
-        Evergreen.V56.Group.PublicGroup ->
-            Evergreen.V61.Group.PublicGroup
+        Evergreen.V61.Group.PublicGroup ->
+            Evergreen.V62.Group.PublicGroup
 
 
-migrateGroup : Evergreen.V56.Group.Group -> Evergreen.V61.Group.Group
-migrateGroup (Evergreen.V56.Group.Group group) =
-    Evergreen.V61.Group.Group
+migrateGroup : Evergreen.V61.Group.Group -> Evergreen.V62.Group.Group
+migrateGroup (Evergreen.V61.Group.Group group) =
+    Evergreen.V62.Group.Group
         { ownerId = migrateUserId group.ownerId
         , name = migrateGroupName group.name
         , description = migrateDescription group.description
@@ -203,49 +208,49 @@ migrateGroup (Evergreen.V56.Group.Group group) =
         }
 
 
-migrateUntrusted : (a -> b) -> Evergreen.V56.Untrusted.Untrusted a -> Evergreen.V61.Untrusted.Untrusted b
-migrateUntrusted mapFunc (Evergreen.V56.Untrusted.Untrusted a) =
-    Evergreen.V61.Untrusted.Untrusted (mapFunc a)
+migrateUntrusted : (a -> b) -> Evergreen.V61.Untrusted.Untrusted a -> Evergreen.V62.Untrusted.Untrusted b
+migrateUntrusted mapFunc (Evergreen.V61.Untrusted.Untrusted a) =
+    Evergreen.V62.Untrusted.Untrusted (mapFunc a)
 
 
-migrateRoute : Evergreen.V56.Route.Route -> Evergreen.V61.Route.Route
+migrateRoute : Evergreen.V61.Route.Route -> Evergreen.V62.Route.Route
 migrateRoute a =
     case a of
-        Evergreen.V56.Route.HomepageRoute ->
-            Evergreen.V61.Route.HomepageRoute
+        Evergreen.V61.Route.HomepageRoute ->
+            Evergreen.V62.Route.HomepageRoute
 
-        Evergreen.V56.Route.GroupRoute groupId groupName ->
-            Evergreen.V61.Route.GroupRoute (migrateGroupId groupId) (migrateGroupName groupName)
+        Evergreen.V61.Route.GroupRoute groupId groupName ->
+            Evergreen.V62.Route.GroupRoute (migrateGroupId groupId) (migrateGroupName groupName)
 
-        Evergreen.V56.Route.AdminRoute ->
-            Evergreen.V61.Route.AdminRoute
+        Evergreen.V61.Route.AdminRoute ->
+            Evergreen.V62.Route.AdminRoute
 
-        Evergreen.V56.Route.CreateGroupRoute ->
-            Evergreen.V61.Route.CreateGroupRoute
+        Evergreen.V61.Route.CreateGroupRoute ->
+            Evergreen.V62.Route.CreateGroupRoute
 
-        Evergreen.V56.Route.SearchGroupsRoute string ->
-            Evergreen.V61.Route.SearchGroupsRoute string
+        Evergreen.V61.Route.SearchGroupsRoute string ->
+            Evergreen.V62.Route.SearchGroupsRoute string
 
-        Evergreen.V56.Route.MyGroupsRoute ->
-            Evergreen.V61.Route.MyGroupsRoute
+        Evergreen.V61.Route.MyGroupsRoute ->
+            Evergreen.V62.Route.MyGroupsRoute
 
-        Evergreen.V56.Route.MyProfileRoute ->
-            Evergreen.V61.Route.MyProfileRoute
+        Evergreen.V61.Route.MyProfileRoute ->
+            Evergreen.V62.Route.MyProfileRoute
 
-        Evergreen.V56.Route.UserRoute userId name ->
-            Evergreen.V61.Route.UserRoute (migrateUserId userId) (migrateName name)
+        Evergreen.V61.Route.UserRoute userId name ->
+            Evergreen.V62.Route.UserRoute (migrateUserId userId) (migrateName name)
 
-        Evergreen.V56.Route.PrivacyRoute ->
-            Evergreen.V61.Route.PrivacyRoute
+        Evergreen.V61.Route.PrivacyRoute ->
+            Evergreen.V62.Route.PrivacyRoute
 
-        Evergreen.V56.Route.TermsOfServiceRoute ->
-            Evergreen.V61.Route.TermsOfServiceRoute
+        Evergreen.V61.Route.TermsOfServiceRoute ->
+            Evergreen.V62.Route.TermsOfServiceRoute
 
-        Evergreen.V56.Route.CodeOfConductRoute ->
-            Evergreen.V61.Route.CodeOfConductRoute
+        Evergreen.V61.Route.CodeOfConductRoute ->
+            Evergreen.V62.Route.CodeOfConductRoute
 
-        Evergreen.V56.Route.FrequentQuestionsRoute ->
-            Evergreen.V61.Route.FrequentQuestionsRoute
+        Evergreen.V61.Route.FrequentQuestionsRoute ->
+            Evergreen.V62.Route.FrequentQuestionsRoute
 
 
 migrateToBackend : Old.ToBackend -> New.ToBackend
@@ -297,36 +302,36 @@ migrateToBackend toBackend_ =
             New.ProfileFormRequest (migrateProfileFormToBackend b)
 
 
-migrateProfileFormToBackend : Evergreen.V56.ProfilePage.ToBackend -> Evergreen.V61.ProfilePage.ToBackend
+migrateProfileFormToBackend : Evergreen.V61.ProfilePage.ToBackend -> Evergreen.V62.ProfilePage.ToBackend
 migrateProfileFormToBackend profileForm =
     case profileForm of
-        Evergreen.V56.ProfilePage.ChangeNameRequest a ->
-            Evergreen.V61.ProfilePage.ChangeNameRequest (migrateUntrusted migrateName a)
+        Evergreen.V61.ProfilePage.ChangeNameRequest a ->
+            Evergreen.V62.ProfilePage.ChangeNameRequest (migrateUntrusted migrateName a)
 
-        Evergreen.V56.ProfilePage.ChangeDescriptionRequest a ->
-            Evergreen.V61.ProfilePage.ChangeDescriptionRequest (migrateUntrusted migrateDescription a)
+        Evergreen.V61.ProfilePage.ChangeDescriptionRequest a ->
+            Evergreen.V62.ProfilePage.ChangeDescriptionRequest (migrateUntrusted migrateDescription a)
 
-        Evergreen.V56.ProfilePage.ChangeEmailAddressRequest a ->
-            Evergreen.V61.ProfilePage.ChangeEmailAddressRequest (migrateUntrusted migrateEmailAddress a)
+        Evergreen.V61.ProfilePage.ChangeEmailAddressRequest a ->
+            Evergreen.V62.ProfilePage.ChangeEmailAddressRequest (migrateUntrusted migrateEmailAddress a)
 
-        Evergreen.V56.ProfilePage.SendDeleteUserEmailRequest ->
-            Evergreen.V61.ProfilePage.SendDeleteUserEmailRequest
+        Evergreen.V61.ProfilePage.SendDeleteUserEmailRequest ->
+            Evergreen.V62.ProfilePage.SendDeleteUserEmailRequest
 
-        Evergreen.V56.ProfilePage.ChangeProfileImageRequest a ->
-            Evergreen.V61.ProfilePage.ChangeProfileImageRequest (migrateUntrusted migrateProfileImage a)
+        Evergreen.V61.ProfilePage.ChangeProfileImageRequest a ->
+            Evergreen.V62.ProfilePage.ChangeProfileImageRequest (migrateUntrusted migrateProfileImage a)
 
 
-migrateGroupPageToBackend : Evergreen.V56.GroupPage.ToBackend -> Evergreen.V61.GroupPage.ToBackend
+migrateGroupPageToBackend : Evergreen.V61.GroupPage.ToBackend -> Evergreen.V62.GroupPage.ToBackend
 migrateGroupPageToBackend groupPage =
     case groupPage of
-        Evergreen.V56.GroupPage.ChangeGroupNameRequest b ->
-            Evergreen.V61.GroupPage.ChangeGroupNameRequest (migrateUntrusted migrateGroupName b)
+        Evergreen.V61.GroupPage.ChangeGroupNameRequest b ->
+            Evergreen.V62.GroupPage.ChangeGroupNameRequest (migrateUntrusted migrateGroupName b)
 
-        Evergreen.V56.GroupPage.ChangeGroupDescriptionRequest b ->
-            Evergreen.V61.GroupPage.ChangeGroupDescriptionRequest (migrateUntrusted migrateDescription b)
+        Evergreen.V61.GroupPage.ChangeGroupDescriptionRequest b ->
+            Evergreen.V62.GroupPage.ChangeGroupDescriptionRequest (migrateUntrusted migrateDescription b)
 
-        Evergreen.V56.GroupPage.CreateEventRequest b c d e f g ->
-            Evergreen.V61.GroupPage.CreateEventRequest
+        Evergreen.V61.GroupPage.CreateEventRequest b c d e f g ->
+            Evergreen.V62.GroupPage.CreateEventRequest
                 (migrateUntrusted migrateEventName b)
                 (migrateUntrusted migrateDescription c)
                 (migrateUntrusted migrateEventType d)
@@ -334,8 +339,8 @@ migrateGroupPageToBackend groupPage =
                 (migrateUntrusted migrateEventDuration f)
                 (migrateUntrusted migrateMaxAttendees g)
 
-        Evergreen.V56.GroupPage.EditEventRequest b c d e f g h ->
-            Evergreen.V61.GroupPage.EditEventRequest
+        Evergreen.V61.GroupPage.EditEventRequest b c d e f g h ->
+            Evergreen.V62.GroupPage.EditEventRequest
                 (migrateEventId b)
                 (migrateUntrusted migrateEventName c)
                 (migrateUntrusted migrateDescription d)
@@ -344,31 +349,31 @@ migrateGroupPageToBackend groupPage =
                 (migrateUntrusted migrateEventDuration g)
                 (migrateUntrusted migrateMaxAttendees h)
 
-        Evergreen.V56.GroupPage.JoinEventRequest b ->
-            Evergreen.V61.GroupPage.JoinEventRequest (migrateEventId b)
+        Evergreen.V61.GroupPage.JoinEventRequest b ->
+            Evergreen.V62.GroupPage.JoinEventRequest (migrateEventId b)
 
-        Evergreen.V56.GroupPage.LeaveEventRequest b ->
-            Evergreen.V61.GroupPage.LeaveEventRequest (migrateEventId b)
+        Evergreen.V61.GroupPage.LeaveEventRequest b ->
+            Evergreen.V62.GroupPage.LeaveEventRequest (migrateEventId b)
 
-        Evergreen.V56.GroupPage.ChangeEventCancellationStatusRequest b c ->
-            Evergreen.V61.GroupPage.ChangeEventCancellationStatusRequest (migrateEventId b) (migrateCancellationStatus c)
+        Evergreen.V61.GroupPage.ChangeEventCancellationStatusRequest b c ->
+            Evergreen.V62.GroupPage.ChangeEventCancellationStatusRequest (migrateEventId b) (migrateCancellationStatus c)
 
-        Evergreen.V56.GroupPage.ChangeGroupVisibilityRequest groupVisibility ->
-            Evergreen.V61.GroupPage.ChangeGroupVisibilityRequest (migrateGroupVisibility groupVisibility)
+        Evergreen.V61.GroupPage.ChangeGroupVisibilityRequest groupVisibility ->
+            Evergreen.V62.GroupPage.ChangeGroupVisibilityRequest (migrateGroupVisibility groupVisibility)
 
-        Evergreen.V56.GroupPage.DeleteGroupAdminRequest ->
-            Evergreen.V61.GroupPage.DeleteGroupAdminRequest
+        Evergreen.V61.GroupPage.DeleteGroupAdminRequest ->
+            Evergreen.V62.GroupPage.DeleteGroupAdminRequest
 
-        Evergreen.V56.GroupPage.SubscribeRequest ->
-            Evergreen.V61.GroupPage.SubscribeRequest
+        Evergreen.V61.GroupPage.SubscribeRequest ->
+            Evergreen.V62.GroupPage.SubscribeRequest
 
-        Evergreen.V56.GroupPage.UnsubscribeRequest ->
-            Evergreen.V61.GroupPage.UnsubscribeRequest
+        Evergreen.V61.GroupPage.UnsubscribeRequest ->
+            Evergreen.V62.GroupPage.UnsubscribeRequest
 
 
-migrateEmailAddress : Evergreen.V56.EmailAddress.EmailAddress -> Evergreen.V61.EmailAddress.EmailAddress
-migrateEmailAddress (Evergreen.V56.EmailAddress.EmailAddress { domain, localPart, tags, tld }) =
-    Evergreen.V61.EmailAddress.EmailAddress { domain = domain, localPart = localPart, tags = tags, tld = tld }
+migrateEmailAddress : Evergreen.V61.EmailAddress.EmailAddress -> Evergreen.V62.EmailAddress.EmailAddress
+migrateEmailAddress (Evergreen.V61.EmailAddress.EmailAddress { domain, localPart, tags, tld }) =
+    Evergreen.V62.EmailAddress.EmailAddress { domain = domain, localPart = localPart, tags = tags, tld = tld }
 
 
 migrateDeleteUserToken : Old.DeleteUserTokenData -> New.DeleteUserTokenData
