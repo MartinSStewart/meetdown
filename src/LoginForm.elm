@@ -2,10 +2,12 @@ module LoginForm exposing (emailAddressInputId, submitButtonId, submitForm, type
 
 import AssocList as Dict exposing (Dict)
 import Cache exposing (Cache(..))
+import Colors exposing (UserConfig)
 import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Effect.Command as Command exposing (Command, FrontendOnly)
 import Effect.Lamdera as Lamdera
 import Element exposing (Element)
+import Element.Background
 import Element.Font
 import Element.Input
 import EmailAddress exposing (EmailAddress)
@@ -19,15 +21,16 @@ import Ui
 import Untrusted
 
 
-emailInput : HtmlId -> msg -> (String -> msg) -> String -> String -> Maybe String -> Element msg
-emailInput id onSubmit onChange text labelText maybeError =
+emailInput : UserConfig -> HtmlId -> msg -> (String -> msg) -> String -> String -> Maybe String -> Element msg
+emailInput userConfig id onSubmit onChange text labelText maybeError =
     Element.column
         [ Element.width Element.fill ]
         [ Element.Input.email
             [ Element.width Element.fill
             , Ui.onEnter onSubmit
-            , Ui.inputBorder (maybeError /= Nothing)
+            , Ui.inputBorder userConfig (maybeError /= Nothing)
             , Dom.idToAttribute id |> Element.htmlAttribute
+            , Element.Background.color userConfig.background
             ]
             { text = text
             , onChange = onChange
@@ -37,12 +40,12 @@ emailInput id onSubmit onChange text labelText maybeError =
                     []
                     (Element.paragraph [] [ Element.text labelText ])
             }
-        , Maybe.map Ui.error maybeError |> Maybe.withDefault Element.none
+        , Maybe.map (Ui.error userConfig) maybeError |> Maybe.withDefault Element.none
         ]
 
 
-view : Maybe ( Id GroupId, EventId ) -> Dict (Id GroupId) (Cache Group) -> LoginForm -> Element FrontendMsg
-view joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent } =
+view : UserConfig -> Maybe ( Id GroupId, EventId ) -> Dict (Id GroupId) (Cache Group) -> LoginForm -> Element FrontendMsg
+view userConfig joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent } =
     Element.column
         [ Element.centerX
         , Element.centerY
@@ -87,6 +90,7 @@ view joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent } =
             Nothing ->
                 Element.none
         , emailInput
+            userConfig
             emailAddressInputId
             PressedSubmitLogin
             TypedEmail
@@ -101,13 +105,13 @@ view joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent } =
             )
         , Element.paragraph []
             [ Element.text "By continuing you agree to the "
-            , Ui.routeLink Route.TermsOfServiceRoute "Terms"
+            , Ui.routeLink userConfig Route.TermsOfServiceRoute "Terms"
             , Element.text "."
             ]
         , Element.wrappedRow
             [ Element.spacingXY 16 8, Element.width Element.fill ]
-            [ Ui.submitButton submitButtonId False { onPress = PressedSubmitLogin, label = "Sign up/Login" }
-            , Ui.button cancelButtonId { onPress = PressedCancelLogin, label = "Cancel" }
+            [ Ui.submitButton userConfig submitButtonId False { onPress = PressedSubmitLogin, label = "Sign up/Login" }
+            , Ui.button userConfig cancelButtonId { onPress = PressedCancelLogin, label = "Cancel" }
             ]
         ]
 

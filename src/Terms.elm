@@ -1,5 +1,6 @@
 module Terms exposing (view)
 
+import Colors exposing (UserConfig)
 import Element
 import Env
 import MarkdownThemed
@@ -7,12 +8,12 @@ import Route
 import Ui
 
 
-view : Element.Element msg
-view =
+view : UserConfig -> Element.Element msg
+view userConfig =
     Element.column
         Ui.pageContentAttributes
         [ Ui.title "Terms of service"
-        , MarkdownThemed.renderFull text
+        , MarkdownThemed.renderFull userConfig text
         ]
 
 

@@ -534,10 +534,11 @@ imageEditorIsActive model =
 
 
 imageEditorView :
-    { a | windowWidth : Quantity Int Pixels, windowHeight : Quantity Int Pixels }
+    UserConfig
+    -> { a | windowWidth : Quantity Int Pixels, windowHeight : Quantity Int Pixels }
     -> ImageEdit
     -> Element Msg
-imageEditorView windowSize imageEdit =
+imageEditorView userConfig windowSize imageEdit =
     let
         { x, y, size, imageUrl, dragState } =
             getActualImageState imageEdit
@@ -705,8 +706,8 @@ imageEditorView windowSize imageEdit =
             }
         , Element.wrappedRow
             [ Element.width Element.fill, Element.spacingXY 16 8, Element.paddingXY 8 0 ]
-            [ Ui.submitButton uploadImageButtonId False { onPress = PressedConfirmImage, label = "Upload image" }
-            , Ui.button cancelImageButtonId { onPress = PressedCancelImage, label = "Cancel" }
+            [ Ui.submitButton userConfig uploadImageButtonId False { onPress = PressedConfirmImage, label = "Upload image" }
+            , Ui.button userConfig cancelImageButtonId { onPress = PressedCancelImage, label = "Cancel" }
             ]
         ]
 
@@ -720,14 +721,15 @@ cancelImageButtonId =
 
 
 view :
-    { b | windowWidth : Quantity Int Pixels, windowHeight : Quantity Int Pixels }
+    UserConfig
+    -> { b | windowWidth : Quantity Int Pixels, windowHeight : Quantity Int Pixels }
     -> CurrentValues
     -> Model
     -> Element Msg
-view windowSize currentValues ({ form } as model) =
+view userConfig windowSize currentValues ({ form } as model) =
     case model.profileImage of
         Editting (Just imageEdit) ->
-            imageEditorView windowSize imageEdit
+            imageEditorView userConfig windowSize imageEdit
 
         _ ->
             Element.column
@@ -738,14 +740,16 @@ view windowSize currentValues ({ form } as model) =
                         [ Element.alignRight
                         , Element.Border.rounded 9999
                         , Element.clip
-                        , Element.Background.color grey
+                        , Element.Background.color userConfig.grey
                         ]
                         { onPress = Just PressedProfileImage
-                        , label = ProfileImage.image ProfileImage.defaultSize currentValues.profileImage
+                        , label = ProfileImage.image userConfig ProfileImage.defaultSize currentValues.profileImage
                         }
                     ]
                 , Ui.columnCard
+                    userConfig
                     [ editableTextInput
+                        userConfig
                         (\a -> FormChanged { form | name = a })
                         Name.toString
                         (\a ->
@@ -763,6 +767,7 @@ view windowSize currentValues ({ form } as model) =
                         form.name
                         "Your name"
                     , editableMultiline
+                        userConfig
                         (\a -> FormChanged { form | description = a })
                         Description.toString
                         (\a ->
@@ -780,6 +785,7 @@ view windowSize currentValues ({ form } as model) =
                         form.description
                         "What do you want people to know about you?"
                     , editableEmailInput
+                        userConfig
                         (\_ -> FormChanged form)
                         --(\a -> FormChanged { form | emailAddress = a })
                         EmailAddress.toString
@@ -788,7 +794,7 @@ view windowSize currentValues ({ form } as model) =
                         form.emailAddress
                         "Your email address"
                     ]
-                , Ui.dangerButton deleteAccountButtonId False { onPress = PressedDeleteAccount, label = "Delete account" }
+                , Ui.dangerButton userConfig deleteAccountButtonId False { onPress = PressedDeleteAccount, label = "Delete account" }
                 , if model.pressedDeleteAccount then
                     Element.column
                         [ Element.spacing 20 ]
@@ -811,14 +817,15 @@ deleteAccountButtonId =
 
 
 editableTextInput :
-    (Editable String -> msg)
+    UserConfig
+    -> (Editable String -> msg)
     -> (a -> String)
     -> (String -> Result String a)
     -> a
     -> Editable String
     -> String
     -> Element msg
-editableTextInput onChange toString validate currentValue text labelText =
+editableTextInput userConfig onChange toString validate currentValue text labelText =
     let
         result =
             case text of
@@ -842,8 +849,9 @@ editableTextInput onChange toString validate currentValue text labelText =
         [ Element.Input.text
             [ Element.width Element.fill
             , Element.Border.rounded 4
-            , Ui.inputBorder (maybeError /= Nothing)
+            , Ui.inputBorder userConfig (maybeError /= Nothing)
             , Ui.inputBorderWidth (maybeError /= Nothing)
+            , Element.Background.color userConfig.background
             ]
             { text =
                 case text of
@@ -854,11 +862,11 @@ editableTextInput onChange toString validate currentValue text labelText =
                         value
             , onChange = Editting >> onChange
             , placeholder = Nothing
-            , label = Ui.formLabelAbove labelText
+            , label = Ui.formLabelAbove userConfig labelText
             }
         , case maybeError of
             Just error ->
-                Ui.error error
+                Ui.error userConfig error
 
             Nothing ->
                 if result == Ok currentValue then
@@ -870,14 +878,15 @@ editableTextInput onChange toString validate currentValue text labelText =
 
 
 editableEmailInput :
-    (Editable String -> msg)
+    UserConfig
+    -> (Editable String -> msg)
     -> (a -> String)
     -> (String -> Result String a)
     -> a
     -> Editable String
     -> String
     -> Element msg
-editableEmailInput onChange toString validate currentValue text labelText =
+editableEmailInput userConfig onChange toString validate currentValue text labelText =
     let
         result =
             case text of
@@ -897,12 +906,13 @@ editableEmailInput onChange toString validate currentValue text labelText =
     in
     Element.column
         [ Element.width Element.fill
-        , Ui.inputBackground (maybeError /= Nothing)
+        , Ui.inputBackground userConfig (maybeError /= Nothing)
         , Element.Border.rounded 4
         ]
         [ Element.Input.email
             [ Element.width Element.fill
-            , Element.Border.color darkGrey
+            , Element.Background.color userConfig.background
+            , Element.Border.color userConfig.darkGrey
             ]
             { text =
                 case text of
@@ -913,11 +923,11 @@ editableEmailInput onChange toString validate currentValue text labelText =
                         value
             , onChange = Editting >> onChange
             , placeholder = Nothing
-            , label = Ui.formLabelAbove labelText
+            , label = Ui.formLabelAbove userConfig labelText
             }
         , case maybeError of
             Just error ->
-                Ui.error error
+                Ui.error userConfig error
 
             Nothing ->
                 if result == Ok currentValue then
@@ -928,8 +938,8 @@ editableEmailInput onChange toString validate currentValue text labelText =
         ]
 
 
-editableMultiline : (Editable String -> msg) -> (a -> String) -> (String -> Result String a) -> a -> Editable String -> String -> Element msg
-editableMultiline onChange toString validate currentValue text labelText =
+editableMultiline : UserConfig -> (Editable String -> msg) -> (a -> String) -> (String -> Result String a) -> a -> Editable String -> String -> Element msg
+editableMultiline userConfig onChange toString validate currentValue text labelText =
     let
         result =
             case text of
@@ -954,8 +964,9 @@ editableMultiline onChange toString validate currentValue text labelText =
         [ Element.Input.multiline
             [ Element.width Element.fill
             , Element.height (Element.px 200)
-            , Ui.inputBorder (maybeError /= Nothing)
+            , Ui.inputBorder userConfig (maybeError /= Nothing)
             , Ui.inputBorderWidth (maybeError /= Nothing)
+            , Element.Background.color userConfig.background
             ]
             { text =
                 case text of
@@ -966,12 +977,12 @@ editableMultiline onChange toString validate currentValue text labelText =
                         value
             , onChange = Editting >> onChange
             , placeholder = Nothing
-            , label = Ui.formLabelAbove labelText
+            , label = Ui.formLabelAbove userConfig labelText
             , spellcheck = True
             }
         , case maybeError of
             Just error ->
-                Ui.error error
+                Ui.error userConfig error
 
             Nothing ->
                 if result == Ok currentValue then

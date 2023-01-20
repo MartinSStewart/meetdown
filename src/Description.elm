@@ -1,5 +1,6 @@
 module Description exposing (Description(..), Error(..), empty, errorToString, fromString, maxLength, toParagraph, toString)
 
+import Colors exposing (UserConfig)
 import Element exposing (Element)
 import MarkdownThemed
 
@@ -50,13 +51,13 @@ toString (Description description) =
     description
 
 
-toParagraph : Bool -> Description -> Element msg
-toParagraph searchPreview description =
+toParagraph : UserConfig -> Bool -> Description -> Element msg
+toParagraph userConfig searchPreview description =
     if toString description == "" then
-        MarkdownThemed.renderMinimal searchPreview "_No description_"
+        MarkdownThemed.renderMinimal userConfig searchPreview "_No description_"
 
     else
-        MarkdownThemed.renderMinimal searchPreview (toString description)
+        MarkdownThemed.renderMinimal userConfig searchPreview (toString description)
 
 
 empty : Description

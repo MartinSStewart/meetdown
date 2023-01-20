@@ -51,14 +51,14 @@ getCustomImageUrl profileImage =
             Just dataUrl
 
 
-image : Quantity Int Pixels -> ProfileImage -> Element msg
-image size profileImage =
+image : UserConfig -> Quantity Int Pixels -> ProfileImage -> Element msg
+image userConfig size profileImage =
     Element.image
         [ Element.width (Element.px (Pixels.inPixels size))
         , Element.height (Element.px (Pixels.inPixels size))
         , Element.Border.rounded 9999
         , Element.clip
-        , Ui.inputBackground False
+        , Ui.inputBackground userConfig False
         ]
         { src =
             case profileImage of
@@ -71,14 +71,14 @@ image size profileImage =
         }
 
 
-smallImage : ProfileImage -> Element msg
-smallImage profileImage =
+smallImage : UserConfig -> ProfileImage -> Element msg
+smallImage userConfig profileImage =
     Element.image
         [ Element.width (Element.px <| Pixels.inPixels defaultSize // 2)
         , Element.height (Element.px <| Pixels.inPixels defaultSize // 2)
         , Element.Border.rounded 9999
         , Element.clip
-        , Element.Background.color grey
+        , Element.Background.color userConfig.grey
         ]
         { src =
             case profileImage of

@@ -1,6 +1,6 @@
 module MarkdownThemed exposing (renderFull, renderMinimal)
 
-import Colors exposing (..)
+import Colors exposing (UserConfig)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -16,19 +16,19 @@ import Markdown.Renderer
 
 {-| Markdown with only the minimal parts, and a flag to restrict things even further e.g. for search result summaries
 -}
-renderMinimal : Bool -> String -> Element msg
-renderMinimal isSearchPreview markdownBody =
+renderMinimal : UserConfig -> Bool -> String -> Element msg
+renderMinimal userConfig isSearchPreview markdownBody =
     let
         rendererMinimal =
-            renderer isSearchPreview
+            renderer userConfig isSearchPreview
                 |> (\r -> { r | heading = \data -> row [] [ paragraph [] data.children ] })
     in
     render rendererMinimal markdownBody
 
 
-renderFull : String -> Element msg
-renderFull markdownBody =
-    render (renderer False) markdownBody
+renderFull : UserConfig -> String -> Element msg
+renderFull userConfig markdownBody =
+    render (renderer userConfig False) markdownBody
 
 
 render : Markdown.Renderer.Renderer (Element msg) -> String -> Element msg
@@ -54,9 +54,9 @@ render chosenRenderer markdownBody =
            )
 
 
-renderer : Bool -> Markdown.Renderer.Renderer (Element msg)
-renderer searchPreview =
-    { heading = \data -> row [] [ heading data ]
+renderer : UserConfig -> Bool -> Markdown.Renderer.Renderer (Element msg)
+renderer userConfig searchPreview =
+    { heading = \data -> row [] [ heading userConfig data ]
     , paragraph = \children -> paragraph [ paddingXY 0 10 ] children
     , blockQuote =
         \children ->
@@ -64,8 +64,8 @@ renderer searchPreview =
                 [ Font.size 20
                 , Font.italic
                 , Border.widthEach { bottom = 0, left = 4, right = 0, top = 0 }
-                , Border.color grey
-                , Font.color readingMuted
+                , Border.color userConfig.grey
+                , Font.color userConfig.mutedText
                 , padding 10
                 ]
                 children
@@ -82,10 +82,10 @@ renderer searchPreview =
                 [ Font.underline
                 , Font.color
                     (if searchPreview then
-                        readingMuted
+                        userConfig.mutedText
 
                      else
-                        blue
+                        userConfig.link
                     )
                 ]
                 { url = destination
@@ -153,7 +153,7 @@ renderer searchPreview =
         \{ body } ->
             column
                 [ Font.family [ Font.monospace ]
-                , Background.color lightGrey
+                , Background.color userConfig.lightGrey
                 , Border.rounded 5
                 , padding 10
                 , width fill
@@ -177,33 +177,33 @@ renderer searchPreview =
     }
 
 
-heading : { level : HeadingLevel, rawText : String, children : List (Element msg) } -> Element msg
-heading { level, rawText, children } =
+heading : UserConfig -> { level : HeadingLevel, rawText : String, children : List (Element msg) } -> Element msg
+heading userConfig { level, rawText, children } =
     paragraph
         ((case headingLevelToInt level of
             1 ->
                 [ Font.size 28
                 , Font.bold
-                , Font.color readingBlack
+                , Font.color userConfig.defaultText
                 , paddingXY 0 20
                 ]
 
             2 ->
-                [ Font.color readingBlack
+                [ Font.color userConfig.defaultText
                 , Font.size 20
                 , Font.bold
                 , paddingEach { top = 50, right = 0, bottom = 20, left = 0 }
                 ]
 
             3 ->
-                [ Font.color readingBlack
+                [ Font.color userConfig.defaultText
                 , Font.size 18
                 , Font.bold
                 , paddingEach { top = 30, right = 0, bottom = 10, left = 0 }
                 ]
 
             4 ->
-                [ Font.color readingBlack
+                [ Font.color userConfig.defaultText
                 , Font.size 16
                 , Font.bold
                 , paddingEach { top = 0, right = 0, bottom = 10, left = 0 }
