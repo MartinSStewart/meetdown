@@ -606,10 +606,6 @@ updateLoaded msg model =
             )
 
         GotPrefersDarkTheme prefersDarkTheme ->
-            let
-                _ =
-                    Debug.log "a" prefersDarkTheme
-            in
             ( { model
                 | theme =
                     if prefersDarkTheme then
