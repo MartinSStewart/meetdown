@@ -88,7 +88,7 @@ groupPreview userConfig isMobile currentTime groupId group =
                                 , Element.rgba 1 1 1 0
                                 , Element.rgba 1 1 1 0
                                 , Element.rgba 1 1 1 0
-                                , Element.rgba 1 1 1 1
+                                , userConfig.background
                                 ]
                             }
                         , Element.width Element.fill

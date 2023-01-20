@@ -7,6 +7,7 @@ import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Effect.Command as Command exposing (Command, FrontendOnly)
 import Effect.Lamdera as Lamdera
 import Element exposing (Element)
+import Element.Background
 import Element.Font
 import Element.Input
 import EmailAddress exposing (EmailAddress)
@@ -29,6 +30,7 @@ emailInput userConfig id onSubmit onChange text labelText maybeError =
             , Ui.onEnter onSubmit
             , Ui.inputBorder userConfig (maybeError /= Nothing)
             , Dom.idToAttribute id |> Element.htmlAttribute
+            , Element.Background.color userConfig.background
             ]
             { text = text
             , onChange = onChange

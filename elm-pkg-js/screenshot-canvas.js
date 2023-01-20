@@ -16,6 +16,28 @@ exports.init = async function(app) {
   app.ports.martinsstewart_crop_image_to_js.subscribe(function(data) {
     setImage(app, data);
   })
+
+  app.ports.get_prefers_dark_theme_to_js.subscribe(function(data) {
+    let localStorageValue = window.localStorage.getItem("prefersDarkTheme");
+    console.log(localStorageValue);
+    if (localStorageValue !== null) {
+        console.log("c");
+        app.ports.got_prefers_dark_theme_from_js.send(JSON.parse(localStorageValue));
+    }
+    else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        console.log("d");
+        app.ports.got_prefers_dark_theme_from_js.send(true);
+    }
+    else {
+        console.log("e");
+        app.ports.got_prefers_dark_theme_from_js.send(false);
+    }
+  });
+  console.log("b");
+  app.ports.set_prefers_dark_theme_to_js.subscribe(function(data) {
+    console.log("a");
+    window.localStorage.setItem("prefersDarkTheme", JSON.stringify(data));
+  });
 }
 
 function setImage(app, data) {

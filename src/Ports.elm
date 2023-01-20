@@ -1,4 +1,4 @@
-port module Ports exposing (CropImageData, CropImageDataResponse, cropImageDataCodec, cropImageDataResponseCodec, cropImageFromJs, cropImageFromJsName, cropImageToJs, cropImageToJsName)
+port module Ports exposing (CropImageData, CropImageDataResponse, cropImageDataCodec, cropImageDataResponseCodec, cropImageFromJs, cropImageFromJsName, cropImageToJs, cropImageToJsName, getPrefersDarkTheme, gotPrefersDarkTheme, setPrefersDarkTheme)
 
 import Codec exposing (Codec)
 import Effect.Command as Command exposing (Command, FrontendOnly)
@@ -83,3 +83,36 @@ cropImageDataResponseCodec =
 quantityCodec : Codec (Quantity Int units)
 quantityCodec =
     Codec.map Quantity.unsafe Quantity.unwrap Codec.int
+
+
+port get_prefers_dark_theme_to_js : Json.Encode.Value -> Cmd msg
+
+
+port set_prefers_dark_theme_to_js : Json.Encode.Value -> Cmd msg
+
+
+port got_prefers_dark_theme_from_js : (Json.Decode.Value -> msg) -> Sub msg
+
+
+getPrefersDarkTheme : Command FrontendOnly toMsg msg
+getPrefersDarkTheme =
+    Command.sendToJs
+        "get_prefers_dark_theme_to_js"
+        get_prefers_dark_theme_to_js
+        Json.Encode.null
+
+
+setPrefersDarkTheme : Bool -> Command FrontendOnly toMsg msg
+setPrefersDarkTheme prefersDarkTheme =
+    Command.sendToJs
+        "set_prefers_dark_theme_to_js"
+        set_prefers_dark_theme_to_js
+        (Json.Encode.bool prefersDarkTheme)
+
+
+gotPrefersDarkTheme : (Bool -> msg) -> Subscription FrontendOnly msg
+gotPrefersDarkTheme msg =
+    Subscription.fromJs
+        "got_prefers_dark_theme_from_js"
+        got_prefers_dark_theme_from_js
+        (Json.Decode.decodeValue Json.Decode.bool >> Result.withDefault False >> msg)

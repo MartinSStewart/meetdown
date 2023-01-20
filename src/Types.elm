@@ -306,6 +306,8 @@ type FrontendMsg
     | ScrolledToTop
     | PressedEnableAdmin
     | PressedDisableAdmin
+    | PressedThemeToggle
+    | GotPrefersDarkTheme Bool
 
 
 type ToBackend

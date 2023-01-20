@@ -42,6 +42,7 @@ import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Effect.Command as Command exposing (Command, FrontendOnly)
 import Effect.Lamdera as Lamdera
 import Element exposing (Element)
+import Element.Background
 import Element.Border
 import Element.Font
 import Element.Input
@@ -1089,7 +1090,7 @@ titlePart userConfig model owner group maybeLoggedIn =
                     in
                     [ Element.el
                         [ Ui.titleFontSize, Ui.contentWidth ]
-                        (groupNameTextInput TypedName name "Group name")
+                        (groupNameTextInput userConfig TypedName name "Group name")
                     , Maybe.map (Ui.error userConfig) error |> Maybe.withDefault Element.none
                     , Element.row
                         [ Element.spacing 16, Element.paddingXY 8 0 ]
@@ -1101,7 +1102,7 @@ titlePart userConfig model owner group maybeLoggedIn =
                 Submitting name ->
                     [ Element.el
                         [ Ui.titleFontSize, Ui.contentWidth ]
-                        (groupNameTextInput TypedName (GroupName.toString name) "Group name")
+                        (groupNameTextInput userConfig TypedName (GroupName.toString name) "Group name")
                     , Element.row
                         [ Element.spacing 16, Element.paddingXY 8 0 ]
                         [ smallButton userConfig resetGroupNameId PressedResetName "Reset"
@@ -1227,7 +1228,7 @@ groupView userConfig isMobile currentTime timezone owner cachedUsers group model
                     )
                     (Element.column
                         [ Element.spacing 8, Element.width Element.fill ]
-                        [ multiline TypedDescription description "Group description"
+                        [ multiline userConfig TypedDescription description "Group description"
                         , Maybe.map (Ui.error userConfig) error |> Maybe.withDefault Element.none
                         ]
                     )
@@ -1242,7 +1243,7 @@ groupView userConfig isMobile currentTime timezone owner cachedUsers group model
                         , Ui.smallSubmitButton saveDescriptionId True { onPress = PressedSaveDescription, label = "Save" }
                         ]
                     )
-                    (multiline TypedDescription (Description.toString description) "")
+                    (multiline userConfig TypedDescription (Description.toString description) "")
 
             Unchanged ->
                 section
@@ -2379,7 +2380,7 @@ editEventView userConfig currentTime timezone maybeCancellationStatus eventStatu
                     Element.none
             , case eventStatus of
                 IsFutureEvent ->
-                    Ui.horizontalLine
+                    Ui.horizontalLine userConfig
 
                 IsOngoingEvent ->
                     Element.none
@@ -2800,10 +2801,13 @@ smallButton userConfig htmlId onPress label =
         }
 
 
-multiline : (String -> msg) -> String -> String -> Element msg
-multiline onChange text labelText =
+multiline : UserConfig -> (String -> msg) -> String -> String -> Element msg
+multiline userConfig onChange text labelText =
     Element.Input.multiline
-        [ Element.width Element.fill, Element.height (Element.px 200) ]
+        [ Element.width Element.fill
+        , Element.height (Element.px 200)
+        , Element.Background.color userConfig.background
+        ]
         { text = text
         , onChange = onChange
         , placeholder = Nothing
@@ -2820,12 +2824,13 @@ copyPreviousEventButtonId =
     HtmlId.buttonId "groupPage_CopyPreviousEvent"
 
 
-groupNameTextInput : (String -> msg) -> String -> String -> Element msg
-groupNameTextInput onChange text labelText =
+groupNameTextInput : UserConfig -> (String -> msg) -> String -> String -> Element msg
+groupNameTextInput userConfig onChange text labelText =
     Element.Input.text
         [ Element.width Element.fill
         , Element.paddingXY 8 4
         , Dom.idToAttribute groupNameInputId |> Element.htmlAttribute
+        , Element.Background.color userConfig.background
         ]
         { text = text
         , onChange = onChange

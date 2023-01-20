@@ -69,13 +69,15 @@ import Time.Extra as Time
 import TimeExtra as Time
 
 
-css : Html msg
-css =
+css : UserConfig -> Html msg
+css userConfig =
     Html.node "style"
         []
-        [ Html.text """
+        [ """
           @import url('https://rsms.me/inter/inter.css');
-          html { font-family: 'Inter', sans-serif; scrollbar-gutter: stable; }
+          html { font-family: 'Inter', sans-serif; scrollbar-gutter: stable; background-color: """
+            ++ Colors.toCssString userConfig.background
+            ++ """; }
           @supports (font-variation-settings: normal) {
             html { font-family: 'Inter var', sans-serif; }
           }
@@ -94,6 +96,7 @@ css =
             100% {opacity: 1;}
           }
         """
+            |> Html.text
         ]
 
 
@@ -131,12 +134,12 @@ inputFocusClass =
     Element.htmlAttribute <| Html.Attributes.class "linkFocus"
 
 
-horizontalLine : Element msg
-horizontalLine =
+horizontalLine : UserConfig -> Element msg
+horizontalLine userConfig =
     Element.el
         [ Element.width Element.fill
         , Element.height (Element.px 1)
-        , Element.Background.color <| Element.rgb 0.2 0.2 0.2
+        , Element.Background.color userConfig.darkGrey
         ]
         Element.none
 
@@ -302,6 +305,7 @@ submitButton userConfig htmlId isSubmitting { onPress, label } =
         , Element.Font.color userConfig.invertedText
         , Dom.idToAttribute htmlId |> Element.htmlAttribute
         , Element.width Element.fill
+        , Element.Font.medium
         ]
         { onPress = Just onPress
         , label = labelWithHourglass isSubmitting label
@@ -404,7 +408,7 @@ checkboxChecked =
         , Svg.Attributes.height "20px"
         ]
         [ Svg.path
-            [ Svg.Attributes.fill "current-color"
+            [ Svg.Attributes.fill "currentColor"
             , Svg.Attributes.stroke "#000"
             , Svg.Attributes.d "M34.22 112.47c3.31-3.31 12-11.78 16.37-15.78.91.78 18.79 18.07 19.03 18.31.38-.31 70.16-68.97 70.41-69.09.35.12 16.56 15.31 16.44 15.37-.17.25-86.73 86.78-86.8 86.9l-35.45-35.71zM25.91.06L69 .15h93C181.59.03 189.97 8.41 190 28v134c-.03 19.59-8.41 27.97-28 28H28c-19.59-.03-27.97-8.41-28-28V26C.17 12.01 7.61.09 25.91.06zM169 19H19v150h150V19z"
             ]
@@ -423,7 +427,7 @@ checkboxEmpty =
         , Svg.Attributes.height "20px"
         ]
         [ Svg.path
-            [ Svg.Attributes.fill "current-color"
+            [ Svg.Attributes.fill "currentColor"
             , Svg.Attributes.stroke "#000"
             , Svg.Attributes.d "M25.91.06L69 .15h93C181.59.03 189.97 8.41 190 28v134c-.03 19.59-8.41 27.97-28 28H28c-19.59-.03-27.97-8.41-28-28V26C.17 12.01 7.61.09 25.91.06zM169 19H19v150h150V19z"
             ]
@@ -563,7 +567,7 @@ numberInput userConfig htmlId onChange value labelText maybeError =
              , Html.Attributes.style "text-align" "right"
              , Html.Attributes.style "padding-right" "4px"
              ]
-                ++ htmlInputBorderStyles userConfig
+                ++ htmlInputStyle userConfig
             )
             []
             |> Element.html
@@ -610,7 +614,7 @@ timeInput userConfig htmlId onChange time isDisabled =
          , Dom.idToAttribute htmlId
          , Html.Attributes.disabled isDisabled
          ]
-            ++ htmlInputBorderStyles userConfig
+            ++ htmlInputStyle userConfig
         )
         []
         |> Element.html
@@ -635,7 +639,7 @@ dateInput userConfig htmlId onChange minDateTime date isDisabled =
          , Dom.idToAttribute htmlId
          , Html.Attributes.disabled isDisabled
          ]
-            ++ htmlInputBorderStyles userConfig
+            ++ htmlInputStyle userConfig
         )
         []
         |> Element.html
@@ -681,7 +685,7 @@ formLabelAbove userConfig labelText =
         [ Element.paddingEach { top = 0, right = 0, bottom = 5, left = 0 }
         , Element.Font.medium
         , Element.Font.size 13
-        , Element.Font.color userConfig.blueGrey
+        , Element.Font.color userConfig.textInputHeading
         ]
         (Element.paragraph [] [ Element.text labelText ])
 
@@ -692,7 +696,7 @@ formLabelAboveEl userConfig labelText =
         [ Element.paddingEach { top = 0, right = 0, bottom = 5, left = 0 }
         , Element.Font.medium
         , Element.Font.size 13
-        , Element.Font.color userConfig.blueGrey
+        , Element.Font.color userConfig.textInputHeading
         ]
         (Element.paragraph [] [ Element.text labelText ])
 
@@ -740,9 +744,12 @@ loadingError userConfig text =
         (Element.text text)
 
 
-htmlInputBorderStyles userConfig =
+htmlInputStyle : UserConfig -> List (Html.Attribute msg)
+htmlInputStyle userConfig =
     [ Html.Attributes.style "border-color" (Colors.toCssString userConfig.darkGrey)
     , Html.Attributes.style "border-width" "1px"
     , Html.Attributes.style "border-style" "solid"
     , Html.Attributes.style "border-radius" "4px"
+    , Html.Attributes.style "background-color" (Colors.toCssString userConfig.background)
+    , Html.Attributes.style "color" (Colors.toCssString userConfig.defaultText)
     ]

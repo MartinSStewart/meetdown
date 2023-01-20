@@ -851,6 +851,7 @@ editableTextInput userConfig onChange toString validate currentValue text labelT
             , Element.Border.rounded 4
             , Ui.inputBorder userConfig (maybeError /= Nothing)
             , Ui.inputBorderWidth (maybeError /= Nothing)
+            , Element.Background.color userConfig.background
             ]
             { text =
                 case text of
@@ -910,6 +911,7 @@ editableEmailInput userConfig onChange toString validate currentValue text label
         ]
         [ Element.Input.email
             [ Element.width Element.fill
+            , Element.Background.color userConfig.background
             , Element.Border.color userConfig.darkGrey
             ]
             { text =
@@ -964,6 +966,7 @@ editableMultiline userConfig onChange toString validate currentValue text labelT
             , Element.height (Element.px 200)
             , Ui.inputBorder userConfig (maybeError /= Nothing)
             , Ui.inputBorderWidth (maybeError /= Nothing)
+            , Element.Background.color userConfig.background
             ]
             { text =
                 case text of

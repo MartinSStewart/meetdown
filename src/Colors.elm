@@ -14,10 +14,11 @@ type alias UserConfig =
     , errorBackground : Color
     , lightGrey : Color
     , grey : Color
-    , blueGrey : Color
+    , textInputHeading : Color
     , darkGrey : Color
     , invertedText : Color
     , background : Color
+    , heroSvg : String
     }
 
 
@@ -31,10 +32,11 @@ lightTheme =
     , errorBackground = Element.rgb 1 0.9059 0.9059
     , lightGrey = fromHex "#f4f6f8"
     , grey = fromHex "#E0E4E8"
-    , blueGrey = fromHex "#4A5E7A"
+    , textInputHeading = fromHex "#4A5E7A"
     , darkGrey = fromHex "#AEB7C4"
     , invertedText = fromHex "#FFF"
     , background = fromHex "#FFF"
+    , heroSvg = "/homepage-hero.svg"
     }
 
 
@@ -48,10 +50,11 @@ darkTheme =
     , errorBackground = Element.rgb 0.349 0.2745 0.2745
     , lightGrey = fromHex "#4c4d4d"
     , grey = fromHex "#6e7072"
-    , blueGrey = fromHex "#394a60"
+    , textInputHeading = fromHex "#8db8ef"
     , darkGrey = fromHex "#7e858d"
     , invertedText = fromHex "#151515"
-    , background = fromHex "#1a1a1a"
+    , background = fromHex "#252525"
+    , heroSvg = "/homepage-hero-dark.svg"
     }
 
 

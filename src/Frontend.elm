@@ -46,6 +46,7 @@ import Lamdera
 import List.Nonempty
 import LoginForm
 import Pixels exposing (Pixels)
+import Ports
 import Privacy
 import ProfilePage
 import Quantity exposing (Quantity)
@@ -90,6 +91,7 @@ subscriptions model =
                 Subscription.none
         , BrowserEvents.onResize GotWindowSize
         , Time.every Duration.minute GotTime
+        , Ports.gotPrefersDarkTheme GotPrefersDarkTheme
         ]
 
 
@@ -123,6 +125,7 @@ init url key =
             |> Task.perform
                 (\{ scene } -> GotWindowSize (round scene.width) (round scene.height))
         , TimeZone.getZone |> Task.attempt GotTimeZone
+        , Ports.getPrefersDarkTheme
         ]
     )
 
@@ -585,6 +588,36 @@ updateLoaded msg model =
 
                 _ ->
                     model
+            , Command.none
+            )
+
+        PressedThemeToggle ->
+            let
+                newTheme =
+                    case model.theme of
+                        LightTheme ->
+                            DarkTheme
+
+                        DarkTheme ->
+                            LightTheme
+            in
+            ( { model | theme = newTheme }
+            , Ports.setPrefersDarkTheme (newTheme == DarkTheme)
+            )
+
+        GotPrefersDarkTheme prefersDarkTheme ->
+            let
+                _ =
+                    Debug.log "a" prefersDarkTheme
+            in
+            ( { model
+                | theme =
+                    if prefersDarkTheme then
+                        DarkTheme
+
+                    else
+                        LightTheme
+              }
             , Command.none
             )
 
@@ -1109,7 +1142,8 @@ updateLoadedFromBackend msg model =
 view : FrontendModel -> Browser.Document FrontendMsg
 view model =
     let
-        theme =
+        userConfig : UserConfig
+        userConfig =
             case model of
                 Loading _ ->
                     Colors.lightTheme
@@ -1124,20 +1158,19 @@ view model =
     in
     { title = "Meetdown"
     , body =
-        [ Ui.css
+        [ Ui.css userConfig
         , Element.layoutWith
             { options = [ Element.noStaticStyleSheet ] }
             [ Ui.defaultFontSize
             , Ui.defaultFont
-            , Ui.defaultFontColor theme
-            , Element.Background.color theme.background
+            , Ui.defaultFontColor userConfig
             ]
             (case model of
                 Loading _ ->
                     Element.none
 
                 Loaded loaded ->
-                    viewLoaded theme loaded
+                    viewLoaded userConfig loaded
             )
         ]
     }
@@ -1247,7 +1280,7 @@ viewPage userConfig model =
                 [ Element.el [ Element.paddingEach { top = 40, right = 0, bottom = 20, left = 0 }, Element.centerX ] <|
                     Element.image
                         [ Element.width <| (Element.fill |> Element.maximum 650) ]
-                        { src = "/homepage-hero.svg", description = "Two people on a video conference" }
+                        { src = userConfig.heroSvg, description = "Two people on a video conference" }
                 , Element.paragraph
                     [ Element.Font.center ]
                     [ Element.text "A place to join groups of people with shared interests." ]
@@ -1492,6 +1525,7 @@ searchInput userConfig searchText =
         , Element.Border.rounded 5
         , Element.Border.color userConfig.darkGrey
         , Element.paddingEach { left = 24, right = 8, top = 4, bottom = 4 }
+        , Element.Background.color userConfig.background
         , Ui.onEnter SubmittedSearchBox
         , Dom.idToAttribute groupSearchId |> Element.htmlAttribute
         , Element.inFront
@@ -1524,6 +1558,7 @@ searchInputLarge userConfig searchText =
             , Element.Border.widthEach { bottom = 1, left = 1, right = 0, top = 1 }
             , Element.paddingEach { left = 30, right = 8, top = 8, bottom = 8 }
             , Ui.onEnter SubmittedSearchBox
+            , Element.Background.color userConfig.background
             , Dom.idToAttribute groupSearchLargeId |> Element.htmlAttribute
             , Element.inFront
                 (Element.el
@@ -1623,6 +1658,7 @@ header userConfig maybeLoggedIn model =
                                     { onPress = PressedLogout
                                     , label = "Logout"
                                     }
+                               , themeToggleButton isMobile_ model
                                ]
 
                     Nothing ->
@@ -1632,11 +1668,32 @@ header userConfig maybeLoggedIn model =
                             { onPress = PressedLogin
                             , label = "Sign up / Login"
                             }
+                        , themeToggleButton isMobile_ model
                         ]
                 )
             ]
         , largeLine userConfig maybeLoggedIn
         ]
+
+
+themeToggleButtonId : Dom.HtmlId
+themeToggleButtonId =
+    Dom.id "header_themeToggleButton"
+
+
+themeToggleButton isMobile_ model =
+    Ui.headerButton
+        isMobile_
+        themeToggleButtonId
+        { onPress = PressedThemeToggle
+        , label =
+            case model.theme of
+                LightTheme ->
+                    "🌙"
+
+                DarkTheme ->
+                    "☀️"
+        }
 
 
 largeLine : UserConfig -> Maybe LoggedIn_ -> Element msg
