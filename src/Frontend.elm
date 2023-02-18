@@ -16,11 +16,10 @@ import AssocList as Dict exposing (Dict)
 import AssocSet as Set
 import Browser exposing (UrlRequest(..))
 import Cache exposing (Cache(..))
-import Colors exposing (UserConfig)
 import CreateGroupPage
 import DictExtra as Dict
 import Duration
-import Effect.Browser.Dom as Dom
+import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Effect.Browser.Events as BrowserEvents
 import Effect.Browser.Navigation as BrowserNavigation exposing (Key)
 import Effect.Command as Command exposing (Command, FrontendOnly)
@@ -28,7 +27,7 @@ import Effect.Lamdera
 import Effect.Subscription as Subscription exposing (Subscription)
 import Effect.Task as Task
 import Effect.Time as Time
-import Element exposing (Element)
+import Element exposing (Color, Element)
 import Element.Background
 import Element.Border
 import Element.Font
@@ -58,6 +57,7 @@ import Types exposing (..)
 import Ui
 import Untrusted
 import Url exposing (Url)
+import UserConfig exposing (Theme, UserConfig)
 import UserPage
 
 
@@ -105,7 +105,7 @@ onUrlChange =
     UrlChanged
 
 
-init : Url -> Key -> ( FrontendModel, Command FrontendOnly ToBackend FrontendMsg )
+init : Url -> Key -> ( FrontendModel, Command FrontendOnly toMsg FrontendMsg )
 init url key =
     let
         ( route, token ) =
@@ -177,7 +177,7 @@ initLoadedFrontend navigationKey windowWidth windowHeight route maybeLoginToken 
             , windowWidth = windowWidth
             , windowHeight = windowHeight
             , groupPage = Dict.empty
-            , theme = DarkTheme
+            , loadedUserConfig = { theme = DarkTheme, language = English }
             }
 
         ( model2, cmd ) =
@@ -338,16 +338,18 @@ checkAdminState model =
             ( model, Command.none )
 
 
+navigationReplaceRoute : Key -> Route -> Command FrontendOnly toMsg msg
 navigationReplaceRoute navKey route =
     Route.encode route |> BrowserNavigation.replaceUrl navKey
 
 
+navigationPushRoute : Key -> Route -> Command FrontendOnly toMsg msg
 navigationPushRoute navKey route =
     Route.encode route |> BrowserNavigation.pushUrl navKey
 
 
 updateLoaded : FrontendMsg -> LoadedFrontend -> ( LoadedFrontend, Command FrontendOnly ToBackend FrontendMsg )
-updateLoaded msg model =
+updateLoaded msg ({ loadedUserConfig } as model) =
     case msg of
         UrlClicked urlRequest ->
             case urlRequest of
@@ -594,25 +596,28 @@ updateLoaded msg model =
         PressedThemeToggle ->
             let
                 newTheme =
-                    case model.theme of
+                    case loadedUserConfig.theme of
                         LightTheme ->
                             DarkTheme
 
                         DarkTheme ->
                             LightTheme
             in
-            ( { model | theme = newTheme }
+            ( { model | loadedUserConfig = { loadedUserConfig | theme = newTheme } }
             , Ports.setPrefersDarkTheme (newTheme == DarkTheme)
             )
 
         GotPrefersDarkTheme prefersDarkTheme ->
             ( { model
-                | theme =
-                    if prefersDarkTheme then
-                        DarkTheme
+                | loadedUserConfig =
+                    { loadedUserConfig
+                        | theme =
+                            if prefersDarkTheme then
+                                DarkTheme
 
-                    else
-                        LightTheme
+                            else
+                                LightTheme
+                    }
               }
             , Command.none
             )
@@ -1135,6 +1140,33 @@ updateLoadedFromBackend msg model =
             )
 
 
+loadedUserConfigToUserConfig : LoadedUserConfig -> UserConfig
+loadedUserConfigToUserConfig config =
+    { theme = loadedColorThemeToColorTheme config.theme
+    , texts = loadedLanguageToLanguage config.language
+    }
+
+
+loadedColorThemeToColorTheme : ColorTheme -> UserConfig.Theme
+loadedColorThemeToColorTheme theme =
+    case theme of
+        LightTheme ->
+            UserConfig.lightTheme
+
+        DarkTheme ->
+            UserConfig.darkTheme
+
+
+loadedLanguageToLanguage : Language -> UserConfig.Texts
+loadedLanguageToLanguage language =
+    case language of
+        English ->
+            UserConfig.englishTexts
+
+        French ->
+            UserConfig.frenchTexts
+
+
 view : FrontendModel -> Browser.Document FrontendMsg
 view model =
     let
@@ -1142,24 +1174,19 @@ view model =
         userConfig =
             case model of
                 Loading _ ->
-                    Colors.lightTheme
+                    UserConfig.default
 
                 Loaded loaded ->
-                    case loaded.theme of
-                        LightTheme ->
-                            Colors.lightTheme
-
-                        DarkTheme ->
-                            Colors.darkTheme
+                    loadedUserConfigToUserConfig loaded.loadedUserConfig
     in
     { title = "Meetdown"
     , body =
-        [ Ui.css userConfig
+        [ Ui.css userConfig.theme
         , Element.layoutWith
             { options = [ Element.noStaticStyleSheet ] }
             [ Ui.defaultFontSize
             , Ui.defaultFont
-            , Ui.defaultFontColor userConfig
+            , Ui.defaultFontColor userConfig.theme
             ]
             (case model of
                 Loading _ ->
@@ -1209,7 +1236,7 @@ viewLoaded userConfig model =
                         [ Element.text "The link you used is either invalid or has expired." ]
                     , Element.el
                         [ Element.centerX ]
-                        (Ui.linkButton userConfig { route = Route.HomepageRoute, label = "Go to homepage" })
+                        (Ui.linkButton userConfig.theme { route = Route.HomepageRoute, label = "Go to homepage" })
                     ]
 
              else
@@ -1276,14 +1303,14 @@ viewPage userConfig model =
                 [ Element.el [ Element.paddingEach { top = 40, right = 0, bottom = 20, left = 0 }, Element.centerX ] <|
                     Element.image
                         [ Element.width <| (Element.fill |> Element.maximum 650) ]
-                        { src = userConfig.heroSvg, description = "Two people on a video conference" }
+                        { src = userConfig.theme.heroSvg, description = "Two people on a video conference" }
                 , Element.paragraph
                     [ Element.Font.center ]
                     [ Element.text "A place to join groups of people with shared interests." ]
                 , Element.paragraph
                     [ Element.Font.center ]
                     [ Element.text " We don't sell your data, we don't show ads, and it's free. "
-                    , Ui.routeLink userConfig Route.FrequentQuestionsRoute "Read more"
+                    , Ui.routeLink userConfig.theme Route.FrequentQuestionsRoute "Read more"
                     ]
                 , searchInputLarge userConfig model.searchText
                 ]
@@ -1322,7 +1349,7 @@ viewPage userConfig model =
                             Ui.loadingView
 
                 Just ItemDoesNotExist ->
-                    Ui.loadingError userConfig "Group not found"
+                    Ui.loadingError userConfig.theme "Group not found"
 
                 Just ItemRequestPending ->
                     Ui.loadingView
@@ -1372,10 +1399,10 @@ viewPage userConfig model =
                             Ui.loadingView
 
                         Just ItemDoesNotExist ->
-                            Ui.loadingError userConfig "User not found"
+                            Ui.loadingError userConfig.theme "User not found"
 
                         Nothing ->
-                            Ui.loadingError userConfig "User not found"
+                            Ui.loadingError userConfig.theme "User not found"
                 )
 
         SearchGroupsRoute searchText ->
@@ -1415,7 +1442,7 @@ viewPage userConfig model =
                 , Element.paragraph
                     []
                     [ Element.text "• If someone is being a jerk that is not an excuse to be a jerk back. Ask them to stop, and if that doesn't work, avoid them and explain the problem here "
-                    , Ui.mailToLink userConfig Env.contactEmailAddress (Just "Moderation help request")
+                    , Ui.mailToLink userConfig.theme Env.contactEmailAddress (Just "Moderation help request")
                     , Element.text "."
                     ]
                 ]
@@ -1435,15 +1462,15 @@ viewPage userConfig model =
                 [ Ui.title "Frequently asked questions"
                 , questionAndAnswer "Who is behind all this?"
                     [ Element.text "It is I, "
-                    , Ui.externalLink userConfig "https://github.com/MartinSStewart/" "Martin"
+                    , Ui.externalLink userConfig.theme "https://github.com/MartinSStewart/" "Martin"
                     , Element.text ". Credit goes to "
-                    , Ui.externalLink userConfig "https://twitter.com/realmario" "Mario Rogic"
+                    , Ui.externalLink userConfig.theme "https://twitter.com/realmario" "Mario Rogic"
                     , Element.text " for helping me out with parts of the app."
                     ]
                 , questionAndAnswer
                     "Why was this website made?"
                     [ Element.text "I dislike that meetup.com charges money, spams me with emails, and feels bloated. Also I wanted to try making something more substantial using "
-                    , Ui.externalLink userConfig "https://www.lamdera.com/" "Lamdera"
+                    , Ui.externalLink userConfig.theme "https://www.lamdera.com/" "Lamdera"
                     , Element.text " to see if it's feasible to use at work."
                     ]
                 , questionAndAnswer
@@ -1472,9 +1499,9 @@ myGroupsView userConfig model loggedIn =
                     Element.paragraph
                         []
                         [ Element.text "You don't have any groups. Get started by "
-                        , Ui.routeLink userConfig CreateGroupRoute "creating one"
+                        , Ui.routeLink userConfig.theme CreateGroupRoute "creating one"
                         , Element.text " or "
-                        , Ui.routeLink userConfig (SearchGroupsRoute "") "subscribing to one."
+                        , Ui.routeLink userConfig.theme (SearchGroupsRoute "") "subscribing to one."
                         ]
 
                   else
@@ -1483,7 +1510,7 @@ myGroupsView userConfig model loggedIn =
                         [ if List.isEmpty myGroupsList then
                             Element.paragraph []
                                 [ Element.text "You haven't created any groups. "
-                                , Ui.routeLink userConfig CreateGroupRoute "You can do that here."
+                                , Ui.routeLink userConfig.theme CreateGroupRoute "You can do that here."
                                 ]
 
                           else
@@ -1517,11 +1544,11 @@ myGroupsView userConfig model loggedIn =
 searchInput : UserConfig -> String -> Element FrontendMsg
 searchInput userConfig searchText =
     Element.Input.text
-        [ Element.width (Element.maximum 400 Element.fill)
+        [ Element.width <| Element.maximum 400 Element.fill
         , Element.Border.rounded 5
-        , Element.Border.color userConfig.darkGrey
+        , Element.Border.color userConfig.theme.darkGrey
         , Element.paddingEach { left = 24, right = 8, top = 4, bottom = 4 }
-        , Element.Background.color userConfig.background
+        , Element.Background.color userConfig.theme.background
         , Ui.onEnter SubmittedSearchBox
         , Dom.idToAttribute groupSearchId |> Element.htmlAttribute
         , Element.inFront
@@ -1550,11 +1577,11 @@ searchInputLarge userConfig searchText =
         ]
         [ Element.Input.text
             [ Element.Border.roundEach { topLeft = 5, bottomLeft = 5, bottomRight = 0, topRight = 0 }
-            , Element.Border.color userConfig.darkGrey
+            , Element.Border.color userConfig.theme.darkGrey
             , Element.Border.widthEach { bottom = 1, left = 1, right = 0, top = 1 }
             , Element.paddingEach { left = 30, right = 8, top = 8, bottom = 8 }
             , Ui.onEnter SubmittedSearchBox
-            , Element.Background.color userConfig.background
+            , Element.Background.color userConfig.theme.background
             , Dom.idToAttribute groupSearchLargeId |> Element.htmlAttribute
             , Element.inFront
                 (Element.el
@@ -1573,10 +1600,10 @@ searchInputLarge userConfig searchText =
             , label = Element.Input.labelHidden "Search for groups"
             }
         , Element.Input.button
-            [ Element.Background.color userConfig.submit
+            [ Element.Background.color userConfig.theme.submit
             , Element.Border.roundEach { topLeft = 0, bottomLeft = 0, bottomRight = 5, topRight = 5 }
             , Element.height Element.fill
-            , Element.Font.color userConfig.invertedText
+            , Element.Font.color userConfig.theme.invertedText
             , Element.paddingXY 16 0
             ]
             { onPress = Just SubmittedSearchBox
@@ -1585,35 +1612,36 @@ searchInputLarge userConfig searchText =
         ]
 
 
-adminStatusColor userConfig maybeLoggedIn =
+adminStatusColor : Theme -> Maybe LoggedIn_ -> Color
+adminStatusColor theme maybeLoggedIn =
     case Maybe.map .adminStatus maybeLoggedIn of
         Just IsNotAdmin ->
             if Env.isProduction then
-                userConfig.grey
+                theme.grey
 
             else
-                userConfig.submit
+                theme.submit
 
         Just IsAdminButDisabled ->
             if Env.isProduction then
-                userConfig.grey
+                theme.grey
 
             else
-                userConfig.submit
+                theme.submit
 
         Just IsAdminAndEnabled ->
             if Env.isProduction then
-                userConfig.error
+                theme.error
 
             else
-                userConfig.submit
+                theme.submit
 
         Nothing ->
             if Env.isProduction then
-                userConfig.grey
+                theme.grey
 
             else
-                userConfig.submit
+                theme.submit
 
 
 header : UserConfig -> Maybe LoggedIn_ -> LoadedFrontend -> Element FrontendMsg
@@ -1654,7 +1682,7 @@ header userConfig maybeLoggedIn model =
                                     { onPress = PressedLogout
                                     , label = "Logout"
                                     }
-                               , themeToggleButton isMobile_ model
+                               , themeToggleButton isMobile_ model.loadedUserConfig
                                ]
 
                     Nothing ->
@@ -1664,7 +1692,7 @@ header userConfig maybeLoggedIn model =
                             { onPress = PressedLogin
                             , label = "Sign up / Login"
                             }
-                        , themeToggleButton isMobile_ model
+                        , themeToggleButton isMobile_ model.loadedUserConfig
                         ]
                 )
             ]
@@ -1677,6 +1705,7 @@ themeToggleButtonId =
     Dom.id "header_themeToggleButton"
 
 
+themeToggleButton : Bool -> { a | theme : ColorTheme } -> Element FrontendMsg
 themeToggleButton isMobile_ model =
     Ui.headerButton
         isMobile_
@@ -1695,7 +1724,7 @@ themeToggleButton isMobile_ model =
 largeLine : UserConfig -> Maybe LoggedIn_ -> Element msg
 largeLine userConfig maybeLoggedIn =
     Element.row
-        [ Element.Background.color (adminStatusColor userConfig maybeLoggedIn)
+        [ Element.Background.color (adminStatusColor userConfig.theme maybeLoggedIn)
         , Element.width Element.fill
         , Element.height (Element.px 2)
         ]
@@ -1712,10 +1741,10 @@ footer userConfig isMobile_ route maybeLoggedIn =
         [ largeLine userConfig maybeLoggedIn
         , Element.row
             [ Element.width Element.fill, Element.alignBottom, Element.spacing 8 ]
-            [ Ui.headerLink userConfig isMobile_ (route == PrivacyRoute) { route = PrivacyRoute, label = "Privacy" }
-            , Ui.headerLink userConfig isMobile_ (route == TermsOfServiceRoute) { route = TermsOfServiceRoute, label = "Terms of service" }
-            , Ui.headerLink userConfig isMobile_ (route == CodeOfConductRoute) { route = CodeOfConductRoute, label = "Code of conduct" }
-            , Ui.headerLink userConfig isMobile_ (route == FrequentQuestionsRoute) { route = FrequentQuestionsRoute, label = "FaQ" }
+            [ Ui.headerLink userConfig.theme isMobile_ (route == PrivacyRoute) { route = PrivacyRoute, label = "Privacy" }
+            , Ui.headerLink userConfig.theme isMobile_ (route == TermsOfServiceRoute) { route = TermsOfServiceRoute, label = "Terms of service" }
+            , Ui.headerLink userConfig.theme isMobile_ (route == CodeOfConductRoute) { route = CodeOfConductRoute, label = "Code of conduct" }
+            , Ui.headerLink userConfig.theme isMobile_ (route == FrequentQuestionsRoute) { route = FrequentQuestionsRoute, label = "FaQ" }
             ]
         ]
 
@@ -1724,7 +1753,7 @@ headerButtons : UserConfig -> Bool -> Bool -> Route -> List (Element msg)
 headerButtons userConfig isMobile_ isAdmin route =
     [ if isAdmin then
         Ui.headerLink
-            userConfig
+            userConfig.theme
             isMobile_
             (route == AdminRoute)
             { route = AdminRoute
@@ -1734,21 +1763,21 @@ headerButtons userConfig isMobile_ isAdmin route =
       else
         Element.none
     , Ui.headerLink
-        userConfig
+        userConfig.theme
         isMobile_
         (route == CreateGroupRoute)
         { route = CreateGroupRoute
         , label = "New group"
         }
     , Ui.headerLink
-        userConfig
+        userConfig.theme
         isMobile_
         (route == MyGroupsRoute)
         { route = MyGroupsRoute
         , label = "My groups"
         }
     , Ui.headerLink
-        userConfig
+        userConfig.theme
         isMobile_
         (route == MyProfileRoute)
         { route = MyProfileRoute
@@ -1757,17 +1786,21 @@ headerButtons userConfig isMobile_ isAdmin route =
     ]
 
 
+groupSearchId : HtmlId
 groupSearchId =
     HtmlId.textInputId "headerGroupSearch"
 
 
+groupSearchLargeId : HtmlId
 groupSearchLargeId =
     HtmlId.textInputId "headerGroupSearchLarge"
 
 
+logOutButtonId : HtmlId
 logOutButtonId =
     HtmlId.buttonId "headerLogOut"
 
 
+signUpOrLoginButtonId : HtmlId
 signUpOrLoginButtonId =
     HtmlId.buttonId "headerSignUpOrLogin"

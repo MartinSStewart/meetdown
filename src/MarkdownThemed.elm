@@ -1,6 +1,5 @@
 module MarkdownThemed exposing (renderFull, renderMinimal)
 
-import Colors exposing (UserConfig)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -12,23 +11,24 @@ import Markdown.Block exposing (..)
 import Markdown.Html
 import Markdown.Parser
 import Markdown.Renderer
+import UserConfig exposing (Theme)
 
 
 {-| Markdown with only the minimal parts, and a flag to restrict things even further e.g. for search result summaries
 -}
-renderMinimal : UserConfig -> Bool -> String -> Element msg
-renderMinimal userConfig isSearchPreview markdownBody =
+renderMinimal : Theme -> Bool -> String -> Element msg
+renderMinimal theme isSearchPreview markdownBody =
     let
         rendererMinimal =
-            renderer userConfig isSearchPreview
+            renderer theme isSearchPreview
                 |> (\r -> { r | heading = \data -> row [] [ paragraph [] data.children ] })
     in
     render rendererMinimal markdownBody
 
 
-renderFull : UserConfig -> String -> Element msg
-renderFull userConfig markdownBody =
-    render (renderer userConfig False) markdownBody
+renderFull : Theme -> String -> Element msg
+renderFull theme markdownBody =
+    render (renderer theme False) markdownBody
 
 
 render : Markdown.Renderer.Renderer (Element msg) -> String -> Element msg
@@ -54,9 +54,9 @@ render chosenRenderer markdownBody =
            )
 
 
-renderer : UserConfig -> Bool -> Markdown.Renderer.Renderer (Element msg)
-renderer userConfig searchPreview =
-    { heading = \data -> row [] [ heading userConfig data ]
+renderer : Theme -> Bool -> Markdown.Renderer.Renderer (Element msg)
+renderer theme searchPreview =
+    { heading = \data -> row [] [ heading theme data ]
     , paragraph = \children -> paragraph [ paddingXY 0 10 ] children
     , blockQuote =
         \children ->
@@ -64,28 +64,28 @@ renderer userConfig searchPreview =
                 [ Font.size 20
                 , Font.italic
                 , Border.widthEach { bottom = 0, left = 4, right = 0, top = 0 }
-                , Border.color userConfig.grey
-                , Font.color userConfig.mutedText
+                , Border.color theme.grey
+                , Font.color theme.mutedText
                 , padding 10
                 ]
                 children
     , html = Markdown.Html.oneOf []
     , text = \s -> el [] <| text s
     , codeSpan =
-        \content -> fromHtml <| Html.code [] [ Html.text content ]
+        \content -> html <| Html.code [] [ Html.text content ]
     , strong = \list -> paragraph [ Font.bold ] list
     , emphasis = \list -> paragraph [ Font.italic ] list
-    , hardLineBreak = fromHtml <| Html.br [] []
+    , hardLineBreak = html <| Html.br [] []
     , link =
         \{ title, destination } list ->
             link
                 [ Font.underline
                 , Font.color
                     (if searchPreview then
-                        userConfig.mutedText
+                        theme.mutedText
 
                      else
-                        userConfig.link
+                        theme.link
                     )
                 ]
                 { url = destination
@@ -153,7 +153,7 @@ renderer userConfig searchPreview =
         \{ body } ->
             column
                 [ Font.family [ Font.monospace ]
-                , Background.color userConfig.lightGrey
+                , Background.color theme.lightGrey
                 , Border.rounded 5
                 , padding 10
                 , width fill
@@ -177,33 +177,33 @@ renderer userConfig searchPreview =
     }
 
 
-heading : UserConfig -> { level : HeadingLevel, rawText : String, children : List (Element msg) } -> Element msg
-heading userConfig { level, rawText, children } =
+heading : Theme -> { level : HeadingLevel, rawText : String, children : List (Element msg) } -> Element msg
+heading theme { level, rawText, children } =
     paragraph
         ((case headingLevelToInt level of
             1 ->
                 [ Font.size 28
                 , Font.bold
-                , Font.color userConfig.defaultText
+                , Font.color theme.defaultText
                 , paddingXY 0 20
                 ]
 
             2 ->
-                [ Font.color userConfig.defaultText
+                [ Font.color theme.defaultText
                 , Font.size 20
                 , Font.bold
                 , paddingEach { top = 50, right = 0, bottom = 20, left = 0 }
                 ]
 
             3 ->
-                [ Font.color userConfig.defaultText
+                [ Font.color theme.defaultText
                 , Font.size 18
                 , Font.bold
                 , paddingEach { top = 30, right = 0, bottom = 10, left = 0 }
                 ]
 
             4 ->
-                [ Font.color userConfig.defaultText
+                [ Font.color theme.defaultText
                 , Font.size 16
                 , Font.bold
                 , paddingEach { top = 0, right = 0, bottom = 10, left = 0 }
@@ -226,6 +226,7 @@ heading userConfig { level, rawText, children } =
         children
 
 
+rawTextToId : String -> String
 rawTextToId rawText =
     rawText
         |> String.toLower
@@ -233,16 +234,13 @@ rawTextToId rawText =
         |> String.replace "." ""
 
 
-fromHtml =
-    html
-
-
+justs : List (Maybe a) -> List a
 justs =
     List.foldl
         (\v acc ->
             case v of
                 Just el ->
-                    [ el ] ++ acc
+                    el :: acc
 
                 Nothing ->
                     acc

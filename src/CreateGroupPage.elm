@@ -14,7 +14,6 @@ module CreateGroupPage exposing
     , view
     )
 
-import Colors exposing (UserConfig)
 import Description exposing (Description)
 import Effect.Browser.Dom exposing (HtmlId)
 import Element exposing (Element)
@@ -24,6 +23,7 @@ import HtmlId
 import List.Nonempty exposing (Nonempty(..))
 import Route
 import Ui
+import UserConfig exposing (UserConfig)
 
 
 type Model
@@ -170,7 +170,7 @@ formView userConfig isMobile firstGroup maybeSubmitError isSubmitting form =
         )
         [ Ui.title "Create group"
         , Ui.textInput
-            userConfig
+            userConfig.theme
             nameInputId
             (\a -> FormChanged { form | name = a })
             form.name
@@ -194,7 +194,7 @@ formView userConfig isMobile firstGroup maybeSubmitError isSubmitting form =
                     Nothing
             )
         , Ui.multiline
-            userConfig
+            userConfig.theme
             descriptionInputId
             (\a -> FormChanged { form | description = a })
             form.description
@@ -207,7 +207,7 @@ formView userConfig isMobile firstGroup maybeSubmitError isSubmitting form =
                     Nothing
             )
         , Ui.radioGroup
-            userConfig
+            userConfig.theme
             groupVisibilityId
             (\a -> FormChanged { form | visibility = Just a })
             (Nonempty PublicGroup [ UnlistedGroup ])
@@ -233,7 +233,7 @@ formView userConfig isMobile firstGroup maybeSubmitError isSubmitting form =
                 [ Element.paragraph
                     []
                     [ Element.text "Since this is your first group, we recommend you read the "
-                    , Ui.routeLinkNewTab userConfig Route.CodeOfConductRoute "code of conduct"
+                    , Ui.routeLinkNewTab userConfig.theme Route.CodeOfConductRoute "code of conduct"
                     , Element.text "."
                     ]
                 ]
@@ -244,7 +244,7 @@ formView userConfig isMobile firstGroup maybeSubmitError isSubmitting form =
             [ Element.spacing 8, Element.paddingXY 0 16, Element.width Element.fill ]
             [ case maybeSubmitError of
                 Just error ->
-                    Ui.formError userConfig error
+                    Ui.formError userConfig.theme error
 
                 Nothing ->
                     Element.none
@@ -255,7 +255,7 @@ formView userConfig isMobile firstGroup maybeSubmitError isSubmitting form =
                   else
                     Element.width (Element.px 200)
                 ]
-                (Ui.submitButton userConfig submitButtonId isSubmitting { onPress = PressedSubmit, label = "Submit" })
+                (Ui.submitButton userConfig.theme submitButtonId isSubmitting { onPress = PressedSubmit, label = "Submit" })
             ]
         ]
 

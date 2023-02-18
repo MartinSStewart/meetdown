@@ -43,6 +43,7 @@ import ProfileImage exposing (ProfileImage)
 import Quantity exposing (Quantity)
 import Ui
 import Untrusted exposing (Untrusted)
+import UserConfig exposing (UserConfig)
 
 
 type Msg
@@ -706,16 +707,18 @@ imageEditorView userConfig windowSize imageEdit =
             }
         , Element.wrappedRow
             [ Element.width Element.fill, Element.spacingXY 16 8, Element.paddingXY 8 0 ]
-            [ Ui.submitButton userConfig uploadImageButtonId False { onPress = PressedConfirmImage, label = "Upload image" }
-            , Ui.button userConfig cancelImageButtonId { onPress = PressedCancelImage, label = "Cancel" }
+            [ Ui.submitButton userConfig.theme uploadImageButtonId False { onPress = PressedConfirmImage, label = "Upload image" }
+            , Ui.button userConfig.theme cancelImageButtonId { onPress = PressedCancelImage, label = "Cancel" }
             ]
         ]
 
 
+uploadImageButtonId : HtmlId
 uploadImageButtonId =
     HtmlId.buttonId "profileUploadImage"
 
 
+cancelImageButtonId : HtmlId
 cancelImageButtonId =
     HtmlId.buttonId "profileCancelImage"
 
@@ -740,14 +743,14 @@ view userConfig windowSize currentValues ({ form } as model) =
                         [ Element.alignRight
                         , Element.Border.rounded 9999
                         , Element.clip
-                        , Element.Background.color userConfig.grey
+                        , Element.Background.color userConfig.theme.grey
                         ]
                         { onPress = Just PressedProfileImage
                         , label = ProfileImage.image userConfig ProfileImage.defaultSize currentValues.profileImage
                         }
                     ]
                 , Ui.columnCard
-                    userConfig
+                    userConfig.theme
                     [ editableTextInput
                         userConfig
                         (\a -> FormChanged { form | name = a })
@@ -794,7 +797,7 @@ view userConfig windowSize currentValues ({ form } as model) =
                         form.emailAddress
                         "Your email address"
                     ]
-                , Ui.dangerButton userConfig deleteAccountButtonId False { onPress = PressedDeleteAccount, label = "Delete account" }
+                , Ui.dangerButton userConfig.theme deleteAccountButtonId False { onPress = PressedDeleteAccount, label = "Delete account" }
                 , if model.pressedDeleteAccount then
                     Element.column
                         [ Element.spacing 20 ]
@@ -849,9 +852,9 @@ editableTextInput userConfig onChange toString validate currentValue text labelT
         [ Element.Input.text
             [ Element.width Element.fill
             , Element.Border.rounded 4
-            , Ui.inputBorder userConfig (maybeError /= Nothing)
+            , Ui.inputBorder userConfig.theme (maybeError /= Nothing)
             , Ui.inputBorderWidth (maybeError /= Nothing)
-            , Element.Background.color userConfig.background
+            , Element.Background.color userConfig.theme.background
             ]
             { text =
                 case text of
@@ -862,11 +865,11 @@ editableTextInput userConfig onChange toString validate currentValue text labelT
                         value
             , onChange = Editting >> onChange
             , placeholder = Nothing
-            , label = Ui.formLabelAbove userConfig labelText
+            , label = Ui.formLabelAbove userConfig.theme labelText
             }
         , case maybeError of
             Just error ->
-                Ui.error userConfig error
+                Ui.error userConfig.theme error
 
             Nothing ->
                 if result == Ok currentValue then
@@ -906,13 +909,13 @@ editableEmailInput userConfig onChange toString validate currentValue text label
     in
     Element.column
         [ Element.width Element.fill
-        , Ui.inputBackground userConfig (maybeError /= Nothing)
+        , Ui.inputBackground userConfig.theme (maybeError /= Nothing)
         , Element.Border.rounded 4
         ]
         [ Element.Input.email
             [ Element.width Element.fill
-            , Element.Background.color userConfig.background
-            , Element.Border.color userConfig.darkGrey
+            , Element.Background.color userConfig.theme.background
+            , Element.Border.color userConfig.theme.darkGrey
             ]
             { text =
                 case text of
@@ -923,11 +926,11 @@ editableEmailInput userConfig onChange toString validate currentValue text label
                         value
             , onChange = Editting >> onChange
             , placeholder = Nothing
-            , label = Ui.formLabelAbove userConfig labelText
+            , label = Ui.formLabelAbove userConfig.theme labelText
             }
         , case maybeError of
             Just error ->
-                Ui.error userConfig error
+                Ui.error userConfig.theme error
 
             Nothing ->
                 if result == Ok currentValue then
@@ -964,9 +967,9 @@ editableMultiline userConfig onChange toString validate currentValue text labelT
         [ Element.Input.multiline
             [ Element.width Element.fill
             , Element.height (Element.px 200)
-            , Ui.inputBorder userConfig (maybeError /= Nothing)
+            , Ui.inputBorder userConfig.theme (maybeError /= Nothing)
             , Ui.inputBorderWidth (maybeError /= Nothing)
-            , Element.Background.color userConfig.background
+            , Element.Background.color userConfig.theme.background
             ]
             { text =
                 case text of
@@ -977,12 +980,12 @@ editableMultiline userConfig onChange toString validate currentValue text labelT
                         value
             , onChange = Editting >> onChange
             , placeholder = Nothing
-            , label = Ui.formLabelAbove userConfig labelText
+            , label = Ui.formLabelAbove userConfig.theme labelText
             , spellcheck = True
             }
         , case maybeError of
             Just error ->
-                Ui.error userConfig error
+                Ui.error userConfig.theme error
 
             Nothing ->
                 if result == Ok currentValue then
@@ -993,6 +996,7 @@ editableMultiline userConfig onChange toString validate currentValue text labelT
         ]
 
 
+savingText : Element msg
 savingText =
     Element.el
         [ Element.paddingEach { left = 0, right = 0, top = 10, bottom = 0 }

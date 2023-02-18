@@ -2,7 +2,6 @@ module SearchPage exposing (getGroupsFromIds, groupPreview, view)
 
 import AssocList as Dict
 import Cache exposing (Cache(..))
-import Colors exposing (UserConfig)
 import Description
 import Element exposing (Element)
 import Element.Background
@@ -17,6 +16,7 @@ import Time
 import TimeExtra as Time
 import Types exposing (FrontendMsg, LoadedFrontend)
 import Ui
+import UserConfig exposing (UserConfig)
 
 
 getGroupsFromIds : List (Id GroupId) -> LoadedFrontend -> List ( Id GroupId, Group )
@@ -67,9 +67,9 @@ groupPreview userConfig isMobile currentTime groupId group =
     Element.link
         (Element.width Element.fill
             :: Ui.inputFocusClass
-            :: Ui.cardAttributes userConfig
+            :: Ui.cardAttributes userConfig.theme
             ++ [ Element.paddingEach { top = 15, left = 15, right = 15, bottom = 0 }
-               , Element.Border.color userConfig.darkGrey
+               , Element.Border.color userConfig.theme.darkGrey
                ]
         )
         { url = Route.encode (GroupRoute groupId (Group.name group))
@@ -88,7 +88,7 @@ groupPreview userConfig isMobile currentTime groupId group =
                                 , Element.rgba 1 1 1 0
                                 , Element.rgba 1 1 1 0
                                 , Element.rgba 1 1 1 0
-                                , userConfig.background
+                                , userConfig.theme.background
                                 ]
                             }
                         , Element.width Element.fill

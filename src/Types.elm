@@ -7,7 +7,6 @@ import AssocSet exposing (Set)
 import BiDict.Assoc exposing (BiDict)
 import Browser exposing (UrlRequest)
 import Cache exposing (Cache)
-import Colors exposing (UserConfig)
 import CreateGroupPage exposing (CreateGroupError)
 import Description exposing (Description)
 import Effect.Browser.Navigation exposing (Key)
@@ -33,6 +32,7 @@ import Time
 import TimeZone
 import Untrusted exposing (Untrusted)
 import Url exposing (Url)
+import UserConfig exposing (UserConfig)
 
 
 type FrontendModel
@@ -70,13 +70,24 @@ type alias LoadedFrontend =
     , windowWidth : Quantity Int Pixels
     , windowHeight : Quantity Int Pixels
     , groupPage : Dict (Id GroupId) GroupPage.Model
-    , theme : ColorTheme
+    , loadedUserConfig : LoadedUserConfig
+    }
+
+
+type alias LoadedUserConfig =
+    { theme : ColorTheme
+    , language : Language
     }
 
 
 type ColorTheme
     = LightTheme
     | DarkTheme
+
+
+type Language
+    = English
+    | French
 
 
 type GroupRequest

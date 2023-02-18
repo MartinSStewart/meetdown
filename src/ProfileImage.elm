@@ -7,6 +7,7 @@ import Element.Border
 import Pixels exposing (Pixels)
 import Quantity exposing (Quantity)
 import Ui
+import UserConfig exposing (UserConfig)
 
 
 type ProfileImage
@@ -58,7 +59,7 @@ image userConfig size profileImage =
         , Element.height (Element.px (Pixels.inPixels size))
         , Element.Border.rounded 9999
         , Element.clip
-        , Ui.inputBackground userConfig False
+        , Ui.inputBackground userConfig.theme False
         ]
         { src =
             case profileImage of
@@ -78,7 +79,7 @@ smallImage userConfig profileImage =
         , Element.height (Element.px <| Pixels.inPixels defaultSize // 2)
         , Element.Border.rounded 9999
         , Element.clip
-        , Element.Background.color userConfig.grey
+        , Element.Background.color userConfig.theme.grey
         ]
         { src =
             case profileImage of

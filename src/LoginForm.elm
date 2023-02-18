@@ -2,7 +2,6 @@ module LoginForm exposing (emailAddressInputId, submitButtonId, submitForm, type
 
 import AssocList as Dict exposing (Dict)
 import Cache exposing (Cache(..))
-import Colors exposing (UserConfig)
 import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Effect.Command as Command exposing (Command, FrontendOnly)
 import Effect.Lamdera as Lamdera
@@ -19,6 +18,7 @@ import Route exposing (Route)
 import Types exposing (FrontendMsg(..), LoginForm, ToBackend(..))
 import Ui
 import Untrusted
+import UserConfig exposing (UserConfig)
 
 
 emailInput : UserConfig -> HtmlId -> msg -> (String -> msg) -> String -> String -> Maybe String -> Element msg
@@ -28,9 +28,9 @@ emailInput userConfig id onSubmit onChange text labelText maybeError =
         [ Element.Input.email
             [ Element.width Element.fill
             , Ui.onEnter onSubmit
-            , Ui.inputBorder userConfig (maybeError /= Nothing)
+            , Ui.inputBorder userConfig.theme (maybeError /= Nothing)
             , Dom.idToAttribute id |> Element.htmlAttribute
-            , Element.Background.color userConfig.background
+            , Element.Background.color userConfig.theme.background
             ]
             { text = text
             , onChange = onChange
@@ -40,7 +40,7 @@ emailInput userConfig id onSubmit onChange text labelText maybeError =
                     []
                     (Element.paragraph [] [ Element.text labelText ])
             }
-        , Maybe.map (Ui.error userConfig) maybeError |> Maybe.withDefault Element.none
+        , Maybe.map (Ui.error userConfig.theme) maybeError |> Maybe.withDefault Element.none
         ]
 
 
@@ -105,13 +105,13 @@ view userConfig joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent
             )
         , Element.paragraph []
             [ Element.text "By continuing you agree to the "
-            , Ui.routeLink userConfig Route.TermsOfServiceRoute "Terms"
+            , Ui.routeLink userConfig.theme Route.TermsOfServiceRoute "Terms"
             , Element.text "."
             ]
         , Element.wrappedRow
             [ Element.spacingXY 16 8, Element.width Element.fill ]
-            [ Ui.submitButton userConfig submitButtonId False { onPress = PressedSubmitLogin, label = "Sign up/Login" }
-            , Ui.button userConfig cancelButtonId { onPress = PressedCancelLogin, label = "Cancel" }
+            [ Ui.submitButton userConfig.theme submitButtonId False { onPress = PressedSubmitLogin, label = "Sign up/Login" }
+            , Ui.button userConfig.theme cancelButtonId { onPress = PressedCancelLogin, label = "Cancel" }
             ]
         ]
 
