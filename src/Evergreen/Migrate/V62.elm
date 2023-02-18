@@ -77,7 +77,7 @@ migrateBackendUser backendUser =
     , profileImage = migrateProfileImage backendUser.profileImage
     , timezone = backendUser.timezone
     , allowEventReminders = backendUser.allowEventReminders
-    , subscribedGroups = AssocSet.empty
+    , subscribedGroups = AssocSet.map migrateId backendUser.subscribedGroups
     }
 
 
