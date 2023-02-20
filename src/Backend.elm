@@ -1330,17 +1330,8 @@ isAdmin user =
 
 checkLogin : SessionId -> BackendModel -> Maybe { userId : Id UserId, user : BackendUser, isAdmin : Bool }
 checkLogin sessionId model =
-    case BiDict.get sessionId model.sessions of
-        Just userId ->
-            case Dict.get userId model.users of
-                Just user ->
-                    Just { userId = userId, user = user, isAdmin = isAdmin user }
-
-                Nothing ->
-                    Nothing
-
-        Nothing ->
-            Nothing
+    getUserFromSessionId sessionId model
+        |> Maybe.map (\( userId, user ) -> { userId = userId, user = user, isAdmin = isAdmin user })
 
 
 getGroup : Id GroupId -> BackendModel -> Maybe Group

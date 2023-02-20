@@ -318,7 +318,9 @@ type FrontendMsg
     | PressedEnableAdmin
     | PressedDisableAdmin
     | PressedThemeToggle
+    | PressedLanguageToggle
     | GotPrefersDarkTheme Bool
+    | GotPrefersFrenchLanguage Bool
 
 
 type ToBackend

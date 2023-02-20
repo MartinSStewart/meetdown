@@ -92,6 +92,7 @@ subscriptions model =
         , BrowserEvents.onResize GotWindowSize
         , Time.every Duration.minute GotTime
         , Ports.gotPrefersDarkTheme GotPrefersDarkTheme
+        , Ports.gotPrefersFrenchLanguage GotPrefersFrenchLanguage
         ]
 
 
@@ -126,6 +127,7 @@ init url key =
                 (\{ scene } -> GotWindowSize (round scene.width) (round scene.height))
         , TimeZone.getZone |> Task.attempt GotTimeZone
         , Ports.getPrefersDarkTheme
+        , Ports.getPrefersFrenchLanguage
         ]
     )
 
@@ -617,6 +619,35 @@ updateLoaded msg ({ loadedUserConfig } as model) =
 
                             else
                                 LightTheme
+                    }
+              }
+            , Command.none
+            )
+
+        PressedLanguageToggle ->
+            let
+                newLanguage =
+                    case loadedUserConfig.language of
+                        English ->
+                            French
+
+                        French ->
+                            English
+            in
+            ( { model | loadedUserConfig = { loadedUserConfig | language = newLanguage } }
+            , Ports.setPrefersFrenchLanguage (newLanguage == French)
+            )
+
+        GotPrefersFrenchLanguage prefersFrenchLanguage ->
+            ( { model
+                | loadedUserConfig =
+                    { loadedUserConfig
+                        | language =
+                            if prefersFrenchLanguage then
+                                French
+
+                            else
+                                English
                     }
               }
             , Command.none
@@ -1233,10 +1264,10 @@ viewLoaded userConfig model =
                     (Element.centerY :: Ui.pageContentAttributes ++ [ Element.spacing 16 ])
                     [ Element.paragraph
                         [ Element.Font.center ]
-                        [ Element.text "The link you used is either invalid or has expired." ]
+                        [ Element.text userConfig.texts.theLinkYouUsedIsEitherInvalidOrHasExpired ]
                     , Element.el
                         [ Element.centerX ]
-                        (Ui.linkButton userConfig.theme { route = Route.HomepageRoute, label = "Go to homepage" })
+                        (Ui.linkButton userConfig.theme { route = Route.HomepageRoute, label = userConfig.texts.goToHomepage })
                     ]
 
              else
@@ -1295,7 +1326,7 @@ getCachedUser userId loadedFrontend =
 
 
 viewPage : UserConfig -> LoadedFrontend -> Element FrontendMsg
-viewPage userConfig model =
+viewPage ({ theme, texts } as userConfig) model =
     case model.route of
         HomepageRoute ->
             Element.column
@@ -1303,14 +1334,14 @@ viewPage userConfig model =
                 [ Element.el [ Element.paddingEach { top = 40, right = 0, bottom = 20, left = 0 }, Element.centerX ] <|
                     Element.image
                         [ Element.width <| (Element.fill |> Element.maximum 650) ]
-                        { src = userConfig.theme.heroSvg, description = "Two people on a video conference" }
+                        { src = theme.heroSvg, description = texts.twoPeopleOnAVideoConference }
                 , Element.paragraph
                     [ Element.Font.center ]
-                    [ Element.text "A place to join groups of people with shared interests." ]
+                    [ Element.text texts.aPlaceToJoinGroupsOfPeopleWithSharedInterests ]
                 , Element.paragraph
                     [ Element.Font.center ]
-                    [ Element.text " We don't sell your data, we don't show ads, and it's free. "
-                    , Ui.routeLink userConfig.theme Route.FrequentQuestionsRoute "Read more"
+                    [ Element.text <| texts.weDontSellYourDataWeDontShowAdsAndItsFree ++ " "
+                    , Ui.routeLink theme Route.FrequentQuestionsRoute texts.readMore
                     ]
                 , searchInputLarge userConfig model.searchText
                 ]
@@ -1349,7 +1380,7 @@ viewPage userConfig model =
                             Ui.loadingView
 
                 Just ItemDoesNotExist ->
-                    Ui.loadingError userConfig.theme "Group not found"
+                    Ui.loadingError theme texts.groupNotFound
 
                 Just ItemRequestPending ->
                     Ui.loadingView
@@ -1399,10 +1430,10 @@ viewPage userConfig model =
                             Ui.loadingView
 
                         Just ItemDoesNotExist ->
-                            Ui.loadingError userConfig.theme "User not found"
+                            Ui.loadingError theme texts.userNotFound
 
                         Nothing ->
-                            Ui.loadingError userConfig.theme "User not found"
+                            Ui.loadingError theme texts.userNotFound
                 )
 
         SearchGroupsRoute searchText ->
@@ -1425,24 +1456,24 @@ viewPage userConfig model =
         CodeOfConductRoute ->
             Element.column
                 (Ui.pageContentAttributes ++ [ Element.spacing 28 ])
-                [ Ui.title "Code of conduct"
+                [ Ui.title texts.codeOfConduct
                 , Element.paragraph []
-                    [ Element.text "The most important rule is, "
-                    , Element.el [ Element.Font.bold ] (Element.text "don't be a jerk")
+                    [ Element.text <| texts.theMostImportantRuleIs ++ ", "
+                    , Element.el [ Element.Font.bold ] (Element.text texts.dontBeAJerk)
                     , Element.text "."
                     ]
-                , Element.paragraph [] [ Element.text "Here is some guidance in order to fulfill the \"don't be a jerk\" rule:" ]
-                , Element.paragraph [] [ Element.text "• Respect people regardless of their race, gender, sexual identity, nationality, appearance, or related characteristics." ]
+                , Element.paragraph [] [ Element.text texts.codeOfConduct1 ]
+                , Element.paragraph [] [ Element.text <| texts.codeOfConduct2 ]
                 , Element.paragraph
                     []
-                    [ Element.text "• Be respectful to the group organizer. They put in the time to coordinate an event and they are willing to invite strangers. Don't betray their trust in you!" ]
+                    [ Element.text <| texts.codeOfConduct3 ]
                 , Element.paragraph
                     []
-                    [ Element.text "• To group organizers: Make people feel included. It's hard for people to participate if they feel like an outsider." ]
+                    [ Element.text <| texts.codeOfConduct4 ]
                 , Element.paragraph
                     []
-                    [ Element.text "• If someone is being a jerk that is not an excuse to be a jerk back. Ask them to stop, and if that doesn't work, avoid them and explain the problem here "
-                    , Ui.mailToLink userConfig.theme Env.contactEmailAddress (Just "Moderation help request")
+                    [ Element.text <| texts.codeOfConduct5
+                    , Ui.mailToLink theme Env.contactEmailAddress <| Just texts.moderationHelpRequest
                     , Element.text "."
                     ]
                 ]
@@ -1459,23 +1490,25 @@ viewPage userConfig model =
             in
             Element.column
                 (Ui.pageContentAttributes ++ [ Element.spacing 28 ])
-                [ Ui.title "Frequently asked questions"
-                , questionAndAnswer "Who is behind all this?"
-                    [ Element.text "It is I, "
-                    , Ui.externalLink userConfig.theme "https://github.com/MartinSStewart/" "Martin"
-                    , Element.text ". Credit goes to "
-                    , Ui.externalLink userConfig.theme "https://twitter.com/realmario" "Mario Rogic"
-                    , Element.text " for helping me out with parts of the app."
+                [ Ui.title texts.frequentQuestions
+                , questionAndAnswer
+                    texts.faqQuestion1
+                    [ Element.text texts.isItI
+                    , Ui.externalLink theme "https://github.com/MartinSStewart/" "Martin"
+                    , Element.text texts.creditGoesTo
+                    , Ui.externalLink theme "https://twitter.com/realmario" "Mario Rogic"
+                    , Element.text texts.forHelpingMeOutWithPartsOfTheApp
                     ]
                 , questionAndAnswer
-                    "Why was this website made?"
-                    [ Element.text "I dislike that meetup.com charges money, spams me with emails, and feels bloated. Also I wanted to try making something more substantial using "
-                    , Ui.externalLink userConfig.theme "https://www.lamdera.com/" "Lamdera"
-                    , Element.text " to see if it's feasible to use at work."
+                    texts.faqQuestion2
+                    [ Element.text texts.faq1
+                    , Ui.externalLink theme "https://www.lamdera.com/" "Lamdera"
+                    , Element.text texts.faq2
                     ]
                 , questionAndAnswer
-                    "If this website is free and doesn't run ads or sell data, how does it sustain itself?"
-                    [ Element.text "I just spend my own money to host it. That's okay because it's designed to cost very little to run. In the unlikely event that Meetdown gets very popular and hosting costs become too expensive, I'll ask for donations." ]
+                    texts.faqQuestion3
+                    [ Element.text texts.faq3
+                    ]
                 ]
 
 
@@ -1682,7 +1715,8 @@ header userConfig maybeLoggedIn model =
                                     { onPress = PressedLogout
                                     , label = "Logout"
                                     }
-                               , themeToggleButton isMobile_ model.loadedUserConfig
+                               , languageToggleButton isMobile_ model.loadedUserConfig.language
+                               , themeToggleButton isMobile_ model.loadedUserConfig.theme
                                ]
 
                     Nothing ->
@@ -1692,7 +1726,8 @@ header userConfig maybeLoggedIn model =
                             { onPress = PressedLogin
                             , label = "Sign up / Login"
                             }
-                        , themeToggleButton isMobile_ model.loadedUserConfig
+                        , languageToggleButton isMobile_ model.loadedUserConfig.language
+                        , themeToggleButton isMobile_ model.loadedUserConfig.theme
                         ]
                 )
             ]
@@ -1705,19 +1740,40 @@ themeToggleButtonId =
     Dom.id "header_themeToggleButton"
 
 
-themeToggleButton : Bool -> { a | theme : ColorTheme } -> Element FrontendMsg
-themeToggleButton isMobile_ model =
+themeToggleButton : Bool -> ColorTheme -> Element FrontendMsg
+themeToggleButton isMobile_ theme =
     Ui.headerButton
         isMobile_
         themeToggleButtonId
         { onPress = PressedThemeToggle
         , label =
-            case model.theme of
+            case theme of
                 LightTheme ->
                     "🌙"
 
                 DarkTheme ->
                     "☀️"
+        }
+
+
+languageToggleButtonId : Dom.HtmlId
+languageToggleButtonId =
+    Dom.id "header_languageToggleButton"
+
+
+languageToggleButton : Bool -> Language -> Element FrontendMsg
+languageToggleButton isMobile_ language =
+    Ui.headerButton
+        isMobile_
+        languageToggleButtonId
+        { onPress = PressedLanguageToggle
+        , label =
+            case language of
+                English ->
+                    "🇬🇧"
+
+                French ->
+                    "🇫🇷"
         }
 
 
