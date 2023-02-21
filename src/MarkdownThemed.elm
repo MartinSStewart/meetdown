@@ -11,28 +11,28 @@ import Markdown.Block exposing (..)
 import Markdown.Html
 import Markdown.Parser
 import Markdown.Renderer
-import UserConfig exposing (Theme)
+import UserConfig exposing (Texts, Theme, UserConfig)
 
 
 {-| Markdown with only the minimal parts, and a flag to restrict things even further e.g. for search result summaries
 -}
-renderMinimal : Theme -> Bool -> String -> Element msg
-renderMinimal theme isSearchPreview markdownBody =
+renderMinimal : UserConfig -> Bool -> String -> Element msg
+renderMinimal { theme, texts } isSearchPreview markdownBody =
     let
         rendererMinimal =
             renderer theme isSearchPreview
                 |> (\r -> { r | heading = \data -> row [] [ paragraph [] data.children ] })
     in
-    render rendererMinimal markdownBody
+    render texts rendererMinimal markdownBody
 
 
-renderFull : Theme -> String -> Element msg
-renderFull theme markdownBody =
-    render (renderer theme False) markdownBody
+renderFull : UserConfig -> String -> Element msg
+renderFull { theme, texts } markdownBody =
+    render texts (renderer theme False) markdownBody
 
 
-render : Markdown.Renderer.Renderer (Element msg) -> String -> Element msg
-render chosenRenderer markdownBody =
+render : Texts -> Markdown.Renderer.Renderer (Element msg) -> String -> Element msg
+render texts chosenRenderer markdownBody =
     Markdown.Parser.parse markdownBody
         -- @TODO show markdown parsing errors, i.e. malformed html?
         |> Result.withDefault []
@@ -45,7 +45,7 @@ render chosenRenderer markdownBody =
                                     elements
 
                                 Err err ->
-                                    [ text "Oops! Something went wrong rendering this page: ", text err ]
+                                    [ text texts.oopsSomethingWentWrongRenderingThisPage, text err ]
                        )
                     |> column
                         [ width fill

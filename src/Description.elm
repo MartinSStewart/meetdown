@@ -54,10 +54,10 @@ toString (Description description) =
 toParagraph : UserConfig -> Bool -> Description -> Element msg
 toParagraph userConfig searchPreview description =
     if toString description == "" then
-        MarkdownThemed.renderMinimal userConfig.theme searchPreview "_No description_"
+        MarkdownThemed.renderMinimal userConfig searchPreview "_No description_"
 
     else
-        MarkdownThemed.renderMinimal userConfig.theme searchPreview (toString description)
+        MarkdownThemed.renderMinimal userConfig searchPreview (toString description)
 
 
 empty : Description

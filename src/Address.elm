@@ -1,5 +1,7 @@
 module Address exposing (Address(..), Error(..), errorToString, fromString, toString)
 
+import UserConfig exposing (Texts)
+
 
 type Address
     = Address String
@@ -10,28 +12,6 @@ type Error
     | AddressTooLong
 
 
-errorToString : String -> Error -> String
-errorToString originalAddress error =
-    let
-        trimmed =
-            String.trim originalAddress
-    in
-    case error of
-        AddressTooShort ->
-            "Address is "
-                ++ String.fromInt (String.length trimmed)
-                ++ " characters long. It needs to be at least "
-                ++ String.fromInt minLength
-                ++ "."
-
-        AddressTooLong ->
-            "Address is "
-                ++ String.fromInt (String.length trimmed)
-                ++ " characters long. Keep it under "
-                ++ String.fromInt maxLength
-                ++ "."
-
-
 minLength : number
 minLength =
     4
@@ -40,6 +20,20 @@ minLength =
 maxLength : number
 maxLength =
     200
+
+
+errorToString : Texts -> String -> Error -> String
+errorToString texts originalAddress error =
+    let
+        trimmed =
+            String.trim originalAddress
+    in
+    case error of
+        AddressTooShort ->
+            texts.addressTooShort (String.length trimmed) minLength
+
+        AddressTooLong ->
+            texts.addressTooLong (String.length trimmed) maxLength
 
 
 fromString : String -> Result Error Address

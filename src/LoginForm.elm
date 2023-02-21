@@ -18,7 +18,7 @@ import Route exposing (Route)
 import Types exposing (FrontendMsg(..), LoginForm, ToBackend(..))
 import Ui
 import Untrusted
-import UserConfig exposing (UserConfig)
+import UserConfig exposing (Texts, UserConfig)
 
 
 emailInput : UserConfig -> HtmlId -> msg -> (String -> msg) -> String -> String -> Maybe String -> Element msg
@@ -45,7 +45,7 @@ emailInput userConfig id onSubmit onChange text labelText maybeError =
 
 
 view : UserConfig -> Maybe ( Id GroupId, EventId ) -> Dict (Id GroupId) (Cache Group) -> LoginForm -> Element FrontendMsg
-view userConfig joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent } =
+view ({ texts } as userConfig) joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent } =
     Element.column
         [ Element.centerX
         , Element.centerY
@@ -59,11 +59,11 @@ view userConfig joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent
                         [ Element.spacing 4, Element.padding 8 ]
                         [ Element.paragraph
                             []
-                            [ Element.text "A login email has been sent to "
+                            [ Element.text texts.aLoginEmailHasBeenSentTo
                             , Ui.emailAddressText emailAddress
                             , Element.text "."
                             ]
-                        , Element.paragraph [] [ Element.text "Check your spam folder if you don't see it." ]
+                        , Element.paragraph [] [ Element.text texts.checkYourSpamFolderIfYouDonTSeeIt ]
                         ]
 
                 Nothing ->
@@ -75,17 +75,16 @@ view userConfig joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent
                 case Dict.get groupId cachedGroups of
                     Just (ItemCached group) ->
                         Element.paragraph []
-                            [ Element.text "Sign in and we'll get you signed up for the "
-                            , GroupName.toString (Group.name group)
+                            [ Group.name group
+                                |> GroupName.toString
+                                |> texts.signInAndWeLlGetYouSignedUpForThe
                                 |> Element.text
-                                |> Element.el [ Element.Font.bold ]
-                            , Element.text " event"
                             ]
 
                     _ ->
                         Element.paragraph
                             []
-                            [ Element.text "Sign in and we'll get you signed up for that event" ]
+                            [ Element.text texts.signInAndWeLlGetYouSignedUpForThatEvent ]
 
             Nothing ->
                 Element.none
@@ -95,8 +94,8 @@ view userConfig joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent
             PressedSubmitLogin
             TypedEmail
             email
-            "Enter your email address"
-            (case ( pressedSubmitEmail, validateEmail email ) of
+            texts.enterYourEmailAddress
+            (case ( pressedSubmitEmail, validateEmail texts email ) of
                 ( True, Err error ) ->
                     Just error
 
@@ -104,30 +103,28 @@ view userConfig joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent
                     Nothing
             )
         , Element.paragraph []
-            [ Element.text "By continuing you agree to the "
-            , Ui.routeLink userConfig.theme Route.TermsOfServiceRoute "Terms"
+            [ Element.text texts.byContinuingYouAgreeToThe
+            , Ui.routeLink userConfig.theme Route.TermsOfServiceRoute texts.terms
             , Element.text "."
             ]
         , Element.wrappedRow
             [ Element.spacingXY 16 8, Element.width Element.fill ]
-            [ Ui.submitButton userConfig.theme submitButtonId False { onPress = PressedSubmitLogin, label = "Sign up/Login" }
-            , Ui.button userConfig.theme cancelButtonId { onPress = PressedCancelLogin, label = "Cancel" }
+            [ Ui.submitButton userConfig.theme submitButtonId False { onPress = PressedSubmitLogin, label = texts.login }
+            , Ui.button userConfig.theme cancelButtonId { onPress = PressedCancelLogin, label = texts.cancel }
             ]
         ]
 
 
-validateEmail : String -> Result String EmailAddress
-validateEmail text =
-    case EmailAddress.fromString text of
-        Just email ->
-            Ok email
+validateEmail : Texts -> String -> Result String EmailAddress
+validateEmail texts text =
+    EmailAddress.fromString text
+        |> Result.fromMaybe
+            (if String.isEmpty text then
+                texts.enterYourEmailFirst
 
-        Nothing ->
-            if String.isEmpty text then
-                Err "Enter your email first"
-
-            else
-                Err "Invalid email address"
+             else
+                texts.invalidEmailAddress
+            )
 
 
 submitForm :
@@ -136,13 +133,13 @@ submitForm :
     -> LoginForm
     -> ( LoginForm, Command FrontendOnly ToBackend FrontendMsg )
 submitForm route maybeJoinEvent loginForm =
-    case validateEmail loginForm.email of
-        Ok email ->
+    case EmailAddress.fromString loginForm.email of
+        Just email ->
             ( { loginForm | emailSent = Just email }
             , GetLoginTokenRequest route (Untrusted.untrust email) maybeJoinEvent |> Lamdera.sendToBackend
             )
 
-        Err _ ->
+        Nothing ->
             ( { loginForm | pressedSubmitEmail = True }, Command.none )
 
 

@@ -2,6 +2,7 @@ module EventDuration exposing (Error(..), EventDuration(..), errorToString, from
 
 import Duration exposing (Duration)
 import TimeExtra
+import UserConfig exposing (Texts)
 
 
 type EventDuration
@@ -13,14 +14,14 @@ type Error
     | EventDurationTooLong
 
 
-errorToString : Error -> String
-errorToString error =
+errorToString : Texts -> Error -> String
+errorToString texts error =
     case error of
         EventDurationNotGreaterThan0 ->
-            "Value must be greater than 0"
+            texts.valueMustBeGreaterThan0
 
         EventDurationTooLong ->
-            "The event can't be more than " ++ String.fromInt (maxLength // 60) ++ " hours long"
+            texts.eventCantBeMoreThan ++ String.fromInt (maxLength // 60) ++ texts.hoursLong
 
 
 maxLength : number
@@ -37,7 +38,7 @@ fromMinutes minutes =
         Err EventDurationTooLong
 
     else
-        Ok (EventDuration minutes)
+        Ok <| EventDuration minutes
 
 
 toMinutes : EventDuration -> Int
@@ -47,11 +48,11 @@ toMinutes (EventDuration minutes) =
 
 toDuration : EventDuration -> Duration
 toDuration (EventDuration minutes) =
-    Duration.minutes (toFloat minutes)
+    Duration.minutes <| toFloat minutes
 
 
-toString : EventDuration -> String
-toString eventDuration =
+toString : Texts -> EventDuration -> String
+toString texts eventDuration =
     let
         minutes =
             toMinutes eventDuration
@@ -61,16 +62,8 @@ toString eventDuration =
     in
     if minutes >= 60 then
         TimeExtra.removeTrailing0s 2 hours
-            |> (\a ->
-                    if a == "1" then
-                        "1\u{00A0}hour"
-
-                    else
-                        a ++ "\u{00A0}hours"
-               )
-
-    else if minutes == 1 then
-        "1\u{00A0}minute"
+            |> texts.numberOfHours
 
     else
-        String.fromInt minutes ++ "\u{00A0}minutes"
+        String.fromInt minutes
+            |> texts.numberOfMinutes

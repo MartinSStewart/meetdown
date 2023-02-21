@@ -35,7 +35,7 @@ import Element.Input
 import Element.Region
 import Env
 import FrontendUser exposing (FrontendUser)
-import Group
+import Group exposing (totalEvents)
 import GroupPage
 import Html
 import Html.Attributes
@@ -489,6 +489,7 @@ updateLoaded msg ({ loadedUserConfig } as model) =
                             let
                                 ( newModel, effects, { joinEvent, requestUserData } ) =
                                     GroupPage.update
+                                        (loadedUserConfigToUserConfig loadedUserConfig).texts
                                         model
                                         group
                                         (case model.loginStatus of
@@ -1513,7 +1514,7 @@ viewPage ({ theme, texts } as userConfig) model =
 
 
 myGroupsView : UserConfig -> LoadedFrontend -> LoggedIn_ -> Element FrontendMsg
-myGroupsView userConfig model loggedIn =
+myGroupsView ({ texts } as userConfig) model loggedIn =
     case loggedIn.myGroups of
         Just myGroups ->
             let
@@ -1527,14 +1528,14 @@ myGroupsView userConfig model loggedIn =
             in
             Element.column
                 Ui.pageContentAttributes
-                [ Ui.title "My groups"
+                [ Ui.title texts.myGroups
                 , if List.isEmpty myGroupsList && Set.isEmpty loggedIn.subscribedGroups then
                     Element.paragraph
                         []
-                        [ Element.text "You don't have any groups. Get started by "
-                        , Ui.routeLink userConfig.theme CreateGroupRoute "creating one"
-                        , Element.text " or "
-                        , Ui.routeLink userConfig.theme (SearchGroupsRoute "") "subscribing to one."
+                        [ Element.text texts.noGroupsYet
+                        , Ui.routeLink userConfig.theme CreateGroupRoute texts.creatingOne
+                        , Element.text texts.or
+                        , Ui.routeLink userConfig.theme (SearchGroupsRoute "") texts.searchingForOne
                         ]
 
                   else
@@ -1542,8 +1543,8 @@ myGroupsView userConfig model loggedIn =
                         [ Element.width Element.fill, Element.spacing 32 ]
                         [ if List.isEmpty myGroupsList then
                             Element.paragraph []
-                                [ Element.text "You haven't created any groups. "
-                                , Ui.routeLink userConfig.theme CreateGroupRoute "You can do that here."
+                                [ Element.text texts.youHavenTCreatedAnyGroupsYet
+                                , Ui.routeLink userConfig.theme CreateGroupRoute texts.youCanDoThatHere
                                 ]
 
                           else
@@ -1553,9 +1554,9 @@ myGroupsView userConfig model loggedIn =
                             [ Ui.title "Subscribed groups"
                             , if Set.isEmpty loggedIn.subscribedGroups then
                                 Element.paragraph []
-                                    [ "You haven't subscribed to any groups. You can do that by pressing the \""
+                                    [ texts.group1
                                         ++ GroupPage.notifyMeOfNewEvents
-                                        ++ "\" button on a group page."
+                                        ++ texts.buttonOnAGroupPage
                                         |> Element.text
                                     ]
 
@@ -1575,17 +1576,17 @@ myGroupsView userConfig model loggedIn =
 
 
 searchInput : UserConfig -> String -> Element FrontendMsg
-searchInput userConfig searchText =
+searchInput { theme, texts } searchText =
     Element.Input.text
         [ Element.width <| Element.maximum 400 Element.fill
         , Element.Border.rounded 5
-        , Element.Border.color userConfig.theme.darkGrey
+        , Element.Border.color theme.darkGrey
         , Element.paddingEach { left = 24, right = 8, top = 4, bottom = 4 }
-        , Element.Background.color userConfig.theme.background
+        , Element.Background.color theme.background
         , Ui.onEnter SubmittedSearchBox
         , Dom.idToAttribute groupSearchId |> Element.htmlAttribute
-        , Element.inFront
-            (Element.el
+        , Element.inFront <|
+            Element.el
                 [ Element.Font.size 12
                 , Element.moveDown 6
                 , Element.moveRight 4
@@ -1593,31 +1594,30 @@ searchInput userConfig searchText =
                 , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
                 ]
                 (Element.text "🔍")
-            )
         ]
         { text = searchText
         , onChange = TypedSearchText
         , placeholder = Nothing
-        , label = Element.Input.labelHidden "Search for groups"
+        , label = Element.Input.labelHidden texts.searchForGroups
         }
 
 
 searchInputLarge : UserConfig -> String -> Element FrontendMsg
-searchInputLarge userConfig searchText =
+searchInputLarge { theme, texts } searchText =
     Element.row
         [ Element.width <| Element.maximum 400 Element.fill
         , Element.centerX
         ]
         [ Element.Input.text
             [ Element.Border.roundEach { topLeft = 5, bottomLeft = 5, bottomRight = 0, topRight = 0 }
-            , Element.Border.color userConfig.theme.darkGrey
+            , Element.Border.color theme.darkGrey
             , Element.Border.widthEach { bottom = 1, left = 1, right = 0, top = 1 }
             , Element.paddingEach { left = 30, right = 8, top = 8, bottom = 8 }
             , Ui.onEnter SubmittedSearchBox
-            , Element.Background.color userConfig.theme.background
+            , Element.Background.color theme.background
             , Dom.idToAttribute groupSearchLargeId |> Element.htmlAttribute
-            , Element.inFront
-                (Element.el
+            , Element.inFront <|
+                Element.el
                     [ Element.Font.size 14
                     , Element.moveDown 9
                     , Element.moveRight 6
@@ -1625,22 +1625,21 @@ searchInputLarge userConfig searchText =
                     , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
                     ]
                     (Element.text "🔍")
-                )
             ]
             { text = searchText
             , onChange = TypedSearchText
             , placeholder = Nothing
-            , label = Element.Input.labelHidden "Search for groups"
+            , label = Element.Input.labelHidden texts.searchForGroups
             }
         , Element.Input.button
-            [ Element.Background.color userConfig.theme.submit
+            [ Element.Background.color theme.submit
             , Element.Border.roundEach { topLeft = 0, bottomLeft = 0, bottomRight = 5, topRight = 5 }
             , Element.height Element.fill
-            , Element.Font.color userConfig.theme.invertedText
+            , Element.Font.color theme.invertedText
             , Element.paddingXY 16 0
             ]
             { onPress = Just SubmittedSearchBox
-            , label = Element.text "Search"
+            , label = Element.text texts.search
             }
         ]
 
@@ -1678,7 +1677,7 @@ adminStatusColor theme maybeLoggedIn =
 
 
 header : UserConfig -> Maybe LoggedIn_ -> LoadedFrontend -> Element FrontendMsg
-header userConfig maybeLoggedIn model =
+header ({ texts } as userConfig) maybeLoggedIn model =
     let
         isMobile_ =
             isMobile model
@@ -1713,7 +1712,7 @@ header userConfig maybeLoggedIn model =
                             ++ [ Ui.headerButton isMobile_
                                     logOutButtonId
                                     { onPress = PressedLogout
-                                    , label = "Logout"
+                                    , label = texts.logout
                                     }
                                , languageToggleButton isMobile_ model.loadedUserConfig.language
                                , themeToggleButton isMobile_ model.loadedUserConfig.theme
@@ -1724,7 +1723,7 @@ header userConfig maybeLoggedIn model =
                             isMobile_
                             signUpOrLoginButtonId
                             { onPress = PressedLogin
-                            , label = "Sign up / Login"
+                            , label = texts.login
                             }
                         , languageToggleButton isMobile_ model.loadedUserConfig.language
                         , themeToggleButton isMobile_ model.loadedUserConfig.theme
@@ -1788,7 +1787,7 @@ largeLine userConfig maybeLoggedIn =
 
 
 footer : UserConfig -> Bool -> Route -> Maybe LoggedIn_ -> Element msg
-footer userConfig isMobile_ route maybeLoggedIn =
+footer ({ theme, texts } as userConfig) isMobile_ route maybeLoggedIn =
     Element.column
         [ Element.width Element.fill
         , Element.spacing 8
@@ -1797,48 +1796,24 @@ footer userConfig isMobile_ route maybeLoggedIn =
         [ largeLine userConfig maybeLoggedIn
         , Element.row
             [ Element.width Element.fill, Element.alignBottom, Element.spacing 8 ]
-            [ Ui.headerLink userConfig.theme isMobile_ (route == PrivacyRoute) { route = PrivacyRoute, label = "Privacy" }
-            , Ui.headerLink userConfig.theme isMobile_ (route == TermsOfServiceRoute) { route = TermsOfServiceRoute, label = "Terms of service" }
-            , Ui.headerLink userConfig.theme isMobile_ (route == CodeOfConductRoute) { route = CodeOfConductRoute, label = "Code of conduct" }
-            , Ui.headerLink userConfig.theme isMobile_ (route == FrequentQuestionsRoute) { route = FrequentQuestionsRoute, label = "FaQ" }
+            [ Ui.headerLink theme isMobile_ (route == PrivacyRoute) { route = PrivacyRoute, label = texts.privacy }
+            , Ui.headerLink theme isMobile_ (route == TermsOfServiceRoute) { route = TermsOfServiceRoute, label = texts.tos }
+            , Ui.headerLink theme isMobile_ (route == CodeOfConductRoute) { route = CodeOfConductRoute, label = texts.codeOfConduct }
+            , Ui.headerLink theme isMobile_ (route == FrequentQuestionsRoute) { route = FrequentQuestionsRoute, label = texts.faq }
             ]
         ]
 
 
 headerButtons : UserConfig -> Bool -> Bool -> Route -> List (Element msg)
-headerButtons userConfig isMobile_ isAdmin route =
+headerButtons { theme, texts } isMobile_ isAdmin route =
     [ if isAdmin then
-        Ui.headerLink
-            userConfig.theme
-            isMobile_
-            (route == AdminRoute)
-            { route = AdminRoute
-            , label = "Admin"
-            }
+        Ui.headerLink theme isMobile_ (route == AdminRoute) { route = AdminRoute, label = "Admin" }
 
       else
         Element.none
-    , Ui.headerLink
-        userConfig.theme
-        isMobile_
-        (route == CreateGroupRoute)
-        { route = CreateGroupRoute
-        , label = "New group"
-        }
-    , Ui.headerLink
-        userConfig.theme
-        isMobile_
-        (route == MyGroupsRoute)
-        { route = MyGroupsRoute
-        , label = "My groups"
-        }
-    , Ui.headerLink
-        userConfig.theme
-        isMobile_
-        (route == MyProfileRoute)
-        { route = MyProfileRoute
-        , label = "Profile"
-        }
+    , Ui.headerLink theme isMobile_ (route == CreateGroupRoute) { route = CreateGroupRoute, label = texts.newGroup }
+    , Ui.headerLink theme isMobile_ (route == MyGroupsRoute) { route = MyGroupsRoute, label = texts.myGroups }
+    , Ui.headerLink theme isMobile_ (route == MyProfileRoute) { route = MyProfileRoute, label = texts.profile }
     ]
 
 
