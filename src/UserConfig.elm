@@ -796,6 +796,264 @@ frenchTexts =
     }
 
 
+spanishTexts : Texts
+spanishTexts =
+    { addEvent = "Añadir un evento"
+    , addressTooLong = \length maxLength -> "La dirección es de " ++ String.fromInt length ++ " caracteres. Manténgase por debajo de " ++ String.fromInt maxLength ++ "."
+    , addressTooShort = \length minLength -> "La dirección es de " ++ String.fromInt length ++ " caracteres. Debe contener al menos " ++ String.fromInt minLength ++ "."
+    , aLoginEmailHasBeenSentTo = "Se ha enviado un correo electrónico de inicio de sesión a "
+    , anAccountDeletionEmailHasBeenSentTo = "Se ha enviado un correo electrónico de eliminación de cuenta a "
+    , andNanonymousNattendees =
+        \attendeeCount ->
+            if attendeeCount == 1 then
+                "y un participante anónimo"
+
+            else
+                "y " ++ String.fromInt attendeeCount ++ " participantes anónimos"
+    , andOneNanonymousNattendee = "Y un\nparticipante\nanónimo"
+    , aPlaceToJoinGroupsOfPeopleWithSharedInterests = "Un lugar para unirse a grupos de personas con intereses compartidos"
+    , beginsIn = "Comienza en "
+    , belowNCharactersPlease = \n -> "Por debajo de " ++ String.fromInt n ++ " caracteres, por favor"
+    , buttonOnAGroupPage = "Todavía no está suscrito a un grupo. Puede hacerlo presionando el \""
+    , byContinuingYouAgreeToThe = "Al continuar, acepta los "
+    , cancel = "Cancelar"
+    , cancelChanges = "Cancelar cambios"
+    , cancelEvent = "Cancelar evento"
+    , checkYourSpamFolderIfYouDonTSeeIt = "Revise su carpeta de spam si no lo ve."
+    , chooseWhatTypeOfEventThisIs = "Elija qué tipo de evento es"
+    , codeOfConduct = "Código de conducta"
+    , codeOfConduct1 = "Aquí hay algunos consejos para respetar la regla \"no seas un imbécil\":"
+    , codeOfConduct2 = "• Respete a las personas independientemente de su raza, sexo, identidad sexual, nacionalidad, apariencia o cualquier otra característica relacionada."
+    , codeOfConduct3 = "• Sea respetuoso con los organizadores de grupos. Invierten su tiempo en coordinar un evento y están dispuestos a invitar a personas que no conocen. ¡No les traiciones su confianza!"
+    , codeOfConduct4 = "• Para los organizadores de grupos: asegúrese de que la gente se sienta incluida. Es difícil para la gente participar si se sienten como extraños."
+    , codeOfConduct5 = "• Si alguien es un imbécil, eso no es una excusa para ser un imbécil a su vez. Pídeles que paren y, si no funciona, evítalos y explica el problema aquí "
+    , copyPreviousEvent = "Copiar evento anterior"
+    , createEvent = "Crear evento"
+    , createGroup = "Crear grupo"
+    , creatingOne = "crear uno"
+    , creditGoesTo = ". Créditos a "
+    , dateValueMissing = "Falta la fecha"
+    , daysUntilEvent = \days -> "Días hasta el evento: " ++ String.fromInt days
+    , deleteAccount = "Eliminar cuenta"
+    , deleteGroup = "Eliminar grupo"
+    , describeWhatYourGroupIsAboutYouCanFillOutThisLater = "Describa qué es su grupo (puede completar esto más tarde)."
+    , description = "Descripción"
+    , descriptionTooLong = \descriptionLength maxLength -> "La descripción es de " ++ String.fromInt descriptionLength ++ " caracteres. Manténgase por debajo de " ++ String.fromInt maxLength ++ "."
+    , dontBeAJerk = "no seas un imbécil"
+    , edit = "Editar"
+    , editEvent = "Editar evento"
+    , ended = "Terminado "
+    , endsIn = "Termina en "
+    , enterYourEmailAddress = "Introduzca su dirección de correo electrónico"
+    , enterYourEmailFirst = "Introduzca su correo electrónico primero"
+    , eventCantBeMoreThan = "El evento no puede durar más de "
+    , eventCanTStartInThePast = "El evento no puede comenzar en el pasado"
+    , eventDescriptionOptional = "Descripción del evento (opcional)"
+    , eventDurationText =
+        \isPastEvent durationText eventTypeText ->
+            if isPastEvent then
+                "• Fue un " ++ eventTypeText ++ " de " ++ durationText ++ "."
+
+            else
+                "• Es un " ++ eventTypeText ++ " de " ++ durationText ++ "."
+    , eventName = "Nombre del evento"
+    , eventOverlapsOtherEvents = "El evento se superpone a otros eventos"
+    , eventOverlapsWithAnotherEvent = "El evento se superpone con otro evento"
+    , eventsCanTStartInThePast = "Los eventos no pueden comenzar en el pasado"
+    , failedToJoinEventThereArenTAnySpotsLeft = "No se pudo unir al evento, no hay más lugares."
+    , failedToJoinThisEventDoesnTExistTryRefreshingThePage = "No se pudo unir, este evento no existe (¿intenta actualizar la página?)"
+    , failedToLeaveEvent = "No se pudo dejar el evento"
+    , faq = "Preguntas frecuentes"
+    , faq1 = "No me gusta que meetup.com sea de pago, me envíe correos electrónicos de spam y sea demasiado pesado. También quise intentar hacer algo más sustancial usando "
+    , faq2 = " para ver si es factible usarlo en el trabajo."
+    , faq3 = "Gasto mi propio dinero para alojarlo. Está bien porque está diseñado para ser muy barato de mantener. En el improbable caso de que Meetdown se vuelva muy popular y los costos de alojamiento se vuelvan demasiado altos, pediré donaciones."
+    , faqQuestion1 = "¿Quién está detrás de todo esto?"
+    , faqQuestion2 = "¿Por qué crear este sitio web?"
+    , faqQuestion3 = "Si este sitio web es gratuito y no vende sus datos, ¿cómo se financia?"
+    , forHelpingMeOutWithPartsOfTheApp = " para ayudarme con algunas partes de la aplicación."
+    , frequentQuestions = "Preguntas frecuentes"
+    , futureEvents = "Eventos futuros"
+    , goToHomepage = "Ir a la página de inicio"
+    , group1 = "\" botón en una página de grupo."
+    , groupDescription = "Descripción del grupo"
+    , groupName = "Nombre del grupo"
+    , groupNotFound = "Grupo no encontrado"
+    , hideU_00A0Attendees = "(Ocultar\u{00A0}asistentes)"
+    , hoursLong = " horas."
+    , howManyHoursLongIsIt = "¿Cuántas horas dura?"
+    , howManyPeopleCanJoinLeaveThisEmptyIfThereSNoLimit = "¿Cuántas personas pueden unirse? (Deje esto vacío si no hay límite)"
+    , ifYouDontSeeTheEmailCheckYourSpamFolder = "Si no lo ves, revisa tu carpeta de spam."
+    , imageEditor = "Editor de imágenes"
+    , info = "Info"
+    , inPersonEvent = "evento en persona 🤝"
+    , invalidDateFormatExpectedSomethingLike_2020_01_31 = "Formato de fecha no válido. Se esperaba algo como 2020-01-31"
+    , invalidEmailAddress = "Dirección de correo electrónico no válida"
+    , invalidInput = "Entrada no válida. Escriba algo como 1 o 2.5"
+    , invalidTimeFormatExpectedSomethingLike_22_59 = "Formato de hora no válido. Se esperaba algo como 22:59"
+    , invalidUrlLong = "URL no válida. Escriba algo como https://my-hangouts.com o déjelo en blanco"
+    , invalidValueChooseAnIntegerLike5Or30OrLeaveItBlank = "Valor no válido. Elija un entero como 5 o 30, o déjelo en blanco."
+    , isItI = "Es mí, "
+    , itsTakingPlaceAt =
+        \isPastEvent ->
+            if isPastEvent then
+                "• Estaba en "
+
+            else
+                "• Está en "
+    , iWantThisGroupToBePubliclyVisible = "Quiero que este grupo sea visible públicamente"
+    , iWantThisGroupToBeUnlistedPeopleCanOnlyFindItIfYouLinkItToThem = "Quiero que este grupo sea no listado (las personas solo pueden encontrarlo si se lo enlazas)"
+    , joinEvent = "Unirse al evento"
+    , just_1AnonymousAttendee = "• Solo 1 asistente anónimo"
+    , justNanonymousNattendees =
+        \attendeeCount ->
+            if attendeeCount == 1 then
+                "Un asistente anónimo"
+
+            else
+                String.fromInt attendeeCount ++ " asistentes anónimos"
+    , keepItBelowNCharacters = \n -> "Manténgalo por debajo de " ++ String.fromInt n ++ " caracteres"
+    , leaveEvent = "Dejar el evento"
+    , linkThatWillBeShownWhenTheEventStartsOptional = "Enlace que se mostrará cuando comience el evento (opcional)"
+    , loading = "Cargando"
+    , login = "Registrarse / Iniciar sesión"
+    , logout = "Cerrar sesión"
+    , makeGroupPublic = "Hacer público el grupo"
+    , makeGroupUnlisted = "Hacer no listado el grupo"
+    , meetingAddressOptional = "Dirección de reunión (opcional)"
+    , moderationHelpRequest = "Solicitud de ayuda para la moderación"
+    , myGroups = "Mis grupos"
+    , nameMustBeAtLeast = \minLength -> "El nombre debe tener al menos " ++ String.fromInt minLength ++ " caracteres."
+    , nameMustBeAtMost = \maxLength -> "El nombre debe tener como máximo " ++ String.fromInt maxLength ++ " caracteres."
+    , newEvent = "Nuevo evento"
+    , newGroup = "Nuevo grupo"
+    , nextEventIsIn = "El próximo evento es en "
+    , noGroupsYet = "Todavía no tienes grupos. Comienza por "
+    , noNewEventsHaveBeenPlannedYet = "Aún no se han planificado nuevos eventos."
+    , noOneAttended = "• Nadie asistió 💔"
+    , noOnePlansOnAttending = "• Nadie planea asistir"
+    , notifyMeOfNewEvents = "Notificarme de nuevos eventos"
+    , numberOfHours =
+        \nbHours ->
+            if nbHours == "1" then
+                "1 hora"
+
+            else
+                nbHours ++ " horas"
+    , numberOfMinutes =
+        \nbMinutes ->
+            if nbMinutes == "1" then
+                "1 minuto"
+
+            else
+                nbMinutes ++ " minutos"
+    , onePersonAttended = "• Una persona asistió"
+    , onePersonAttendedItWasYou = "• Una persona asistió (fue usted)"
+    , onePersonIsAttending = "• Una persona asistirá"
+    , onePersonIsAttendingItSYou = "• Una persona asistirá (es usted)"
+    , onePersonPlansOnAttending = "• Una persona planea asistir"
+    , onePersonPlansOnAttendingItSYou = "• Una persona planea asistir (es usted)"
+    , ongoingEvent = "Evento en curso"
+    , onlineAndInPersonEvent = "evento en línea y en persona 🤝💻"
+    , onlineEvent = "evento en línea 💻"
+    , oopsSomethingWentWrongRenderingThisPage = "¡Vaya! Algo salió mal al renderizar esta página."
+    , or = " o "
+    , organizer = "Organizador"
+    , pastEvents = "Eventos pasados"
+    , peopleAreAttending =
+        \attendeeCount isAttending ->
+            if attendeeCount == 1 then
+                if isAttending then
+                    "• Usted es el único participante"
+
+                else
+                    "• Una persona participa"
+
+            else if isAttending then
+                "• Usted y " ++ String.fromInt (attendeeCount - 1) ++ " otras personas participan"
+
+            else
+                "• " ++ String.fromInt attendeeCount ++ " personas participan"
+    , peopleAttended =
+        \attendeeCount isAttending ->
+            if attendeeCount == 1 then
+                if isAttending then
+                    "• Usted ha sido el único participante"
+
+                else
+                    "• Una persona ha participado"
+
+            else if isAttending then
+                "• Usted y " ++ String.fromInt (attendeeCount - 1) ++ " otras personas han participado"
+
+            else
+                "• " ++ String.fromInt attendeeCount ++ " personas han participado"
+    , pickAVisibilitySetting = "Elija una configuración de visibilidad"
+    , pressTheLinkInItToConfirmDeletingYourAccount = "Presione el enlace para confirmar la eliminación de su cuenta."
+    , privacy = "Privacidad"
+    , privacyMarkdown = privacyMarkdownSpanish
+    , privacyNotice = "Aviso de privacidad"
+    , profile = "Perfil"
+    , readMore = "Leer más"
+    , recancelEvent = "Reanular el evento"
+    , reset = "Reiniciar"
+    , save = "Guardar"
+    , saveChanges = "Guardar cambios"
+    , saving = "Guardando..."
+    , search = "Buscar"
+    , searchForGroups = "Buscar grupos"
+    , searchingForOne = "suscribirse a un grupo."
+    , searchResultsFor = "Resultados de búsqueda para "
+    , showAll = "Mostrar todo"
+    , showFirst = "Mostrar primero"
+    , showU_00A0Attendees = "(Mostrar\u{00A0}asistentes)"
+    , signInAndWeLlGetYouSignedUpForThatEvent = "Inicie sesión y nos suscribiremos a ese evento"
+    , signInAndWeLlGetYouSignedUpForThe = \eventName -> "Inicie sesión y nos suscribiremos al evento \"" ++ eventName ++ "\""
+    , sinceThisIsYourFirstGroupWeRecommendYouReadThe = "Como es su primer grupo, le recomendamos que lea el "
+    , sorryThatGroupNameIsAlreadyBeingUsed = "Lo sentimos, ese nombre de grupo ya está en uso."
+    , stopNotifyingMeOfNewEvents = "Dejar de notificarme de nuevos eventos"
+    , submit = "Enviar"
+    , subscribedGroups = "Grupos a los que me he suscrito"
+    , terms = "términos"
+    , theEventCanTStartInThePast = "El evento no puede comenzar en el pasado"
+    , theEventIsTakingPlaceNowAt = "• El evento está teniendo lugar ahora en "
+    , theEventWillTakePlaceAt = "• El evento tendrá lugar en "
+    , theLinkYouUsedIsEitherInvalidOrHasExpired = "El enlace que usó no es válido o ha caducado."
+    , theMostImportantRuleIs = "La regla más importante es"
+    , theStartTimeCanTBeChangedSinceTheEventHasAlreadyStarted = "La hora de inicio no se puede cambiar porque el evento ya ha comenzado."
+    , thisEventDoesnTExist = "Este evento no existe."
+    , thisEventSomehowDoesnTExistTryRefreshingThePage = "Este evento no existe (¿intente actualizar la página?)"
+    , thisEventWasCancelled = "Este evento fue cancelado "
+    , thisEventWillBeInPerson = "Este evento será en persona"
+    , thisEventWillBeOnline = "Este evento será en línea"
+    , thisEventWillBeOnlineAndInPerson = "Este evento será en línea y en persona"
+    , thisGroupHasTooManyEvents = "Este grupo tiene demasiados eventos"
+    , thisGroupWasCreatedOn = "Este grupo fue creado el "
+    , timeDiffToString = diffToStringSpanish
+    , timeValueMissing = "Falta el tiempo"
+    , title = "Evento"
+    , tos = "Términos de uso"
+    , tosMarkdown = tosMarkdownSpanish
+    , twoPeopleOnAVideoConference = "Dos personas en una videoconferencia"
+    , uncancelEvent = "Deshacer la cancelación del evento"
+    , uploadImage = "Subir una imagen"
+    , userNotFound = "Usuario no encontrado"
+    , valueMustBeGreaterThan0 = "El valor debe ser mayor que 0."
+    , weDontSellYourDataWeDontShowAdsAndItsFree = "No vendemos tus datos, no mostramos anuncios y es gratis."
+    , welcomePage = "¡Bienvenido al evento!"
+    , whatDoYouWantPeopleToKnowAboutYou = "¿Qué quieres que la gente sepa de ti?"
+    , whatSTheNameOfYourGroup = "¿Cuál es el nombre de tu grupo?"
+    , whenDoesItStart = "¿Cuándo comienza?"
+    , youCanDoThatHere = "Puedes hacerlo aquí."
+    , youCanTEditEventsThatHaveAlreadyHappened = "No puedes editar eventos que ya han ocurrido"
+    , youCanTEditTheStartTimeOfAnEventThatIsOngoing = "No puedes editar la hora de inicio de un evento que está en curso"
+    , youHavenTCreatedAnyGroupsYet = "Aún no has creado grupos. "
+    , youNeedToAllowAtLeast2PeopleToJoinTheEvent = "Necesitas permitir que al menos 2 personas se unan al evento."
+    , yourEmailAddress = "Tu correo electrónico"
+    , yourName = "Tu nombre"
+    , yourNameCantBeEmpty = "Tu nombre no puede estar vacío"
+    }
+
+
 tosMarkdownEnglish : String -> String -> String
 tosMarkdownEnglish privacyRoute codeOfConductRoute =
     """
@@ -934,6 +1192,74 @@ Nous pouvons fermer votre compte immédiatement si nous pensons que vous avez :
 - Enfreint la loi ou tenté de l'enfreindre
 - Fourni des informations fausses à tout moment
 - Été abusif envers quiconque chez Meetdown ou un membre de notre communauté
+
+"""
+
+
+tosMarkdownSpanish : String -> String -> String
+tosMarkdownSpanish privacyRoute codeOfConductRoute =
+    """
+
+#### Version 1.0 – Junio 2021
+
+### 🤔 Qué es Meetdown
+
+Estos términos legales son entre usted y meetdown.app (« nosotros », « nuestro », « Meetdown », el software) y acepta estos términos al usar el servicio Meetdown.
+
+Debería leer este documento al mismo tiempo que nuestra [Política de privacidad](""" ++ privacyRoute ++ """).
+
+### 💬 Cómo contactarnos
+
+Por favor contáctenos por correo electrónico a [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """)
+
+Nos pondremos en contacto con usted en inglés 🇬🇧 y en Emoji 😃.
+
+
+### 🤝🏽 Garantías y expectativas
+
+Meetdown no hace ninguna garantía.
+
+El [código fuente de Meetdown](https://github.com/MartinSStewart/meetdown) es de código abierto, por lo que los usuarios técnicos pueden hacer su propia evaluación del riesgo.
+
+El software se proporciona "tal cual", sin ninguna garantía, expresa o implícita, incluidas, entre otras, las garantías de calidad comercial, adecuación para un uso particular y ausencia de infracción.
+
+Esperamos que todos los usuarios se comporten de acuerdo con el [Código de conducta](""" ++ codeOfConductRoute ++ """).
+
+### 💵 Costo
+
+Meetdown es un producto gratuito.
+
+
+### 😔 Cómo hacer una reclamación
+
+Si tiene una reclamación, comuníquese con nosotros y haremos todo lo posible para resolver el problema.
+
+Consulte "Cómo contactarnos" arriba.
+
+
+### 📝 Modificaciones a este acuerdo
+
+Este acuerdo siempre estará disponible en meetdown.app.
+
+Si hacemos modificaciones, le informaremos una vez que las hayamos realizado.
+
+Si no está de acuerdo con estos cambios, puede cerrar su cuenta presionando el botón "Eliminar cuenta" en su página de perfil.
+
+Destruiremos todos los datos de su cuenta, excepto si debemos conservarlos por una razón expuesta en nuestra [Política de privacidad](""" ++ privacyRoute ++ """).
+
+### 😭 Cerrar su cuenta
+
+Para cerrar su cuenta, puede presionar el botón "Eliminar cuenta" en su página de perfil.
+
+Podemos cerrar su cuenta al darle al menos una semana de antelación.
+
+Podemos cerrar su cuenta de inmediato si pensamos que ha:
+
+- Violado los términos de este acuerdo
+- Puso nuestra posición en la que podríamos infringir la ley
+- Infringió la ley o intentó infringirla
+- Proporcionó información falsa en cualquier momento
+- Fue abusivo con cualquier persona en Meetdown o miembro de nuestra comunidad
 
 """
 
@@ -1113,6 +1439,90 @@ Nous publierons toute modification que nous apportons à notre avis de confident
 """
 
 
+privacyMarkdownSpanish : String -> String
+privacyMarkdownSpanish termsOfServiceRoute =
+    """
+#### Version 1.0 – Junio 2021
+
+Nos comprometemos a proteger y respetar su privacidad. Si tiene alguna pregunta sobre sus datos personales, póngase en contacto con nosotros por correo electrónico a [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """).
+
+### 👀 Las informaciones que recopilamos sobre usted
+
+#### - Información sobre cookies
+
+Utilizamos una sola cookie de sesión persistente segura httpOnly para reconocer su navegador y mantenerlo conectado.
+
+Otras cookies pueden introducirse en el futuro, y si es así, nuestra política de privacidad se actualizará en ese momento.
+
+
+#### - Información proporcionada a través de nuestro servicio o nuestro sitio web
+
+- Por ejemplo, cuando se registra en el servicio y proporciona detalles como su nombre y dirección de correo electrónico
+
+Puede ocurrir que nos proporcione información «sensible», que incluye cosas como su raza, sus opiniones políticas, sus creencias religiosas, sus detalles de afiliación sindical o sus datos biométricos. No utilizaremos esta información de acuerdo con la ley.
+
+
+### 🔍 Cómo usamos su información
+
+Para proporcionar nuestros servicios, los utilizamos para:
+
+- Ayudarnos a administrar su cuenta
+
+- Enviarle recordatorios de eventos a los que asistió
+
+Para cumplir con nuestras obligaciones legales, los utilizamos para:
+
+- Prevenir actividades ilegales como la piratería y el fraude
+
+Con su permiso, los utilizamos para:
+
+- Promocionar y comunicar nuestros productos y servicios donde pensamos que le interesará por correo electrónico. Si lo desea, siempre puede darse de baja de la recepción de estos correos electrónicos.
+
+
+### 🤝 Quién compartimos su información
+
+Podemos compartir su información personal con:
+
+- Cualquier persona que trabaje para nosotros cuando necesite hacer su trabajo.
+- Cualquier persona a la que nos haya dado su autorización explícita para compartir su información.
+
+También compartiremos su información para cumplir con la ley; para hacer cumplir nuestros [Términos de servicio](""" ++ termsOfServiceRoute ++ """) o otros acuerdos; o para proteger los derechos, la propiedad o la seguridad de nosotros, de nuestros usuarios o de otros.
+
+### 📁 Cuánto tiempo conservamos su información
+
+Conservamos sus datos mientras utilice Meetdown, y durante 1 año después de eso para cumplir con la ley. En algunos casos, como casos de fraude, podemos conservar los datos más tiempo si es necesario y / o la ley nos obliga a hacerlo.
+
+### ✅ Sus derechos
+
+Tiene derecho a:
+
+- Acceder a los datos personales que tenemos sobre usted, o a obtener una copia de ellos.
+- Solicitar que corrijamos datos incorrectos.
+- Solicitar que eliminemos, bloqueemos o elimine sus datos, aunque por razones legales, a veces no podemos hacerlo.
+- Oponerse al uso de sus datos para fines de marketing directo y en ciertas circunstancias, para fines de investigación y estadísticas.
+- Retirar su consentimiento que anteriormente le dimos.
+
+Para hacerlo, comuníquese con nosotros por correo electrónico a [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """).
+
+### 🔒 Dónde almacenamos o enviamos sus datos
+
+Podemos transferir y almacenar los datos que recopilamos sobre usted en algún lugar fuera de la Unión Europea («UE»). Las personas que trabajan para nosotros o nuestros proveedores fuera de la UE también pueden tratar sus datos.
+
+Podemos compartir datos con organizaciones y países que:
+
+- La Comisión Europea dice que tienen una protección de datos adecuada, o
+- Hemos concluido cláusulas de protección de datos estándar con.
+
+### 😔 Cómo hacer una queja
+
+Si tiene una queja, comuníquese con nosotros por correo electrónico a [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """) y haremos todo lo posible para resolver el problema.
+
+### 📝 Cambios en esta política
+
+Publicaremos cualquier cambio que hagamos a nuestra política de privacidad en esta página y, si son cambios importantes, se lo haremos saber por correo electrónico.
+"""
+
+
 diffToStringEnglish : Time.Posix -> Time.Posix -> String
 diffToStringEnglish start end =
     let
@@ -1233,3 +1643,64 @@ diffToStringFrench start end =
 
     else
         "maintenant"
+
+
+diffToStringSpanish : Time.Posix -> Time.Posix -> String
+diffToStringSpanish start end =
+    let
+        difference : Duration
+        difference =
+            Duration.from start end |> Quantity.abs
+
+        months =
+            Duration.inDays difference / 30 |> floor
+
+        weeks =
+            Duration.inWeeks difference |> floor
+
+        days =
+            Duration.inDays difference |> round
+
+        hours =
+            Duration.inHours difference |> floor
+
+        minutes =
+            Duration.inMinutes difference |> round
+
+        suffix =
+            if Time.posixToMillis start <= Time.posixToMillis end then
+                ""
+
+            else
+                " ago"
+    in
+    if months >= 2 then
+        String.fromInt months ++ "\u{00A0}meses" ++ suffix
+
+    else if weeks >= 2 then
+        String.fromInt weeks ++ "\u{00A0}semanas" ++ suffix
+
+    else if days > 1 then
+        String.fromInt days ++ "\u{00A0}días" ++ suffix
+
+    else if hours > 22 then
+        if Time.posixToMillis start <= Time.posixToMillis end then
+            "1\u{00A0}día"
+
+        else
+            "ayer"
+
+    else if hours > 6 then
+        String.fromInt hours ++ "\u{00A0}horas" ++ suffix
+
+    else if Duration.inHours difference >= 1.2 then
+        removeTrailing0s 1 (Duration.inHours difference) ++ "\u{00A0}horas" ++ suffix
+
+    else if minutes > 1 then
+        String.fromInt minutes ++ "\u{00A0}minutos" ++ suffix
+
+    else if minutes == 1 then
+        "1\u{00A0}minuto" ++ suffix
+
+    else
+        "ahora"

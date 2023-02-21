@@ -34,17 +34,17 @@ exports.init = async function (app) {
     window.localStorage.setItem("prefersDarkTheme", JSON.stringify(data));
   });
 
-  app.ports.set_prefers_french_language_to_js.subscribe(function (data) {
-    window.localStorage.setItem("prefersFrenchLanguage", JSON.stringify(data));
+  app.ports.set_language_to_js.subscribe(function (data) {
+    window.localStorage.setItem("language", JSON.stringify(data));
   });
 
-  app.ports.get_prefers_french_language_to_js.subscribe(function (data) {
-    let localStorageValue = window.localStorage.getItem("prefersFrenchLanguage");
+  app.ports.get_language_to_js.subscribe(function (data) {
+    let localStorageValue = window.localStorage.getItem("language");
     if (localStorageValue !== null) {
-      app.ports.got_prefers_french_language_from_js.send(JSON.parse(localStorageValue));
+      app.ports.got_language_from_js.send(JSON.parse(localStorageValue));
     }
     else {
-      app.ports.got_prefers_french_language_from_js.send(false);
+      app.ports.got_language_from_js.send("en");
     }
   });
 }

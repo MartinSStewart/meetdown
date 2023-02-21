@@ -1,4 +1,4 @@
-port module Ports exposing (CropImageData, CropImageDataResponse, cropImageDataCodec, cropImageDataResponseCodec, cropImageFromJs, cropImageFromJsName, cropImageToJs, cropImageToJsName, getPrefersDarkTheme, getPrefersFrenchLanguage, gotPrefersDarkTheme, gotPrefersFrenchLanguage, setPrefersDarkTheme, setPrefersFrenchLanguage)
+port module Ports exposing (CropImageData, CropImageDataResponse, cropImageDataCodec, cropImageDataResponseCodec, cropImageFromJs, cropImageFromJsName, cropImageToJs, cropImageToJsName, getLanguage, getPrefersDarkTheme, gotLanguage, gotPrefersDarkTheme, setLanguage, setPrefersDarkTheme)
 
 import Codec exposing (Codec)
 import Effect.Command as Command exposing (Command, FrontendOnly)
@@ -94,13 +94,13 @@ port set_prefers_dark_theme_to_js : Json.Encode.Value -> Cmd msg
 port got_prefers_dark_theme_from_js : (Json.Decode.Value -> msg) -> Sub msg
 
 
-port get_prefers_french_language_to_js : Json.Encode.Value -> Cmd msg
+port get_language_to_js : Json.Encode.Value -> Cmd msg
 
 
-port set_prefers_french_language_to_js : Json.Encode.Value -> Cmd msg
+port set_language_to_js : Json.Encode.Value -> Cmd msg
 
 
-port got_prefers_french_language_from_js : (Json.Decode.Value -> msg) -> Sub msg
+port got_language_from_js : (Json.Decode.Value -> msg) -> Sub msg
 
 
 getPrefersDarkTheme : Command FrontendOnly toMsg msg
@@ -127,25 +127,25 @@ gotPrefersDarkTheme msg =
         (Json.Decode.decodeValue Json.Decode.bool >> Result.withDefault False >> msg)
 
 
-getPrefersFrenchLanguage : Command FrontendOnly toMsg msg
-getPrefersFrenchLanguage =
+getLanguage : Command FrontendOnly toMsg msg
+getLanguage =
     Command.sendToJs
-        "get_prefers_french_language_to_js"
-        get_prefers_french_language_to_js
+        "get_language_to_js"
+        get_language_to_js
         Json.Encode.null
 
 
-setPrefersFrenchLanguage : Bool -> Command FrontendOnly toMsg msg
-setPrefersFrenchLanguage prefersFrenchLanguage =
+setLanguage : String -> Command FrontendOnly toMsg msg
+setLanguage language =
     Command.sendToJs
-        "set_prefers_french_language_to_js"
-        set_prefers_french_language_to_js
-        (Json.Encode.bool prefersFrenchLanguage)
+        "set_language_to_js"
+        set_language_to_js
+        (Json.Encode.string language)
 
 
-gotPrefersFrenchLanguage : (Bool -> msg) -> Subscription FrontendOnly msg
-gotPrefersFrenchLanguage msg =
+gotLanguage : (String -> msg) -> Subscription FrontendOnly msg
+gotLanguage msg =
     Subscription.fromJs
-        "got_prefers_french_language_from_js"
-        got_prefers_french_language_from_js
-        (Json.Decode.decodeValue Json.Decode.bool >> Result.withDefault False >> msg)
+        "got_language_from_js"
+        got_language_from_js
+        (Json.Decode.decodeValue Json.Decode.string >> Result.withDefault "en" >> msg)

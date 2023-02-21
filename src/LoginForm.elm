@@ -7,7 +7,6 @@ import Effect.Command as Command exposing (Command, FrontendOnly)
 import Effect.Lamdera as Lamdera
 import Element exposing (Element)
 import Element.Background
-import Element.Font
 import Element.Input
 import EmailAddress exposing (EmailAddress)
 import Group exposing (EventId, Group)

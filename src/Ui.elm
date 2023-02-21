@@ -1,5 +1,6 @@
 module Ui exposing
-    ( button
+    ( attributeNone
+    , button
     , cardAttributes
     , columnCard
     , contentWidth
@@ -18,6 +19,7 @@ module Ui exposing
     , formError
     , formLabelAbove
     , formLabelAboveEl
+    , greedyOnClick
     , headerButton
     , headerLink
     , horizontalLine
@@ -32,6 +34,7 @@ module Ui exposing
     , multiline
     , numberInput
     , onEnter
+    , overlayEl
     , pageContentAttributes
     , radioGroup
     , routeLink
@@ -760,3 +763,29 @@ htmlInputStyle theme =
     , Html.Attributes.style "background-color" (Colors.toCssString theme.background)
     , Html.Attributes.style "color" (Colors.toCssString theme.defaultText)
     ]
+
+
+attributeNone : Attribute msg
+attributeNone =
+    htmlAttribute <| Html.Attributes.style "none" "none"
+
+
+overlayEl : Element msg -> Element msg
+overlayEl =
+    el
+        [ width fill
+        , height fill
+        , htmlAttribute <| Html.Attributes.style "overflow-y" "auto"
+        , htmlAttribute <| Html.Attributes.style "position" "fixed"
+        , htmlAttribute <| Html.Attributes.style "top" "0"
+        , htmlAttribute <| Html.Attributes.style "right" "0"
+        , htmlAttribute <| Html.Attributes.style "bottom" "0"
+        , htmlAttribute <| Html.Attributes.style "left" "0"
+        ]
+
+
+greedyOnClick : msg -> Attribute msg
+greedyOnClick msg =
+    htmlAttribute <|
+        Html.Events.custom "click" <|
+            Json.Decode.succeed { message = msg, preventDefault = True, stopPropagation = True }

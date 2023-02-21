@@ -71,6 +71,7 @@ type alias LoadedFrontend =
     , windowHeight : Quantity Int Pixels
     , groupPage : Dict (Id GroupId) GroupPage.Model
     , loadedUserConfig : LoadedUserConfig
+    , miniLanguageSelectorOpened : Bool
     }
 
 
@@ -88,6 +89,7 @@ type ColorTheme
 type Language
     = English
     | French
+    | Spanish
 
 
 type GroupRequest
@@ -299,7 +301,8 @@ userToFrontend backendUser =
 
 
 type FrontendMsg
-    = UrlClicked UrlRequest
+    = NoOpFrontendMsg
+    | UrlClicked UrlRequest
     | UrlChanged Url
     | GotTime Time.Posix
     | PressedLogin
@@ -318,9 +321,10 @@ type FrontendMsg
     | PressedEnableAdmin
     | PressedDisableAdmin
     | PressedThemeToggle
-    | PressedLanguageToggle
+    | LanguageSelected Language
     | GotPrefersDarkTheme Bool
-    | GotPrefersFrenchLanguage Bool
+    | GotLanguage String
+    | ToggleLanguageSelect
 
 
 type ToBackend
