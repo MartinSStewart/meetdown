@@ -1,8 +1,12 @@
 module UserConfig exposing (..)
 
 import Colors exposing (fromHex)
+import Duration exposing (Duration)
 import Element exposing (Color)
 import Env
+import Quantity
+import Time
+import TimeExtra exposing (removeTrailing0s)
 
 
 type alias UserConfig =
@@ -165,14 +169,267 @@ type alias Texts =
     , addressTooShort : Int -> Int -> String
     , addressTooLong : Int -> Int -> String
     , invalidUrlLong : String
+    , nameMustBeAtLeast : Int -> String
+    , nameMustBeAtMost : Int -> String
+    , groupName : String
+    , reset : String
+    , save : String
+    , edit : String
+    , stopNotifyingMeOfNewEvents : String
+    , organizer : String
+    , notifyMeOfNewEvents : String
+    , subscribedGroups : String
+    , groupDescription : String
+    , description : String
+    , ongoingEvent : String
+    , futureEvents : String
+    , showFirst : String
+    , showAll : String
+    , addEvent : String
+    , noNewEventsHaveBeenPlannedYet : String
+    , pastEvents : String
+    , info : String
+    , thisGroupWasCreatedOn : String
+    , makeGroupUnlisted : String
+    , makeGroupPublic : String
+    , deleteGroup : String
+    , dateValueMissing : String
+    , timeValueMissing : String
+    , theEventCanTStartInThePast : String
+    , invalidTimeFormatExpectedSomethingLike_22_59 : String
+    , invalidDateFormatExpectedSomethingLike_2020_01_31 : String
+    , noOnePlansOnAttending : String
+    , onePersonIsAttendingItSYou : String
+    , onePersonIsAttending : String
+    , theEventIsTakingPlaceNowAt : String
+    , noOneAttended : String
+    , onePersonAttendedItWasYou : String
+    , onePersonAttended : String
+    , just_1AnonymousAttendee : String
+    , andOneNanonymousNattendee : String
+    , hideU_00A0Attendees : String
+    , showU_00A0Attendees : String
+    , endsIn : String
+    , beginsIn : String
+    , ended : String
+    , onePersonPlansOnAttendingItSYou : String
+    , onePersonPlansOnAttending : String
+    , theEventWillTakePlaceAt : String
+    , thisEventWasCancelled : String
+    , editEvent : String
+    , failedToLeaveEvent : String
+    , failedToJoinThisEventDoesnTExistTryRefreshingThePage : String
+    , failedToJoinEventThereArenTAnySpotsLeft : String
+    , leaveEvent : String
+    , joinEvent : String
+    , eventName : String
+    , eventDescriptionOptional : String
+    , thisEventWillBeOnline : String
+    , thisEventWillBeInPerson : String
+    , thisEventWillBeOnlineAndInPerson : String
+    , linkThatWillBeShownWhenTheEventStartsOptional : String
+    , meetingAddressOptional : String
+    , whenDoesItStart : String
+    , theStartTimeCanTBeChangedSinceTheEventHasAlreadyStarted : String
+    , howManyHoursLongIsIt : String
+    , howManyPeopleCanJoinLeaveThisEmptyIfThereSNoLimit : String
+    , saveChanges : String
+    , cancelChanges : String
+    , eventCanTStartInThePast : String
+    , eventOverlapsOtherEvents : String
+    , youCanTEditEventsThatHaveAlreadyHappened : String
+    , youCanTEditTheStartTimeOfAnEventThatIsOngoing : String
+    , thisEventSomehowDoesnTExistTryRefreshingThePage : String
+    , uncancelEvent : String
+    , recancelEvent : String
+    , cancelEvent : String
+    , newEvent : String
+    , copyPreviousEvent : String
+    , chooseWhatTypeOfEventThisIs : String
+    , createEvent : String
+    , eventsCanTStartInThePast : String
+    , eventOverlapsWithAnotherEvent : String
+    , thisGroupHasTooManyEvents : String
+    , peopleAreAttending : Int -> Bool -> String
+    , peopleAttended : Int -> Bool -> String
+    , timeDiffToString : Time.Posix -> Time.Posix -> String
+    , nextEventIsIn : String
+    , justNanonymousNattendees : Int -> String
+    , andNanonymousNattendees : Int -> String
+    , createGroup : String
+    , whatSTheNameOfYourGroup : String
+    , describeWhatYourGroupIsAboutYouCanFillOutThisLater : String
+    , iWantThisGroupToBeUnlistedPeopleCanOnlyFindItIfYouLinkItToThem : String
+    , iWantThisGroupToBePubliclyVisible : String
+    , pickAVisibilitySetting : String
+    , sinceThisIsYourFirstGroupWeRecommendYouReadThe : String
+    , submit : String
+    , sorryThatGroupNameIsAlreadyBeingUsed : String
+    , loading : String
+    , descriptionTooLong : Int -> Int -> String
     }
 
 
 englishTexts : Texts
 englishTexts =
     { aPlaceToJoinGroupsOfPeopleWithSharedInterests = "A place to join groups of people with shared interests"
+    , descriptionTooLong =
+        \descriptionLength maxLength ->
+            "Description is "
+                ++ String.fromInt descriptionLength
+                ++ " characters long. Keep it under "
+                ++ String.fromInt maxLength
+                ++ "."
+    , loading = "Loading"
+    , sorryThatGroupNameIsAlreadyBeingUsed = "Sorry, that group name is already being used."
+    , whatSTheNameOfYourGroup = "What's the name of your group?"
+    , describeWhatYourGroupIsAboutYouCanFillOutThisLater = "Describe what your group is about (you can fill out this later)"
+    , iWantThisGroupToBeUnlistedPeopleCanOnlyFindItIfYouLinkItToThem = "I want this group to be unlisted (people can only find it if you link it to them)"
+    , iWantThisGroupToBePubliclyVisible = "I want this group to be publicly visible"
+    , pickAVisibilitySetting = "Pick a visibility setting"
+    , sinceThisIsYourFirstGroupWeRecommendYouReadThe = "Since this is your first group, we recommend you read the "
+    , submit = "Submit"
+    , createGroup = "Create group"
+    , justNanonymousNattendees =
+        \attendeeCount ->
+            if attendeeCount == 1 then
+                "• Just one anonymous attendee"
+
+            else
+                "• Just "
+                    ++ String.fromInt attendeeCount
+                    ++ " anonymous attendees"
+    , andNanonymousNattendees =
+        \attendeeCount ->
+            if attendeeCount == 1 then
+                "And one\nanonymous\nattendee"
+
+            else
+                "And "
+                    ++ String.fromInt attendeeCount
+                    ++ "\nanonymous\nattendees"
+    , nextEventIsIn = "Next event is in "
+    , peopleAreAttending =
+        \attendeeCount isAttending ->
+            if attendeeCount == 1 then
+                if isAttending then
+                    "• One person is attending (including you)"
+
+                else
+                    "• One person is attending"
+
+            else
+                "• "
+                    ++ String.fromInt attendeeCount
+                    ++ " people are attending"
+                    ++ (if isAttending then
+                            " (including you)"
+
+                        else
+                            ""
+                       )
+    , peopleAttended =
+        \attendeeCount isAttending ->
+            if attendeeCount == 1 then
+                if isAttending then
+                    "• One person attended (including you)"
+
+                else
+                    "• One person attended"
+
+            else
+                "• "
+                    ++ String.fromInt attendeeCount
+                    ++ " people attended"
+                    ++ (if isAttending then
+                            " (including you)"
+
+                        else
+                            ""
+                       )
+    , noOnePlansOnAttending = "• No one plans on attending"
+    , onePersonIsAttendingItSYou = "• One person is attending (it's you)"
+    , onePersonIsAttending = "• One person is attending"
+    , theEventIsTakingPlaceNowAt = "• The event is taking place now at "
+    , noOneAttended = "• No one attended 💔"
+    , onePersonAttendedItWasYou = "• One person attended (it was you)"
+    , onePersonAttended = "• One person attended"
+    , just_1AnonymousAttendee = "• Just 1 anonymous attendee"
+    , andOneNanonymousNattendee = "And one\nanonymous\nattendee"
+    , hideU_00A0Attendees = "(Hide\u{00A0}attendees)"
+    , showU_00A0Attendees = "(Show\u{00A0}attendees)"
+    , endsIn = "Ends in "
+    , beginsIn = "Begins in "
+    , ended = "Ended "
+    , onePersonPlansOnAttendingItSYou = "• One person plans on attending (it's you)"
+    , onePersonPlansOnAttending = "• One person plans on attending"
+    , theEventWillTakePlaceAt = "• The event will take place at "
+    , thisEventWasCancelled = "This event was cancelled "
+    , editEvent = "Edit event"
+    , failedToLeaveEvent = "Failed to leave event"
+    , failedToJoinThisEventDoesnTExistTryRefreshingThePage = "Failed to join, this event doesn't exist (try refreshing the page?)"
+    , failedToJoinEventThereArenTAnySpotsLeft = "Failed to join event, there aren't any spots left."
+    , leaveEvent = "Leave event"
+    , joinEvent = "Join event"
+    , eventName = "Event name"
+    , eventDescriptionOptional = "Event description (optional)"
+    , thisEventWillBeOnline = "This event will be online"
+    , thisEventWillBeInPerson = "This event will be in person"
+    , thisEventWillBeOnlineAndInPerson = "This event will be online and in person"
+    , linkThatWillBeShownWhenTheEventStartsOptional = "Link that will be shown when the event starts (optional)"
+    , meetingAddressOptional = "Meeting address (optional)"
+    , whenDoesItStart = "When does it start?"
+    , theStartTimeCanTBeChangedSinceTheEventHasAlreadyStarted = "The start time can't be changed since the event has already started."
+    , howManyHoursLongIsIt = "How many hours long is it?"
+    , howManyPeopleCanJoinLeaveThisEmptyIfThereSNoLimit = "How many people can join (leave this empty if there's no limit)"
+    , saveChanges = "Save changes"
+    , cancelChanges = "Cancel changes"
+    , eventCanTStartInThePast = "Event can't start in the past"
+    , eventOverlapsOtherEvents = "Event overlaps other events"
+    , youCanTEditEventsThatHaveAlreadyHappened = "You can't edit events that have already happened"
+    , youCanTEditTheStartTimeOfAnEventThatIsOngoing = "You can't edit the start time of an event that is ongoing"
+    , thisEventSomehowDoesnTExistTryRefreshingThePage = "This event somehow doesn't exist. Try refreshing the page?"
+    , uncancelEvent = "Uncancel event"
+    , recancelEvent = "Recancel event"
+    , cancelEvent = "Cancel event"
+    , newEvent = "New event"
+    , copyPreviousEvent = "Copy previous event"
+    , chooseWhatTypeOfEventThisIs = "Choose what type of event this is"
+    , createEvent = "Create event"
+    , eventsCanTStartInThePast = "Events can't start in the past"
+    , eventOverlapsWithAnotherEvent = "Event overlaps with another event"
+    , thisGroupHasTooManyEvents = "This group has too many events"
     , checkYourSpamFolderIfYouDonTSeeIt = "Check your spam folder if you don't see it."
+    , nameMustBeAtLeast = \number -> "Name must be at least " ++ String.fromInt number ++ " characters long."
+    , groupName = "Group name"
+    , description = "Description"
+    , ongoingEvent = "Ongoing event"
+    , futureEvents = "Future events"
+    , dateValueMissing = "Date value missing"
+    , timeValueMissing = "Time value missing"
+    , theEventCanTStartInThePast = "The event can't start in the past"
+    , invalidTimeFormatExpectedSomethingLike_22_59 = "Invalid time format. Expected something like 22:59"
+    , invalidDateFormatExpectedSomethingLike_2020_01_31 = "Invalid date format. Expected something like 2020-01-31"
+    , showFirst = "Show first"
+    , showAll = "Show all"
+    , addEvent = "Add event"
+    , noNewEventsHaveBeenPlannedYet = "No new events have been planned yet."
+    , pastEvents = "Past events"
+    , info = "Info"
+    , thisGroupWasCreatedOn = "This group was created on "
+    , makeGroupUnlisted = "Make group unlisted"
+    , makeGroupPublic = "Make group public"
+    , deleteGroup = "Delete group"
+    , notifyMeOfNewEvents = "Notify me of new events"
+    , groupDescription = "Group description"
+    , subscribedGroups = "Subscribed groups"
+    , edit = "Edit"
+    , organizer = "Organizer"
+    , nameMustBeAtMost = \number -> "Name is too long. Keep it under " ++ String.fromInt number ++ " characters."
     , signInAndWeLlGetYouSignedUpForThatEvent = "Sign in and we'll get you signed up for that event"
+    , stopNotifyingMeOfNewEvents = "Stop notifying me of new events"
+    , reset = "Reset"
+    , save = "Save"
     , ifYouDontSeeTheEmailCheckYourSpamFolder = "If you don't see the email, check your spam folder."
     , addressTooShort = \length minLength -> "Address is " ++ String.fromInt length ++ " characters long. It needs to be at least " ++ String.fromInt minLength ++ "."
     , invalidUrlLong = "Invalid url. Enter something like https://my-hangouts.com or leave it blank"
@@ -287,21 +544,164 @@ englishTexts =
     , youCanDoThatHere = "You can do that here."
     , youHavenTCreatedAnyGroupsYet = "You haven't created any groups yet. "
     , youNeedToAllowAtLeast2PeopleToJoinTheEvent = "You need to allow at least 2 people to join the event."
+    , timeDiffToString = diffToStringEnglish
     }
 
 
 frenchTexts : Texts
 frenchTexts =
     { aPlaceToJoinGroupsOfPeopleWithSharedInterests = "Un endroit pour rejoindre des groupes de personnes partageant des centres d'intérêt"
+    , descriptionTooLong =
+        \descriptionLength maxLength ->
+            "La description est de "
+                ++ String.fromInt descriptionLength
+                ++ " caractères. Limitez-la à "
+                ++ String.fromInt maxLength
+                ++ "."
+    , sorryThatGroupNameIsAlreadyBeingUsed = "Désolé, ce nom de groupe est déjà utilisé."
+    , whatSTheNameOfYourGroup = "Quel est le nom de votre groupe?"
+    , describeWhatYourGroupIsAboutYouCanFillOutThisLater = "Décrivez la nature de votre groupe (vous pouvez remplir cette partie plus tard)."
+    , iWantThisGroupToBeUnlistedPeopleCanOnlyFindItIfYouLinkItToThem = "Je veux que ce groupe soit non listé (les gens ne peuvent le trouver que si vous leur en donnez le lien)"
+    , iWantThisGroupToBePubliclyVisible = "Je veux que ce groupe soit visible publiquement"
+    , loading = "Chargement"
+    , pickAVisibilitySetting = "Choisissez un paramètre de visibilité"
+    , sinceThisIsYourFirstGroupWeRecommendYouReadThe = "Comme c'est votre premier groupe, nous vous recommandons de lire les "
+    , submit = "Soumettre"
+    , createGroup = "Créer un groupe"
+    , andNanonymousNattendees =
+        \attendeeCount ->
+            if attendeeCount == 1 then
+                "et un participant anonyme"
+
+            else
+                "et " ++ String.fromInt attendeeCount ++ " participants anonymes"
+    , justNanonymousNattendees =
+        \attendeeCount ->
+            if attendeeCount == 1 then
+                "Un participant anonyme"
+
+            else
+                String.fromInt attendeeCount ++ " participants anonymes"
+    , nextEventIsIn = "Le prochain événement est dans "
+    , timeDiffToString = diffToStringFrench
+    , peopleAreAttending =
+        \attendeeCount isAttending ->
+            if attendeeCount == 1 then
+                if isAttending then
+                    "• Vous êtes le seul participant"
+
+                else
+                    "• Une personne participe"
+
+            else if isAttending then
+                "• Vous et " ++ String.fromInt (attendeeCount - 1) ++ " autres personnes participez"
+
+            else
+                "• " ++ String.fromInt attendeeCount ++ " personnes participent"
+    , peopleAttended =
+        \attendeeCount isAttending ->
+            if attendeeCount == 1 then
+                if isAttending then
+                    "• Vous avez été le seul participant"
+
+                else
+                    "• Une personne a participé"
+
+            else if isAttending then
+                "• Vous et " ++ String.fromInt (attendeeCount - 1) ++ " autres personnes avez participé"
+
+            else
+                "• " ++ String.fromInt attendeeCount ++ " personnes ont participé"
+    , noOnePlansOnAttending = "• Personne ne compte y assister"
+    , onePersonIsAttendingItSYou = "• Une personne y assistera (c'est vous)"
+    , onePersonIsAttending = "• Une personne y assistera"
+    , theEventIsTakingPlaceNowAt = "• L'événement a lieu maintenant à "
+    , noOneAttended = "• Personne n'y est allé 💔"
+    , onePersonAttendedItWasYou = "• Une personne y est allé (c'était vous)"
+    , onePersonAttended = "• Une personne y est allé"
+    , just_1AnonymousAttendee = "• Juste 1 participant anonyme"
+    , andOneNanonymousNattendee = "Et un\nparticipant\nanonyme"
+    , hideU_00A0Attendees = "(Cacher\u{00A0}les participants)"
+    , showU_00A0Attendees = "(Afficher\u{00A0}les participants)"
+    , endsIn = "Se termine dans "
+    , beginsIn = "Commence dans "
+    , ended = "Terminé "
+    , onePersonPlansOnAttendingItSYou = "• Une personne compte y assister (c'est vous)"
+    , onePersonPlansOnAttending = "• Une personne compte y assister"
+    , theEventWillTakePlaceAt = "• L'événement aura lieu à "
+    , thisEventWasCancelled = "Cet événement a été annulé "
+    , editEvent = "Modifier l'événement"
+    , failedToLeaveEvent = "Impossible de quitter l'événement"
+    , failedToJoinThisEventDoesnTExistTryRefreshingThePage = "Impossible de rejoindre, cet événement n'existe pas (essayez de rafraîchir la page ?)"
+    , failedToJoinEventThereArenTAnySpotsLeft = "Impossible de rejoindre l'événement, il n'y a plus de place."
+    , leaveEvent = "Quitter l'événement"
+    , joinEvent = "Rejoindre l'événement"
+    , eventName = "Nom de l'événement"
+    , eventDescriptionOptional = "Description de l'événement (optionnel)"
+    , thisEventWillBeOnline = "Cet événement sera en ligne"
+    , thisEventWillBeInPerson = "Cet événement sera en personne"
+    , thisEventWillBeOnlineAndInPerson = "Cet événement sera en ligne et en personne"
+    , linkThatWillBeShownWhenTheEventStartsOptional = "Lien qui sera affiché lorsque l'événement commencera (optionnel)"
+    , meetingAddressOptional = "Adresse de rencontre (optionnel)"
+    , whenDoesItStart = "Quand commence-t-il ?"
+    , theStartTimeCanTBeChangedSinceTheEventHasAlreadyStarted = "L'heure de début ne peut pas être modifiée car l'événement a déjà commencé."
+    , howManyHoursLongIsIt = "Combien d'heures dure-t-il ?"
+    , howManyPeopleCanJoinLeaveThisEmptyIfThereSNoLimit = "Combien de personnes peuvent rejoindre (laissez vide s'il n'y a pas de limite)"
+    , saveChanges = "Enregistrer les modifications"
+    , cancelChanges = "Annuler les modifications"
+    , eventCanTStartInThePast = "L'événement ne peut pas commencer dans le passé"
+    , eventOverlapsOtherEvents = "L'événement chevauche d'autres événements"
+    , youCanTEditEventsThatHaveAlreadyHappened = "Vous ne pouvez pas modifier des événements qui ont déjà eu lieu"
+    , youCanTEditTheStartTimeOfAnEventThatIsOngoing = "Vous ne pouvez pas modifier l'heure de début d'un événement qui est en cours"
+    , thisEventSomehowDoesnTExistTryRefreshingThePage = "Cet événement n'existe pas (essayez de rafraîchir la page ?)"
+    , uncancelEvent = "Annuler l'annulation de l'événement"
+    , recancelEvent = "Réannuler l'événement"
+    , cancelEvent = "Annuler l'événement"
+    , newEvent = "Nouvel événement"
+    , copyPreviousEvent = "Copier l'événement précédent"
+    , chooseWhatTypeOfEventThisIs = "Choisissez quel type d'événement c'est"
+    , createEvent = "Créer l'événement"
+    , eventsCanTStartInThePast = "Les événements ne peuvent pas commencer dans le passé"
+    , eventOverlapsWithAnotherEvent = "L'événement chevauche un autre événement"
+    , thisGroupHasTooManyEvents = "Ce groupe a trop d'événements"
     , checkYourSpamFolderIfYouDonTSeeIt = "Vérifiez votre dossier spam si vous ne le voyez pas."
     , aLoginEmailHasBeenSentTo = "Un email de connexion a été envoyé à "
     , addressTooLong = \length maxLength -> "L'adresse est de " ++ String.fromInt length ++ " caractères. Restez en dessous de " ++ String.fromInt maxLength ++ "."
+    , stopNotifyingMeOfNewEvents = "Ne plus me notifier des nouveaux événements"
+    , subscribedGroups = "Groupes auxquels je suis abonné"
+    , reset = "Réinitialiser"
+    , groupDescription = "Description du groupe"
+    , description = "Description"
+    , nameMustBeAtLeast = \minLength -> "Le nom doit contenir au moins " ++ String.fromInt minLength ++ " caractères."
+    , notifyMeOfNewEvents = "Me notifier des nouveaux événements"
+    , organizer = "Organisateur"
+    , nameMustBeAtMost = \maxLength -> "Le nom doit contenir au plus " ++ String.fromInt maxLength ++ " caractères."
+    , dateValueMissing = "Date manquante"
+    , timeValueMissing = "Heure manquante"
+    , theEventCanTStartInThePast = "L'événement ne peut pas commencer dans le passé"
+    , invalidTimeFormatExpectedSomethingLike_22_59 = "Format d'heure invalide. Attendu quelque chose comme 22:59"
+    , invalidDateFormatExpectedSomethingLike_2020_01_31 = "Format de date invalide. Attendu quelque chose comme 2020-01-31"
+    , save = "Enregistrer"
     , addressTooShort = \length minLength -> "L'adresse est de " ++ String.fromInt length ++ " caractères. Elle doit en contenir au moins " ++ String.fromInt minLength ++ "."
     , signInAndWeLlGetYouSignedUpForThatEvent = "Connectez-vous et nous vous inscrirons pour cet événement"
+    , edit = "Modifier"
+    , ongoingEvent = "Événement en cours"
+    , futureEvents = "Événements futurs"
+    , showFirst = "Afficher les premiers"
+    , showAll = "Afficher tout"
+    , addEvent = "Ajouter un événement"
+    , noNewEventsHaveBeenPlannedYet = "Aucun nouvel événement n'a été planifié pour le moment."
+    , pastEvents = "Événements passés"
+    , info = "Info"
+    , thisGroupWasCreatedOn = "Ce groupe a été créé le "
+    , makeGroupUnlisted = "Rendre le groupe non listé"
+    , makeGroupPublic = "Rendre le groupe public"
+    , deleteGroup = "Supprimer le groupe"
     , terms = "conditions"
     , saving = "Enregistrement..."
     , searchResultsFor = "Résultats de recherche pour "
     , keepItBelowNCharacters = \n -> "Restez en dessous de " ++ String.fromInt n ++ " caractères"
+    , groupName = "Nom du groupe"
     , yourEmailAddress = "Votre adresse email"
     , enterYourEmailFirst = "Entrez votre email d'abord"
     , anAccountDeletionEmailHasBeenSentTo = "Un email de suppression de compte a été envoyé à "
@@ -727,3 +1127,125 @@ Si vous avez une réclamation, veuillez nous contacter par e-mail à [""" ++ Env
 Nous publierons toute modification que nous apportons à notre avis de confidentialité sur cette page et, si elles sont des modifications importantes, nous vous en informerons par e-mail.
 
 """
+
+
+diffToStringEnglish : Time.Posix -> Time.Posix -> String
+diffToStringEnglish start end =
+    let
+        difference : Duration
+        difference =
+            Duration.from start end |> Quantity.abs
+
+        months =
+            Duration.inDays difference / 30 |> floor
+
+        weeks =
+            Duration.inWeeks difference |> floor
+
+        days =
+            Duration.inDays difference |> round
+
+        hours =
+            Duration.inHours difference |> floor
+
+        minutes =
+            Duration.inMinutes difference |> round
+
+        suffix =
+            if Time.posixToMillis start <= Time.posixToMillis end then
+                ""
+
+            else
+                " ago"
+    in
+    if months >= 2 then
+        String.fromInt months ++ "\u{00A0}months" ++ suffix
+
+    else if weeks >= 2 then
+        String.fromInt weeks ++ "\u{00A0}weeks" ++ suffix
+
+    else if days > 1 then
+        String.fromInt days ++ "\u{00A0}days" ++ suffix
+
+    else if hours > 22 then
+        if Time.posixToMillis start <= Time.posixToMillis end then
+            "1\u{00A0}day"
+
+        else
+            "yesterday"
+
+    else if hours > 6 then
+        String.fromInt hours ++ "\u{00A0}hours" ++ suffix
+
+    else if Duration.inHours difference >= 1.2 then
+        removeTrailing0s 1 (Duration.inHours difference) ++ "\u{00A0}hours" ++ suffix
+
+    else if minutes > 1 then
+        String.fromInt minutes ++ "\u{00A0}minutes" ++ suffix
+
+    else if minutes == 1 then
+        "1\u{00A0}minute" ++ suffix
+
+    else
+        "now"
+
+
+diffToStringFrench : Time.Posix -> Time.Posix -> String
+diffToStringFrench start end =
+    let
+        difference : Duration
+        difference =
+            Duration.from start end |> Quantity.abs
+
+        months =
+            Duration.inDays difference / 30 |> floor
+
+        weeks =
+            Duration.inWeeks difference |> floor
+
+        days =
+            Duration.inDays difference |> round
+
+        hours =
+            Duration.inHours difference |> floor
+
+        minutes =
+            Duration.inMinutes difference |> round
+
+        suffix =
+            if Time.posixToMillis start <= Time.posixToMillis end then
+                ""
+
+            else
+                " ago"
+    in
+    if months >= 2 then
+        String.fromInt months ++ "\u{00A0}mois" ++ suffix
+
+    else if weeks >= 2 then
+        String.fromInt weeks ++ "\u{00A0}semaines" ++ suffix
+
+    else if days > 1 then
+        String.fromInt days ++ "\u{00A0}jours" ++ suffix
+
+    else if hours > 22 then
+        if Time.posixToMillis start <= Time.posixToMillis end then
+            "1\u{00A0}jour"
+
+        else
+            "hier"
+
+    else if hours > 6 then
+        String.fromInt hours ++ "\u{00A0}heures" ++ suffix
+
+    else if Duration.inHours difference >= 1.2 then
+        removeTrailing0s 1 (Duration.inHours difference) ++ "\u{00A0}heures" ++ suffix
+
+    else if minutes > 1 then
+        String.fromInt minutes ++ "\u{00A0}minutes" ++ suffix
+
+    else if minutes == 1 then
+        "1\u{00A0}minute" ++ suffix
+
+    else
+        "maintenant"

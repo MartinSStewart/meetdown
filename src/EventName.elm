@@ -1,5 +1,7 @@
 module EventName exposing (Error(..), EventName(..), errorToString, fromString, toString)
 
+import UserConfig exposing (Texts)
+
 
 type EventName
     = EventName String
@@ -10,26 +12,14 @@ type Error
     | EventNameTooLong
 
 
-errorToString : String -> Error -> String
-errorToString originalAddress error =
-    let
-        trimmed =
-            String.trim originalAddress
-    in
+errorToString : Texts -> Error -> String
+errorToString texts error =
     case error of
         EventNameTooShort ->
-            "Name is "
-                ++ String.fromInt (String.length trimmed)
-                ++ " characters long. It needs to be at least "
-                ++ String.fromInt minLength
-                ++ "."
+            texts.nameMustBeAtLeast minLength
 
         EventNameTooLong ->
-            "Name is "
-                ++ String.fromInt (String.length trimmed)
-                ++ " characters long. Keep it under "
-                ++ String.fromInt maxLength
-                ++ "."
+            texts.nameMustBeAtMost maxLength
 
 
 minLength : number

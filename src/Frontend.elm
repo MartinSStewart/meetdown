@@ -1378,13 +1378,13 @@ viewPage ({ theme, texts } as userConfig) model =
                                 |> Element.map GroupPageMsg
 
                         Nothing ->
-                            Ui.loadingView
+                            Ui.loadingView texts
 
                 Just ItemDoesNotExist ->
                     Ui.loadingError theme texts.groupNotFound
 
                 Just ItemRequestPending ->
-                    Ui.loadingView
+                    Ui.loadingView texts
 
                 Nothing ->
                     Element.none
@@ -1403,7 +1403,7 @@ viewPage ({ theme, texts } as userConfig) model =
                                 |> Element.map CreateGroupPageMsg
 
                         Nothing ->
-                            Ui.loadingView
+                            Ui.loadingView texts
                 )
 
         MyGroupsRoute ->
@@ -1428,7 +1428,7 @@ viewPage ({ theme, texts } as userConfig) model =
                                 |> Element.map ProfileFormMsg
 
                         Just ItemRequestPending ->
-                            Ui.loadingView
+                            Ui.loadingView texts
 
                         Just ItemDoesNotExist ->
                             Ui.loadingError theme texts.userNotFound
@@ -1446,7 +1446,7 @@ viewPage ({ theme, texts } as userConfig) model =
                     UserPage.view userConfig user
 
                 Nothing ->
-                    Ui.loadingView
+                    Ui.loadingView texts
 
         PrivacyRoute ->
             Privacy.view userConfig
@@ -1551,11 +1551,11 @@ myGroupsView ({ texts } as userConfig) model loggedIn =
                             Element.column [ Element.spacing 8, Element.width Element.fill ] myGroupsList
                         , Element.column
                             [ Element.width Element.fill, Element.spacing 20 ]
-                            [ Ui.title "Subscribed groups"
+                            [ Ui.title texts.subscribedGroups
                             , if Set.isEmpty loggedIn.subscribedGroups then
                                 Element.paragraph []
                                     [ texts.group1
-                                        ++ GroupPage.notifyMeOfNewEvents
+                                        ++ texts.notifyMeOfNewEvents
                                         ++ texts.buttonOnAGroupPage
                                         |> Element.text
                                     ]
@@ -1572,7 +1572,7 @@ myGroupsView ({ texts } as userConfig) model loggedIn =
                 ]
 
         Nothing ->
-            Ui.loadingView
+            Ui.loadingView texts
 
 
 searchInput : UserConfig -> String -> Element FrontendMsg

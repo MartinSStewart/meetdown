@@ -63,13 +63,13 @@ view ({ texts } as userConfig) isMobile searchText model =
 
 
 groupPreview : UserConfig -> Bool -> Time.Posix -> Id GroupId -> Group -> Element msg
-groupPreview userConfig isMobile currentTime groupId group =
+groupPreview ({ theme, texts } as userConfig) isMobile currentTime groupId group =
     link
         (width fill
             :: Ui.inputFocusClass
-            :: Ui.cardAttributes userConfig.theme
+            :: Ui.cardAttributes theme
             ++ [ paddingEach { top = 15, left = 15, right = 15, bottom = 0 }
-               , Border.color userConfig.theme.darkGrey
+               , Border.color theme.darkGrey
                ]
         )
         { url = Route.encode (GroupRoute groupId (Group.name group))
@@ -88,7 +88,7 @@ groupPreview userConfig isMobile currentTime groupId group =
                                 , rgba 1 1 1 0
                                 , rgba 1 1 1 0
                                 , rgba 1 1 1 0
-                                , userConfig.theme.background
+                                , theme.background
                                 ]
                             }
                         , width fill
@@ -117,8 +117,8 @@ groupPreview userConfig isMobile currentTime groupId group =
                             |> List.head
                       of
                         Just ( _, nextEvent ) ->
-                            "Next event is in "
-                                ++ Time.diffToString currentTime (Event.startTime nextEvent)
+                            texts.nextEventIsIn
+                                ++ texts.timeDiffToString currentTime (Event.startTime nextEvent)
                                 |> text
                                 |> List.singleton
                                 |> paragraph

@@ -25,17 +25,17 @@ view userConfig timezone loggedIn =
 
 
 adminView : UserConfig -> Bool -> Time.Zone -> { a | adminState : AdminCache } -> Element FrontendMsg
-adminView userConfig adminEnabled timezone loggedIn =
+adminView ({ theme, texts } as userConfig) adminEnabled timezone loggedIn =
     case loggedIn.adminState of
         AdminCached model ->
             Element.column
                 Ui.pageContentAttributes
                 [ Ui.title "Admin panel"
                 , if adminEnabled then
-                    Ui.submitButton userConfig.theme enableAdminId False { onPress = PressedDisableAdmin, label = "Disable admin" }
+                    Ui.submitButton theme enableAdminId False { onPress = PressedDisableAdmin, label = "Disable admin" }
 
                   else
-                    Ui.dangerButton userConfig.theme enableAdminId False { onPress = PressedEnableAdmin, label = "Enable admin" }
+                    Ui.dangerButton theme enableAdminId False { onPress = PressedEnableAdmin, label = "Enable admin" }
                 , Element.paragraph
                     []
                     [ Element.text "Logs last updated at: "
@@ -47,10 +47,10 @@ adminView userConfig adminEnabled timezone loggedIn =
                 ]
 
         AdminCachePending ->
-            Ui.loadingView
+            Ui.loadingView texts
 
         AdminCacheNotRequested ->
-            Ui.loadingView
+            Ui.loadingView texts
 
 
 enableAdminId : HtmlId

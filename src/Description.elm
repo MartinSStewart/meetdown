@@ -2,7 +2,7 @@ module Description exposing (Description(..), Error(..), empty, errorToString, f
 
 import Element exposing (Element)
 import MarkdownThemed
-import UserConfig exposing (UserConfig)
+import UserConfig exposing (Texts, UserConfig)
 
 
 type Description
@@ -13,19 +13,15 @@ type Error
     = DescriptionTooLong
 
 
-errorToString : String -> Error -> String
-errorToString originalDescription error =
+errorToString : Texts -> String -> Error -> String
+errorToString texts originalDescription error =
     let
         trimmed =
             String.trim originalDescription
     in
     case error of
         DescriptionTooLong ->
-            "Description is "
-                ++ String.fromInt (String.length trimmed)
-                ++ " characters long. Keep it under "
-                ++ String.fromInt maxLength
-                ++ "."
+            texts.descriptionTooLong (String.length trimmed) maxLength
 
 
 maxLength : number

@@ -123,7 +123,7 @@ updateForm wrapper msg form =
 
 
 view : UserConfig -> Bool -> Bool -> Model -> Element Msg
-view userConfig isMobile isFirstGroup model =
+view ({ texts } as userConfig) isMobile isFirstGroup model =
     case model of
         Editting form ->
             formView userConfig isMobile isFirstGroup Nothing False form
@@ -138,7 +138,7 @@ view userConfig isMobile isFirstGroup model =
                 isFirstGroup
                 (case error of
                     GroupNameAlreadyInUse ->
-                        Just "Sorry, that group name is already being used."
+                        Just texts.sorryThatGroupNameIsAlreadyBeingUsed
                 )
                 False
                 form
@@ -162,52 +162,46 @@ submitFailed error model =
 
 
 formView : UserConfig -> Bool -> Bool -> Maybe String -> Bool -> Form -> Element Msg
-formView userConfig isMobile firstGroup maybeSubmitError isSubmitting form =
+formView { theme, texts } isMobile firstGroup maybeSubmitError isSubmitting form =
     Element.column
         (Element.width Element.fill
             :: Element.spacing 20
             :: Ui.pageContentAttributes
         )
-        [ Ui.title "Create group"
+        [ Ui.title texts.createGroup
         , Ui.textInput
-            userConfig.theme
+            theme
             nameInputId
             (\a -> FormChanged { form | name = a })
             form.name
-            "What's the name of your group?"
+            texts.whatSTheNameOfYourGroup
             (case ( form.pressedSubmit, GroupName.fromString form.name ) of
                 ( True, Err error ) ->
                     case error of
                         GroupName.GroupNameTooShort ->
-                            "Name must be at least "
-                                ++ String.fromInt GroupName.minLength
-                                ++ " characters long."
-                                |> Just
+                            Just <| texts.nameMustBeAtLeast GroupName.minLength
 
                         GroupName.GroupNameTooLong ->
-                            "Name is too long. Keep it under "
-                                ++ String.fromInt (GroupName.maxLength + 1)
-                                ++ " characters."
-                                |> Just
+                            Just <| texts.nameMustBeAtMost GroupName.maxLength
 
                 _ ->
                     Nothing
             )
         , Ui.multiline
-            userConfig.theme
+            theme
             descriptionInputId
             (\a -> FormChanged { form | description = a })
             form.description
-            "Describe what your group is about (you can fill out this later)"
+            texts.describeWhatYourGroupIsAboutYouCanFillOutThisLater
             (case ( form.pressedSubmit, Description.fromString form.description ) of
                 ( True, Err error ) ->
-                    Description.errorToString form.description error |> Just
+                    Description.errorToString texts form.description error |> Just
 
                 _ ->
                     Nothing
             )
         , Ui.radioGroup
-            userConfig.theme
+            theme
             groupVisibilityId
             (\a -> FormChanged { form | visibility = Just a })
             (Nonempty PublicGroup [ UnlistedGroup ])
@@ -215,14 +209,14 @@ formView userConfig isMobile firstGroup maybeSubmitError isSubmitting form =
             (\visibility ->
                 case visibility of
                     UnlistedGroup ->
-                        "I want this group to be unlisted (people can only find it if you link it to them)"
+                        texts.iWantThisGroupToBeUnlistedPeopleCanOnlyFindItIfYouLinkItToThem
 
                     PublicGroup ->
-                        "I want this group to be publicly visible"
+                        texts.iWantThisGroupToBePubliclyVisible
             )
             (case ( form.pressedSubmit, form.visibility ) of
                 ( True, Nothing ) ->
-                    Just "Pick a visibility setting"
+                    Just texts.pickAVisibilitySetting
 
                 _ ->
                     Nothing
@@ -232,8 +226,8 @@ formView userConfig isMobile firstGroup maybeSubmitError isSubmitting form =
                 [ Element.spacing 4 ]
                 [ Element.paragraph
                     []
-                    [ Element.text "Since this is your first group, we recommend you read the "
-                    , Ui.routeLinkNewTab userConfig.theme Route.CodeOfConductRoute "code of conduct"
+                    [ Element.text texts.sinceThisIsYourFirstGroupWeRecommendYouReadThe
+                    , Ui.routeLinkNewTab theme Route.CodeOfConductRoute texts.codeOfConduct
                     , Element.text "."
                     ]
                 ]
@@ -244,7 +238,7 @@ formView userConfig isMobile firstGroup maybeSubmitError isSubmitting form =
             [ Element.spacing 8, Element.paddingXY 0 16, Element.width Element.fill ]
             [ case maybeSubmitError of
                 Just error ->
-                    Ui.formError userConfig.theme error
+                    Ui.formError theme error
 
                 Nothing ->
                     Element.none
@@ -255,7 +249,7 @@ formView userConfig isMobile firstGroup maybeSubmitError isSubmitting form =
                   else
                     Element.width (Element.px 200)
                 ]
-                (Ui.submitButton userConfig.theme submitButtonId isSubmitting { onPress = PressedSubmit, label = "Submit" })
+                (Ui.submitButton theme submitButtonId isSubmitting { onPress = PressedSubmit, label = texts.submit })
             ]
         ]
 
