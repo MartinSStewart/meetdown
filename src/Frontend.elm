@@ -36,7 +36,7 @@ import Element.Input as Input
 import Element.Region as Region
 import Env
 import FrontendUser exposing (FrontendUser)
-import Group exposing (totalEvents)
+import Group
 import GroupPage
 import Html
 import Html.Attributes

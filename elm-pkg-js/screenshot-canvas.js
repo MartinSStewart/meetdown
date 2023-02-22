@@ -44,7 +44,7 @@ exports.init = async function (app) {
       app.ports.got_language_from_js.send(JSON.parse(localStorageValue));
     }
     else {
-      app.ports.got_language_from_js.send("en");
+      app.ports.got_language_from_js.send(navigator.language);
     }
   });
 }

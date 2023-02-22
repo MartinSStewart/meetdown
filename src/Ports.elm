@@ -94,15 +94,6 @@ port set_prefers_dark_theme_to_js : Json.Encode.Value -> Cmd msg
 port got_prefers_dark_theme_from_js : (Json.Decode.Value -> msg) -> Sub msg
 
 
-port get_language_to_js : Json.Encode.Value -> Cmd msg
-
-
-port set_language_to_js : Json.Encode.Value -> Cmd msg
-
-
-port got_language_from_js : (Json.Decode.Value -> msg) -> Sub msg
-
-
 getPrefersDarkTheme : Command FrontendOnly toMsg msg
 getPrefersDarkTheme =
     Command.sendToJs
@@ -125,6 +116,15 @@ gotPrefersDarkTheme msg =
         "got_prefers_dark_theme_from_js"
         got_prefers_dark_theme_from_js
         (Json.Decode.decodeValue Json.Decode.bool >> Result.withDefault False >> msg)
+
+
+port get_language_to_js : Json.Encode.Value -> Cmd msg
+
+
+port set_language_to_js : Json.Encode.Value -> Cmd msg
+
+
+port got_language_from_js : (Json.Decode.Value -> msg) -> Sub msg
 
 
 getLanguage : Command FrontendOnly toMsg msg
