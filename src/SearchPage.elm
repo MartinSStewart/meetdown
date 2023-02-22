@@ -13,7 +13,6 @@ import GroupName
 import Id exposing (GroupId, Id)
 import Route exposing (Route(..))
 import Time
-import TimeExtra as Time
 import Types exposing (FrontendMsg, LoadedFrontend)
 import Ui
 import UserConfig exposing (UserConfig)

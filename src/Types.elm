@@ -32,7 +32,6 @@ import Time
 import TimeZone
 import Untrusted exposing (Untrusted)
 import Url exposing (Url)
-import UserConfig exposing (UserConfig)
 
 
 type FrontendModel

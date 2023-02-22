@@ -12,7 +12,6 @@ module ProfilePage exposing
     , view
     )
 
-import Colors exposing (..)
 import Description exposing (Description, Error(..))
 import Duration
 import Effect.Browser.Dom as Dom exposing (HtmlId)

@@ -33,7 +33,6 @@ import AdminStatus exposing (AdminStatus(..))
 import AssocList as Dict exposing (Dict)
 import AssocSet as Set exposing (Set)
 import Cache exposing (Cache)
-import Colors exposing (..)
 import Date
 import Description exposing (Description)
 import Duration

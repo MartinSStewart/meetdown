@@ -1,6 +1,5 @@
 module ProfileImage exposing (ProfileImage(..), customImage, defaultImage, defaultSize, getCustomImageUrl, image, smallImage)
 
-import Colors exposing (..)
 import Element exposing (Element)
 import Element.Background
 import Element.Border
