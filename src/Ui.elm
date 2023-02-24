@@ -77,7 +77,7 @@ css : Theme -> Html msg
 css theme =
     Html.node "style"
         []
-        [ """
+        [ """ 
           @import url('https://rsms.me/inter/inter.css');
           html { font-family: 'Inter', sans-serif; scrollbar-gutter: stable; background-color: """
             ++ Colors.toCssString theme.background
