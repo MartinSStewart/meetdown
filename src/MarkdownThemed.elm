@@ -1,10 +1,10 @@
 module MarkdownThemed exposing (renderFull, renderMinimal)
 
-import Element exposing (..)
-import Element.Background as Background
-import Element.Border as Border
-import Element.Font as Font
-import Element.Region as Region
+import Element exposing (Element)
+import Element.Background
+import Element.Border
+import Element.Font
+import Element.Region
 import Html
 import Html.Attributes
 import Markdown.Block exposing (..)
@@ -21,7 +21,7 @@ renderMinimal { theme, texts } isSearchPreview markdownBody =
     let
         rendererMinimal =
             renderer theme isSearchPreview
-                |> (\r -> { r | heading = \data -> row [] [ paragraph [] data.children ] })
+                |> (\r -> { r | heading = \data -> Element.row [] [ Element.paragraph [] data.children ] })
     in
     render texts rendererMinimal markdownBody
 
@@ -45,42 +45,42 @@ render texts chosenRenderer markdownBody =
                                     elements
 
                                 Err err ->
-                                    [ text texts.oopsSomethingWentWrongRenderingThisPage, text err ]
+                                    [ Element.text texts.oopsSomethingWentWrongRenderingThisPage, Element.text err ]
                        )
-                    |> column
-                        [ width fill
-                        , spacing 20
+                    |> Element.column
+                        [ Element.width Element.fill
+                        , Element.spacing 20
                         ]
            )
 
 
 renderer : Theme -> Bool -> Markdown.Renderer.Renderer (Element msg)
 renderer theme searchPreview =
-    { heading = \data -> row [] [ heading theme data ]
-    , paragraph = \children -> paragraph [ paddingXY 0 10 ] children
+    { heading = \data -> Element.row [] [ heading theme data ]
+    , paragraph = \children -> Element.paragraph [ Element.paddingXY 0 10 ] children
     , blockQuote =
         \children ->
-            column
-                [ Font.size 20
-                , Font.italic
-                , Border.widthEach { bottom = 0, left = 4, right = 0, top = 0 }
-                , Border.color theme.grey
-                , Font.color theme.mutedText
-                , padding 10
+            Element.column
+                [ Element.Font.size 20
+                , Element.Font.italic
+                , Element.Border.widthEach { bottom = 0, left = 4, right = 0, top = 0 }
+                , Element.Border.color theme.grey
+                , Element.Font.color theme.mutedText
+                , Element.padding 10
                 ]
                 children
     , html = Markdown.Html.oneOf []
-    , text = \s -> el [] <| text s
+    , text = \s -> Element.el [] <| Element.text s
     , codeSpan =
-        \content -> html <| Html.code [] [ Html.text content ]
-    , strong = \list -> paragraph [ Font.bold ] list
-    , emphasis = \list -> paragraph [ Font.italic ] list
-    , hardLineBreak = html <| Html.br [] []
+        \content -> Element.html <| Html.code [] [ Html.text content ]
+    , strong = \list -> Element.paragraph [ Element.Font.bold ] list
+    , emphasis = \list -> Element.paragraph [ Element.Font.italic ] list
+    , hardLineBreak = Element.html <| Html.br [] []
     , link =
         \{ title, destination } list ->
-            link
-                [ Font.underline
-                , Font.color
+            Element.link
+                [ Element.Font.underline
+                , Element.Font.color
                     (if searchPreview then
                         theme.mutedText
 
@@ -92,134 +92,134 @@ renderer theme searchPreview =
                 , label =
                     case title of
                         Just title_ ->
-                            text title_
+                            Element.text title_
 
                         Nothing ->
-                            paragraph [] list
+                            Element.paragraph [] list
                 }
     , image =
         if searchPreview then
-            \_ -> none
+            \_ -> Element.none
 
         else
             \{ alt, src, title } ->
                 let
                     attrs =
-                        [ title |> Maybe.map (\title_ -> htmlAttribute <| Html.Attributes.attribute "title" title_) ]
+                        [ title |> Maybe.map (\title_ -> Element.htmlAttribute <| Html.Attributes.attribute "title" title_) ]
                             |> justs
                 in
-                image
+                Element.image
                     attrs
                     { src = src
                     , description = alt
                     }
     , unorderedList =
         \items ->
-            column [ spacing 15, width fill ]
+            Element.column [ Element.spacing 15, Element.width Element.fill ]
                 (items
                     |> List.map
                         (\listItem ->
                             case listItem of
                                 ListItem _ children ->
-                                    wrappedRow
-                                        [ spacing 5
-                                        , paddingEach { top = 0, right = 0, bottom = 0, left = 20 }
-                                        , width fill
+                                    Element.wrappedRow
+                                        [ Element.spacing 5
+                                        , Element.paddingEach { top = 0, right = 0, bottom = 0, left = 20 }
+                                        , Element.width Element.fill
                                         ]
-                                        [ paragraph
-                                            [ alignTop ]
-                                            (text " • " :: children)
+                                        [ Element.paragraph
+                                            [ Element.alignTop ]
+                                            (Element.text " • " :: children)
                                         ]
                         )
                 )
     , orderedList =
         \startingIndex items ->
-            column [ spacing 15, width fill ]
+            Element.column [ Element.spacing 15, Element.width Element.fill ]
                 (items
                     |> List.indexedMap
                         (\index itemBlocks ->
-                            wrappedRow
-                                [ spacing 5
-                                , paddingEach { top = 0, right = 0, bottom = 0, left = 20 }
-                                , width fill
+                            Element.wrappedRow
+                                [ Element.spacing 5
+                                , Element.paddingEach { top = 0, right = 0, bottom = 0, left = 20 }
+                                , Element.width Element.fill
                                 ]
-                                [ paragraph
-                                    [ alignTop ]
-                                    (text (String.fromInt (startingIndex + index) ++ ". ") :: itemBlocks)
+                                [ Element.paragraph
+                                    [ Element.alignTop ]
+                                    (Element.text (String.fromInt (startingIndex + index) ++ ". ") :: itemBlocks)
                                 ]
                         )
                 )
     , codeBlock =
         \{ body } ->
-            column
-                [ Font.family [ Font.monospace ]
-                , Background.color theme.lightGrey
-                , Border.rounded 5
-                , padding 10
-                , width fill
-                , htmlAttribute <| Html.Attributes.class "preserve-white-space"
+            Element.column
+                [ Element.Font.family [ Element.Font.monospace ]
+                , Element.Background.color theme.lightGrey
+                , Element.Border.rounded 5
+                , Element.padding 10
+                , Element.width Element.fill
+                , Element.htmlAttribute <| Html.Attributes.class "preserve-white-space"
                 , if searchPreview then
-                    clipX
+                    Element.clipX
 
                   else
-                    scrollbarX
+                    Element.scrollbarX
                 ]
-                [ html (Html.text body)
+                [ Element.html (Html.text body)
                 ]
-    , thematicBreak = none
-    , table = \children -> column [ width fill ] children
-    , tableHeader = \children -> column [] children
-    , tableBody = \children -> column [] children
-    , tableRow = \children -> row [ width fill ] children
-    , tableCell = \_ children -> column [ width fill ] children
-    , tableHeaderCell = \_ children -> column [ width fill ] children
-    , strikethrough = \children -> paragraph [ Font.strike ] children
+    , thematicBreak = Element.none
+    , table = \children -> Element.column [ Element.width Element.fill ] children
+    , tableHeader = \children -> Element.column [] children
+    , tableBody = \children -> Element.column [] children
+    , tableRow = \children -> Element.row [ Element.width Element.fill ] children
+    , tableCell = \_ children -> Element.column [ Element.width Element.fill ] children
+    , tableHeaderCell = \_ children -> Element.column [ Element.width Element.fill ] children
+    , strikethrough = \children -> Element.paragraph [ Element.Font.strike ] children
     }
 
 
 heading : Theme -> { level : HeadingLevel, rawText : String, children : List (Element msg) } -> Element msg
 heading theme { level, rawText, children } =
-    paragraph
+    Element.paragraph
         ((case headingLevelToInt level of
             1 ->
-                [ Font.size 28
-                , Font.bold
-                , Font.color theme.defaultText
-                , paddingXY 0 20
+                [ Element.Font.size 28
+                , Element.Font.bold
+                , Element.Font.color theme.defaultText
+                , Element.paddingXY 0 20
                 ]
 
             2 ->
-                [ Font.color theme.defaultText
-                , Font.size 20
-                , Font.bold
-                , paddingEach { top = 50, right = 0, bottom = 20, left = 0 }
+                [ Element.Font.color theme.defaultText
+                , Element.Font.size 20
+                , Element.Font.bold
+                , Element.paddingEach { top = 50, right = 0, bottom = 20, left = 0 }
                 ]
 
             3 ->
-                [ Font.color theme.defaultText
-                , Font.size 18
-                , Font.bold
-                , paddingEach { top = 30, right = 0, bottom = 10, left = 0 }
+                [ Element.Font.color theme.defaultText
+                , Element.Font.size 18
+                , Element.Font.bold
+                , Element.paddingEach { top = 30, right = 0, bottom = 10, left = 0 }
                 ]
 
             4 ->
-                [ Font.color theme.defaultText
-                , Font.size 16
-                , Font.bold
-                , paddingEach { top = 0, right = 0, bottom = 10, left = 0 }
+                [ Element.Font.color theme.defaultText
+                , Element.Font.size 16
+                , Element.Font.bold
+                , Element.paddingEach { top = 0, right = 0, bottom = 10, left = 0 }
                 ]
 
             _ ->
-                [ Font.size 12
-                , Font.bold
-                , Font.center
-                , paddingXY 0 20
+                [ Element.Font.size 12
+                , Element.Font.bold
+                , Element.Font.center
+                , Element.paddingXY 0 20
                 ]
          )
-            ++ [ Region.heading (headingLevelToInt level)
-               , htmlAttribute
+            ++ [ Element.Region.heading (headingLevelToInt level)
+               , Element.htmlAttribute
                     (Html.Attributes.attribute "name" (rawTextToId rawText))
-               , htmlAttribute
+               , Element.htmlAttribute
                     (Html.Attributes.id (rawTextToId rawText))
                ]
         )

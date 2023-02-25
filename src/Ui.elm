@@ -53,11 +53,11 @@ import Colors
 import Date exposing (Date)
 import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Element exposing (..)
-import Element.Background as Background
-import Element.Border as Border
-import Element.Font as Font
-import Element.Input as Input
-import Element.Region as Region
+import Element.Background
+import Element.Border
+import Element.Font
+import Element.Input
+import Element.Region
 import EmailAddress exposing (EmailAddress)
 import Html exposing (Html)
 import Html.Attributes
@@ -130,7 +130,7 @@ pageContentAttributes =
     [ padding 8
     , centerX
     , width (maximum 800 fill)
-    , spacing 20
+    , Element.spacing 20
     ]
 
 
@@ -141,31 +141,31 @@ inputFocusClass =
 
 horizontalLine : Theme -> Element msg
 horizontalLine theme =
-    el
-        [ width fill
+    Element.el
+        [ Element.width Element.fill
         , height (px 1)
-        , Background.color theme.darkGrey
+        , Element.Background.color theme.darkGrey
         ]
         none
 
 
 headerButton : Bool -> HtmlId -> { onPress : msg, label : String } -> Element msg
 headerButton isMobile_ htmlId { onPress, label } =
-    Input.button
-        [ mouseOver [ Background.color <| rgba 1 1 1 0.5 ]
+    Element.Input.button
+        [ mouseOver [ Element.Background.color <| rgba 1 1 1 0.5 ]
         , if isMobile_ then
             padding 6
 
           else
             padding 8
-        , Font.center
+        , Element.Font.center
         , inputFocusClass
         , Dom.idToAttribute htmlId |> htmlAttribute
         , if isMobile_ then
-            Font.size 13
+            Element.Font.size 13
 
           else
-            Font.size 16
+            Element.Font.size 16
         ]
         { onPress = Just onPress
         , label = text label
@@ -175,14 +175,14 @@ headerButton isMobile_ htmlId { onPress, label } =
 headerLink : Theme -> Bool -> Bool -> { route : Route, label : String } -> Element msg
 headerLink theme isMobile_ isSelected { route, label } =
     link
-        [ mouseOver [ Background.color <| rgba 1 1 1 0.5 ]
+        [ mouseOver [ Element.Background.color <| rgba 1 1 1 0.5 ]
         , below <|
             if isSelected then
-                el
-                    [ paddingXY 4 0, width fill ]
+                Element.el
+                    [ Element.paddingXY 4 0, Element.width Element.fill ]
                     (el
-                        [ Background.color theme.submit
-                        , width fill
+                        [ Element.Background.color theme.submit
+                        , Element.width Element.fill
                         , height (px 2)
                         ]
                         none
@@ -195,12 +195,12 @@ headerLink theme isMobile_ isSelected { route, label } =
 
           else
             padding 8
-        , Font.center
+        , Element.Font.center
         , if isMobile_ then
-            Font.size 13
+            Element.Font.size 13
 
           else
-            Font.size 16
+            Element.Font.size 16
         , inputFocusClass
         ]
         { url = Route.encode route
@@ -210,36 +210,36 @@ headerLink theme isMobile_ isSelected { route, label } =
 
 emailAddressText : EmailAddress -> Element msg
 emailAddressText emailAddress =
-    el
-        [ Font.bold ]
+    Element.el
+        [ Element.Font.bold ]
         (text (EmailAddress.toString emailAddress))
 
 
 routeLink : Theme -> Route -> String -> Element msg
 routeLink theme route label =
     link
-        [ Font.color theme.link, inputFocusClass, Font.underline ]
+        [ Element.Font.color theme.link, inputFocusClass, Element.Font.underline ]
         { url = Route.encode route, label = text label }
 
 
 routeLinkNewTab : Theme -> Route -> String -> Element msg
 routeLinkNewTab theme route label =
     newTabLink
-        [ Font.color theme.link, inputFocusClass, Font.underline ]
+        [ Element.Font.color theme.link, inputFocusClass, Element.Font.underline ]
         { url = "https://meetdown.app" ++ Route.encode route, label = text label }
 
 
 externalLink : Theme -> String -> String -> Element msg
 externalLink theme url label =
     newTabLink
-        [ Font.color theme.link, inputFocusClass, Font.underline ]
+        [ Element.Font.color theme.link, inputFocusClass, Element.Font.underline ]
         { url = url, label = text label }
 
 
 mailToLink : Theme -> String -> Maybe String -> Element msg
 mailToLink theme emailAddress maybeSubject =
     link
-        [ Font.color theme.link, inputFocusClass ]
+        [ Element.Font.color theme.link, inputFocusClass ]
         { url =
             "mailto:"
                 ++ emailAddress
@@ -256,26 +256,26 @@ mailToLink theme emailAddress maybeSubject =
 
 section : Theme -> String -> Element msg -> Element msg
 section theme sectionTitle content =
-    column
+    Element.column
         [ spacing 8
-        , Border.rounded 4
+        , Element.Border.rounded 4
         , inputBackground theme False
         , alignTop
         ]
-        [ paragraph [ Font.bold ] [ text sectionTitle ]
+        [ Element.paragraph [ Element.Font.bold ] [ Element.text sectionTitle ]
         , content
         ]
 
 
 button : Theme -> HtmlId -> { onPress : msg, label : String } -> Element msg
 button theme htmlId { onPress, label } =
-    Input.button
-        [ Border.width 2
-        , Border.color theme.grey
-        , padding 8
-        , Border.rounded 4
-        , Font.center
-        , Font.color theme.mutedText
+    Element.Input.button
+        [ Element.Border.width 2
+        , Element.Border.color theme.grey
+        , Element.padding 8
+        , Element.Border.rounded 4
+        , Element.Font.center
+        , Element.Font.color theme.mutedText
         , width (minimum 150 fill)
         , Dom.idToAttribute htmlId |> htmlAttribute
         ]
@@ -287,12 +287,12 @@ button theme htmlId { onPress, label } =
 linkButton : Theme -> { route : Route, label : String } -> Element msg
 linkButton theme { route, label } =
     link
-        [ Border.width 2
-        , Border.color theme.grey
-        , padding 8
-        , Border.rounded 4
-        , Font.center
-        , Font.color theme.mutedText
+        [ Element.Border.width 2
+        , Element.Border.color theme.grey
+        , Element.padding 8
+        , Element.Border.rounded 4
+        , Element.Font.center
+        , Element.Font.color theme.mutedText
         , width (minimum 150 fill)
         ]
         { url = Route.encode route
@@ -302,15 +302,15 @@ linkButton theme { route, label } =
 
 submitButton : Theme -> HtmlId -> Bool -> { onPress : msg, label : String } -> Element msg
 submitButton theme htmlId isSubmitting { onPress, label } =
-    Input.button
-        [ Background.color theme.submit
-        , padding 10
-        , Border.rounded 4
-        , Font.center
-        , Font.color theme.invertedText
+    Element.Input.button
+        [ Element.Background.color theme.submit
+        , Element.padding 10
+        , Element.Border.rounded 4
+        , Element.Font.center
+        , Element.Font.color theme.invertedText
         , Dom.idToAttribute htmlId |> htmlAttribute
-        , width fill
-        , Font.medium
+        , Element.width Element.fill
+        , Element.Font.medium
         ]
         { onPress = Just onPress
         , label = labelWithHourglass isSubmitting label
@@ -319,12 +319,12 @@ submitButton theme htmlId isSubmitting { onPress, label } =
 
 smallSubmitButton : HtmlId -> Bool -> { onPress : msg, label : String } -> Element msg
 smallSubmitButton htmlId isSubmitting { onPress, label } =
-    Input.button
-        [ Background.color <| rgb 0.1 0.6 0.25
-        , paddingXY 8 4
-        , Border.rounded 4
-        , Font.center
-        , Font.color <| rgb 1 1 1
+    Element.Input.button
+        [ Element.Background.color <| rgb 0.1 0.6 0.25
+        , Element.paddingXY 8 4
+        , Element.Border.rounded 4
+        , Element.Font.center
+        , Element.Font.color <| rgb 1 1 1
         , Dom.idToAttribute htmlId |> htmlAttribute
         ]
         { onPress = Just onPress
@@ -334,12 +334,12 @@ smallSubmitButton htmlId isSubmitting { onPress, label } =
 
 dangerButton : Theme -> HtmlId -> Bool -> { onPress : msg, label : String } -> Element msg
 dangerButton theme htmlId isSubmitting { onPress, label } =
-    Input.button
-        [ Background.color theme.error
-        , padding 10
-        , Border.rounded 4
-        , Font.center
-        , Font.color theme.invertedText
+    Element.Input.button
+        [ Element.Background.color theme.error
+        , Element.padding 10
+        , Element.Border.rounded 4
+        , Element.Font.center
+        , Element.Font.color theme.invertedText
         , Dom.idToAttribute htmlId |> htmlAttribute
         ]
         { onPress = Just onPress
@@ -349,9 +349,9 @@ dangerButton theme htmlId isSubmitting { onPress, label } =
 
 labelWithHourglass : Bool -> String -> Element msg
 labelWithHourglass isSubmitting label =
-    el
-        [ width fill
-        , paddingXY 30 0
+    Element.el
+        [ Element.width Element.fill
+        , Element.paddingXY 30 0
         , if isSubmitting then
             inFront (el [] (text "⌛"))
 
@@ -363,45 +363,45 @@ labelWithHourglass isSubmitting label =
 
 titleFontSize : Attr decorative msg
 titleFontSize =
-    Font.size 28
+    Element.Font.size 28
 
 
 defaultFont : Attribute msg
 defaultFont =
-    Font.family [ Font.typeface "Inter" ]
+    Element.Font.family [ Element.Font.typeface "Inter" ]
 
 
 defaultFontColor : Theme -> Attr decorative msg
 defaultFontColor theme =
-    Font.color theme.defaultText
+    Element.Font.color theme.defaultText
 
 
 defaultFontSize : Attr decorative msg
 defaultFontSize =
-    Font.size 16
+    Element.Font.size 16
 
 
 title : String -> Element msg
-title text_ =
-    paragraph [ titleFontSize, Region.heading 1 ] [ text text_ ]
+title text =
+    Element.paragraph [ titleFontSize, Element.Region.heading 1 ] [ Element.text text ]
 
 
 error : Theme -> String -> Element msg
 error theme errorMessage =
-    paragraph
+    Element.paragraph
         [ paddingEach { left = 4, right = 4, top = 4, bottom = 0 }
-        , Font.color theme.error
-        , Font.size 14
-        , Font.medium
+        , Element.Font.color theme.error
+        , Element.Font.size 14
+        , Element.Font.medium
         ]
-        [ text errorMessage ]
+        [ Element.text errorMessage ]
 
 
 formError : Theme -> String -> Element msg
 formError theme errorMessage =
-    paragraph
-        [ Font.color theme.error ]
-        [ text errorMessage ]
+    Element.paragraph
+        [ Element.Font.color theme.error ]
+        [ Element.text errorMessage ]
 
 
 checkboxChecked : Element msg
@@ -450,14 +450,14 @@ radioGroup theme htmlId onSelect options selected optionToLabel maybeError =
         optionsView =
             List.Nonempty.map
                 (\value ->
-                    Input.button
-                        [ width fill
-                        , paddingXY 0 6
+                    Element.Input.button
+                        [ Element.width Element.fill
+                        , Element.paddingXY 0 6
                         , htmlId value |> Dom.idToAttribute |> htmlAttribute
                         ]
                         { onPress = Just (onSelect value)
                         , label =
-                            row
+                            Element.row
                                 []
                                 [ if Just value == selected then
                                     checkboxChecked
@@ -467,7 +467,7 @@ radioGroup theme htmlId onSelect options selected optionToLabel maybeError =
                                 , optionToLabel value
                                     |> text
                                     |> List.singleton
-                                    |> paragraph [ paddingXY 8 0 ]
+                                    |> Element.paragraph [ Element.paddingXY 8 0 ]
                                 ]
                         }
                 )
@@ -481,7 +481,7 @@ radioGroup theme htmlId onSelect options selected optionToLabel maybeError =
 
 inputBackground : Theme -> Bool -> Attr decorative msg
 inputBackground theme hasError =
-    Background.color <|
+    Element.Background.color <|
         if hasError then
             theme.errorBackground
 
@@ -496,7 +496,7 @@ contentWidth =
 
 inputBorder : Theme -> Bool -> Attr decorative msg
 inputBorder theme hasError =
-    Border.color <|
+    Element.Border.color <|
         if hasError then
             theme.error
 
@@ -506,7 +506,7 @@ inputBorder theme hasError =
 
 inputBorderWidth : Bool -> Attribute msg
 inputBorderWidth hasError =
-    Border.width <|
+    Element.Border.width <|
         if hasError then
             2
 
@@ -516,15 +516,15 @@ inputBorderWidth hasError =
 
 textInput : Theme -> HtmlId -> (String -> msg) -> String -> String -> Maybe String -> Element msg
 textInput theme htmlId onChange text labelText maybeError =
-    column
-        [ width fill
-        , Border.rounded 4
+    Element.column
+        [ Element.width Element.fill
+        , Element.Border.rounded 4
         ]
-        [ Input.text
-            [ width fill
+        [ Element.Input.text
+            [ Element.width Element.fill
             , Dom.idToAttribute htmlId |> htmlAttribute
             , inputBorder theme (maybeError /= Nothing)
-            , Background.color theme.background
+            , Element.Background.color theme.background
             ]
             { text = text
             , onChange = onChange
@@ -537,17 +537,17 @@ textInput theme htmlId onChange text labelText maybeError =
 
 multiline : Theme -> HtmlId -> (String -> msg) -> String -> String -> Maybe String -> Element msg
 multiline theme htmlId onChange text labelText maybeError =
-    column
-        [ width fill
-        , Border.rounded 4
+    Element.column
+        [ Element.width Element.fill
+        , Element.Border.rounded 4
         ]
-        [ Input.multiline
-            [ width fill
+        [ Element.Input.multiline
+            [ Element.width Element.fill
             , height (px 200)
             , Dom.idToAttribute htmlId |> htmlAttribute
             , inputBorder theme (maybeError /= Nothing)
             , inputBorderWidth (maybeError /= Nothing)
-            , Background.color theme.background
+            , Element.Background.color theme.background
             ]
             { text = text
             , onChange = onChange
@@ -561,7 +561,7 @@ multiline theme htmlId onChange text labelText maybeError =
 
 numberInput : Theme -> HtmlId -> (String -> msg) -> String -> String -> Maybe String -> Element msg
 numberInput theme htmlId onChange value labelText maybeError =
-    column
+    Element.column
         [ spacing 4
         ]
         [ formLabelAboveEl theme labelText
@@ -578,7 +578,7 @@ numberInput theme htmlId onChange value labelText maybeError =
             )
             []
             |> html
-            |> el []
+            |> Element.el []
         , maybeError |> Maybe.map (error theme) |> Maybe.withDefault none
         ]
 
@@ -600,7 +600,7 @@ dateTimeInput :
         }
     -> Element msg
 dateTimeInput theme { dateInputId, timeInputId, dateChanged, timeChanged, labelText, minTime, timezone, dateText, timeText, isDisabled, maybeError } =
-    column
+    Element.column
         [ spacing 4 ]
         [ formLabelAboveEl theme labelText
         , wrappedRow [ spacing 8 ]
@@ -625,7 +625,7 @@ timeInput theme htmlId onChange time isDisabled =
         )
         []
         |> html
-        |> el []
+        |> Element.el []
 
 
 timeToString : Time.Zone -> Time.Posix -> String
@@ -650,7 +650,7 @@ dateInput theme htmlId onChange minDateTime date isDisabled =
         )
         []
         |> html
-        |> el []
+        |> Element.el []
 
 
 datetimeToString : Time.Zone -> Time.Posix -> String
@@ -686,32 +686,32 @@ timestamp hour minute =
     String.padLeft 2 '0' (String.fromInt hour) ++ ":" ++ String.padLeft 2 '0' (String.fromInt minute)
 
 
-formLabelAbove : Theme -> String -> Input.Label msg
+formLabelAbove : Theme -> String -> Element.Input.Label msg
 formLabelAbove theme labelText =
-    Input.labelAbove
+    Element.Input.labelAbove
         [ paddingEach { top = 0, right = 0, bottom = 5, left = 0 }
-        , Font.medium
-        , Font.size 13
-        , Font.color theme.textInputHeading
+        , Element.Font.medium
+        , Element.Font.size 13
+        , Element.Font.color theme.textInputHeading
         ]
-        (paragraph [] [ text labelText ])
+        (paragraph [] [ Element.text labelText ])
 
 
 formLabelAboveEl : Theme -> String -> Element msg
 formLabelAboveEl theme labelText =
-    el
+    Element.el
         [ paddingEach { top = 0, right = 0, bottom = 5, left = 0 }
-        , Font.medium
-        , Font.size 13
-        , Font.color theme.textInputHeading
+        , Element.Font.medium
+        , Element.Font.size 13
+        , Element.Font.color theme.textInputHeading
         ]
-        (paragraph [] [ text labelText ])
+        (paragraph [] [ Element.text labelText ])
 
 
 columnCard : Theme -> List (Element msg) -> Element msg
 columnCard theme children =
-    column
-        (width fill
+    Element.column
+        (Element.width Element.fill
             :: spacing 30
             :: cardAttributes theme
         )
@@ -720,18 +720,18 @@ columnCard theme children =
 
 cardAttributes : Theme -> List (Attribute msg)
 cardAttributes theme =
-    [ Border.rounded 4
-    , padding 15
-    , Border.width 1
-    , Border.color theme.grey
-    , Border.shadow { offset = ( 0, 3 ), size = -1, blur = 3, color = theme.grey }
+    [ Element.Border.rounded 4
+    , Element.padding 15
+    , Element.Border.width 1
+    , Element.Border.color theme.grey
+    , Element.Border.shadow { offset = ( 0, 3 ), size = -1, blur = 3, color = theme.grey }
     ]
 
 
 loadingView : Texts -> Element msg
 loadingView texts =
-    el
-        [ Font.size 20
+    Element.el
+        [ Element.Font.size 20
         , centerX
         , centerY
         , htmlAttribute (Html.Attributes.style "animation-name" "fade-in")
@@ -744,11 +744,11 @@ loadingView texts =
 
 loadingError : Theme -> String -> Element msg
 loadingError theme text_ =
-    el
-        [ Font.size 20
+    Element.el
+        [ Element.Font.size 20
         , centerX
         , centerY
-        , Font.color theme.error
+        , Element.Font.color theme.error
         ]
     <|
         text text_
@@ -772,8 +772,8 @@ attributeNone =
 
 overlayEl : Element msg -> Element msg
 overlayEl =
-    el
-        [ width fill
+    Element.el
+        [ Element.width Element.fill
         , height fill
         , htmlAttribute <| Html.Attributes.style "overflow-y" "auto"
         , htmlAttribute <| Html.Attributes.style "position" "fixed"

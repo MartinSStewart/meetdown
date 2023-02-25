@@ -3,9 +3,9 @@ module SearchPage exposing (getGroupsFromIds, groupPreview, view)
 import AssocList as Dict
 import Cache exposing (Cache(..))
 import Description
-import Element exposing (..)
-import Element.Background as Background
-import Element.Border as Border
+import Element exposing (Element)
+import Element.Background
+import Element.Border
 import Element.Font as Font
 import Event
 import Group exposing (Group)
@@ -42,19 +42,19 @@ getGroupsFromIds groups model =
 
 view : UserConfig -> Bool -> String -> LoadedFrontend -> Element FrontendMsg
 view ({ texts } as userConfig) isMobile searchText model =
-    column
-        [ padding 8
+    Element.column
+        [ Element.padding 8
         , Ui.contentWidth
-        , centerX
-        , spacing 8
+        , Element.centerX
+        , Element.spacing 8
         ]
         [ if searchText == "" then
-            paragraph [] [ text <| texts.searchResultsFor ++ "\" \"" ]
+            Element.paragraph [] [ Element.text <| texts.searchResultsFor ++ "\" \"" ]
 
           else
-            paragraph [] [ text <| texts.searchResultsFor ++ "\"" ++ searchText ++ "\"" ]
-        , column
-            [ width fill, spacing 16 ]
+            Element.paragraph [] [ Element.text <| texts.searchResultsFor ++ "\"" ++ searchText ++ "\"" ]
+        , Element.column
+            [ Element.width Element.fill, Element.spacing 16 ]
             (getGroupsFromIds model.searchList model
                 |> List.map (\( groupId, group ) -> groupPreview userConfig isMobile model.time groupId group)
             )
@@ -63,51 +63,51 @@ view ({ texts } as userConfig) isMobile searchText model =
 
 groupPreview : UserConfig -> Bool -> Time.Posix -> Id GroupId -> Group -> Element msg
 groupPreview ({ theme, texts } as userConfig) isMobile currentTime groupId group =
-    link
-        (width fill
+    Element.link
+        (Element.width Element.fill
             :: Ui.inputFocusClass
             :: Ui.cardAttributes theme
-            ++ [ paddingEach { top = 15, left = 15, right = 15, bottom = 0 }
-               , Border.color theme.darkGrey
+            ++ [ Element.paddingEach { top = 15, left = 15, right = 15, bottom = 0 }
+               , Element.Border.color theme.darkGrey
                ]
         )
         { url = Route.encode (GroupRoute groupId (Group.name group))
         , label =
-            column
-                [ width fill
-                , spacing 8
-                , inFront
-                    (el
-                        [ Background.gradient
+            Element.column
+                [ Element.width Element.fill
+                , Element.spacing 8
+                , Element.inFront
+                    (Element.el
+                        [ Element.Background.gradient
                             { angle = pi
                             , steps =
-                                [ rgba 1 1 1 0
-                                , rgba 1 1 1 0
-                                , rgba 1 1 1 0
-                                , rgba 1 1 1 0
-                                , rgba 1 1 1 0
-                                , rgba 1 1 1 0
+                                [ Element.rgba 1 1 1 0
+                                , Element.rgba 1 1 1 0
+                                , Element.rgba 1 1 1 0
+                                , Element.rgba 1 1 1 0
+                                , Element.rgba 1 1 1 0
+                                , Element.rgba 1 1 1 0
                                 , theme.background
                                 ]
                             }
-                        , width fill
-                        , height fill
+                        , Element.width Element.fill
+                        , Element.height Element.fill
                         ]
-                        none
+                        Element.none
                     )
-                , height (maximum 140 shrink)
-                , clip
+                , Element.height (Element.maximum 140 Element.shrink)
+                , Element.clip
                 ]
-                [ row
-                    [ width fill ]
+                [ Element.row
+                    [ Element.width Element.fill ]
                     [ Group.name group
                         |> GroupName.toString
-                        |> text
+                        |> Element.text
                         |> List.singleton
-                        |> paragraph
+                        |> Element.paragraph
                             [ Font.bold
-                            , alignTop
-                            , width (fillPortion 2)
+                            , Element.alignTop
+                            , Element.width (Element.fillPortion 2)
                             ]
                     , case
                         Group.events currentTime group
@@ -118,12 +118,12 @@ groupPreview ({ theme, texts } as userConfig) isMobile currentTime groupId group
                         Just ( _, nextEvent ) ->
                             texts.nextEventIsIn
                                 ++ texts.timeDiffToString currentTime (Event.startTime nextEvent)
-                                |> text
+                                |> Element.text
                                 |> List.singleton
-                                |> paragraph
+                                |> Element.paragraph
                                     [ Font.alignRight
-                                    , alignTop
-                                    , width (fillPortion 1)
+                                    , Element.alignTop
+                                    , Element.width (Element.fillPortion 1)
                                     , if isMobile then
                                         Font.size 14
 
@@ -132,7 +132,7 @@ groupPreview ({ theme, texts } as userConfig) isMobile currentTime groupId group
                                     ]
 
                         Nothing ->
-                            none
+                            Element.none
                     ]
                 , Group.description group
                     |> Description.toParagraph userConfig True

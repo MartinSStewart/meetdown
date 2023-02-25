@@ -27,13 +27,13 @@ import Effect.Lamdera
 import Effect.Subscription as Subscription exposing (Subscription)
 import Effect.Task as Task
 import Effect.Time as Time
-import Element exposing (..)
-import Element.Background as Background
-import Element.Border as Border
-import Element.Events as Events
-import Element.Font as Font
-import Element.Input as Input
-import Element.Region as Region
+import Element exposing (Color, Element)
+import Element.Background
+import Element.Border
+import Element.Events
+import Element.Font
+import Element.Input
+import Element.Region
 import Env
 import FrontendUser exposing (FrontendUser)
 import Group
@@ -77,7 +77,7 @@ app =
                     document =
                         view model
                 in
-                { document | body = Html.div [] [ layout [] none ] :: document.body }
+                { document | body = Html.div [] [ Element.layout [] Element.none ] :: document.body }
         }
 
 
@@ -1218,15 +1218,15 @@ view model =
     { title = "Meetdown"
     , body =
         [ Ui.css userConfig.theme
-        , layoutWith
-            { options = [ noStaticStyleSheet ] }
+        , Element.layoutWith
+            { options = [ Element.noStaticStyleSheet ] }
             [ Ui.defaultFontSize
             , Ui.defaultFont
             , Ui.defaultFontColor userConfig.theme
             ]
             (case model of
                 Loading _ ->
-                    none
+                    Element.none
 
                 Loaded loaded ->
                     viewLoaded userConfig loaded
@@ -1243,46 +1243,46 @@ isMobile { windowWidth } =
 viewLoaded : UserConfig -> LoadedFrontend -> Element FrontendMsg
 viewLoaded userConfig model =
     Ui.overlayEl <|
-        el
-            [ width fill
-            , height fill
+        Element.el
+            [ Element.width Element.fill
+            , Element.height Element.fill
             , if model.miniLanguageSelectorOpened then
-                Events.onClick ToggleLanguageSelect
+                Element.Events.onClick ToggleLanguageSelect
 
               else
                 Ui.attributeNone
             ]
         <|
-            column
-                [ width fill
-                , height fill
+            Element.column
+                [ Element.width Element.fill
+                , Element.height Element.fill
                 ]
                 [ case model.loginStatus of
                     LoginStatusPending ->
-                        none
+                        Element.none
 
                     LoggedIn loggedIn ->
                         if ProfilePage.imageEditorIsActive loggedIn.profileForm then
-                            none
+                            Element.none
 
                         else
                             header userConfig (Just loggedIn) model
 
                     NotLoggedIn _ ->
                         header userConfig Nothing model
-                , el
-                    [ Region.mainContent
-                    , width fill
-                    , height fill
+                , Element.el
+                    [ Element.Region.mainContent
+                    , Element.width Element.fill
+                    , Element.height Element.fill
                     ]
                     (if model.hasLoginTokenError then
-                        column
-                            (centerY :: Ui.pageContentAttributes ++ [ spacing 16 ])
-                            [ paragraph
-                                [ Font.center ]
-                                [ text userConfig.texts.theLinkYouUsedIsEitherInvalidOrHasExpired ]
-                            , el
-                                [ centerX ]
+                        Element.column
+                            (Element.centerY :: Ui.pageContentAttributes ++ [ Element.spacing 16 ])
+                            [ Element.paragraph
+                                [ Element.Font.center ]
+                                [ Element.text userConfig.texts.theLinkYouUsedIsEitherInvalidOrHasExpired ]
+                            , Element.el
+                                [ Element.centerX ]
                                 (Ui.linkButton userConfig.theme { route = Route.HomepageRoute, label = userConfig.texts.goToHomepage })
                             ]
 
@@ -1299,7 +1299,7 @@ viewLoaded userConfig model =
                                 viewPage userConfig model
 
                             LoginStatusPending ->
-                                none
+                                Element.none
                     )
                 , footer
                     userConfig
@@ -1328,7 +1328,7 @@ loginRequiredPage userConfig model pageView =
             LoginForm.view userConfig joiningEvent model.cachedGroups model.loginForm
 
         LoginStatusPending ->
-            none
+            Element.none
 
 
 getCachedUser : Id UserId -> LoadedFrontend -> Maybe FrontendUser
@@ -1345,18 +1345,18 @@ viewPage : UserConfig -> LoadedFrontend -> Element FrontendMsg
 viewPage ({ theme, texts } as userConfig) model =
     case model.route of
         HomepageRoute ->
-            column
-                [ padding 8, width fill, spacing 30 ]
-                [ el [ paddingEach { top = 40, right = 0, bottom = 20, left = 0 }, centerX ] <|
-                    image
-                        [ width <| (fill |> maximum 650) ]
+            Element.column
+                [ Element.padding 8, Element.width Element.fill, Element.spacing 30 ]
+                [ Element.el [ Element.paddingEach { top = 40, right = 0, bottom = 20, left = 0 }, Element.centerX ] <|
+                    Element.image
+                        [ Element.width <| (Element.fill |> Element.maximum 650) ]
                         { src = theme.heroSvg, description = texts.twoPeopleOnAVideoConference }
-                , paragraph
-                    [ Font.center ]
-                    [ text texts.aPlaceToJoinGroupsOfPeopleWithSharedInterests ]
-                , paragraph
-                    [ Font.center ]
-                    [ text <| texts.weDontSellYourDataWeDontShowAdsAndItsFree ++ " "
+                , Element.paragraph
+                    [ Element.Font.center ]
+                    [ Element.text texts.aPlaceToJoinGroupsOfPeopleWithSharedInterests ]
+                , Element.paragraph
+                    [ Element.Font.center ]
+                    [ Element.text <| texts.weDontSellYourDataWeDontShowAdsAndItsFree ++ " "
                     , Ui.routeLink theme Route.FrequentQuestionsRoute texts.readMore
                     ]
                 , searchInputLarge userConfig model.searchText
@@ -1390,7 +1390,7 @@ viewPage ({ theme, texts } as userConfig) model =
                                     LoginStatusPending ->
                                         Nothing
                                 )
-                                |> map GroupPageMsg
+                                |> Element.map GroupPageMsg
 
                         Nothing ->
                             Ui.loadingView texts
@@ -1402,7 +1402,7 @@ viewPage ({ theme, texts } as userConfig) model =
                     Ui.loadingView texts
 
                 Nothing ->
-                    none
+                    Element.none
 
         AdminRoute ->
             loginRequiredPage userConfig model (AdminPage.view userConfig model.timezone)
@@ -1415,7 +1415,7 @@ viewPage ({ theme, texts } as userConfig) model =
                     case loggedIn.myGroups of
                         Just myGroups ->
                             CreateGroupPage.view userConfig (isMobile model) (Set.isEmpty myGroups) model.groupForm
-                                |> map CreateGroupPageMsg
+                                |> Element.map CreateGroupPageMsg
 
                         Nothing ->
                             Ui.loadingView texts
@@ -1440,7 +1440,7 @@ viewPage ({ theme, texts } as userConfig) model =
                                 , profileImage = user.profileImage
                                 }
                                 loggedIn.profileForm
-                                |> map ProfileFormMsg
+                                |> Element.map ProfileFormMsg
 
                         Just ItemRequestPending ->
                             Ui.loadingView texts
@@ -1470,27 +1470,27 @@ viewPage ({ theme, texts } as userConfig) model =
             Terms.view userConfig
 
         CodeOfConductRoute ->
-            column
-                (Ui.pageContentAttributes ++ [ spacing 28 ])
+            Element.column
+                (Ui.pageContentAttributes ++ [ Element.spacing 28 ])
                 [ Ui.title texts.codeOfConduct
-                , paragraph []
-                    [ text <| texts.theMostImportantRuleIs ++ ", "
-                    , el [ Font.bold ] (text texts.dontBeAJerk)
-                    , text "."
+                , Element.paragraph []
+                    [ Element.text <| texts.theMostImportantRuleIs ++ ", "
+                    , Element.el [ Element.Font.bold ] (Element.text texts.dontBeAJerk)
+                    , Element.text "."
                     ]
-                , paragraph [] [ text texts.codeOfConduct1 ]
-                , paragraph [] [ text <| texts.codeOfConduct2 ]
-                , paragraph
+                , Element.paragraph [] [ Element.text texts.codeOfConduct1 ]
+                , Element.paragraph [] [ Element.text <| texts.codeOfConduct2 ]
+                , Element.paragraph
                     []
-                    [ text <| texts.codeOfConduct3 ]
-                , paragraph
+                    [ Element.text <| texts.codeOfConduct3 ]
+                , Element.paragraph
                     []
-                    [ text <| texts.codeOfConduct4 ]
-                , paragraph
+                    [ Element.text <| texts.codeOfConduct4 ]
+                , Element.paragraph
                     []
-                    [ text <| texts.codeOfConduct5
+                    [ Element.text <| texts.codeOfConduct5
                     , Ui.mailToLink theme Env.contactEmailAddress <| Just texts.moderationHelpRequest
-                    , text "."
+                    , Element.text "."
                     ]
                 ]
 
@@ -1498,32 +1498,32 @@ viewPage ({ theme, texts } as userConfig) model =
             let
                 questionAndAnswer : String -> List (Element msg) -> Element msg
                 questionAndAnswer question answer =
-                    column
-                        [ spacing 8 ]
-                        [ paragraph [ Font.bold ] [ text ("\"" ++ question ++ "\"") ]
-                        , paragraph [] answer
+                    Element.column
+                        [ Element.spacing 8 ]
+                        [ Element.paragraph [ Element.Font.bold ] [ Element.text ("\"" ++ question ++ "\"") ]
+                        , Element.paragraph [] answer
                         ]
             in
-            column
-                (Ui.pageContentAttributes ++ [ spacing 28 ])
+            Element.column
+                (Ui.pageContentAttributes ++ [ Element.spacing 28 ])
                 [ Ui.title texts.frequentQuestions
                 , questionAndAnswer
                     texts.faqQuestion1
-                    [ text texts.isItI
+                    [ Element.text texts.isItI
                     , Ui.externalLink theme "https://github.com/MartinSStewart/" "Martin"
-                    , text texts.creditGoesTo
+                    , Element.text texts.creditGoesTo
                     , Ui.externalLink theme "https://twitter.com/realmario" "Mario Rogic"
-                    , text texts.forHelpingMeOutWithPartsOfTheApp
+                    , Element.text texts.forHelpingMeOutWithPartsOfTheApp
                     ]
                 , questionAndAnswer
                     texts.faqQuestion2
-                    [ text texts.faq1
+                    [ Element.text texts.faq1
                     , Ui.externalLink theme "https://www.lamdera.com/" "Lamdera"
-                    , text texts.faq2
+                    , Element.text texts.faq2
                     ]
                 , questionAndAnswer
                     texts.faqQuestion3
-                    [ text texts.faq3
+                    [ Element.text texts.faq3
                     ]
                 ]
 
@@ -1541,38 +1541,38 @@ myGroupsView ({ texts } as userConfig) model loggedIn =
                                 SearchPage.groupPreview userConfig (isMobile model) model.time groupId group
                             )
             in
-            column
+            Element.column
                 Ui.pageContentAttributes
                 [ Ui.title texts.myGroups
                 , if List.isEmpty myGroupsList && Set.isEmpty loggedIn.subscribedGroups then
-                    paragraph
+                    Element.paragraph
                         []
-                        [ text texts.noGroupsYet
+                        [ Element.text texts.noGroupsYet
                         , Ui.routeLink userConfig.theme CreateGroupRoute texts.creatingOne
-                        , text texts.or
+                        , Element.text texts.or
                         , Ui.routeLink userConfig.theme (SearchGroupsRoute "") texts.searchingForOne
                         ]
 
                   else
-                    column
-                        [ width fill, spacing 32 ]
+                    Element.column
+                        [ Element.width Element.fill, Element.spacing 32 ]
                         [ if List.isEmpty myGroupsList then
-                            paragraph []
-                                [ text texts.youHavenTCreatedAnyGroupsYet
+                            Element.paragraph []
+                                [ Element.text texts.youHavenTCreatedAnyGroupsYet
                                 , Ui.routeLink userConfig.theme CreateGroupRoute texts.youCanDoThatHere
                                 ]
 
                           else
-                            column [ spacing 8, width fill ] myGroupsList
-                        , column
-                            [ width fill, spacing 20 ]
+                            Element.column [ Element.spacing 8, Element.width Element.fill ] myGroupsList
+                        , Element.column
+                            [ Element.width Element.fill, Element.spacing 20 ]
                             [ Ui.title texts.subscribedGroups
                             , if Set.isEmpty loggedIn.subscribedGroups then
-                                paragraph []
+                                Element.paragraph []
                                     [ texts.group1
                                         ++ texts.notifyMeOfNewEvents
                                         ++ texts.buttonOnAGroupPage
-                                        |> text
+                                        |> Element.text
                                     ]
 
                               else
@@ -1581,7 +1581,7 @@ myGroupsView ({ texts } as userConfig) model loggedIn =
                                         (\( groupId, group ) ->
                                             SearchPage.groupPreview userConfig (isMobile model) model.time groupId group
                                         )
-                                    |> column [ spacing 8, width fill ]
+                                    |> Element.column [ Element.spacing 8, Element.width Element.fill ]
                             ]
                         ]
                 ]
@@ -1592,69 +1592,69 @@ myGroupsView ({ texts } as userConfig) model loggedIn =
 
 searchInput : UserConfig -> String -> Element FrontendMsg
 searchInput { theme, texts } searchText =
-    Input.text
-        [ width <| maximum 400 fill
-        , Border.rounded 5
-        , Border.color theme.darkGrey
-        , paddingEach { left = 24, right = 8, top = 4, bottom = 4 }
-        , Background.color theme.background
+    Element.Input.text
+        [ Element.width <| Element.maximum 400 Element.fill
+        , Element.Border.rounded 5
+        , Element.Border.color theme.darkGrey
+        , Element.paddingEach { left = 24, right = 8, top = 4, bottom = 4 }
+        , Element.Background.color theme.background
         , Ui.onEnter SubmittedSearchBox
-        , Dom.idToAttribute groupSearchId |> htmlAttribute
-        , inFront <|
-            el
-                [ Font.size 12
-                , moveDown 6
-                , moveRight 4
-                , alpha 0.8
-                , htmlAttribute (Html.Attributes.style "pointer-events" "none")
-                ]
-                (text "🔍")
+        , Dom.idToAttribute groupSearchId |> Element.htmlAttribute
+        , Element.el
+            [ Element.Font.size 12
+            , Element.moveDown 6
+            , Element.moveRight 4
+            , Element.alpha 0.8
+            , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
+            ]
+            (Element.text "🔍")
+            |> Element.inFront
         ]
         { text = searchText
         , onChange = TypedSearchText
         , placeholder = Nothing
-        , label = Input.labelHidden texts.searchForGroups
+        , label = Element.Input.labelHidden texts.searchForGroups
         }
 
 
 searchInputLarge : UserConfig -> String -> Element FrontendMsg
 searchInputLarge { theme, texts } searchText =
-    row
-        [ width <| maximum 400 fill
-        , centerX
+    Element.row
+        [ Element.width <| Element.maximum 400 Element.fill
+        , Element.centerX
         ]
-        [ Input.text
-            [ Border.roundEach { topLeft = 5, bottomLeft = 5, bottomRight = 0, topRight = 0 }
-            , Border.color theme.darkGrey
-            , Border.widthEach { bottom = 1, left = 1, right = 0, top = 1 }
-            , paddingEach { left = 30, right = 8, top = 8, bottom = 8 }
+        [ Element.Input.text
+            [ Element.Border.roundEach { topLeft = 5, bottomLeft = 5, bottomRight = 0, topRight = 0 }
+            , Element.Border.color theme.darkGrey
+            , Element.Border.widthEach { bottom = 1, left = 1, right = 0, top = 1 }
+            , Element.paddingEach { left = 30, right = 8, top = 8, bottom = 8 }
             , Ui.onEnter SubmittedSearchBox
-            , Background.color theme.background
-            , Dom.idToAttribute groupSearchLargeId |> htmlAttribute
-            , inFront <|
-                el
-                    [ Font.size 14
-                    , moveDown 9
-                    , moveRight 6
-                    , alpha 0.8
-                    , htmlAttribute (Html.Attributes.style "pointer-events" "none")
+            , Element.Background.color theme.background
+            , Dom.idToAttribute groupSearchLargeId |> Element.htmlAttribute
+            , Element.inFront <|
+                Element.el
+                    [ Element.Font.size 14
+                    , Element.moveDown 9
+                    , Element.moveRight 6
+                    , Element.alpha 0.8
+                    , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
                     ]
-                    (text "🔍")
+                    (Element.text "🔍")
             ]
             { text = searchText
             , onChange = TypedSearchText
             , placeholder = Nothing
-            , label = Input.labelHidden texts.searchForGroups
+            , label = Element.Input.labelHidden texts.searchForGroups
             }
-        , Input.button
-            [ Background.color theme.submit
-            , Border.roundEach { topLeft = 0, bottomLeft = 0, bottomRight = 5, topRight = 5 }
-            , height fill
-            , Font.color theme.invertedText
-            , paddingXY 16 0
+        , Element.Input.button
+            [ Element.Background.color theme.submit
+            , Element.Border.roundEach { topLeft = 0, bottomLeft = 0, bottomRight = 5, topRight = 5 }
+            , Element.height Element.fill
+            , Element.Font.color theme.invertedText
+            , Element.paddingXY 16 0
             ]
             { onPress = Just SubmittedSearchBox
-            , label = text texts.search
+            , label = Element.text texts.search
             }
         ]
 
@@ -1697,30 +1697,30 @@ header ({ theme, texts } as userConfig) maybeLoggedIn model =
         isMobile_ =
             isMobile model
     in
-    column [ width fill, spacing 10, padding 10 ]
-        [ row
-            [ width fill
-            , paddingEach { left = 4, right = 0, top = 0, bottom = 0 }
-            , Region.navigation
-            , spacing 8
+    Element.column [ Element.width Element.fill, Element.spacing 10, Element.padding 10 ]
+        [ Element.row
+            [ Element.width Element.fill
+            , Element.paddingEach { left = 4, right = 0, top = 0, bottom = 0 }
+            , Element.Region.navigation
+            , Element.spacing 8
             ]
             [ if isMobile_ then
-                none
+                Element.none
 
               else
-                link [ paddingEach { left = 0, right = 10, top = 0, bottom = 0 } ]
+                Element.link [ Element.paddingEach { left = 0, right = 10, top = 0, bottom = 0 } ]
                     { url = "/"
                     , label =
-                        row [ spacing 10 ]
-                            [ image
-                                [ width <| px 30 ]
+                        Element.row [ Element.spacing 10 ]
+                            [ Element.image
+                                [ Element.width <| Element.px 30 ]
                                 { src = "/meetdown-logo.png", description = "Meetdown logo" }
-                            , text "Meetdown"
+                            , Element.text "Meetdown"
                             ]
                     }
             , searchInput userConfig model.searchText
-            , row
-                [ alignRight, spacing 12 ]
+            , Element.row
+                [ Element.alignRight, Element.spacing 12 ]
                 (case maybeLoggedIn of
                     Just loggedIn ->
                         headerButtons userConfig isMobile_ (loggedIn.adminStatus /= IsNotAdmin) model.route
@@ -1814,20 +1814,20 @@ languageFromString string =
 
 languageButton : Theme -> Bool -> Bool -> Language -> Element FrontendMsg
 languageButton theme isMobile_ miniLanguageSelectorOpened language =
-    row
-        [ width fill
-        , alignRight
+    Element.row
+        [ Element.width Element.fill
+        , Element.alignRight
         , if miniLanguageSelectorOpened then
-            inFront <|
+            Element.inFront <|
                 miniLanguageSelect theme isMobile_ language
 
           else
             Ui.attributeNone
         , if miniLanguageSelectorOpened then
-            Background.color theme.lightGrey
+            Element.Background.color theme.lightGrey
 
           else
-            Background.color theme.background
+            Element.Background.color theme.background
         , Ui.greedyOnClick NoOpFrontendMsg
         ]
         [ Ui.headerButton
@@ -1841,17 +1841,17 @@ languageButton theme isMobile_ miniLanguageSelectorOpened language =
 
 miniLanguageSelect : Theme -> Bool -> Language -> Element FrontendMsg
 miniLanguageSelect theme isMobile_ language =
-    column
-        [ width fill
-        , htmlAttribute <| Html.Attributes.style "z-index" "100"
-        , moveDown <|
+    Element.column
+        [ Element.width Element.fill
+        , Element.htmlAttribute <| Html.Attributes.style "z-index" "100"
+        , Element.moveDown <|
             if isMobile_ then
                 25
 
             else
                 32
-        , Background.color theme.lightGrey
-        , alignTop
+        , Element.Background.color theme.lightGrey
+        , Element.alignTop
         ]
     <|
         List.map (languageOption isMobile_) (languageList |> List.filter (\( l, _ ) -> l /= language))
@@ -1867,7 +1867,7 @@ languageList =
 
 languageOption : Bool -> ( Language, String ) -> Element FrontendMsg
 languageOption isMobile_ ( language, elementId ) =
-    el [ centerX ] <|
+    Element.el [ Element.centerX ] <|
         Ui.headerButton
             isMobile_
             (Dom.id elementId)
@@ -1887,24 +1887,24 @@ languageOption isMobile_ ( language, elementId ) =
 
 largeLine : UserConfig -> Maybe LoggedIn_ -> Element msg
 largeLine userConfig maybeLoggedIn =
-    row
-        [ Background.color (adminStatusColor userConfig.theme maybeLoggedIn)
-        , width fill
-        , height (px 2)
+    Element.row
+        [ Element.Background.color (adminStatusColor userConfig.theme maybeLoggedIn)
+        , Element.width Element.fill
+        , Element.height (Element.px 2)
         ]
         []
 
 
 footer : UserConfig -> Bool -> Route -> Maybe LoggedIn_ -> Element msg
 footer ({ theme, texts } as userConfig) isMobile_ route maybeLoggedIn =
-    column
-        [ width fill
-        , spacing 8
-        , padding 8
+    Element.column
+        [ Element.width Element.fill
+        , Element.spacing 8
+        , Element.padding 8
         ]
         [ largeLine userConfig maybeLoggedIn
-        , row
-            [ width fill, alignBottom, spacing 8 ]
+        , Element.row
+            [ Element.width Element.fill, Element.alignBottom, Element.spacing 8 ]
             [ Ui.headerLink theme isMobile_ (route == PrivacyRoute) { route = PrivacyRoute, label = texts.privacy }
             , Ui.headerLink theme isMobile_ (route == TermsOfServiceRoute) { route = TermsOfServiceRoute, label = texts.tos }
             , Ui.headerLink theme isMobile_ (route == CodeOfConductRoute) { route = CodeOfConductRoute, label = texts.codeOfConduct }
@@ -1919,7 +1919,7 @@ headerButtons { theme, texts } isMobile_ isAdmin route =
         Ui.headerLink theme isMobile_ (route == AdminRoute) { route = AdminRoute, label = "Admin" }
 
       else
-        none
+        Element.none
     , Ui.headerLink theme isMobile_ (route == CreateGroupRoute) { route = CreateGroupRoute, label = texts.newGroup }
     , Ui.headerLink theme isMobile_ (route == MyGroupsRoute) { route = MyGroupsRoute, label = texts.myGroups }
     , Ui.headerLink theme isMobile_ (route == MyProfileRoute) { route = MyProfileRoute, label = texts.profile }

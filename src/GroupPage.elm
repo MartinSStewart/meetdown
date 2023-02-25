@@ -39,12 +39,12 @@ import Duration
 import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Effect.Command as Command exposing (Command, FrontendOnly)
 import Effect.Lamdera as Lamdera
-import Element exposing (..)
-import Element.Background as Background
-import Element.Border as Border
-import Element.Font as Font
-import Element.Input as Input
-import Element.Region as Region
+import Element exposing (Element)
+import Element.Background
+import Element.Border
+import Element.Font
+import Element.Input
+import Element.Region
 import Event exposing (CancellationStatus, Event, EventType)
 import EventDuration exposing (EventDuration)
 import EventName exposing (EventName)
@@ -1033,7 +1033,7 @@ view :
     -> Maybe LoggedInData
     -> Element Msg
 view ({ texts } as userConfig) isMobile currentTime timezone owner cachedUsers group model maybeLoggedIn =
-    el
+    Element.el
         Ui.pageContentAttributes
         (case model.eventOverlay of
             Just AddingNewEvent ->
@@ -1045,7 +1045,7 @@ view ({ texts } as userConfig) isMobile currentTime timezone owner cachedUsers g
                         editEventView userConfig currentTime timezone (Event.cancellationStatus event) eventStatus editEvent
 
                     Nothing ->
-                        text texts.thisEventDoesnTExist
+                        Element.text texts.thisEventDoesnTExist
 
             Nothing ->
                 groupView userConfig isMobile currentTime timezone owner cachedUsers group model maybeLoggedIn
@@ -1064,10 +1064,10 @@ titlePart ({ theme, texts } as userConfig) model owner group maybeLoggedIn =
         canEdit_ =
             canEdit group maybeLoggedIn
     in
-    wrappedRow
-        [ width fill, spacing 8 ]
-        [ column
-            [ alignTop, width fill, spacing 4 ]
+    Element.wrappedRow
+        [ Element.width Element.fill, Element.spacing 8 ]
+        [ Element.column
+            [ Element.alignTop, Element.width Element.fill, Element.spacing 4 ]
             ((case model.name of
                 Editing name ->
                     let
@@ -1083,23 +1083,23 @@ titlePart ({ theme, texts } as userConfig) model owner group maybeLoggedIn =
                                 Err GroupName.GroupNameTooLong ->
                                     Just <| texts.nameMustBeAtMost GroupName.maxLength
                     in
-                    [ el
+                    [ Element.el
                         [ Ui.titleFontSize, Ui.contentWidth ]
                         (groupNameTextInput userConfig TypedName name texts.groupName)
-                    , Maybe.map (Ui.error theme) error |> Maybe.withDefault none
-                    , row
-                        [ spacing 16, paddingXY 8 0 ]
+                    , Maybe.map (Ui.error theme) error |> Maybe.withDefault Element.none
+                    , Element.row
+                        [ Element.spacing 16, Element.paddingXY 8 0 ]
                         [ smallButton theme resetGroupNameId PressedResetName texts.reset
                         , Ui.smallSubmitButton saveGroupNameId False { onPress = PressedSaveName, label = texts.save }
                         ]
                     ]
 
                 Submiting name ->
-                    [ el
+                    [ Element.el
                         [ Ui.titleFontSize, Ui.contentWidth ]
                         (groupNameTextInput userConfig TypedName (GroupName.toString name) texts.groupName)
-                    , row
-                        [ spacing 16, paddingXY 8 0 ]
+                    , Element.row
+                        [ Element.spacing 16, Element.paddingXY 8 0 ]
                         [ smallButton theme resetGroupNameId PressedResetName texts.reset
                         , Ui.smallSubmitButton saveGroupNameId True { onPress = PressedSaveName, label = texts.save }
                         ]
@@ -1110,17 +1110,17 @@ titlePart ({ theme, texts } as userConfig) model owner group maybeLoggedIn =
                         |> Group.name
                         |> GroupName.toString
                         |> Ui.title
-                        |> el [ paddingXY 8 4 ]
+                        |> Element.el [ Element.paddingXY 8 4 ]
                     , if canEdit_ then
-                        el [ paddingXY 8 0 ] (smallButton theme editGroupNameId PressedEditName texts.edit)
+                        Element.el [ Element.paddingXY 8 0 ] (smallButton theme editGroupNameId PressedEditName texts.edit)
 
                       else
-                        none
+                        Element.none
                     ]
              )
                 ++ [ case ( canEdit_, maybeLoggedIn ) of
                         ( False, Just loggedIn ) ->
-                            el
+                            Element.el
                                 []
                                 (if loggedIn.isSubscribed then
                                     Ui.submitButton
@@ -1138,20 +1138,20 @@ titlePart ({ theme, texts } as userConfig) model owner group maybeLoggedIn =
                                 )
 
                         _ ->
-                            none
+                            Element.none
                    ]
             )
         , Ui.section
             theme
             texts.organizer
-            (link
+            (Element.link
                 []
                 { url = Route.encode (Route.UserRoute (Group.ownerId group) owner.name)
                 , label =
-                    row
-                        [ spacing 16 ]
+                    Element.row
+                        [ Element.spacing 16 ]
                         [ ProfileImage.smallImage userConfig owner.profileImage
-                        , text (Name.toString owner.name)
+                        , Element.text (Name.toString owner.name)
                         ]
                 }
             )
@@ -1191,8 +1191,8 @@ groupView ({ theme, texts } as userConfig) isMobile currentTime timezone owner c
         canEdit_ =
             canEdit group maybeLoggedIn
     in
-    column
-        [ spacing 24, Ui.contentWidth, centerX ]
+    Element.column
+        [ Element.spacing 24, Ui.contentWidth, Element.centerX ]
         [ titlePart userConfig model owner group maybeLoggedIn
         , case model.description of
             Editing description ->
@@ -1210,16 +1210,16 @@ groupView ({ theme, texts } as userConfig) isMobile currentTime timezone owner c
                     userConfig
                     (error /= Nothing)
                     texts.description
-                    (row
-                        [ spacing 8 ]
+                    (Element.row
+                        [ Element.spacing 8 ]
                         [ smallButton theme resetDescriptionId PressedResetDescription texts.reset
                         , Ui.smallSubmitButton saveDescriptionId False { onPress = PressedSaveDescription, label = texts.save }
                         ]
                     )
-                    (column
-                        [ spacing 8, width fill ]
+                    (Element.column
+                        [ Element.spacing 8, Element.width Element.fill ]
                         [ multiline theme TypedDescription description texts.groupDescription
-                        , Maybe.map (Ui.error theme) error |> Maybe.withDefault none
+                        , Maybe.map (Ui.error theme) error |> Maybe.withDefault Element.none
                         ]
                     )
 
@@ -1228,7 +1228,7 @@ groupView ({ theme, texts } as userConfig) isMobile currentTime timezone owner c
                     userConfig
                     False
                     texts.description
-                    (row [ spacing 8 ]
+                    (Element.row [ Element.spacing 8 ]
                         [ smallButton theme resetDescriptionId PressedResetDescription texts.reset
                         , Ui.smallSubmitButton saveDescriptionId True { onPress = PressedSaveDescription, label = texts.save }
                         ]
@@ -1242,10 +1242,10 @@ groupView ({ theme, texts } as userConfig) isMobile currentTime timezone owner c
                     texts.description
                     (if canEdit_ then
                         -- Extra el prevents focus on both reset and save buttons
-                        el [] (smallButton theme editDescriptionId PressedEditDescription texts.edit)
+                        Element.el [] (smallButton theme editDescriptionId PressedEditDescription texts.edit)
 
                      else
-                        none
+                        Element.none
                     )
                     (Description.toParagraph userConfig False (Group.description group))
         , case ongoingEvent of
@@ -1254,7 +1254,7 @@ groupView ({ theme, texts } as userConfig) isMobile currentTime timezone owner c
                     userConfig
                     False
                     texts.ongoingEvent
-                    none
+                    Element.none
                     (ongoingEventView
                         userConfig
                         isMobile
@@ -1269,7 +1269,7 @@ groupView ({ theme, texts } as userConfig) isMobile currentTime timezone owner c
                     )
 
             Nothing ->
-                none
+                Element.none
         , section
             userConfig
             False
@@ -1284,23 +1284,23 @@ groupView ({ theme, texts } as userConfig) isMobile currentTime timezone owner c
                             smallButton theme showAllFutureEventsId PressedShowAllFutureEvents texts.showAll
 
                     else
-                        none
+                        Element.none
              in
              if canEdit_ then
-                row
-                    [ spacing 16 ]
+                Element.row
+                    [ Element.spacing 16 ]
                     [ showAllButton
                     , smallButton theme createNewEventId PressedAddEvent texts.addEvent
                     ]
 
              else
-                el [] showAllButton
+                Element.el [] showAllButton
             )
             ((case futureEvents of
                 [] ->
-                    [ paragraph
+                    [ Element.paragraph
                         []
-                        [ text texts.noNewEventsHaveBeenPlannedYet ]
+                        [ Element.text texts.noNewEventsHaveBeenPlannedYet ]
                     ]
 
                 soonest :: rest ->
@@ -1323,7 +1323,7 @@ groupView ({ theme, texts } as userConfig) isMobile currentTime timezone owner c
                                 model.showAttendees
                             )
              )
-                |> column [ width fill, spacing 8 ]
+                |> Element.column [ Element.width Element.fill, Element.spacing 8 ]
             )
         , case pastEvents of
             head :: rest ->
@@ -1331,24 +1331,24 @@ groupView ({ theme, texts } as userConfig) isMobile currentTime timezone owner c
                     userConfig
                     False
                     texts.pastEvents
-                    none
+                    Element.none
                     (List.map
                         (pastEventView userConfig isMobile cachedUsers currentTime timezone maybeLoggedIn model.showAttendees)
                         (head :: rest)
-                        |> column [ width fill, spacing 8 ]
+                        |> Element.column [ Element.width Element.fill, Element.spacing 8 ]
                     )
 
             [] ->
-                none
+                Element.none
         , Ui.section
             theme
             texts.info
-            (paragraph
-                [ alignRight ]
-                [ text (texts.thisGroupWasCreatedOn ++ dateToString (Just timezone) (Group.createdAt group)) ]
+            (Element.paragraph
+                [ Element.alignRight ]
+                [ Element.text (texts.thisGroupWasCreatedOn ++ dateToString (Just timezone) (Group.createdAt group)) ]
             )
         , if canEdit_ then
-            el []
+            Element.el []
                 (case Group.visibility group of
                     Group.PublicGroup ->
                         Ui.submitButton
@@ -1366,13 +1366,13 @@ groupView ({ theme, texts } as userConfig) isMobile currentTime timezone owner c
                 )
 
           else
-            none
+            Element.none
         , case Maybe.map (.adminStatus >> AdminStatus.isAdminEnabled) maybeLoggedIn of
             Just True ->
                 Ui.dangerButton theme deleteGroupButtonId False { onPress = PressedDeleteGroup, label = texts.deleteGroup }
 
             _ ->
-                none
+                Element.none
         ]
 
 
@@ -1479,43 +1479,43 @@ ongoingEventView ({ theme, texts } as userConfig) isMobile cachedUsers currentTi
         theme
         [ eventCardHeader texts isMobile currentTime timezone IsOngoingEvent event
         , eventTypeView texts False event
-        , paragraph
+        , Element.paragraph
             []
             [ case attendeeCount of
                 0 ->
-                    text texts.noOnePlansOnAttending
+                    Element.text texts.noOnePlansOnAttending
 
                 1 ->
                     if isAttending then
-                        text texts.onePersonIsAttendingItSYou
+                        Element.text texts.onePersonIsAttendingItSYou
 
                     else
-                        text texts.onePersonIsAttending
+                        Element.text texts.onePersonIsAttending
 
                 _ ->
-                    text <| texts.peopleAreAttending attendeeCount isAttending
+                    Element.text <| texts.peopleAreAttending attendeeCount isAttending
             , showAttendeesButton userConfig eventId showAttendees_
             ]
         , if showAttendees_ then
             attendeesView userConfig cachedUsers event
 
           else
-            none
+            Element.none
         , case Event.eventType event of
             Event.MeetOnline (Just link_) ->
                 if isAttending then
-                    paragraph []
-                        [ text texts.theEventIsTakingPlaceNowAt
-                        , link
-                            [ Font.color theme.link ]
-                            { url = Link.toString link_, label = text (Link.toString link_) }
+                    Element.paragraph []
+                        [ Element.text texts.theEventIsTakingPlaceNowAt
+                        , Element.link
+                            [ Element.Font.color theme.link ]
+                            { url = Link.toString link_, label = Element.text (Link.toString link_) }
                         ]
 
                 else
-                    none
+                    Element.none
 
             _ ->
-                none
+                Element.none
         , case Event.cancellationStatus event of
             Just ( Event.EventUncancelled, _ ) ->
                 joinOrLeaveButton userConfig isAttending maybeJoinOrLeaveStatus eventId event attendeeCount
@@ -1537,12 +1537,12 @@ ongoingEventView ({ theme, texts } as userConfig) isMobile cachedUsers currentTi
             Nothing ->
                 joinOrLeaveButton userConfig isAttending maybeJoinOrLeaveStatus eventId event attendeeCount
         , if isOwner then
-            el
+            Element.el
                 []
                 (Ui.button theme editEventId { onPress = PressedEditEvent eventId, label = texts.editEvent })
 
           else
-            none
+            Element.none
         , Event.description event |> Description.toParagraph userConfig False
         ]
 
@@ -1572,29 +1572,29 @@ pastEventView ({ theme, texts } as userConfig) isMobile cachedUsers currentTime 
         theme
         [ eventCardHeader texts isMobile currentTime timezone IsPastEvent event
         , eventTypeView texts True event
-        , paragraph
+        , Element.paragraph
             []
             [ case attendeeCount of
                 0 ->
-                    text texts.noOneAttended
+                    Element.text texts.noOneAttended
 
                 1 ->
                     if isAttending then
-                        text texts.onePersonAttendedItWasYou
+                        Element.text texts.onePersonAttendedItWasYou
 
                     else
-                        text texts.onePersonAttended
+                        Element.text texts.onePersonAttended
 
                 _ ->
-                    text <| texts.peopleAttended attendeeCount isAttending
-            , text " "
+                    Element.text <| texts.peopleAttended attendeeCount isAttending
+            , Element.text " "
             , showAttendeesButton userConfig eventId showAttendees_
             ]
         , if showAttendees_ then
             attendeesView userConfig cachedUsers event
 
           else
-            none
+            Element.none
         , Event.description event |> Description.toParagraph userConfig False
         ]
 
@@ -1623,23 +1623,23 @@ attendeesView ({ texts } as userConfig) cachedUsers event =
         anonymousAttendees =
             Set.size (Event.attendees event) - List.length visibleAttendees
     in
-    wrappedRow [ spacing 4 ]
+    Element.wrappedRow [ Element.spacing 4 ]
         (visibleAttendees
             ++ [ if anonymousAttendees == 0 then
-                    none
+                    Element.none
 
                  else if List.isEmpty visibleAttendees then
                     texts.justNanonymousNattendees anonymousAttendees
-                        |> text
-                        |> el [ moveRight 24 ]
+                        |> Element.text
+                        |> Element.el [ Element.moveRight 24 ]
 
                  else
                     texts.andNanonymousNattendees anonymousAttendees
-                        |> text
-                        |> el
-                            [ alignTop
-                            , Font.center
-                            , paddingXY 8 8
+                        |> Element.text
+                        |> Element.el
+                            [ Element.alignTop
+                            , Element.Font.center
+                            , Element.paddingXY 8 8
                             ]
                ]
         )
@@ -1656,17 +1656,17 @@ attendeeView userConfig userId user =
         nameText =
             Name.toString user.name
     in
-    link
-        [ Ui.inputFocusClass, alignTop ]
+    Element.link
+        [ Ui.inputFocusClass, Element.alignTop ]
         { url = Route.UserRoute userId user.name |> Route.encode
         , label =
-            column
-                [ spacing 2 ]
+            Element.column
+                [ Element.spacing 2 ]
                 [ ProfileImage.image userConfig (Pixels.pixels attendeeImageSize) user.profileImage
-                , paragraph
-                    [ Font.size 12
-                    , Font.center
-                    , width (px attendeeImageSize)
+                , Element.paragraph
+                    [ Element.Font.size 12
+                    , Element.Font.center
+                    , Element.width (Element.px attendeeImageSize)
                     ]
                     [ (if String.length nameText > 23 then
                         String.left 20 nameText ++ "..."
@@ -1674,7 +1674,7 @@ attendeeView userConfig userId user =
                        else
                         nameText
                       )
-                        |> text
+                        |> Element.text
                     ]
                 ]
         }
@@ -1682,24 +1682,24 @@ attendeeView userConfig userId user =
 
 showAttendeesButton : UserConfig -> EventId -> Bool -> Element Msg
 showAttendeesButton { theme, texts } eventId showAttendees =
-    el
+    Element.el
         []
         (if showAttendees then
-            Input.button
-                [ Font.color theme.link
-                , htmlAttribute (Dom.idToAttribute hideAttendeesButtonId)
+            Element.Input.button
+                [ Element.Font.color theme.link
+                , Element.htmlAttribute (Dom.idToAttribute hideAttendeesButtonId)
                 ]
                 { onPress = PressedHideAttendees eventId |> Just
-                , label = text texts.hideU_00A0Attendees
+                , label = Element.text texts.hideU_00A0Attendees
                 }
 
          else
-            Input.button
-                [ Font.color theme.link
-                , htmlAttribute (Dom.idToAttribute showAttendeesButtonId)
+            Element.Input.button
+                [ Element.Font.color theme.link
+                , Element.htmlAttribute (Dom.idToAttribute showAttendeesButtonId)
                 ]
                 { onPress = PressedShowAttendees eventId |> Just
-                , label = text texts.showU_00A0Attendees
+                , label = Element.text texts.showU_00A0Attendees
                 }
         )
 
@@ -1716,19 +1716,19 @@ hideAttendeesButtonId =
 
 eventCardHeader : Texts -> Bool -> Time.Posix -> Time.Zone -> PastOngoingOrFuture -> Event -> Element msg
 eventCardHeader texts isMobile currentTime timezone eventStatus event =
-    wrappedRow
-        [ spacing 16
-        , width fill
+    Element.wrappedRow
+        [ Element.spacing 16
+        , Element.width Element.fill
         , if isMobile then
-            Font.size 14
+            Element.Font.size 14
 
           else
             Ui.defaultFontSize
         ]
         [ eventTitle event
-        , column
-            [ spacing 4, alignTop ]
-            [ Ui.datetimeToString timezone (Event.startTime event) |> text
+        , Element.column
+            [ Element.spacing 4, Element.alignTop ]
+            [ Ui.datetimeToString timezone (Event.startTime event) |> Element.text
             , (case eventStatus of
                 IsOngoingEvent ->
                     texts.endsIn
@@ -1742,8 +1742,8 @@ eventCardHeader texts isMobile currentTime timezone eventStatus event =
                     texts.ended
                         ++ texts.timeDiffToString currentTime (Event.endTime event)
               )
-                |> text
-                |> el [ alignRight ]
+                |> Element.text
+                |> Element.el [ Element.alignRight ]
             ]
         ]
 
@@ -1779,18 +1779,18 @@ futureEventView ({ theme, texts } as userConfig) isMobile cachedUsers currentTim
         theme
         [ eventCardHeader texts isMobile currentTime timezone IsFutureEvent event
         , eventTypeView texts False event
-        , paragraph
+        , Element.paragraph
             []
             [ case attendeeCount of
                 0 ->
-                    text texts.noOnePlansOnAttending
+                    Element.text texts.noOnePlansOnAttending
 
                 1 ->
                     if isAttending then
-                        text texts.onePersonPlansOnAttendingItSYou
+                        Element.text texts.onePersonPlansOnAttendingItSYou
 
                     else
-                        text texts.onePersonPlansOnAttending
+                        Element.text texts.onePersonPlansOnAttending
 
                 _ ->
                     "• "
@@ -1802,43 +1802,43 @@ futureEventView ({ theme, texts } as userConfig) isMobile cachedUsers currentTim
                             else
                                 ""
                            )
-                        |> text
-            , text " "
+                        |> Element.text
+            , Element.text " "
             , showAttendeesButton userConfig eventId showAttendees_
             ]
         , if showAttendees_ then
             attendeesView userConfig cachedUsers event
 
           else
-            none
+            Element.none
         , if Duration.from currentTime (Event.startTime event) |> Quantity.lessThan Duration.day then
             case Event.eventType event of
                 Event.MeetOnline (Just link_) ->
                     if isAttending then
-                        paragraph []
-                            [ text texts.theEventWillTakePlaceAt
-                            , link
-                                [ Font.color theme.link ]
-                                { url = Link.toString link_, label = text <| Link.toString link_ }
+                        Element.paragraph []
+                            [ Element.text texts.theEventWillTakePlaceAt
+                            , Element.link
+                                [ Element.Font.color theme.link ]
+                                { url = Link.toString link_, label = Element.text <| Link.toString link_ }
                             ]
 
                     else
-                        none
+                        Element.none
 
                 _ ->
-                    none
+                    Element.none
 
           else
-            none
+            Element.none
         , maxAttendeesView event
-        , wrappedRow
-            [ spacingXY 16 8
-            , width
+        , Element.wrappedRow
+            [ Element.spacingXY 16 8
+            , Element.width
                 (if isMobile then
-                    fill
+                    Element.fill
 
                  else
-                    shrink
+                    Element.shrink
                 )
             ]
             [ case Event.cancellationStatus event of
@@ -1865,7 +1865,7 @@ futureEventView ({ theme, texts } as userConfig) isMobile cachedUsers currentTim
                 Ui.button theme editEventId { onPress = PressedEditEvent eventId, label = texts.editEvent }
 
               else
-                none
+                Element.none
             ]
         , case maybeJoinOrLeaveStatus of
             Just LeaveFailure ->
@@ -1878,10 +1878,10 @@ futureEventView ({ theme, texts } as userConfig) isMobile cachedUsers currentTim
                 Ui.error theme texts.failedToJoinEventThereArenTAnySpotsLeft
 
             Just JoinOrLeavePending ->
-                none
+                Element.none
 
             Nothing ->
-                none
+                Element.none
         , Event.description event |> Description.toParagraph userConfig False
         ]
 
@@ -1935,33 +1935,33 @@ maxAttendeesView event =
             "• At most "
                 ++ String.fromInt value
                 ++ " people can attend this event"
-                |> text
+                |> Element.text
                 |> List.singleton
-                |> paragraph []
+                |> Element.paragraph []
 
         Nothing ->
-            none
+            Element.none
 
 
 eventTitle : Event -> Element msg
 eventTitle event =
     Event.name event
         |> EventName.toString
-        |> text
+        |> Element.text
         |> List.singleton
-        |> paragraph [ Region.heading 2, Font.size 20, Font.bold ]
+        |> Element.paragraph [ Element.Region.heading 2, Element.Font.size 20, Element.Font.bold ]
 
 
 eventCard : Theme -> List (Element msg) -> Element msg
 eventCard theme =
-    column
-        [ width fill
-        , spacing 16
-        , Border.rounded 4
-        , padding 15
-        , Border.width 1
-        , Border.color theme.grey
-        , Border.shadow { offset = ( 0, 3 ), size = -1, blur = 3, color = theme.grey }
+    Element.column
+        [ Element.width Element.fill
+        , Element.spacing 16
+        , Element.Border.rounded 4
+        , Element.padding 15
+        , Element.Border.width 1
+        , Element.Border.color theme.grey
+        , Element.Border.shadow { offset = ( 0, 3 ), size = -1, blur = 3, color = theme.grey }
         ]
 
 
@@ -1987,13 +1987,13 @@ eventTypeView texts isPastEvent event =
     in
     case Event.eventType event of
         Event.MeetInPerson maybeAddress ->
-            paragraph []
-                (text eventDurationText
+            Element.paragraph []
+                (Element.text eventDurationText
                     :: (case maybeAddress of
                             Just address ->
-                                [ text <| texts.itsTakingPlaceAt isPastEvent
-                                , el [ Font.bold ] (text (Address.toString address))
-                                , text "."
+                                [ Element.text <| texts.itsTakingPlaceAt isPastEvent
+                                , Element.el [ Element.Font.bold ] (Element.text (Address.toString address))
+                                , Element.text "."
                                 ]
 
                             Nothing ->
@@ -2002,19 +2002,19 @@ eventTypeView texts isPastEvent event =
                 )
 
         Event.MeetOnline _ ->
-            paragraph
+            Element.paragraph
                 []
-                [ text eventDurationText ]
+                [ Element.text eventDurationText ]
 
         Event.MeetOnlineAndInPerson _ maybeAddress ->
-            paragraph
+            Element.paragraph
                 []
-                (text eventDurationText
+                (Element.text eventDurationText
                     :: (case maybeAddress of
                             Just address ->
-                                [ text <| texts.itsTakingPlaceAt isPastEvent
-                                , el [ Font.bold ] (text (Address.toString address))
-                                , text "."
+                                [ Element.text <| texts.itsTakingPlaceAt isPastEvent
+                                , Element.el [ Element.Font.bold ] (Element.text (Address.toString address))
+                                , Element.text "."
                                 ]
 
                             Nothing ->
@@ -2168,8 +2168,8 @@ editEventView { theme, texts } currentTime timezone maybeCancellationStatus even
                 _ ->
                     False
     in
-    column
-        [ spacing 20, padding 8, Ui.contentWidth, centerX ]
+    Element.column
+        [ Element.spacing 20, Element.padding 8, Ui.contentWidth, Element.centerX ]
         [ Ui.title texts.editEvent
         , Ui.columnCard
             theme
@@ -2249,7 +2249,7 @@ editEventView { theme, texts } currentTime timezone maybeCancellationStatus even
                         )
 
                 MeetOnlineAndInPerson ->
-                    column [ spacing 32 ]
+                    Element.column [ Element.spacing 32 ]
                         [ Ui.textInput
                             theme
                             eventMeetingOnlineInputId
@@ -2277,8 +2277,8 @@ editEventView { theme, texts } currentTime timezone maybeCancellationStatus even
                                     Nothing
                             )
                         ]
-            , column
-                [ width fill, spacing 8 ]
+            , Element.column
+                [ Element.width Element.fill, Element.spacing 8 ]
                 [ Ui.dateTimeInput
                     theme
                     { dateInputId = createEventStartDateId
@@ -2307,12 +2307,12 @@ editEventView { theme, texts } currentTime timezone maybeCancellationStatus even
                     }
                 , case eventStatus of
                     IsFutureEvent ->
-                        none
+                        Element.none
 
                     _ ->
-                        paragraph
+                        Element.paragraph
                             []
-                            [ text texts.theStartTimeCanTBeChangedSinceTheEventHasAlreadyStarted ]
+                            [ Element.text texts.theStartTimeCanTBeChangedSinceTheEventHasAlreadyStarted ]
                 ]
             , Ui.numberInput
                 theme
@@ -2340,8 +2340,8 @@ editEventView { theme, texts } currentTime timezone maybeCancellationStatus even
                     _ ->
                         Nothing
                 )
-            , wrappedRow
-                [ spacing 8, width fill ]
+            , Element.wrappedRow
+                [ Element.spacing 8, Element.width Element.fill ]
                 [ Ui.submitButton theme createEventSubmitId isSubmitting { onPress = PressedSubmitEditEvent, label = texts.saveChanges }
                 , Ui.button theme createEventCancelId { onPress = PressedCancelEditEvent, label = texts.cancelChanges }
                 ]
@@ -2362,23 +2362,23 @@ editEventView { theme, texts } currentTime timezone maybeCancellationStatus even
                     Ui.error theme texts.thisEventSomehowDoesnTExistTryRefreshingThePage
 
                 NotSubmitted _ ->
-                    none
+                    Element.none
 
                 IsSubmitting ->
-                    none
+                    Element.none
             , case eventStatus of
                 IsFutureEvent ->
                     Ui.horizontalLine theme
 
                 IsOngoingEvent ->
-                    none
+                    Element.none
 
                 IsPastEvent ->
-                    none
+                    Element.none
             , case eventStatus of
                 IsFutureEvent ->
-                    el
-                        [ alignRight ]
+                    Element.el
+                        [ Element.alignRight ]
                         (case maybeCancellationStatus of
                             Just ( Event.EventCancelled, _ ) ->
                                 Ui.dangerButton
@@ -2403,10 +2403,10 @@ editEventView { theme, texts } currentTime timezone maybeCancellationStatus even
                         )
 
                 IsOngoingEvent ->
-                    none
+                    Element.none
 
                 IsPastEvent ->
-                    none
+                    Element.none
             ]
         ]
 
@@ -2433,14 +2433,14 @@ newEventView { theme, texts } currentTime timezone group event =
                 _ ->
                     False
     in
-    column
-        [ spacing 20, padding 8, Ui.contentWidth, centerX ]
+    Element.column
+        [ Element.spacing 20, Element.padding 8, Ui.contentWidth, Element.centerX ]
         [ Ui.title texts.newEvent
         , Ui.columnCard
             theme
             [ case latestEvent group of
                 Just _ ->
-                    el []
+                    Element.el []
                         (Ui.button
                             theme
                             copyPreviousEventButtonId
@@ -2448,7 +2448,7 @@ newEventView { theme, texts } currentTime timezone group event =
                         )
 
                 Nothing ->
-                    none
+                    Element.none
             , Ui.textInput
                 theme
                 eventNameInputId
@@ -2475,8 +2475,8 @@ newEventView { theme, texts } currentTime timezone group event =
                     _ ->
                         Nothing
                 )
-            , column
-                [ spacing 8, width fill ]
+            , Element.column
+                [ Element.spacing 8, Element.width Element.fill ]
                 [ Ui.radioGroup
                     theme
                     eventMeetingTypeId
@@ -2533,8 +2533,8 @@ newEventView { theme, texts } currentTime timezone group event =
                             )
 
                     Just MeetOnlineAndInPerson ->
-                        column
-                            [ spacing 8, width fill ]
+                        Element.column
+                            [ Element.spacing 8, Element.width Element.fill ]
                             [ Ui.textInput
                                 theme
                                 eventMeetingOnlineInputId
@@ -2564,7 +2564,7 @@ newEventView { theme, texts } currentTime timezone group event =
                             ]
 
                     Nothing ->
-                        none
+                        Element.none
                 ]
             , Ui.dateTimeInput
                 theme
@@ -2612,8 +2612,8 @@ newEventView { theme, texts } currentTime timezone group event =
                     _ ->
                         Nothing
                 )
-            , wrappedRow
-                [ spacing 8 ]
+            , Element.wrappedRow
+                [ Element.spacing 8 ]
                 [ Ui.submitButton
                     theme
                     createEventSubmitId
@@ -2632,10 +2632,10 @@ newEventView { theme, texts } currentTime timezone group event =
                     Ui.error theme texts.thisGroupHasTooManyEvents
 
                 NotSubmitted _ ->
-                    none
+                    Element.none
 
                 IsSubmitting ->
-                    none
+                    Element.none
             ]
         ]
 
@@ -2763,15 +2763,15 @@ validateAddress texts text =
 
 section : UserConfig -> Bool -> String -> Element msg -> Element msg -> Element msg
 section { theme } hasError title headerExtra content =
-    column
-        [ spacing 8
-        , Border.rounded 4
+    Element.column
+        [ Element.spacing 8
+        , Element.Border.rounded 4
         , Ui.inputBackground theme hasError
-        , width fill
+        , Element.width Element.fill
         ]
-        [ row
-            [ spacing 16 ]
-            [ paragraph [ Font.bold ] [ text title ]
+        [ Element.row
+            [ Element.spacing 16 ]
+            [ Element.paragraph [ Element.Font.bold ] [ Element.text title ]
             , headerExtra
             ]
         , content
@@ -2780,30 +2780,30 @@ section { theme } hasError title headerExtra content =
 
 smallButton : Theme -> HtmlId -> msg -> String -> Element msg
 smallButton theme htmlId onPress label =
-    Input.button
-        [ Border.width 2
-        , Border.color <| theme.grey
-        , paddingXY 8 2
-        , Border.rounded 4
-        , Font.center
-        , Dom.idToAttribute htmlId |> htmlAttribute
+    Element.Input.button
+        [ Element.Border.width 2
+        , Element.Border.color <| theme.grey
+        , Element.paddingXY 8 2
+        , Element.Border.rounded 4
+        , Element.Font.center
+        , Dom.idToAttribute htmlId |> Element.htmlAttribute
         ]
         { onPress = Just onPress
-        , label = text label
+        , label = Element.text label
         }
 
 
 multiline : Theme -> (String -> msg) -> String -> String -> Element msg
 multiline theme onChange text labelText =
-    Input.multiline
-        [ width fill
-        , height (px 200)
-        , Background.color theme.background
+    Element.Input.multiline
+        [ Element.width Element.fill
+        , Element.height (Element.px 200)
+        , Element.Background.color theme.background
         ]
         { text = text
         , onChange = onChange
         , placeholder = Nothing
-        , label = Input.labelHidden labelText
+        , label = Element.Input.labelHidden labelText
         , spellcheck = True
         }
 
@@ -2820,14 +2820,14 @@ copyPreviousEventButtonId =
 
 groupNameTextInput : UserConfig -> (String -> msg) -> String -> String -> Element msg
 groupNameTextInput { theme } onChange text labelText =
-    Input.text
-        [ width fill
-        , paddingXY 8 4
-        , Dom.idToAttribute groupNameInputId |> htmlAttribute
-        , Background.color theme.background
+    Element.Input.text
+        [ Element.width Element.fill
+        , Element.paddingXY 8 4
+        , Dom.idToAttribute groupNameInputId |> Element.htmlAttribute
+        , Element.Background.color theme.background
         ]
         { text = text
         , onChange = onChange
         , placeholder = Nothing
-        , label = Input.labelHidden labelText
+        , label = Element.Input.labelHidden labelText
         }
