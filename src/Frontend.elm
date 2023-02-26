@@ -1593,7 +1593,7 @@ myGroupsView ({ texts } as userConfig) model loggedIn =
 searchInput : UserConfig -> String -> Element FrontendMsg
 searchInput { theme, texts } searchText =
     Element.Input.text
-        [ Element.width (Element.maximum 400 Element.fill)
+        [ Element.width (Element.maximum 400 (Element.minimum 100 Element.fill))
         , Element.Border.rounded 5
         , Element.Border.color theme.darkGrey
         , Element.paddingEach { left = 24, right = 8, top = 4, bottom = 4 }
@@ -1697,17 +1697,18 @@ header ({ theme, texts } as userConfig) maybeLoggedIn model =
         isMobile_ =
             isMobile model
     in
-    Element.column [ Element.width Element.fill, Element.spacing 10, Element.padding 10 ]
-        [ Element.row
+    Element.column
+        [ Element.width Element.fill, Element.spacing 10, Element.padding 10 ]
+        [ Element.wrappedRow
             [ Element.width Element.fill
             , Element.paddingEach { left = 4, right = 0, top = 0, bottom = 0 }
             , Element.Region.navigation
             , Element.spacing 8
             ]
-            [ if isMobile_ then
+            ([ if isMobile_ then
                 Element.none
 
-              else
+               else
                 Element.link [ Element.paddingEach { left = 0, right = 10, top = 0, bottom = 0 } ]
                     { url = "/"
                     , label =
@@ -1718,33 +1719,37 @@ header ({ theme, texts } as userConfig) maybeLoggedIn model =
                             , Element.text "Meetdown"
                             ]
                     }
-            , searchInput userConfig model.searchText
-            , Element.row
-                [ Element.alignRight, Element.spacing 12 ]
-                (case maybeLoggedIn of
-                    Just loggedIn ->
-                        headerButtons userConfig isMobile_ (loggedIn.adminStatus /= IsNotAdmin) model.route
-                            ++ [ Ui.headerButton isMobile_
-                                    logOutButtonId
-                                    { onPress = PressedLogout
-                                    , label = texts.logout
-                                    }
-                               , languageButton theme isMobile_ model.miniLanguageSelectorOpened model.loadedUserConfig.language
-                               , themeToggleButton isMobile_ model.loadedUserConfig.theme
-                               ]
+             , searchInput userConfig model.searchText
+             ]
+                ++ (case maybeLoggedIn of
+                        Just loggedIn ->
+                            headerButtons userConfig isMobile_ (loggedIn.adminStatus /= IsNotAdmin) model.route
+                                ++ [ Ui.headerButton
+                                        isMobile_
+                                        logOutButtonId
+                                        { onPress = PressedLogout, label = texts.logout }
+                                   , languageButton
+                                        theme
+                                        isMobile_
+                                        model.miniLanguageSelectorOpened
+                                        model.loadedUserConfig.language
+                                   , themeToggleButton isMobile_ model.loadedUserConfig.theme
+                                   ]
 
-                    Nothing ->
-                        [ Ui.headerButton
-                            isMobile_
-                            signUpOrLoginButtonId
-                            { onPress = PressedLogin
-                            , label = texts.login
-                            }
-                        , languageButton theme isMobile_ model.miniLanguageSelectorOpened model.loadedUserConfig.language
-                        , themeToggleButton isMobile_ model.loadedUserConfig.theme
-                        ]
-                )
-            ]
+                        Nothing ->
+                            [ Ui.headerButton
+                                isMobile_
+                                signUpOrLoginButtonId
+                                { onPress = PressedLogin, label = texts.login }
+                            , languageButton
+                                theme
+                                isMobile_
+                                model.miniLanguageSelectorOpened
+                                model.loadedUserConfig.language
+                            , themeToggleButton isMobile_ model.loadedUserConfig.theme
+                            ]
+                   )
+            )
         , largeLine userConfig maybeLoggedIn
         ]
 
@@ -1815,8 +1820,7 @@ languageFromString string =
 languageButton : Theme -> Bool -> Bool -> Language -> Element FrontendMsg
 languageButton theme isMobile_ miniLanguageSelectorOpened language =
     Element.row
-        [ Element.width Element.fill
-        , Element.alignRight
+        [ Element.alignRight
         , if miniLanguageSelectorOpened then
             Element.below (miniLanguageSelect theme isMobile_ language)
 
