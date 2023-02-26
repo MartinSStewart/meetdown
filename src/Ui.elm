@@ -34,7 +34,6 @@ module Ui exposing
     , multiline
     , numberInput
     , onEnter
-    , overlayEl
     , pageContentAttributes
     , radioGroup
     , routeLink
@@ -79,11 +78,11 @@ css theme =
         []
         [ """ 
           @import url('https://rsms.me/inter/inter.css');
-          Element.html { font-family: 'Inter', sans-serif; scrollbar-gutter: stable; background-color: """
+          html { font-family: 'Inter', sans-serif; scrollbar-gutter: stable; background-color: """
             ++ Colors.toCssString theme.background
             ++ """; }
           @supports (font-variation-settings: normal) {
-            Element.html { font-family: 'Inter var', sans-serif; }
+            html { font-family: 'Inter var', sans-serif; }
           }
 
           .linkFocus:focus {
@@ -574,9 +573,9 @@ numberInput theme htmlId onChange value labelText maybeError =
              , Html.Events.onInput onChange
              , Dom.idToAttribute htmlId
              , Html.Attributes.value value
-             , Html.Attributes.style "line-Element.height" "38px"
-             , Html.Attributes.style "Element.text-align" "right"
-             , Html.Attributes.style "Element.padding-right" "4px"
+             , Html.Attributes.style "line-height" "38px"
+             , Html.Attributes.style "text-align" "right"
+             , Html.Attributes.style "padding-right" "4px"
              ]
                 ++ htmlInputStyle theme
             )
@@ -621,7 +620,7 @@ timeInput theme htmlId onChange time isDisabled =
         ([ Html.Attributes.type_ "time"
          , Html.Events.onInput onChange
          , Html.Attributes.value time
-         , Html.Attributes.style "Element.padding" "5px"
+         , Html.Attributes.style "padding" "5px"
          , Dom.idToAttribute htmlId
          , Html.Attributes.disabled isDisabled
          ]
@@ -646,7 +645,7 @@ dateInput theme htmlId onChange minDateTime date isDisabled =
          , Html.Attributes.min (datestamp minDateTime)
          , Html.Events.onInput onChange
          , Html.Attributes.value date
-         , Html.Attributes.style "Element.padding" "5px"
+         , Html.Attributes.style "padding" "5px"
          , Dom.idToAttribute htmlId
          , Html.Attributes.disabled isDisabled
          ]
@@ -758,7 +757,7 @@ loadingError theme text_ =
 htmlInputStyle : Theme -> List (Html.Attribute msg)
 htmlInputStyle theme =
     [ Html.Attributes.style "border-color" (Colors.toCssString theme.darkGrey)
-    , Html.Attributes.style "border-Element.width" "1px"
+    , Html.Attributes.style "border-width" "1px"
     , Html.Attributes.style "border-style" "solid"
     , Html.Attributes.style "border-radius" "4px"
     , Html.Attributes.style "background-color" (Colors.toCssString theme.background)
@@ -768,21 +767,7 @@ htmlInputStyle theme =
 
 attributeNone : Attribute msg
 attributeNone =
-    Element.htmlAttribute (Html.Attributes.style "Element.none" "Element.none")
-
-
-overlayEl : Element msg -> Element msg
-overlayEl =
-    Element.el
-        [ Element.width Element.fill
-        , Element.height Element.fill
-        , Element.htmlAttribute (Html.Attributes.style "overflow-y" "auto")
-        , Element.htmlAttribute (Html.Attributes.style "position" "fixed")
-        , Element.htmlAttribute (Html.Attributes.style "top" "0")
-        , Element.htmlAttribute (Html.Attributes.style "right" "0")
-        , Element.htmlAttribute (Html.Attributes.style "bottom" "0")
-        , Element.htmlAttribute (Html.Attributes.style "left" "0")
-        ]
+    Element.htmlAttribute (Html.Attributes.style "none" "none")
 
 
 greedyOnClick : msg -> Attribute msg

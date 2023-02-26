@@ -1242,80 +1242,78 @@ isMobile { windowWidth } =
 
 viewLoaded : UserConfig -> LoadedFrontend -> Element FrontendMsg
 viewLoaded userConfig model =
-    Ui.overlayEl
-        (Element.el
+    Element.el
+        [ Element.width Element.fill
+        , Element.height Element.fill
+        , if model.miniLanguageSelectorOpened then
+            Element.Events.onClick ToggleLanguageSelect
+
+          else
+            Ui.attributeNone
+        ]
+        (Element.column
             [ Element.width Element.fill
             , Element.height Element.fill
-            , if model.miniLanguageSelectorOpened then
-                Element.Events.onClick ToggleLanguageSelect
-
-              else
-                Ui.attributeNone
             ]
-            (Element.column
-                [ Element.width Element.fill
-                , Element.height Element.fill
-                ]
-                [ case model.loginStatus of
-                    LoginStatusPending ->
+            [ case model.loginStatus of
+                LoginStatusPending ->
+                    Element.none
+
+                LoggedIn loggedIn ->
+                    if ProfilePage.imageEditorIsActive loggedIn.profileForm then
                         Element.none
 
-                    LoggedIn loggedIn ->
-                        if ProfilePage.imageEditorIsActive loggedIn.profileForm then
-                            Element.none
+                    else
+                        header userConfig (Just loggedIn) model
 
-                        else
-                            header userConfig (Just loggedIn) model
+                NotLoggedIn _ ->
+                    header userConfig Nothing model
+            , Element.el
+                [ Element.Region.mainContent
+                , Element.width Element.fill
+                , Element.height Element.fill
+                ]
+                (if model.hasLoginTokenError then
+                    Element.column
+                        (Element.centerY :: Ui.pageContentAttributes ++ [ Element.spacing 16 ])
+                        [ Element.paragraph
+                            [ Element.Font.center ]
+                            [ Element.text userConfig.texts.theLinkYouUsedIsEitherInvalidOrHasExpired ]
+                        , Element.el
+                            [ Element.centerX ]
+                            (Ui.linkButton userConfig.theme { route = Route.HomepageRoute, label = userConfig.texts.goToHomepage })
+                        ]
 
-                    NotLoggedIn _ ->
-                        header userConfig Nothing model
-                , Element.el
-                    [ Element.Region.mainContent
-                    , Element.width Element.fill
-                    , Element.height Element.fill
-                    ]
-                    (if model.hasLoginTokenError then
-                        Element.column
-                            (Element.centerY :: Ui.pageContentAttributes ++ [ Element.spacing 16 ])
-                            [ Element.paragraph
-                                [ Element.Font.center ]
-                                [ Element.text userConfig.texts.theLinkYouUsedIsEitherInvalidOrHasExpired ]
-                            , Element.el
-                                [ Element.centerX ]
-                                (Ui.linkButton userConfig.theme { route = Route.HomepageRoute, label = userConfig.texts.goToHomepage })
-                            ]
+                 else
+                    case model.loginStatus of
+                        NotLoggedIn { showLogin, joiningEvent } ->
+                            if showLogin then
+                                LoginForm.view userConfig joiningEvent model.cachedGroups model.loginForm
 
-                     else
-                        case model.loginStatus of
-                            NotLoggedIn { showLogin, joiningEvent } ->
-                                if showLogin then
-                                    LoginForm.view userConfig joiningEvent model.cachedGroups model.loginForm
-
-                                else
-                                    viewPage userConfig model
-
-                            LoggedIn _ ->
+                            else
                                 viewPage userConfig model
 
-                            LoginStatusPending ->
-                                Element.none
-                    )
-                , footer
-                    userConfig
-                    (isMobile model)
-                    model.route
-                    (case model.loginStatus of
-                        LoggedIn loggedIn ->
-                            Just loggedIn
+                        LoggedIn _ ->
+                            viewPage userConfig model
 
                         LoginStatusPending ->
-                            Nothing
+                            Element.none
+                )
+            , footer
+                userConfig
+                (isMobile model)
+                model.route
+                (case model.loginStatus of
+                    LoggedIn loggedIn ->
+                        Just loggedIn
 
-                        NotLoggedIn _ ->
-                            Nothing
-                    )
-                ]
-            )
+                    LoginStatusPending ->
+                        Nothing
+
+                    NotLoggedIn _ ->
+                        Nothing
+                )
+            ]
         )
 
 
@@ -1820,7 +1818,7 @@ languageButton theme isMobile_ miniLanguageSelectorOpened language =
         [ Element.width Element.fill
         , Element.alignRight
         , if miniLanguageSelectorOpened then
-            Element.inFront (miniLanguageSelect theme isMobile_ language)
+            Element.below (miniLanguageSelect theme isMobile_ language)
 
           else
             Ui.attributeNone
@@ -1842,49 +1840,54 @@ languageButton theme isMobile_ miniLanguageSelectorOpened language =
 
 miniLanguageSelect : Theme -> Bool -> Language -> Element FrontendMsg
 miniLanguageSelect theme isMobile_ language =
-    Element.column
-        [ Element.width Element.fill
-        , Element.htmlAttribute (Html.Attributes.style "z-index" "100")
-        , Element.moveDown
-            (if isMobile_ then
-                25
+    List.filter ((/=) language) [ English, French, Spanish ]
+        |> List.map (languageOption isMobile_)
+        |> Element.column
+            [ Element.Background.color theme.lightGrey
+            , Element.alignTop
+            , Element.alignRight
+            , Element.Border.shadow { offset = ( 0, 1 ), size = 0, blur = 1, color = Element.rgba 0 0 0 0.1 }
+            ]
 
-             else
-                32
-            )
-        , Element.Background.color theme.lightGrey
-        , Element.alignTop
+
+selectLanguageButtonId : Language -> HtmlId
+selectLanguageButtonId language =
+    "frontend_selectLanguageButton_" ++ languageToString language |> Dom.id
+
+
+languageOption : Bool -> Language -> Element FrontendMsg
+languageOption isMobile_ language =
+    Element.Input.button
+        [ Element.mouseOver [ Element.Background.color (Element.rgba 1 1 1 0.5) ]
+        , if isMobile_ then
+            Element.padding 6
+
+          else
+            Element.padding 8
+        , Element.width Element.fill
+        , Ui.inputFocusClass
+        , Dom.idToAttribute (selectLanguageButtonId language) |> Element.htmlAttribute
+        , if isMobile_ then
+            Element.Font.size 13
+
+          else
+            Element.Font.size 16
         ]
-        (List.map (languageOption isMobile_) (languageList |> List.filter (\( l, _ ) -> l /= language)))
+        { onPress = Just (LanguageSelected language)
+        , label =
+            (case language of
+                English ->
+                    "English 🇬🇧"
 
+                French ->
+                    "Français 🇫🇷"
 
-languageList : List ( Language, String )
-languageList =
-    [ ( English, "header_languageOption_english" )
-    , ( French, "header_languageOption_french" )
-    , ( Spanish, "header_languageOption_spanish" )
-    ]
-
-
-languageOption : Bool -> ( Language, String ) -> Element FrontendMsg
-languageOption isMobile_ ( language, elementId ) =
-    Element.el [ Element.centerX ]
-        (Ui.headerButton
-            isMobile_
-            (Dom.id elementId)
-            { onPress = LanguageSelected language
-            , label =
-                case language of
-                    English ->
-                        "🇬🇧"
-
-                    French ->
-                        "🇫🇷"
-
-                    Spanish ->
-                        "🇪🇸"
-            }
-        )
+                Spanish ->
+                    "Español 🇪🇸"
+            )
+                |> Element.text
+                |> Element.el [ Element.alignRight ]
+        }
 
 
 largeLine : UserConfig -> Maybe LoggedIn_ -> Element msg
@@ -1905,7 +1908,7 @@ footer ({ theme, texts } as userConfig) isMobile_ route maybeLoggedIn =
         , Element.padding 8
         ]
         [ largeLine userConfig maybeLoggedIn
-        , Element.row
+        , Element.wrappedRow
             [ Element.width Element.fill, Element.alignBottom, Element.spacing 8 ]
             [ Ui.headerLink theme isMobile_ (route == PrivacyRoute) { route = PrivacyRoute, label = texts.privacy }
             , Ui.headerLink theme isMobile_ (route == TermsOfServiceRoute) { route = TermsOfServiceRoute, label = texts.tos }

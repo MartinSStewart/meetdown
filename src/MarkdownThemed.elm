@@ -7,7 +7,7 @@ import Element.Font
 import Element.Region
 import Html
 import Html.Attributes
-import Markdown.Block exposing (..)
+import Markdown.Block exposing (HeadingLevel, ListItem(..))
 import Markdown.Html
 import Markdown.Parser
 import Markdown.Renderer
@@ -180,7 +180,7 @@ renderer theme searchPreview =
 heading : Theme -> { level : HeadingLevel, rawText : String, children : List (Element msg) } -> Element msg
 heading theme { level, rawText, children } =
     Element.paragraph
-        ((case headingLevelToInt level of
+        ((case Markdown.Block.headingLevelToInt level of
             1 ->
                 [ Element.Font.size 28
                 , Element.Font.bold
@@ -216,7 +216,7 @@ heading theme { level, rawText, children } =
                 , Element.paddingXY 0 20
                 ]
          )
-            ++ [ Element.Region.heading (headingLevelToInt level)
+            ++ [ Element.Region.heading (Markdown.Block.headingLevelToInt level)
                , Element.htmlAttribute
                     (Html.Attributes.attribute "name" (rawTextToId rawText))
                , Element.htmlAttribute

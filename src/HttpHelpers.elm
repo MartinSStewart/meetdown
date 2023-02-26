@@ -1,6 +1,6 @@
 module HttpHelpers exposing (..)
 
-import Effect.Http as Http exposing (..)
+import Effect.Http as Http exposing (Error(..))
 
 
 httpErrorToString : Http.Error -> String
