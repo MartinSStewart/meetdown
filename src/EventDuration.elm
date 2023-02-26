@@ -38,7 +38,7 @@ fromMinutes minutes =
         Err EventDurationTooLong
 
     else
-        Ok <| EventDuration minutes
+        Ok (EventDuration minutes)
 
 
 toMinutes : EventDuration -> Int
@@ -48,7 +48,7 @@ toMinutes (EventDuration minutes) =
 
 toDuration : EventDuration -> Duration
 toDuration (EventDuration minutes) =
-    Duration.minutes <| toFloat minutes
+    Duration.minutes (toFloat minutes)
 
 
 toString : Texts -> EventDuration -> String

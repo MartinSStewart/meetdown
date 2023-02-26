@@ -49,10 +49,10 @@ view ({ texts } as userConfig) isMobile searchText model =
         , Element.spacing 8
         ]
         [ if searchText == "" then
-            Element.paragraph [] [ Element.text <| texts.searchResultsFor ++ "\" \"" ]
+            Element.paragraph [] [ Element.text (texts.searchResultsFor ++ "\" \"") ]
 
           else
-            Element.paragraph [] [ Element.text <| texts.searchResultsFor ++ "\"" ++ searchText ++ "\"" ]
+            Element.paragraph [] [ Element.text (texts.searchResultsFor ++ "\"" ++ searchText ++ "\"") ]
         , Element.column
             [ Element.width Element.fill, Element.spacing 16 ]
             (getGroupsFromIds model.searchList model

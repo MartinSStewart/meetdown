@@ -314,7 +314,7 @@ sendLoginEmail msg emailAddress route loginToken maybeJoinEvent =
             { from = { name = "Meetdown", email = sender }
             , to = List.Nonempty.fromElement { name = "", email = emailAddress }
             , subject = loginEmailSubject
-            , body = Postmark.BodyHtml <| loginEmailContent route loginToken maybeJoinEvent
+            , body = Postmark.BodyHtml (loginEmailContent route loginToken maybeJoinEvent)
             , messageStream = "outbound"
             }
                 |> Postmark.sendEmail msg Env.postmarkServerToken
@@ -334,7 +334,7 @@ sendDeleteUserEmail msg emailAddress deleteUserToken =
             { from = { name = "Meetdown", email = sender }
             , to = List.Nonempty.fromElement { name = "", email = emailAddress }
             , subject = deleteAccountEmailSubject
-            , body = Postmark.BodyHtml <| deleteAccountEmailContent deleteUserToken
+            , body = Postmark.BodyHtml (deleteAccountEmailContent deleteUserToken)
             , messageStream = "outbound"
             }
                 |> Postmark.sendEmail msg Env.postmarkServerToken
@@ -357,7 +357,7 @@ sendEventReminderEmail msg groupId groupName event timezone emailAddress =
             { from = { name = "Meetdown", email = sender }
             , to = List.Nonempty.fromElement { name = "", email = emailAddress }
             , subject = eventReminderEmailSubject groupName event timezone
-            , body = Postmark.BodyHtml <| eventReminderEmailContent groupId groupName event
+            , body = Postmark.BodyHtml (eventReminderEmailContent groupId groupName event)
             , messageStream = "broadcast"
             }
                 |> Postmark.sendEmail msg Env.postmarkServerToken

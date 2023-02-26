@@ -74,8 +74,8 @@ image userConfig size profileImage =
 smallImage : UserConfig -> ProfileImage -> Element msg
 smallImage userConfig profileImage =
     Element.image
-        [ Element.width (Element.px <| Pixels.inPixels defaultSize // 2)
-        , Element.height (Element.px <| Pixels.inPixels defaultSize // 2)
+        [ Element.width (Element.px (Pixels.inPixels defaultSize // 2))
+        , Element.height (Element.px (Pixels.inPixels defaultSize // 2))
         , Element.Border.rounded 9999
         , Element.clip
         , Element.Background.color userConfig.theme.grey

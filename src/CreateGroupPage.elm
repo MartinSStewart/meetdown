@@ -179,10 +179,10 @@ formView { theme, texts } isMobile firstGroup maybeSubmitError isSubmitting form
                 ( True, Err error ) ->
                     case error of
                         GroupName.GroupNameTooShort ->
-                            Just <| texts.nameMustBeAtLeast GroupName.minLength
+                            Just (texts.nameMustBeAtLeast GroupName.minLength)
 
                         GroupName.GroupNameTooLong ->
-                            Just <| texts.nameMustBeAtMost GroupName.maxLength
+                            Just (texts.nameMustBeAtMost GroupName.maxLength)
 
                 _ ->
                     Nothing

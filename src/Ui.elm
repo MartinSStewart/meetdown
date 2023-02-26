@@ -136,7 +136,7 @@ pageContentAttributes =
 
 inputFocusClass : Attribute msg
 inputFocusClass =
-    htmlAttribute <| Html.Attributes.class "linkFocus"
+    htmlAttribute (Html.Attributes.class "linkFocus")
 
 
 horizontalLine : Theme -> Element msg
@@ -152,7 +152,7 @@ horizontalLine theme =
 headerButton : Bool -> HtmlId -> { onPress : msg, label : String } -> Element msg
 headerButton isMobile_ htmlId { onPress, label } =
     Element.Input.button
-        [ mouseOver [ Element.Background.color <| rgba 1 1 1 0.5 ]
+        [ mouseOver [ Element.Background.color (rgba 1 1 1 0.5) ]
         , if isMobile_ then
             padding 6
 
@@ -175,9 +175,9 @@ headerButton isMobile_ htmlId { onPress, label } =
 headerLink : Theme -> Bool -> Bool -> { route : Route, label : String } -> Element msg
 headerLink theme isMobile_ isSelected { route, label } =
     link
-        [ mouseOver [ Element.Background.color <| rgba 1 1 1 0.5 ]
-        , below <|
-            if isSelected then
+        [ mouseOver [ Element.Background.color (rgba 1 1 1 0.5) ]
+        , below
+            (if isSelected then
                 Element.el
                     [ Element.paddingXY 4 0, Element.width Element.fill ]
                     (el
@@ -188,8 +188,9 @@ headerLink theme isMobile_ isSelected { route, label } =
                         none
                     )
 
-            else
+             else
                 none
+            )
         , if isMobile_ then
             padding 6
 
@@ -320,11 +321,11 @@ submitButton theme htmlId isSubmitting { onPress, label } =
 smallSubmitButton : HtmlId -> Bool -> { onPress : msg, label : String } -> Element msg
 smallSubmitButton htmlId isSubmitting { onPress, label } =
     Element.Input.button
-        [ Element.Background.color <| rgb 0.1 0.6 0.25
+        [ Element.Background.color (rgb 0.1 0.6 0.25)
         , Element.paddingXY 8 4
         , Element.Border.rounded 4
         , Element.Font.center
-        , Element.Font.color <| rgb 1 1 1
+        , Element.Font.color (rgb 1 1 1)
         , Dom.idToAttribute htmlId |> htmlAttribute
         ]
         { onPress = Just onPress
@@ -481,12 +482,13 @@ radioGroup theme htmlId onSelect options selected optionToLabel maybeError =
 
 inputBackground : Theme -> Bool -> Attr decorative msg
 inputBackground theme hasError =
-    Element.Background.color <|
-        if hasError then
+    Element.Background.color
+        (if hasError then
             theme.errorBackground
 
-        else
+         else
             rgba255 0 0 0 0
+        )
 
 
 contentWidth : Attribute msg
@@ -496,22 +498,24 @@ contentWidth =
 
 inputBorder : Theme -> Bool -> Attr decorative msg
 inputBorder theme hasError =
-    Element.Border.color <|
-        if hasError then
+    Element.Border.color
+        (if hasError then
             theme.error
 
-        else
+         else
             theme.darkGrey
+        )
 
 
 inputBorderWidth : Bool -> Attribute msg
 inputBorderWidth hasError =
-    Element.Border.width <|
-        if hasError then
+    Element.Border.width
+        (if hasError then
             2
 
-        else
+         else
             1
+        )
 
 
 textInput : Theme -> HtmlId -> (String -> msg) -> String -> String -> Maybe String -> Element msg
@@ -737,9 +741,7 @@ loadingView texts =
         , htmlAttribute (Html.Attributes.style "animation-name" "fade-in")
         , htmlAttribute (Html.Attributes.style "animation-duration" "1s")
         ]
-    <|
-        text <|
-            texts.loading
+        (text texts.loading)
 
 
 loadingError : Theme -> String -> Element msg
@@ -750,8 +752,7 @@ loadingError theme text_ =
         , centerY
         , Element.Font.color theme.error
         ]
-    <|
-        text text_
+        (text text_)
 
 
 htmlInputStyle : Theme -> List (Html.Attribute msg)
@@ -767,7 +768,7 @@ htmlInputStyle theme =
 
 attributeNone : Attribute msg
 attributeNone =
-    htmlAttribute <| Html.Attributes.style "none" "none"
+    htmlAttribute (Html.Attributes.style "none" "none")
 
 
 overlayEl : Element msg -> Element msg
@@ -775,17 +776,15 @@ overlayEl =
     Element.el
         [ Element.width Element.fill
         , height fill
-        , htmlAttribute <| Html.Attributes.style "overflow-y" "auto"
-        , htmlAttribute <| Html.Attributes.style "position" "fixed"
-        , htmlAttribute <| Html.Attributes.style "top" "0"
-        , htmlAttribute <| Html.Attributes.style "right" "0"
-        , htmlAttribute <| Html.Attributes.style "bottom" "0"
-        , htmlAttribute <| Html.Attributes.style "left" "0"
+        , htmlAttribute (Html.Attributes.style "overflow-y" "auto")
+        , htmlAttribute (Html.Attributes.style "position" "fixed")
+        , htmlAttribute (Html.Attributes.style "top" "0")
+        , htmlAttribute (Html.Attributes.style "right" "0")
+        , htmlAttribute (Html.Attributes.style "bottom" "0")
+        , htmlAttribute (Html.Attributes.style "left" "0")
         ]
 
 
 greedyOnClick : msg -> Attribute msg
 greedyOnClick msg =
-    htmlAttribute <|
-        Html.Events.custom "click" <|
-            Json.Decode.succeed { message = msg, preventDefault = True, stopPropagation = True }
+    htmlAttribute (Html.Events.custom "click" (Json.Decode.succeed { message = msg, preventDefault = True, stopPropagation = True }))

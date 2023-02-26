@@ -12,6 +12,5 @@ view ({ texts } as userConfig) =
     Element.column
         Ui.pageContentAttributes
         [ Ui.title texts.privacyNotice
-        , MarkdownThemed.renderFull userConfig <|
-            texts.privacyMarkdown (Route.encode Route.TermsOfServiceRoute)
+        , MarkdownThemed.renderFull userConfig (texts.privacyMarkdown (Route.encode Route.TermsOfServiceRoute))
         ]

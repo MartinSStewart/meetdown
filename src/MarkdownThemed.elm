@@ -70,12 +70,12 @@ renderer theme searchPreview =
                 ]
                 children
     , html = Markdown.Html.oneOf []
-    , text = \s -> Element.el [] <| Element.text s
+    , text = \s -> Element.el [] (Element.text s)
     , codeSpan =
-        \content -> Element.html <| Html.code [] [ Html.text content ]
+        \content -> Element.html (Html.code [] [ Html.text content ])
     , strong = \list -> Element.paragraph [ Element.Font.bold ] list
     , emphasis = \list -> Element.paragraph [ Element.Font.italic ] list
-    , hardLineBreak = Element.html <| Html.br [] []
+    , hardLineBreak = Element.html (Html.br [] [])
     , link =
         \{ title, destination } list ->
             Element.link
@@ -105,7 +105,7 @@ renderer theme searchPreview =
             \{ alt, src, title } ->
                 let
                     attrs =
-                        [ title |> Maybe.map (\title_ -> Element.htmlAttribute <| Html.Attributes.attribute "title" title_) ]
+                        [ title |> Maybe.map (\title_ -> Element.htmlAttribute (Html.Attributes.attribute "title" title_)) ]
                             |> justs
                 in
                 Element.image
@@ -157,7 +157,7 @@ renderer theme searchPreview =
                 , Element.Border.rounded 5
                 , Element.padding 10
                 , Element.width Element.fill
-                , Element.htmlAttribute <| Html.Attributes.class "preserve-white-space"
+                , Element.htmlAttribute (Html.Attributes.class "preserve-white-space")
                 , if searchPreview then
                     Element.clipX
 

@@ -632,7 +632,7 @@ updateLoaded msg ({ loadedUserConfig } as model) =
 
         LanguageSelected language ->
             ( { model | miniLanguageSelectorOpened = False, loadedUserConfig = { loadedUserConfig | language = language } }
-            , Ports.setLanguage <| languageToString language
+            , Ports.setLanguage (languageToString language)
             )
 
         GotLanguage language ->
@@ -1242,8 +1242,8 @@ isMobile { windowWidth } =
 
 viewLoaded : UserConfig -> LoadedFrontend -> Element FrontendMsg
 viewLoaded userConfig model =
-    Ui.overlayEl <|
-        Element.el
+    Ui.overlayEl
+        (Element.el
             [ Element.width Element.fill
             , Element.height Element.fill
             , if model.miniLanguageSelectorOpened then
@@ -1252,8 +1252,7 @@ viewLoaded userConfig model =
               else
                 Ui.attributeNone
             ]
-        <|
-            Element.column
+            (Element.column
                 [ Element.width Element.fill
                 , Element.height Element.fill
                 ]
@@ -1316,6 +1315,8 @@ viewLoaded userConfig model =
                             Nothing
                     )
                 ]
+            )
+        )
 
 
 loginRequiredPage : UserConfig -> LoadedFrontend -> (LoggedIn_ -> Element FrontendMsg) -> Element FrontendMsg
@@ -1347,16 +1348,17 @@ viewPage ({ theme, texts } as userConfig) model =
         HomepageRoute ->
             Element.column
                 [ Element.padding 8, Element.width Element.fill, Element.spacing 30 ]
-                [ Element.el [ Element.paddingEach { top = 40, right = 0, bottom = 20, left = 0 }, Element.centerX ] <|
-                    Element.image
-                        [ Element.width <| (Element.fill |> Element.maximum 650) ]
+                [ Element.el [ Element.paddingEach { top = 40, right = 0, bottom = 20, left = 0 }, Element.centerX ]
+                    (Element.image
+                        [ Element.width (Element.fill |> Element.maximum 650) ]
                         { src = theme.heroSvg, description = texts.twoPeopleOnAVideoConference }
+                    )
                 , Element.paragraph
                     [ Element.Font.center ]
                     [ Element.text texts.aPlaceToJoinGroupsOfPeopleWithSharedInterests ]
                 , Element.paragraph
                     [ Element.Font.center ]
-                    [ Element.text <| texts.weDontSellYourDataWeDontShowAdsAndItsFree ++ " "
+                    [ Element.text (texts.weDontSellYourDataWeDontShowAdsAndItsFree ++ " ")
                     , Ui.routeLink theme Route.FrequentQuestionsRoute texts.readMore
                     ]
                 , searchInputLarge userConfig model.searchText
@@ -1474,22 +1476,22 @@ viewPage ({ theme, texts } as userConfig) model =
                 (Ui.pageContentAttributes ++ [ Element.spacing 28 ])
                 [ Ui.title texts.codeOfConduct
                 , Element.paragraph []
-                    [ Element.text <| texts.theMostImportantRuleIs ++ ", "
+                    [ Element.text (texts.theMostImportantRuleIs ++ ", ")
                     , Element.el [ Element.Font.bold ] (Element.text texts.dontBeAJerk)
                     , Element.text "."
                     ]
                 , Element.paragraph [] [ Element.text texts.codeOfConduct1 ]
-                , Element.paragraph [] [ Element.text <| texts.codeOfConduct2 ]
+                , Element.paragraph [] [ Element.text texts.codeOfConduct2 ]
                 , Element.paragraph
                     []
-                    [ Element.text <| texts.codeOfConduct3 ]
+                    [ Element.text texts.codeOfConduct3 ]
                 , Element.paragraph
                     []
-                    [ Element.text <| texts.codeOfConduct4 ]
+                    [ Element.text texts.codeOfConduct4 ]
                 , Element.paragraph
                     []
-                    [ Element.text <| texts.codeOfConduct5
-                    , Ui.mailToLink theme Env.contactEmailAddress <| Just texts.moderationHelpRequest
+                    [ Element.text texts.codeOfConduct5
+                    , Ui.mailToLink theme Env.contactEmailAddress (Just texts.moderationHelpRequest)
                     , Element.text "."
                     ]
                 ]
@@ -1593,7 +1595,7 @@ myGroupsView ({ texts } as userConfig) model loggedIn =
 searchInput : UserConfig -> String -> Element FrontendMsg
 searchInput { theme, texts } searchText =
     Element.Input.text
-        [ Element.width <| Element.maximum 400 Element.fill
+        [ Element.width (Element.maximum 400 Element.fill)
         , Element.Border.rounded 5
         , Element.Border.color theme.darkGrey
         , Element.paddingEach { left = 24, right = 8, top = 4, bottom = 4 }
@@ -1620,7 +1622,7 @@ searchInput { theme, texts } searchText =
 searchInputLarge : UserConfig -> String -> Element FrontendMsg
 searchInputLarge { theme, texts } searchText =
     Element.row
-        [ Element.width <| Element.maximum 400 Element.fill
+        [ Element.width (Element.maximum 400 Element.fill)
         , Element.centerX
         ]
         [ Element.Input.text
@@ -1631,15 +1633,15 @@ searchInputLarge { theme, texts } searchText =
             , Ui.onEnter SubmittedSearchBox
             , Element.Background.color theme.background
             , Dom.idToAttribute groupSearchLargeId |> Element.htmlAttribute
-            , Element.inFront <|
-                Element.el
-                    [ Element.Font.size 14
-                    , Element.moveDown 9
-                    , Element.moveRight 6
-                    , Element.alpha 0.8
-                    , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
-                    ]
-                    (Element.text "🔍")
+            , Element.el
+                [ Element.Font.size 14
+                , Element.moveDown 9
+                , Element.moveRight 6
+                , Element.alpha 0.8
+                , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
+                ]
+                (Element.text "🔍")
+                |> Element.inFront
             ]
             { text = searchText
             , onChange = TypedSearchText
@@ -1713,7 +1715,7 @@ header ({ theme, texts } as userConfig) maybeLoggedIn model =
                     , label =
                         Element.row [ Element.spacing 10 ]
                             [ Element.image
-                                [ Element.width <| Element.px 30 ]
+                                [ Element.width (Element.px 30) ]
                                 { src = "/meetdown-logo.png", description = "Meetdown logo" }
                             , Element.text "Meetdown"
                             ]
@@ -1818,8 +1820,7 @@ languageButton theme isMobile_ miniLanguageSelectorOpened language =
         [ Element.width Element.fill
         , Element.alignRight
         , if miniLanguageSelectorOpened then
-            Element.inFront <|
-                miniLanguageSelect theme isMobile_ language
+            Element.inFront (miniLanguageSelect theme isMobile_ language)
 
           else
             Ui.attributeNone
@@ -1843,18 +1844,18 @@ miniLanguageSelect : Theme -> Bool -> Language -> Element FrontendMsg
 miniLanguageSelect theme isMobile_ language =
     Element.column
         [ Element.width Element.fill
-        , Element.htmlAttribute <| Html.Attributes.style "z-index" "100"
-        , Element.moveDown <|
-            if isMobile_ then
+        , Element.htmlAttribute (Html.Attributes.style "z-index" "100")
+        , Element.moveDown
+            (if isMobile_ then
                 25
 
-            else
+             else
                 32
+            )
         , Element.Background.color theme.lightGrey
         , Element.alignTop
         ]
-    <|
-        List.map (languageOption isMobile_) (languageList |> List.filter (\( l, _ ) -> l /= language))
+        (List.map (languageOption isMobile_) (languageList |> List.filter (\( l, _ ) -> l /= language)))
 
 
 languageList : List ( Language, String )
@@ -1867,8 +1868,8 @@ languageList =
 
 languageOption : Bool -> ( Language, String ) -> Element FrontendMsg
 languageOption isMobile_ ( language, elementId ) =
-    Element.el [ Element.centerX ] <|
-        Ui.headerButton
+    Element.el [ Element.centerX ]
+        (Ui.headerButton
             isMobile_
             (Dom.id elementId)
             { onPress = LanguageSelected language
@@ -1883,6 +1884,7 @@ languageOption isMobile_ ( language, elementId ) =
                     Spanish ->
                         "🇪🇸"
             }
+        )
 
 
 largeLine : UserConfig -> Maybe LoggedIn_ -> Element msg

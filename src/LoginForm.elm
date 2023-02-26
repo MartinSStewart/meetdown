@@ -50,7 +50,7 @@ view ({ texts } as userConfig) joiningEvent cachedGroups { email, pressedSubmitE
         , Element.centerY
         , Element.padding 8
         , Element.spacing 16
-        , Element.width <| Element.maximum 400 Element.shrink
+        , Element.width (Element.maximum 400 Element.shrink)
         , Element.below
             (case emailSent of
                 Just emailAddress ->

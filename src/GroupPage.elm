@@ -498,7 +498,7 @@ update texts config group maybeLoggedIn msg model =
                                     MeetOnlineAndInPerson ->
                                         case ( validateLink texts newEvent.meetOnlineLink, validateAddress texts newEvent.meetInPersonAddress ) of
                                             ( Ok link, Ok address ) ->
-                                                Just <| Event.MeetOnlineAndInPerson link address
+                                                Just (Event.MeetOnlineAndInPerson link address)
 
                                             _ ->
                                                 Nothing
@@ -1078,10 +1078,10 @@ titlePart ({ theme, texts } as userConfig) model owner group maybeLoggedIn =
                                     Nothing
 
                                 Err GroupName.GroupNameTooShort ->
-                                    Just <| texts.nameMustBeAtLeast GroupName.minLength
+                                    Just (texts.nameMustBeAtLeast GroupName.minLength)
 
                                 Err GroupName.GroupNameTooLong ->
-                                    Just <| texts.nameMustBeAtMost GroupName.maxLength
+                                    Just (texts.nameMustBeAtMost GroupName.maxLength)
                     in
                     [ Element.el
                         [ Ui.titleFontSize, Ui.contentWidth ]
@@ -1493,7 +1493,7 @@ ongoingEventView ({ theme, texts } as userConfig) isMobile cachedUsers currentTi
                         Element.text texts.onePersonIsAttending
 
                 _ ->
-                    Element.text <| texts.peopleAreAttending attendeeCount isAttending
+                    Element.text (texts.peopleAreAttending attendeeCount isAttending)
             , showAttendeesButton userConfig eventId showAttendees_
             ]
         , if showAttendees_ then
@@ -1586,7 +1586,7 @@ pastEventView ({ theme, texts } as userConfig) isMobile cachedUsers currentTime 
                         Element.text texts.onePersonAttended
 
                 _ ->
-                    Element.text <| texts.peopleAttended attendeeCount isAttending
+                    Element.text (texts.peopleAttended attendeeCount isAttending)
             , Element.text " "
             , showAttendeesButton userConfig eventId showAttendees_
             ]
@@ -1819,7 +1819,7 @@ futureEventView ({ theme, texts } as userConfig) isMobile cachedUsers currentTim
                             [ Element.text texts.theEventWillTakePlaceAt
                             , Element.link
                                 [ Element.Font.color theme.link ]
-                                { url = Link.toString link_, label = Element.text <| Link.toString link_ }
+                                { url = Link.toString link_, label = Element.text (Link.toString link_) }
                             ]
 
                     else
@@ -1991,7 +1991,7 @@ eventTypeView texts isPastEvent event =
                 (Element.text eventDurationText
                     :: (case maybeAddress of
                             Just address ->
-                                [ Element.text <| texts.itsTakingPlaceAt isPastEvent
+                                [ Element.text (texts.itsTakingPlaceAt isPastEvent)
                                 , Element.el [ Element.Font.bold ] (Element.text (Address.toString address))
                                 , Element.text "."
                                 ]
@@ -2012,7 +2012,7 @@ eventTypeView texts isPastEvent event =
                 (Element.text eventDurationText
                     :: (case maybeAddress of
                             Just address ->
-                                [ Element.text <| texts.itsTakingPlaceAt isPastEvent
+                                [ Element.text (texts.itsTakingPlaceAt isPastEvent)
                                 , Element.el [ Element.Font.bold ] (Element.text (Address.toString address))
                                 , Element.text "."
                                 ]
@@ -2741,7 +2741,7 @@ validateLink texts text =
     else
         case Link.fromString trimmed of
             Just url ->
-                Ok <| Just url
+                Ok (Just url)
 
             Nothing ->
                 Err texts.invalidUrlLong
@@ -2782,7 +2782,7 @@ smallButton : Theme -> HtmlId -> msg -> String -> Element msg
 smallButton theme htmlId onPress label =
     Element.Input.button
         [ Element.Border.width 2
-        , Element.Border.color <| theme.grey
+        , Element.Border.color theme.grey
         , Element.paddingXY 8 2
         , Element.Border.rounded 4
         , Element.Font.center

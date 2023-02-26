@@ -550,10 +550,10 @@ imageEditorView { theme, texts } windowSize imageEdit =
                     , Element.height (Element.px 8)
                     , Element.moveRight (tToPixel windowSize x_ - 4)
                     , Element.moveDown (tToPixel windowSize y_ - 4)
-                    , Element.Background.color <| Element.rgb 1 1 1
+                    , Element.Background.color (Element.rgb 1 1 1)
                     , Element.Border.width 2
-                    , Element.Border.color <| Element.rgb 0 0 0
-                    , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                    , Element.Border.color (Element.rgb 0 0 0)
+                    , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
                     ]
                     Element.none
                 )
@@ -561,14 +561,14 @@ imageEditorView { theme, texts } windowSize imageEdit =
         drawHorizontalLine x_ y_ width =
             Element.inFront
                 (Element.el
-                    [ Element.width (Element.px <| round (tToPixel windowSize width))
+                    [ Element.width (Element.px (round (tToPixel windowSize width)))
                     , Element.height (Element.px 6)
                     , Element.moveRight (tToPixel windowSize x_)
                     , Element.moveDown (tToPixel windowSize y_ - 3)
-                    , Element.Background.color <| Element.rgb 1 1 1
+                    , Element.Background.color (Element.rgb 1 1 1)
                     , Element.Border.width 2
-                    , Element.Border.color <| Element.rgb 0 0 0
-                    , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                    , Element.Border.color (Element.rgb 0 0 0)
+                    , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
                     ]
                     Element.none
                 )
@@ -576,14 +576,14 @@ imageEditorView { theme, texts } windowSize imageEdit =
         drawVerticalLine x_ y_ height =
             Element.inFront
                 (Element.el
-                    [ Element.height (Element.px <| round (tToPixel windowSize height))
+                    [ Element.height (Element.px (round (tToPixel windowSize height)))
                     , Element.width (Element.px 6)
                     , Element.moveRight (tToPixel windowSize x_ - 3)
                     , Element.moveDown (tToPixel windowSize y_)
-                    , Element.Background.color <| Element.rgb 1 1 1
+                    , Element.Background.color (Element.rgb 1 1 1)
                     , Element.Border.width 2
-                    , Element.Border.color <| Element.rgb 0 0 0
-                    , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                    , Element.Border.color (Element.rgb 0 0 0)
+                    , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
                     ]
                     Element.none
                 )
@@ -593,8 +593,8 @@ imageEditorView { theme, texts } windowSize imageEdit =
     in
     Element.column
         [ Element.spacing 8
-        , Element.inFront <|
-            case imageEdit.imageSize of
+        , Element.inFront
+            (case imageEdit.imageSize of
                 Just _ ->
                     Element.none
 
@@ -603,20 +603,22 @@ imageEditorView { theme, texts } windowSize imageEdit =
                         [ Element.transparent True
                         , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
                         ]
-                        (Element.html <|
-                            Html.img
+                        (Element.html
+                            (Html.img
                                 [ Dom.idToAttribute profileImagePlaceholderId
                                 , Html.Attributes.src imageUrl
                                 ]
                                 []
+                            )
                         )
+            )
         , Element.centerX
         ]
         [ Element.image
-            [ Element.width <| Element.px imageEditorWidth_
+            [ Element.width (Element.px imageEditorWidth_)
             , case imageEdit.imageSize of
                 Just ( w, h ) ->
-                    Element.height <| Element.px <| round <| toFloat (imageEditorWidth_ * h) / toFloat w
+                    Element.height (Element.px (round (toFloat (imageEditorWidth_ * h) / toFloat w)))
 
                 Nothing ->
                     Element.inFront Element.none
@@ -668,27 +670,27 @@ imageEditorView { theme, texts } windowSize imageEdit =
                     |> Element.htmlAttribute
             , Element.inFront
                 (Element.el
-                    [ Element.height (Element.px <| round (size * toFloat imageEditorWidth_))
-                    , Element.width (Element.px <| round (size * toFloat imageEditorWidth_))
+                    [ Element.height (Element.px (round (size * toFloat imageEditorWidth_)))
+                    , Element.width (Element.px (round (size * toFloat imageEditorWidth_)))
                     , Element.moveRight (x * toFloat imageEditorWidth_)
                     , Element.moveDown (y * toFloat imageEditorWidth_)
                     , Element.Border.width 2
-                    , Element.Border.color <| Element.rgb 0 0 0
+                    , Element.Border.color (Element.rgb 0 0 0)
                     , Element.Border.rounded 99999
-                    , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                    , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
                     ]
                     Element.none
                 )
             , Element.inFront
                 (Element.el
-                    [ Element.height (Element.px <| round (size * toFloat imageEditorWidth_ - 4))
-                    , Element.width (Element.px <| round (size * toFloat imageEditorWidth_ - 4))
+                    [ Element.height (Element.px (round (size * toFloat imageEditorWidth_ - 4)))
+                    , Element.width (Element.px (round (size * toFloat imageEditorWidth_ - 4)))
                     , Element.moveRight (x * toFloat imageEditorWidth_ + 2)
                     , Element.moveDown (y * toFloat imageEditorWidth_ + 2)
                     , Element.Border.width 2
-                    , Element.Border.color <| Element.rgb 1 1 1
+                    , Element.Border.color (Element.rgb 1 1 1)
                     , Element.Border.rounded 99999
-                    , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                    , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
                     ]
                     Element.none
                 )
@@ -737,7 +739,7 @@ view ({ theme, texts } as userConfig) windowSize currentValues ({ form } as mode
             Element.column
                 Ui.pageContentAttributes
                 [ Element.wrappedRow [ Element.width Element.fill ]
-                    [ Element.el [ Element.alignTop ] <| Ui.title texts.profile
+                    [ Element.el [ Element.alignTop ] (Ui.title texts.profile)
                     , Element.Input.button
                         [ Element.alignRight
                         , Element.Border.rounded 9999
@@ -760,10 +762,10 @@ view ({ theme, texts } as userConfig) windowSize currentValues ({ form } as mode
                                     Ok name
 
                                 Err Name.NameTooShort ->
-                                    Err <| texts.yourNameCantBeEmpty
+                                    Err texts.yourNameCantBeEmpty
 
                                 Err Name.NameTooLong ->
-                                    Err <| texts.keepItBelowNCharacters <| Name.maxLength + 1
+                                    Err (texts.keepItBelowNCharacters (Name.maxLength + 1))
                         )
                         currentValues.name
                         form.name
@@ -778,14 +780,14 @@ view ({ theme, texts } as userConfig) windowSize currentValues ({ form } as mode
                                     Ok name
 
                                 Err DescriptionTooLong ->
-                                    Err <| texts.belowNCharactersPlease Description.maxLength
+                                    Err (texts.belowNCharactersPlease Description.maxLength)
                         )
                         currentValues.description
                         form.description
                         texts.whatDoYouWantPeopleToKnowAboutYou
                     , editableEmailInput
                         userConfig
-                        (always <| FormChanged form)
+                        (always (FormChanged form))
                         -- For now, changing email address is not supported
                         --(\a -> FormChanged { form | emailAddress = a })
                         EmailAddress.toString
@@ -999,5 +1001,4 @@ savingText texts =
         [ Element.paddingEach { left = 0, right = 0, top = 10, bottom = 0 }
         , Element.Font.size 12
         ]
-    <|
-        Element.text texts.saving
+        (Element.text texts.saving)
