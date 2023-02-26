@@ -1480,12 +1480,8 @@ viewPage ({ theme, texts } as userConfig) model =
                     ]
                 , Element.paragraph [] [ Element.text texts.codeOfConduct1 ]
                 , Element.paragraph [] [ Element.text texts.codeOfConduct2 ]
-                , Element.paragraph
-                    []
-                    [ Element.text texts.codeOfConduct3 ]
-                , Element.paragraph
-                    []
-                    [ Element.text texts.codeOfConduct4 ]
+                , Element.paragraph [] [ Element.text texts.codeOfConduct3 ]
+                , Element.paragraph [] [ Element.text texts.codeOfConduct4 ]
                 , Element.paragraph
                     []
                     [ Element.text texts.codeOfConduct5

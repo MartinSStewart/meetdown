@@ -474,7 +474,93 @@ englishTexts =
     , pickAVisibilitySetting = "Pick a visibility setting"
     , pressTheLinkInItToConfirmDeletingYourAccount = ". Press the link in it to confirm deleting your account."
     , privacy = "Privacy"
-    , privacyMarkdown = privacyMarkdownEnglish
+    , privacyMarkdown =
+        \termsOfServiceRoute ->
+            """
+
+#### Version 1.0 – June 2021
+
+We’re committed to protecting and respecting your privacy. If you have any questions about your personal information please chat with us by emailing us at [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """).
+
+
+### 👀 The information we hold about you
+
+#### - Cookie information
+
+We use a single persistent secured httpOnly session cookie to recognise your browser and keep you logged in.
+
+Other cookies may be introduced in the future, and if so our Privacy policy will be updated at that time.
+
+
+#### - Information submitted through our service or website
+
+- For example, when you sign up to the service and provide details such as your name and email
+
+There may be times when you give us ‘sensitive’ information, which includes things like your racial origin, political opinions, religious beliefs, trade union membership details or biometric data. We’ll only use this information in strict accordance with the law.
+
+
+### 🔍 How we use your information
+
+To provide our services, we use it to:
+
+- Help us manage your account
+- Send you reminders for events you've joined
+
+To meet our legal obligations, we use it to:
+
+- Prevent illegal activities like piracy and fraud
+
+With your permission, we use it to:
+
+- Market and communicate our products and services where we think these will be of interest to you by email. You can always unsubscribe from receiving these if you want to by email.
+
+
+### 🤝 Who we share it with
+
+We may share your personal information with:
+
+- Anyone who works for us when they need it to do their job.
+- Anyone who you give us explicit permission to share it with.
+
+We’ll also share it to comply with the law; to enforce our [Terms of service](""" ++ termsOfServiceRoute ++ """) or other agreements; or to protect the rights, property or safety of us, our users or others.
+
+### 📁 How long we keep it
+
+We keep your data as long as you’re using Meetdown, and for 1 year after that to comply with the law. In some circumstances, like cases of fraud, we may keep data longer if we need to and/or the law says we have to.
+
+### ✅ Your rights
+
+You have a right to:
+
+- Access the personal data we hold about you, or to get a copy of it.
+- Make us correct inaccurate data.
+- Ask us to delete, 'block' or suppress your data, though for legal reasons we might not always be able to do it.
+- Object to us using your data for direct marketing and in certain circumstances ‘legitimate interests’, research and statistical reasons.
+- Withdraw any consent you’ve previously given us.
+
+To do so, please contact us by emailing [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """).
+
+
+### 🔒 Where we store or send your data
+
+We might transfer and store the data we collect from you somewhere outside the European Economic Area (‘EEA’). People who work for us or our suppliers outside the EEA might also process your data.
+
+We may share data with organisations and countries that:
+
+- The European Commission say have adequate data protection, or
+- We’ve agreed standard data protection clauses with.
+
+
+### 😔 How to make a complaint
+
+If you have a complaint, please contact us by emailing [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """) and we’ll do our best to fix the problem.
+
+
+### 📝 Changes to this policy
+
+We’ll post any changes we make to our privacy notice on this page and, if they’re significant changes we’ll let you know by email.
+
+"""
     , privacyNotice = "Privacy notice"
     , profile = "Profile"
     , readMore = "Read more"
@@ -516,7 +602,75 @@ englishTexts =
     , timeValueMissing = "Time value missing"
     , title = "Event"
     , tos = "Terms of Service"
-    , tosMarkdown = tosMarkdownEnglish
+    , tosMarkdown = \privacyRoute codeOfConductRoute -> """
+
+#### Version 1.0 – June 2021
+
+### 🤔 What is Meetdown
+
+These legal terms are between you and meetdown.app (“we”, “our”, “us”, “Meetdown”, the software”) and you agree to them by using the Meetdown service.
+
+You should read this document along with our [Data Privacy Notice](""" ++ privacyRoute ++ """).
+
+
+### 💬 How to contact us
+
+Please chat with us by emailing us at [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """)
+
+We'll contact you in English 🇬🇧 and Emoji 😃.
+
+
+### 🤝🏽 Guarantees and expectations
+
+Meetdown makes no guarantees.
+
+The [source code for Meetdown](https://github.com/MartinSStewart/meetdown) is open source so technical users may make their own assessment of risk.
+
+The software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement.
+
+In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the software.
+
+We expect all users to behave according to the [Code of conduct](""" ++ codeOfConductRoute ++ """).
+
+
+### 💵 Cost
+
+Meetdown is a free product.
+
+
+### 😔 How to make a complaint
+
+If you have a complaint, please contact us and we'll do our best to fix the problem.
+
+Please see "How to contact us" above.
+
+
+### 📝 Making changes to this agreement
+
+This agreement will always be available on meetdown.app.
+
+If we make changes to it, we'll tell you once we've made them.
+
+If you don't agree to these changes, you can close your account by pressing "Delete Account" on your profile page.
+
+We'll destroy any data in your account, unless we need to keep it for a reason outlined in our [Privacy policy](""" ++ privacyRoute ++ """).
+
+
+### 😭 Closing your account
+
+To close your account, you can press the "Delete Account" button on your profile page.
+
+We can close your account by giving you at least one weeks' notice.
+
+We may close your account immediately if we believe you've:
+
+- Broken the terms of this agreement
+- Put us in a position where we might break the law
+- Broken the law or attempted to break the law
+- Given us false information at any time
+- Been abusive to anyone at Meetdown or a member of our community
+
+"""
     , twoPeopleOnAVideoConference = "Two people on a video conference"
     , uncancelEvent = "Uncancel event"
     , uploadImage = "Upload image"
@@ -732,7 +886,90 @@ frenchTexts =
     , pickAVisibilitySetting = "Choisissez un paramètre de visibilité"
     , pressTheLinkInItToConfirmDeletingYourAccount = "Appuyez sur le lien pour confirmer la suppression de votre compte."
     , privacy = "Confidentialité"
-    , privacyMarkdown = privacyMarkdownFrench
+    , privacyMarkdown =
+        \termsOfServiceRoute ->
+            """
+#### Version 1.0 – Juin 2021
+
+Nous nous engageons à protéger et à respecter votre vie privée. Si vous avez des questions sur vos informations personnelles, veuillez nous contacter par e-mail à [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """).
+
+### 👀 Les informations que nous détenons sur vous
+
+#### - Informations sur les cookies
+
+Nous utilisons un seul cookie de session persistant sécurisé httpOnly pour reconnaître votre navigateur et vous garder connecté.
+
+D'autres cookies peuvent être introduits à l'avenir, et si c'est le cas, notre politique de confidentialité sera mise à jour à ce moment-là.
+
+
+#### - Informations soumises à travers notre service ou notre site web
+
+- Par exemple, lorsque vous vous inscrivez au service et fournissez des détails tels que votre nom et votre adresse e-mail
+
+Il peut arriver que vous nous donniez des informations «sensibles», qui comprennent des choses comme votre origine raciale, vos opinions politiques, vos croyances religieuses, vos détails d'adhésion à un syndicat ou vos données biométriques. Nous n'utiliserons ces informations que dans le strict respect de la loi.
+
+
+### 🔍 Comment nous utilisons vos informations
+
+Pour fournir nos services, nous les utilisons pour:
+
+- Nous aider à gérer votre compte
+
+- Vous envoyer des rappels pour les événements auxquels vous avez participé
+
+Pour répondre à nos obligations légales, nous les utilisons pour:
+
+- Prévenir les activités illégales telles que la piraterie et la fraude
+
+Avec votre permission, nous les utilisons pour:
+
+- Faire la promotion et communiquer nos produits et services où nous pensons que cela vous intéressera par e-mail. Vous pouvez toujours vous désabonner de la réception de ces e-mails si vous le souhaitez.
+
+
+### 🤝 Qui nous les partageons
+
+Nous pouvons partager vos informations personnelles avec:
+
+- Toute personne qui travaille pour nous lorsque elle en a besoin pour faire son travail.
+- Toute personne à laquelle vous nous donnez une autorisation explicite de partager vos informations.
+
+Nous partagerons également vos informations pour nous conformer à la loi; pour faire respecter nos [Conditions d'utilisation](""" ++ termsOfServiceRoute ++ """) ou d'autres accords; ou pour protéger les droits, la propriété ou la sécurité de nous, de nos utilisateurs ou d'autres.
+
+### 📁 Combien de temps nous les conservons
+
+Nous conservons vos données aussi longtemps que vous utilisez Meetdown, et pendant 1 an après cela pour nous conformer à la loi. Dans certains cas, comme les cas de fraude, nous pouvons conserver les données plus longtemps si nous en avons besoin et / ou que la loi nous y oblige.
+
+### ✅ Vos droits
+
+Vous avez le droit de:
+
+- Accéder aux données personnelles que nous détenons sur vous, ou d'en obtenir une copie.
+- Nous demander de corriger des données inexactes.
+- Nous demander de supprimer, de bloquer ou de supprimer vos données, bien que pour des raisons légales, nous ne puissions pas toujours le faire.
+- Vous opposer à l'utilisation de vos données à des fins de marketing direct et dans certaines circonstances, à des fins de recherche et de statistiques.
+- Retirer votre consentement que nous vous avons précédemment donné.
+
+Pour ce faire, veuillez nous contacter par e-mail à [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """).
+
+### 🔒 Où nous stockons ou envoyons vos données
+
+Nous pouvons transférer et stocker les données que nous collectons auprès de vous quelque part en dehors de l'Union européenne («UE»). Les personnes qui travaillent pour nous ou nos fournisseurs en dehors de l'UE peuvent également traiter vos données.
+
+Nous pouvons partager des données avec des organisations et des pays qui:
+
+- La Commission européenne dit avoir une protection des données adéquate, ou
+- Nous avons conclu des clauses-types de protection des données avec.
+
+
+### 😔 Comment faire une réclamation
+
+Si vous avez une réclamation, veuillez nous contacter par e-mail à [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """) et nous ferons de notre mieux pour résoudre le problème.
+
+### 📝 Modifications de cette politique
+
+Nous publierons toute modification que nous apportons à notre avis de confidentialité sur cette page et, si elles sont des modifications importantes, nous vous en informerons par e-mail.
+
+"""
     , privacyNotice = "Notice de confidentialité"
     , profile = "Profil"
     , readMore = "En savoir plus"
@@ -774,7 +1011,71 @@ frenchTexts =
     , timeValueMissing = "Heure manquante"
     , title = "Événement"
     , tos = "Conditions d'utilisation"
-    , tosMarkdown = tosMarkdownFrench
+    , tosMarkdown = \privacyRoute codeOfConductRoute -> """
+
+#### Version 1.0 – Juin 2021
+
+### 🤔 Qu'est-ce que Meetdown
+
+Ces conditions légales sont entre vous et meetdown.app (« nous », « notre », « Meetdown », le logiciel) et vous acceptez ces conditions en utilisant le service Meetdown.
+
+Vous devriez lire ce document en même temps que notre [Notice de confidentialité](""" ++ privacyRoute ++ """).
+
+### 💬 Comment nous contacter
+
+Veuillez nous contacter par email à [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """)
+
+Nous vous contacterons en anglais 🇬🇧 et en Emoji 😃.
+
+
+### 🤝🏽 Garanties et attentes
+
+Meetdown ne fait aucune garantie.
+
+Le [code source de Meetdown](https://github.com/MartinSStewart/meetdown) est open source donc les utilisateurs techniques peuvent faire leur propre évaluation du risque.
+
+Le logiciel est fourni "tel quel", sans aucune garantie, expresse ou implicite, y compris mais sans s'y limiter les garanties de qualité marchande, d'adaptation à un usage particulier et d'absence de contrefaçon.
+
+Nous attendons de tous les utilisateurs qu'ils se comportent conformément au [Code de conduite](""" ++ codeOfConductRoute ++ """).
+
+
+### 💵 Coût
+
+Meetdown est un produit gratuit.
+
+
+### 😔 Comment faire une réclamation
+
+Si vous avez une réclamation, veuillez nous contacter et nous ferons de notre mieux pour résoudre le problème.
+
+Veuillez consulter "Comment nous contacter" ci-dessus.
+
+
+### 📝 Modifications de cet accord
+
+Cet accord sera toujours disponible sur meetdown.app.
+
+Si nous apportons des modifications, nous vous en informerons une fois que nous les aurons apportées.
+
+Si vous n'êtes pas d'accord avec ces modifications, vous pouvez fermer votre compte en appuyant sur "Supprimer le compte" sur votre page de profil.
+
+Nous détruirons toutes les données de votre compte, sauf si nous devons les conserver pour une raison exposée dans notre [Politique de confidentialité](""" ++ privacyRoute ++ """).
+
+### 😭 Fermer votre compte
+
+Pour fermer votre compte, vous pouvez appuyer sur le bouton "Supprimer le compte" sur votre page de profil.
+
+Nous pouvons fermer votre compte en vous donnant au moins une semaine d'avance.
+
+Nous pouvons fermer votre compte immédiatement si nous pensons que vous avez :
+
+- Violé les conditions de cet accord
+- Mis notre position dans laquelle nous pourrions enfreindre la loi
+- Enfreint la loi ou tenté de l'enfreindre
+- Fourni des informations fausses à tout moment
+- Été abusif envers quiconque chez Meetdown ou un membre de notre communauté
+
+"""
     , twoPeopleOnAVideoConference = "Deux personnes sur une vidéoconférence"
     , uncancelEvent = "Annuler l'annulation de l'événement"
     , uploadImage = "Télécharger une image"
@@ -990,458 +1291,9 @@ spanishTexts =
     , pickAVisibilitySetting = "Elija una configuración de visibilidad"
     , pressTheLinkInItToConfirmDeletingYourAccount = "Presione el enlace para confirmar la eliminación de su cuenta."
     , privacy = "Privacidad"
-    , privacyMarkdown = privacyMarkdownSpanish
-    , privacyNotice = "Aviso de privacidad"
-    , profile = "Perfil"
-    , readMore = "Leer más"
-    , recancelEvent = "Reanular el evento"
-    , reset = "Reiniciar"
-    , save = "Guardar"
-    , saveChanges = "Guardar cambios"
-    , saving = "Guardando..."
-    , search = "Buscar"
-    , searchForGroups = "Buscar grupos"
-    , searchingForOne = "suscribirse a un grupo."
-    , searchResultsFor = "Resultados de búsqueda para "
-    , showAll = "Mostrar todo"
-    , showFirst = "Mostrar primero"
-    , showU_00A0Attendees = "(Mostrar\u{00A0}asistentes)"
-    , signInAndWeLlGetYouSignedUpForThatEvent = "Inicie sesión y nos suscribiremos a ese evento"
-    , signInAndWeLlGetYouSignedUpForThe = \eventName -> "Inicie sesión y nos suscribiremos al evento \"" ++ eventName ++ "\""
-    , sinceThisIsYourFirstGroupWeRecommendYouReadThe = "Como es su primer grupo, le recomendamos que lea el "
-    , sorryThatGroupNameIsAlreadyBeingUsed = "Lo sentimos, ese nombre de grupo ya está en uso."
-    , stopNotifyingMeOfNewEvents = "Dejar de notificarme de nuevos eventos"
-    , submit = "Enviar"
-    , subscribedGroups = "Grupos a los que me he suscrito"
-    , terms = "términos"
-    , theEventCanTStartInThePast = "El evento no puede comenzar en el pasado"
-    , theEventIsTakingPlaceNowAt = "• El evento está teniendo lugar ahora en "
-    , theEventWillTakePlaceAt = "• El evento tendrá lugar en "
-    , theLinkYouUsedIsEitherInvalidOrHasExpired = "El enlace que usó no es válido o ha caducado."
-    , theMostImportantRuleIs = "La regla más importante es"
-    , theStartTimeCanTBeChangedSinceTheEventHasAlreadyStarted = "La hora de inicio no se puede cambiar porque el evento ya ha comenzado."
-    , thisEventDoesnTExist = "Este evento no existe."
-    , thisEventSomehowDoesnTExistTryRefreshingThePage = "Este evento no existe (¿intente actualizar la página?)"
-    , thisEventWasCancelled = "Este evento fue cancelado "
-    , thisEventWillBeInPerson = "Este evento será en persona"
-    , thisEventWillBeOnline = "Este evento será en línea"
-    , thisEventWillBeOnlineAndInPerson = "Este evento será en línea y en persona"
-    , thisGroupHasTooManyEvents = "Este grupo tiene demasiados eventos"
-    , thisGroupWasCreatedOn = "Este grupo fue creado el "
-    , timeDiffToString = diffToStringSpanish
-    , timeValueMissing = "Falta el tiempo"
-    , title = "Evento"
-    , tos = "Términos de uso"
-    , tosMarkdown = tosMarkdownSpanish
-    , twoPeopleOnAVideoConference = "Dos personas en una videoconferencia"
-    , uncancelEvent = "Deshacer la cancelación del evento"
-    , uploadImage = "Subir una imagen"
-    , userNotFound = "Usuario no encontrado"
-    , valueMustBeGreaterThan0 = "El valor debe ser mayor que 0."
-    , weDontSellYourDataWeDontShowAdsAndItsFree = "No vendemos tus datos, no mostramos anuncios y es gratis."
-    , welcomePage = "¡Bienvenido al evento!"
-    , whatDoYouWantPeopleToKnowAboutYou = "¿Qué quieres que la gente sepa de ti?"
-    , whatSTheNameOfYourGroup = "¿Cuál es el nombre de tu grupo?"
-    , whenDoesItStart = "¿Cuándo comienza?"
-    , youCanDoThatHere = "Puedes hacerlo aquí."
-    , youCanTEditEventsThatHaveAlreadyHappened = "No puedes editar eventos que ya han ocurrido"
-    , youCanTEditTheStartTimeOfAnEventThatIsOngoing = "No puedes editar la hora de inicio de un evento que está en curso"
-    , youHavenTCreatedAnyGroupsYet = "Aún no has creado grupos. "
-    , youNeedToAllowAtLeast2PeopleToJoinTheEvent = "Necesitas permitir que al menos 2 personas se unan al evento."
-    , yourEmailAddress = "Tu correo electrónico"
-    , yourName = "Tu nombre"
-    , yourNameCantBeEmpty = "Tu nombre no puede estar vacío"
-    }
-
-
-tosMarkdownEnglish : String -> String -> String
-tosMarkdownEnglish privacyRoute codeOfConductRoute =
-    """
-
-#### Version 1.0 – June 2021
-
-### 🤔 What is Meetdown
-
-These legal terms are between you and meetdown.app (“we”, “our”, “us”, “Meetdown”, the software”) and you agree to them by using the Meetdown service.
-
-You should read this document along with our [Data Privacy Notice](""" ++ privacyRoute ++ """).
-
-
-### 💬 How to contact us
-
-Please chat with us by emailing us at [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """)
-
-We'll contact you in English 🇬🇧 and Emoji 😃.
-
-
-### 🤝🏽 Guarantees and expectations
-
-Meetdown makes no guarantees.
-
-The [source code for Meetdown](https://github.com/MartinSStewart/meetdown) is open source so technical users may make their own assessment of risk.
-
-The software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement.
-
-In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the software.
-
-We expect all users to behave according to the [Code of conduct](""" ++ codeOfConductRoute ++ """).
-
-
-### 💵 Cost
-
-Meetdown is a free product.
-
-
-### 😔 How to make a complaint
-
-If you have a complaint, please contact us and we'll do our best to fix the problem.
-
-Please see "How to contact us" above.
-
-
-### 📝 Making changes to this agreement
-
-This agreement will always be available on meetdown.app.
-
-If we make changes to it, we'll tell you once we've made them.
-
-If you don't agree to these changes, you can close your account by pressing "Delete Account" on your profile page.
-
-We'll destroy any data in your account, unless we need to keep it for a reason outlined in our [Privacy policy](""" ++ privacyRoute ++ """).
-
-
-### 😭 Closing your account
-
-To close your account, you can press the "Delete Account" button on your profile page.
-
-We can close your account by giving you at least one weeks' notice.
-
-We may close your account immediately if we believe you've:
-
-- Broken the terms of this agreement
-- Put us in a position where we might break the law
-- Broken the law or attempted to break the law
-- Given us false information at any time
-- Been abusive to anyone at Meetdown or a member of our community
-
-"""
-
-
-tosMarkdownFrench : String -> String -> String
-tosMarkdownFrench privacyRoute codeOfConductRoute =
-    """
-
-#### Version 1.0 – Juin 2021
-
-### 🤔 Qu'est-ce que Meetdown
-
-Ces conditions légales sont entre vous et meetdown.app (« nous », « notre », « Meetdown », le logiciel) et vous acceptez ces conditions en utilisant le service Meetdown.
-
-Vous devriez lire ce document en même temps que notre [Notice de confidentialité](""" ++ privacyRoute ++ """).
-
-### 💬 Comment nous contacter
-
-Veuillez nous contacter par email à [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """)
-
-Nous vous contacterons en anglais 🇬🇧 et en Emoji 😃.
-
-
-### 🤝🏽 Garanties et attentes
-
-Meetdown ne fait aucune garantie.
-
-Le [code source de Meetdown](https://github.com/MartinSStewart/meetdown) est open source donc les utilisateurs techniques peuvent faire leur propre évaluation du risque.
-
-Le logiciel est fourni "tel quel", sans aucune garantie, expresse ou implicite, y compris mais sans s'y limiter les garanties de qualité marchande, d'adaptation à un usage particulier et d'absence de contrefaçon.
-
-Nous attendons de tous les utilisateurs qu'ils se comportent conformément au [Code de conduite](""" ++ codeOfConductRoute ++ """).
-
-
-### 💵 Coût
-
-Meetdown est un produit gratuit.
-
-
-### 😔 Comment faire une réclamation
-
-Si vous avez une réclamation, veuillez nous contacter et nous ferons de notre mieux pour résoudre le problème.
-
-Veuillez consulter "Comment nous contacter" ci-dessus.
-
-
-### 📝 Modifications de cet accord
-
-Cet accord sera toujours disponible sur meetdown.app.
-
-Si nous apportons des modifications, nous vous en informerons une fois que nous les aurons apportées.
-
-Si vous n'êtes pas d'accord avec ces modifications, vous pouvez fermer votre compte en appuyant sur "Supprimer le compte" sur votre page de profil.
-
-Nous détruirons toutes les données de votre compte, sauf si nous devons les conserver pour une raison exposée dans notre [Politique de confidentialité](""" ++ privacyRoute ++ """).
-
-### 😭 Fermer votre compte
-
-Pour fermer votre compte, vous pouvez appuyer sur le bouton "Supprimer le compte" sur votre page de profil.
-
-Nous pouvons fermer votre compte en vous donnant au moins une semaine d'avance.
-
-Nous pouvons fermer votre compte immédiatement si nous pensons que vous avez :
-
-- Violé les conditions de cet accord
-- Mis notre position dans laquelle nous pourrions enfreindre la loi
-- Enfreint la loi ou tenté de l'enfreindre
-- Fourni des informations fausses à tout moment
-- Été abusif envers quiconque chez Meetdown ou un membre de notre communauté
-
-"""
-
-
-tosMarkdownSpanish : String -> String -> String
-tosMarkdownSpanish privacyRoute codeOfConductRoute =
-    """
-
-#### Version 1.0 – Junio 2021
-
-### 🤔 Qué es Meetdown
-
-Estos términos legales son entre usted y meetdown.app (« nosotros », « nuestro », « Meetdown », el software) y acepta estos términos al usar el servicio Meetdown.
-
-Debería leer este documento al mismo tiempo que nuestra [Política de privacidad](""" ++ privacyRoute ++ """).
-
-### 💬 Cómo contactarnos
-
-Por favor contáctenos por correo electrónico a [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """)
-
-Nos pondremos en contacto con usted en inglés 🇬🇧 y en Emoji 😃.
-
-
-### 🤝🏽 Garantías y expectativas
-
-Meetdown no hace ninguna garantía.
-
-El [código fuente de Meetdown](https://github.com/MartinSStewart/meetdown) es de código abierto, por lo que los usuarios técnicos pueden hacer su propia evaluación del riesgo.
-
-El software se proporciona "tal cual", sin ninguna garantía, expresa o implícita, incluidas, entre otras, las garantías de calidad comercial, adecuación para un uso particular y ausencia de infracción.
-
-Esperamos que todos los usuarios se comporten de acuerdo con el [Código de conducta](""" ++ codeOfConductRoute ++ """).
-
-### 💵 Costo
-
-Meetdown es un producto gratuito.
-
-
-### 😔 Cómo hacer una reclamación
-
-Si tiene una reclamación, comuníquese con nosotros y haremos todo lo posible para resolver el problema.
-
-Consulte "Cómo contactarnos" arriba.
-
-
-### 📝 Modificaciones a este acuerdo
-
-Este acuerdo siempre estará disponible en meetdown.app.
-
-Si hacemos modificaciones, le informaremos una vez que las hayamos realizado.
-
-Si no está de acuerdo con estos cambios, puede cerrar su cuenta presionando el botón "Eliminar cuenta" en su página de perfil.
-
-Destruiremos todos los datos de su cuenta, excepto si debemos conservarlos por una razón expuesta en nuestra [Política de privacidad](""" ++ privacyRoute ++ """).
-
-### 😭 Cerrar su cuenta
-
-Para cerrar su cuenta, puede presionar el botón "Eliminar cuenta" en su página de perfil.
-
-Podemos cerrar su cuenta al darle al menos una semana de antelación.
-
-Podemos cerrar su cuenta de inmediato si pensamos que ha:
-
-- Violado los términos de este acuerdo
-- Puso nuestra posición en la que podríamos infringir la ley
-- Infringió la ley o intentó infringirla
-- Proporcionó información falsa en cualquier momento
-- Fue abusivo con cualquier persona en Meetdown o miembro de nuestra comunidad
-
-"""
-
-
-privacyMarkdownEnglish : String -> String
-privacyMarkdownEnglish termsOfServiceRoute =
-    """
-
-#### Version 1.0 – June 2021
-
-We’re committed to protecting and respecting your privacy. If you have any questions about your personal information please chat with us by emailing us at [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """).
-
-
-### 👀 The information we hold about you
-
-#### - Cookie information
-
-We use a single persistent secured httpOnly session cookie to recognise your browser and keep you logged in.
-
-Other cookies may be introduced in the future, and if so our Privacy policy will be updated at that time.
-
-
-#### - Information submitted through our service or website
-
-- For example, when you sign up to the service and provide details such as your name and email
-
-There may be times when you give us ‘sensitive’ information, which includes things like your racial origin, political opinions, religious beliefs, trade union membership details or biometric data. We’ll only use this information in strict accordance with the law.
-
-
-### 🔍 How we use your information
-
-To provide our services, we use it to:
-
-- Help us manage your account
-- Send you reminders for events you've joined
-
-To meet our legal obligations, we use it to:
-
-- Prevent illegal activities like piracy and fraud
-
-With your permission, we use it to:
-
-- Market and communicate our products and services where we think these will be of interest to you by email. You can always unsubscribe from receiving these if you want to by email.
-
-
-### 🤝 Who we share it with
-
-We may share your personal information with:
-
-- Anyone who works for us when they need it to do their job.
-- Anyone who you give us explicit permission to share it with.
-
-We’ll also share it to comply with the law; to enforce our [Terms of service](""" ++ termsOfServiceRoute ++ """) or other agreements; or to protect the rights, property or safety of us, our users or others.
-
-### 📁 How long we keep it
-
-We keep your data as long as you’re using Meetdown, and for 1 year after that to comply with the law. In some circumstances, like cases of fraud, we may keep data longer if we need to and/or the law says we have to.
-
-### ✅ Your rights
-
-You have a right to:
-
-- Access the personal data we hold about you, or to get a copy of it.
-- Make us correct inaccurate data.
-- Ask us to delete, 'block' or suppress your data, though for legal reasons we might not always be able to do it.
-- Object to us using your data for direct marketing and in certain circumstances ‘legitimate interests’, research and statistical reasons.
-- Withdraw any consent you’ve previously given us.
-
-To do so, please contact us by emailing [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """).
-
-
-### 🔒 Where we store or send your data
-
-We might transfer and store the data we collect from you somewhere outside the European Economic Area (‘EEA’). People who work for us or our suppliers outside the EEA might also process your data.
-
-We may share data with organisations and countries that:
-
-- The European Commission say have adequate data protection, or
-- We’ve agreed standard data protection clauses with.
-
-
-### 😔 How to make a complaint
-
-If you have a complaint, please contact us by emailing [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """) and we’ll do our best to fix the problem.
-
-
-### 📝 Changes to this policy
-
-We’ll post any changes we make to our privacy notice on this page and, if they’re significant changes we’ll let you know by email.
-
-"""
-
-
-privacyMarkdownFrench : String -> String
-privacyMarkdownFrench termsOfServiceRoute =
-    """
-#### Version 1.0 – Juin 2021
-
-Nous nous engageons à protéger et à respecter votre vie privée. Si vous avez des questions sur vos informations personnelles, veuillez nous contacter par e-mail à [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """).
-
-### 👀 Les informations que nous détenons sur vous
-
-#### - Informations sur les cookies
-
-Nous utilisons un seul cookie de session persistant sécurisé httpOnly pour reconnaître votre navigateur et vous garder connecté.
-
-D'autres cookies peuvent être introduits à l'avenir, et si c'est le cas, notre politique de confidentialité sera mise à jour à ce moment-là.
-
-
-#### - Informations soumises à travers notre service ou notre site web
-
-- Par exemple, lorsque vous vous inscrivez au service et fournissez des détails tels que votre nom et votre adresse e-mail
-
-Il peut arriver que vous nous donniez des informations «sensibles», qui comprennent des choses comme votre origine raciale, vos opinions politiques, vos croyances religieuses, vos détails d'adhésion à un syndicat ou vos données biométriques. Nous n'utiliserons ces informations que dans le strict respect de la loi.
-
-
-### 🔍 Comment nous utilisons vos informations
-
-Pour fournir nos services, nous les utilisons pour:
-
-- Nous aider à gérer votre compte
-
-- Vous envoyer des rappels pour les événements auxquels vous avez participé
-
-Pour répondre à nos obligations légales, nous les utilisons pour:
-
-- Prévenir les activités illégales telles que la piraterie et la fraude
-
-Avec votre permission, nous les utilisons pour:
-
-- Faire la promotion et communiquer nos produits et services où nous pensons que cela vous intéressera par e-mail. Vous pouvez toujours vous désabonner de la réception de ces e-mails si vous le souhaitez.
-
-
-### 🤝 Qui nous les partageons
-
-Nous pouvons partager vos informations personnelles avec:
-
-- Toute personne qui travaille pour nous lorsque elle en a besoin pour faire son travail.
-- Toute personne à laquelle vous nous donnez une autorisation explicite de partager vos informations.
-
-Nous partagerons également vos informations pour nous conformer à la loi; pour faire respecter nos [Conditions d'utilisation](""" ++ termsOfServiceRoute ++ """) ou d'autres accords; ou pour protéger les droits, la propriété ou la sécurité de nous, de nos utilisateurs ou d'autres.
-
-### 📁 Combien de temps nous les conservons
-
-Nous conservons vos données aussi longtemps que vous utilisez Meetdown, et pendant 1 an après cela pour nous conformer à la loi. Dans certains cas, comme les cas de fraude, nous pouvons conserver les données plus longtemps si nous en avons besoin et / ou que la loi nous y oblige.
-
-### ✅ Vos droits
-
-Vous avez le droit de:
-
-- Accéder aux données personnelles que nous détenons sur vous, ou d'en obtenir une copie.
-- Nous demander de corriger des données inexactes.
-- Nous demander de supprimer, de bloquer ou de supprimer vos données, bien que pour des raisons légales, nous ne puissions pas toujours le faire.
-- Vous opposer à l'utilisation de vos données à des fins de marketing direct et dans certaines circonstances, à des fins de recherche et de statistiques.
-- Retirer votre consentement que nous vous avons précédemment donné.
-
-Pour ce faire, veuillez nous contacter par e-mail à [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """).
-
-### 🔒 Où nous stockons ou envoyons vos données
-
-Nous pouvons transférer et stocker les données que nous collectons auprès de vous quelque part en dehors de l'Union européenne («UE»). Les personnes qui travaillent pour nous ou nos fournisseurs en dehors de l'UE peuvent également traiter vos données.
-
-Nous pouvons partager des données avec des organisations et des pays qui:
-
-- La Commission européenne dit avoir une protection des données adéquate, ou
-- Nous avons conclu des clauses-types de protection des données avec.
-
-
-### 😔 Comment faire une réclamation
-
-Si vous avez une réclamation, veuillez nous contacter par e-mail à [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """) et nous ferons de notre mieux pour résoudre le problème.
-
-### 📝 Modifications de cette politique
-
-Nous publierons toute modification que nous apportons à notre avis de confidentialité sur cette page et, si elles sont des modifications importantes, nous vous en informerons par e-mail.
-
-"""
-
-
-privacyMarkdownSpanish : String -> String
-privacyMarkdownSpanish termsOfServiceRoute =
-    """
+    , privacyMarkdown =
+        \termsOfServiceRoute ->
+            """
 #### Version 1.0 – Junio 2021
 
 Nos comprometemos a proteger y respetar su privacidad. Si tiene alguna pregunta sobre sus datos personales, póngase en contacto con nosotros por correo electrónico a [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """).
@@ -1521,6 +1373,130 @@ Si tiene una queja, comuníquese con nosotros por correo electrónico a [""" ++ 
 
 Publicaremos cualquier cambio que hagamos a nuestra política de privacidad en esta página y, si son cambios importantes, se lo haremos saber por correo electrónico.
 """
+    , privacyNotice = "Aviso de privacidad"
+    , profile = "Perfil"
+    , readMore = "Leer más"
+    , recancelEvent = "Reanular el evento"
+    , reset = "Reiniciar"
+    , save = "Guardar"
+    , saveChanges = "Guardar cambios"
+    , saving = "Guardando..."
+    , search = "Buscar"
+    , searchForGroups = "Buscar grupos"
+    , searchingForOne = "suscribirse a un grupo."
+    , searchResultsFor = "Resultados de búsqueda para "
+    , showAll = "Mostrar todo"
+    , showFirst = "Mostrar primero"
+    , showU_00A0Attendees = "(Mostrar\u{00A0}asistentes)"
+    , signInAndWeLlGetYouSignedUpForThatEvent = "Inicie sesión y nos suscribiremos a ese evento"
+    , signInAndWeLlGetYouSignedUpForThe = \eventName -> "Inicie sesión y nos suscribiremos al evento \"" ++ eventName ++ "\""
+    , sinceThisIsYourFirstGroupWeRecommendYouReadThe = "Como es su primer grupo, le recomendamos que lea el "
+    , sorryThatGroupNameIsAlreadyBeingUsed = "Lo sentimos, ese nombre de grupo ya está en uso."
+    , stopNotifyingMeOfNewEvents = "Dejar de notificarme de nuevos eventos"
+    , submit = "Enviar"
+    , subscribedGroups = "Grupos a los que me he suscrito"
+    , terms = "términos"
+    , theEventCanTStartInThePast = "El evento no puede comenzar en el pasado"
+    , theEventIsTakingPlaceNowAt = "• El evento está teniendo lugar ahora en "
+    , theEventWillTakePlaceAt = "• El evento tendrá lugar en "
+    , theLinkYouUsedIsEitherInvalidOrHasExpired = "El enlace que usó no es válido o ha caducado."
+    , theMostImportantRuleIs = "La regla más importante es"
+    , theStartTimeCanTBeChangedSinceTheEventHasAlreadyStarted = "La hora de inicio no se puede cambiar porque el evento ya ha comenzado."
+    , thisEventDoesnTExist = "Este evento no existe."
+    , thisEventSomehowDoesnTExistTryRefreshingThePage = "Este evento no existe (¿intente actualizar la página?)"
+    , thisEventWasCancelled = "Este evento fue cancelado "
+    , thisEventWillBeInPerson = "Este evento será en persona"
+    , thisEventWillBeOnline = "Este evento será en línea"
+    , thisEventWillBeOnlineAndInPerson = "Este evento será en línea y en persona"
+    , thisGroupHasTooManyEvents = "Este grupo tiene demasiados eventos"
+    , thisGroupWasCreatedOn = "Este grupo fue creado el "
+    , timeDiffToString = diffToStringSpanish
+    , timeValueMissing = "Falta el tiempo"
+    , title = "Evento"
+    , tos = "Términos de uso"
+    , tosMarkdown = \privacyRoute codeOfConductRoute -> """
+
+#### Version 1.0 – Junio 2021
+
+### 🤔 Qué es Meetdown
+
+Estos términos legales son entre usted y meetdown.app (« nosotros », « nuestro », « Meetdown », el software) y acepta estos términos al usar el servicio Meetdown.
+
+Debería leer este documento al mismo tiempo que nuestra [Política de privacidad](""" ++ privacyRoute ++ """).
+
+### 💬 Cómo contactarnos
+
+Por favor contáctenos por correo electrónico a [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """)
+
+Nos pondremos en contacto con usted en inglés 🇬🇧 y en Emoji 😃.
+
+
+### 🤝🏽 Garantías y expectativas
+
+Meetdown no hace ninguna garantía.
+
+El [código fuente de Meetdown](https://github.com/MartinSStewart/meetdown) es de código abierto, por lo que los usuarios técnicos pueden hacer su propia evaluación del riesgo.
+
+El software se proporciona "tal cual", sin ninguna garantía, expresa o implícita, incluidas, entre otras, las garantías de calidad comercial, adecuación para un uso particular y ausencia de infracción.
+
+Esperamos que todos los usuarios se comporten de acuerdo con el [Código de conducta](""" ++ codeOfConductRoute ++ """).
+
+### 💵 Costo
+
+Meetdown es un producto gratuito.
+
+
+### 😔 Cómo hacer una reclamación
+
+Si tiene una reclamación, comuníquese con nosotros y haremos todo lo posible para resolver el problema.
+
+Consulte "Cómo contactarnos" arriba.
+
+
+### 📝 Modificaciones a este acuerdo
+
+Este acuerdo siempre estará disponible en meetdown.app.
+
+Si hacemos modificaciones, le informaremos una vez que las hayamos realizado.
+
+Si no está de acuerdo con estos cambios, puede cerrar su cuenta presionando el botón "Eliminar cuenta" en su página de perfil.
+
+Destruiremos todos los datos de su cuenta, excepto si debemos conservarlos por una razón expuesta en nuestra [Política de privacidad](""" ++ privacyRoute ++ """).
+
+### 😭 Cerrar su cuenta
+
+Para cerrar su cuenta, puede presionar el botón "Eliminar cuenta" en su página de perfil.
+
+Podemos cerrar su cuenta al darle al menos una semana de antelación.
+
+Podemos cerrar su cuenta de inmediato si pensamos que ha:
+
+- Violado los términos de este acuerdo
+- Puso nuestra posición en la que podríamos infringir la ley
+- Infringió la ley o intentó infringirla
+- Proporcionó información falsa en cualquier momento
+- Fue abusivo con cualquier persona en Meetdown o miembro de nuestra comunidad
+
+"""
+    , twoPeopleOnAVideoConference = "Dos personas en una videoconferencia"
+    , uncancelEvent = "Deshacer la cancelación del evento"
+    , uploadImage = "Subir una imagen"
+    , userNotFound = "Usuario no encontrado"
+    , valueMustBeGreaterThan0 = "El valor debe ser mayor que 0."
+    , weDontSellYourDataWeDontShowAdsAndItsFree = "No vendemos tus datos, no mostramos anuncios y es gratis."
+    , welcomePage = "¡Bienvenido al evento!"
+    , whatDoYouWantPeopleToKnowAboutYou = "¿Qué quieres que la gente sepa de ti?"
+    , whatSTheNameOfYourGroup = "¿Cuál es el nombre de tu grupo?"
+    , whenDoesItStart = "¿Cuándo comienza?"
+    , youCanDoThatHere = "Puedes hacerlo aquí."
+    , youCanTEditEventsThatHaveAlreadyHappened = "No puedes editar eventos que ya han ocurrido"
+    , youCanTEditTheStartTimeOfAnEventThatIsOngoing = "No puedes editar la hora de inicio de un evento que está en curso"
+    , youHavenTCreatedAnyGroupsYet = "Aún no has creado grupos. "
+    , youNeedToAllowAtLeast2PeopleToJoinTheEvent = "Necesitas permitir que al menos 2 personas se unan al evento."
+    , yourEmailAddress = "Tu correo electrónico"
+    , yourName = "Tu nombre"
+    , yourNameCantBeEmpty = "Tu nombre no puede estar vacío"
+    }
 
 
 diffToStringEnglish : Time.Posix -> Time.Posix -> String
