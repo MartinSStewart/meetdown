@@ -76,14 +76,14 @@ view ({ texts } as userConfig) joiningEvent cachedGroups { email, pressedSubmitE
                         Element.paragraph []
                             [ Group.name group
                                 |> GroupName.toString
-                                |> texts.signInAndWeLlGetYouSignedUpForThe
+                                |> texts.signInAndWeWillGetYouSignedUpForThe
                                 |> Element.text
                             ]
 
                     _ ->
                         Element.paragraph
                             []
-                            [ Element.text texts.signInAndWeLlGetYouSignedUpForThatEvent ]
+                            [ Element.text texts.signInAndWeWillGetYouSignedUpForThatEvent ]
 
             Nothing ->
                 Element.none

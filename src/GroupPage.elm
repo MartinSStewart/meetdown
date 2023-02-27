@@ -1045,7 +1045,7 @@ view ({ texts } as userConfig) isMobile currentTime timezone owner cachedUsers g
                         editEventView userConfig currentTime timezone (Event.cancellationStatus event) eventStatus editEvent
 
                     Nothing ->
-                        Element.text texts.thisEventDoesnTExist
+                        Element.text texts.thisEventDoesNotExist
 
             Nothing ->
                 groupView userConfig isMobile currentTime timezone owner cachedUsers group model maybeLoggedIn
@@ -1699,7 +1699,7 @@ showAttendeesButton { theme, texts } eventId showAttendees =
                 , Element.htmlAttribute (Dom.idToAttribute showAttendeesButtonId)
                 ]
                 { onPress = PressedShowAttendees eventId |> Just
-                , label = Element.text texts.showU_00A0Attendees
+                , label = Element.text texts.showAttendees
                 }
         )
 
@@ -2359,7 +2359,7 @@ editEventView { theme, texts } currentTime timezone maybeCancellationStatus even
                     Ui.error theme texts.youCanTEditTheStartTimeOfAnEventThatIsOngoing
 
                 Failed EditEventNotFound ->
-                    Ui.error theme texts.thisEventSomehowDoesnTExistTryRefreshingThePage
+                    Ui.error theme texts.thisEventSomehowDoesNotExistTryRefreshingThePage
 
                 NotSubmitted _ ->
                     Element.none

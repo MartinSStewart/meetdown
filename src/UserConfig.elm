@@ -221,9 +221,9 @@ type alias Texts =
     , searchResultsFor : String
     , showAll : String
     , showFirst : String
-    , showU_00A0Attendees : String
-    , signInAndWeLlGetYouSignedUpForThatEvent : String
-    , signInAndWeLlGetYouSignedUpForThe : String -> String
+    , showAttendees : String
+    , signInAndWeWillGetYouSignedUpForThatEvent : String
+    , signInAndWeWillGetYouSignedUpForThe : String -> String
     , sinceThisIsYourFirstGroupWeRecommendYouReadThe : String
     , sorryThatGroupNameIsAlreadyBeingUsed : String
     , stopNotifyingMeOfNewEvents : String
@@ -236,8 +236,8 @@ type alias Texts =
     , theLinkYouUsedIsEitherInvalidOrHasExpired : String
     , theMostImportantRuleIs : String
     , theStartTimeCanTBeChangedSinceTheEventHasAlreadyStarted : String
-    , thisEventDoesnTExist : String
-    , thisEventSomehowDoesnTExistTryRefreshingThePage : String
+    , thisEventDoesNotExist : String
+    , thisEventSomehowDoesNotExistTryRefreshingThePage : String
     , thisEventWasCancelled : String
     , thisEventWillBeInPerson : String
     , thisEventWillBeOnline : String
@@ -575,9 +575,9 @@ We’ll post any changes we make to our privacy notice on this page and, if they
     , searchResultsFor = "Search results for "
     , showAll = "Show all"
     , showFirst = "Show first"
-    , showU_00A0Attendees = "(Show\u{00A0}attendees)"
-    , signInAndWeLlGetYouSignedUpForThatEvent = "Sign in and we'll get you signed up for that event"
-    , signInAndWeLlGetYouSignedUpForThe = \eventName -> "Sign in and we'll get you signed up for the " ++ eventName ++ " event."
+    , showAttendees = "(Show\u{00A0}attendees)"
+    , signInAndWeWillGetYouSignedUpForThatEvent = "Sign in and we'll get you signed up for that event"
+    , signInAndWeWillGetYouSignedUpForThe = \eventName -> "Sign in and we'll get you signed up for the " ++ eventName ++ " event."
     , sinceThisIsYourFirstGroupWeRecommendYouReadThe = "Since this is your first group, we recommend you read the "
     , sorryThatGroupNameIsAlreadyBeingUsed = "Sorry, that group name is already being used."
     , stopNotifyingMeOfNewEvents = "Stop notifying me of new events"
@@ -590,8 +590,8 @@ We’ll post any changes we make to our privacy notice on this page and, if they
     , theLinkYouUsedIsEitherInvalidOrHasExpired = "The link you used is either invalid or has expired."
     , theMostImportantRuleIs = "The most important rule is"
     , theStartTimeCanTBeChangedSinceTheEventHasAlreadyStarted = "The start time can't be changed since the event has already started."
-    , thisEventDoesnTExist = "This event doesn't exist."
-    , thisEventSomehowDoesnTExistTryRefreshingThePage = "This event somehow doesn't exist. Try refreshing the page?"
+    , thisEventDoesNotExist = "This event doesn't exist."
+    , thisEventSomehowDoesNotExistTryRefreshingThePage = "This event somehow doesn't exist. Try refreshing the page?"
     , thisEventWasCancelled = "This event was cancelled "
     , thisEventWillBeInPerson = "This event will be in person"
     , thisEventWillBeOnline = "This event will be online"
@@ -984,9 +984,9 @@ Nous publierons toute modification que nous apportons à notre avis de confident
     , searchResultsFor = "Résultats de recherche pour "
     , showAll = "Afficher tout"
     , showFirst = "Afficher les premiers"
-    , showU_00A0Attendees = "(Afficher\u{00A0}les participants)"
-    , signInAndWeLlGetYouSignedUpForThatEvent = "Connectez-vous et nous vous inscrirons pour cet événement"
-    , signInAndWeLlGetYouSignedUpForThe = \eventName -> "Connectez-vous et nous vous inscrirons pour l'événement \"" ++ eventName ++ "\""
+    , showAttendees = "(Afficher\u{00A0}les participants)"
+    , signInAndWeWillGetYouSignedUpForThatEvent = "Connectez-vous et nous vous inscrirons pour cet événement"
+    , signInAndWeWillGetYouSignedUpForThe = \eventName -> "Connectez-vous et nous vous inscrirons pour l'événement \"" ++ eventName ++ "\""
     , sinceThisIsYourFirstGroupWeRecommendYouReadThe = "Comme c'est votre premier groupe, nous vous recommandons de lire les "
     , sorryThatGroupNameIsAlreadyBeingUsed = "Désolé, ce nom de groupe est déjà utilisé."
     , stopNotifyingMeOfNewEvents = "Ne plus me notifier des nouveaux événements"
@@ -999,8 +999,8 @@ Nous publierons toute modification que nous apportons à notre avis de confident
     , theLinkYouUsedIsEitherInvalidOrHasExpired = "Le lien que vous avez utilisé est invalide ou a expiré."
     , theMostImportantRuleIs = "La règle la plus importante est"
     , theStartTimeCanTBeChangedSinceTheEventHasAlreadyStarted = "L'heure de début ne peut pas être modifiée car l'événement a déjà commencé."
-    , thisEventDoesnTExist = "Cet événement n'existe pas."
-    , thisEventSomehowDoesnTExistTryRefreshingThePage = "Cet événement n'existe pas (essayez de rafraîchir la page ?)"
+    , thisEventDoesNotExist = "Cet événement n'existe pas."
+    , thisEventSomehowDoesNotExistTryRefreshingThePage = "Cet événement n'existe pas (essayez de rafraîchir la page ?)"
     , thisEventWasCancelled = "Cet événement a été annulé "
     , thisEventWillBeInPerson = "Cet événement sera en personne"
     , thisEventWillBeOnline = "Cet événement sera en ligne"
@@ -1120,14 +1120,14 @@ spanishTexts =
     , cancel = "Cancelar"
     , cancelChanges = "Cancelar cambios"
     , cancelEvent = "Cancelar evento"
-    , checkYourSpamFolderIfYouDonTSeeIt = "Revise su carpeta de spam si no lo ve."
+    , checkYourSpamFolderIfYouDonTSeeIt = "Revise su buzón de basura si no lo ve."
     , chooseWhatTypeOfEventThisIs = "Elija qué tipo de evento es"
     , codeOfConduct = "Código de conducta"
-    , codeOfConduct1 = "Aquí hay algunos consejos para respetar la regla \"no seas un imbécil\":"
+    , codeOfConduct1 = "Aquí hay algunos consejos para respetar la regla \"no ser grosero\":"
     , codeOfConduct2 = "• Respete a las personas independientemente de su raza, sexo, identidad sexual, nacionalidad, apariencia o cualquier otra característica relacionada."
     , codeOfConduct3 = "• Sea respetuoso con los organizadores de grupos. Invierten su tiempo en coordinar un evento y están dispuestos a invitar a personas que no conocen. ¡No les traiciones su confianza!"
-    , codeOfConduct4 = "• Para los organizadores de grupos: asegúrese de que la gente se sienta incluida. Es difícil para la gente participar si se sienten como extraños."
-    , codeOfConduct5 = "• Si alguien es un imbécil, eso no es una excusa para ser un imbécil a su vez. Pídeles que paren y, si no funciona, evítalos y explica el problema aquí "
+    , codeOfConduct4 = "• Para los organizadores de grupos: asegúrese de que la gente se sienta incluida. Es difícil para la gente participar si se sienten como extranjeros."
+    , codeOfConduct5 = "• Si alguien esta siendo grosero, eso no es una excusa para ser grosero de regreso. Pídeles que paren y, si no funciona, evítalos y explica el problema aquí "
     , copyPreviousEvent = "Copiar evento anterior"
     , createEvent = "Crear evento"
     , createGroup = "Crear grupo"
@@ -1137,16 +1137,16 @@ spanishTexts =
     , daysUntilEvent = \days -> "Días hasta el evento: " ++ String.fromInt days
     , deleteAccount = "Eliminar cuenta"
     , deleteGroup = "Eliminar grupo"
-    , describeWhatYourGroupIsAboutYouCanFillOutThisLater = "Describa qué es su grupo (puede completar esto más tarde)."
+    , describeWhatYourGroupIsAboutYouCanFillOutThisLater = "Describe de qué es su grupo (puede completar esto más tarde)."
     , description = "Descripción"
     , descriptionTooLong = \descriptionLength maxLength -> "La descripción es de " ++ String.fromInt descriptionLength ++ " caracteres. Manténgase por debajo de " ++ String.fromInt maxLength ++ "."
-    , dontBeAJerk = "no seas un imbécil"
+    , dontBeAJerk = "no seas grosero"
     , edit = "Editar"
     , editEvent = "Editar evento"
     , ended = "Terminado "
     , endsIn = "Termina en "
-    , enterYourEmailAddress = "Introduzca su dirección de correo electrónico"
-    , enterYourEmailFirst = "Introduzca su correo electrónico primero"
+    , enterYourEmailAddress = "Entre su dirección de correo electrónico"
+    , enterYourEmailFirst = "Entre su correo electrónico primero"
     , eventCantBeMoreThan = "El evento no puede durar más de "
     , eventCanTStartInThePast = "El evento no puede comenzar en el pasado"
     , eventDescriptionOptional = "Descripción del evento (opcional)"
@@ -1161,13 +1161,13 @@ spanishTexts =
     , eventOverlapsOtherEvents = "El evento se superpone a otros eventos"
     , eventOverlapsWithAnotherEvent = "El evento se superpone con otro evento"
     , eventsCanTStartInThePast = "Los eventos no pueden comenzar en el pasado"
-    , failedToJoinEventThereArenTAnySpotsLeft = "No se pudo unir al evento, no hay más lugares."
+    , failedToJoinEventThereArenTAnySpotsLeft = "No se pudo unir al evento, no hay disponibilidad."
     , failedToJoinThisEventDoesnTExistTryRefreshingThePage = "No se pudo unir, este evento no existe (¿intenta actualizar la página?)"
     , failedToLeaveEvent = "No se pudo dejar el evento"
     , faq = "Preguntas frecuentes"
     , faq1 = "No me gusta que meetup.com sea de pago, me envíe correos electrónicos de spam y sea demasiado pesado. También quise intentar hacer algo más sustancial usando "
     , faq2 = " para ver si es factible usarlo en el trabajo."
-    , faq3 = "Gasto mi propio dinero para alojarlo. Está bien porque está diseñado para ser muy barato de mantener. En el improbable caso de que Meetdown se vuelva muy popular y los costos de alojamiento se vuelvan demasiado altos, pediré donaciones."
+    , faq3 = "Uso mi propio dinero para alojarlo. Está bien porque está diseñado para ser muy barato de mantener. En el improbable caso de que Meetdown se vuelva muy popular y los costos de alojamiento se vuelvan demasiado altos, pediré donaciones."
     , faqQuestion1 = "¿Quién está detrás de todo esto?"
     , faqQuestion2 = "¿Por qué crear este sitio web?"
     , faqQuestion3 = "Si este sitio web es gratuito y no vende sus datos, ¿cómo se financia?"
@@ -1175,7 +1175,7 @@ spanishTexts =
     , frequentQuestions = "Preguntas frecuentes"
     , futureEvents = "Eventos futuros"
     , goToHomepage = "Ir a la página de inicio"
-    , group1 = "Todavía no está suscrito a ningún grupo. Puede hacerlo presionando el botón \""
+    , group1 = "Todavía no está suscrito a ningún grupo. Puede hacerlo por presionando la tecla \""
     , groupDescription = "Descripción del grupo"
     , groupName = "Nombre del grupo"
     , groupNotFound = "Grupo no encontrado"
@@ -1183,7 +1183,7 @@ spanishTexts =
     , hoursLong = " horas."
     , howManyHoursLongIsIt = "¿Cuántas horas dura?"
     , howManyPeopleCanJoinLeaveThisEmptyIfThereSNoLimit = "¿Cuántas personas pueden unirse? (Deje esto vacío si no hay límite)"
-    , ifYouDontSeeTheEmailCheckYourSpamFolder = "Si no lo ves, revisa tu carpeta de spam."
+    , ifYouDontSeeTheEmailCheckYourSpamFolder = "Si no lo ves, revisa tu buzón de basura."
     , imageEditor = "Editor de imágenes"
     , info = "Info"
     , inPersonEvent = "evento en persona 🤝"
@@ -1191,9 +1191,9 @@ spanishTexts =
     , invalidEmailAddress = "Dirección de correo electrónico no válida"
     , invalidInput = "Entrada no válida. Escriba algo como 1 o 2.5"
     , invalidTimeFormatExpectedSomethingLike_22_59 = "Formato de hora no válido. Se esperaba algo como 22:59"
-    , invalidUrlLong = "URL no válida. Escriba algo como https://my-hangouts.com o déjelo en blanco"
+    , invalidUrlLong = "URL no válido. Entre algo como https://my-hangouts.com o déjelo en blanco"
     , invalidValueChooseAnIntegerLike5Or30OrLeaveItBlank = "Valor no válido. Elija un entero como 5 o 30, o déjelo en blanco."
-    , isItI = "Es mí, "
+    , isItI = "Soy yo, "
     , itsTakingPlaceAt =
         \isPastEvent ->
             if isPastEvent then
@@ -1202,7 +1202,7 @@ spanishTexts =
             else
                 "• Está en "
     , iWantThisGroupToBePubliclyVisible = "Quiero que este grupo sea visible públicamente"
-    , iWantThisGroupToBeUnlistedPeopleCanOnlyFindItIfYouLinkItToThem = "Quiero que este grupo sea no listado (las personas solo pueden encontrarlo si se lo enlazas)"
+    , iWantThisGroupToBeUnlistedPeopleCanOnlyFindItIfYouLinkItToThem = "Quiero que este grupo no sea listado (las personas solo pueden encontrarlo si se lo enlazas)"
     , joinEvent = "Unirse al evento"
     , just_1AnonymousAttendee = "• Solo 1 asistente anónimo"
     , justNanonymousNattendees =
@@ -1212,7 +1212,7 @@ spanishTexts =
 
             else
                 String.fromInt attendeeCount ++ " asistentes anónimos"
-    , keepItBelowNCharacters = \n -> "Manténgalo por debajo de " ++ String.fromInt n ++ " caracteres"
+    , keepItBelowNCharacters = \n -> "Manténgalo debajo de " ++ String.fromInt n ++ " caracteres"
     , leaveEvent = "Dejar el evento"
     , linkThatWillBeShownWhenTheEventStartsOptional = "Enlace que se mostrará cuando comience el evento (opcional)"
     , loading = "Cargando"
@@ -1383,17 +1383,18 @@ Publicaremos cualquier cambio que hagamos a nuestra política de privacidad en e
     , saving = "Guardando..."
     , search = "Buscar"
     , searchForGroups = "Buscar grupos"
-    , searchingForOne = "suscribirse a un grupo."
+    , -- TODO: Check if it's searching or subscribing
+      searchingForOne = "Suscribiendo a un grupo."
     , searchResultsFor = "Resultados de búsqueda para "
     , showAll = "Mostrar todo"
     , showFirst = "Mostrar primero"
-    , showU_00A0Attendees = "(Mostrar\u{00A0}asistentes)"
-    , signInAndWeLlGetYouSignedUpForThatEvent = "Inicie sesión y nos suscribiremos a ese evento"
-    , signInAndWeLlGetYouSignedUpForThe = \eventName -> "Inicie sesión y nos suscribiremos al evento \"" ++ eventName ++ "\""
+    , showAttendees = "(Mostrar\u{00A0}asistentes)"
+    , signInAndWeWillGetYouSignedUpForThatEvent = "Inicie sesión y nos suscribiremos a ese evento"
+    , signInAndWeWillGetYouSignedUpForThe = \eventName -> "Acceda su perfil y lo suscribiremos al evento \"" ++ eventName ++ "\""
     , sinceThisIsYourFirstGroupWeRecommendYouReadThe = "Como es su primer grupo, le recomendamos que lea el "
     , sorryThatGroupNameIsAlreadyBeingUsed = "Lo sentimos, ese nombre de grupo ya está en uso."
     , stopNotifyingMeOfNewEvents = "Dejar de notificarme de nuevos eventos"
-    , submit = "Enviar"
+    , submit = "Someter"
     , subscribedGroups = "Grupos a los que me he suscrito"
     , terms = "términos"
     , theEventCanTStartInThePast = "El evento no puede comenzar en el pasado"
@@ -1402,8 +1403,8 @@ Publicaremos cualquier cambio que hagamos a nuestra política de privacidad en e
     , theLinkYouUsedIsEitherInvalidOrHasExpired = "El enlace que usó no es válido o ha caducado."
     , theMostImportantRuleIs = "La regla más importante es"
     , theStartTimeCanTBeChangedSinceTheEventHasAlreadyStarted = "La hora de inicio no se puede cambiar porque el evento ya ha comenzado."
-    , thisEventDoesnTExist = "Este evento no existe."
-    , thisEventSomehowDoesnTExistTryRefreshingThePage = "Este evento no existe (¿intente actualizar la página?)"
+    , thisEventDoesNotExist = "Este evento no existe."
+    , thisEventSomehowDoesNotExistTryRefreshingThePage = "Este evento no existe (¿intente actualizar la página?)"
     , thisEventWasCancelled = "Este evento fue cancelado "
     , thisEventWillBeInPerson = "Este evento será en persona"
     , thisEventWillBeOnline = "Este evento será en línea"
@@ -1480,7 +1481,7 @@ Podemos cerrar su cuenta de inmediato si pensamos que ha:
 """
     , twoPeopleOnAVideoConference = "Dos personas en una videoconferencia"
     , uncancelEvent = "Deshacer la cancelación del evento"
-    , uploadImage = "Subir una imagen"
+    , uploadImage = "Subir un imagen"
     , userNotFound = "Usuario no encontrado"
     , valueMustBeGreaterThan0 = "El valor debe ser mayor que 0."
     , weDontSellYourDataWeDontShowAdsAndItsFree = "No vendemos tus datos, no mostramos anuncios y es gratis."
