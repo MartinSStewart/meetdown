@@ -217,7 +217,7 @@ type alias Texts =
     , saving : String
     , search : String
     , searchForGroups : String
-    , searchingForOne : String
+    , subscribingToOne : String
     , searchResultsFor : String
     , showAll : String
     , showFirst : String
@@ -571,7 +571,7 @@ We’ll post any changes we make to our privacy notice on this page and, if they
     , saving = "Saving..."
     , search = "Search"
     , searchForGroups = "Search for groups"
-    , searchingForOne = "subscribing to one."
+    , subscribingToOne = "subscribing to one."
     , searchResultsFor = "Search results for "
     , showAll = "Show all"
     , showFirst = "Show first"
@@ -694,54 +694,54 @@ We may close your account immediately if we believe you've:
 
 frenchTexts : Texts
 frenchTexts =
-    { addEvent = "Ajouter un événement"
-    , addressTooLong = \length maxLength -> "L'adresse est de " ++ String.fromInt length ++ " caractères. Restez en dessous de " ++ String.fromInt maxLength ++ "."
-    , addressTooShort = \length minLength -> "L'adresse est de " ++ String.fromInt length ++ " caractères. Elle doit en contenir au moins " ++ String.fromInt minLength ++ "."
-    , aLoginEmailHasBeenSentTo = "Un email de connexion a été envoyé à "
-    , anAccountDeletionEmailHasBeenSentTo = "Un email de suppression de compte a été envoyé à "
+    { addEvent = "Ajouter ton événement"
+    , addressTooLong = \length maxLength -> "Ton adresse fait " ++ String.fromInt length ++ " caractères. Essaye de rester en dessous de " ++ String.fromInt maxLength ++ "."
+    , addressTooShort = \length minLength -> "Ton adresse fait " ++ String.fromInt length ++ " caractères. Il en faut au moins " ++ String.fromInt minLength ++ "."
+    , aLoginEmailHasBeenSentTo = "Un email de connexion vient d'être envoyé à "
+    , anAccountDeletionEmailHasBeenSentTo = "Un email pour supprimer ton compte vient d'être envoyé à "
     , andNanonymousNattendees =
         \attendeeCount ->
             if attendeeCount == 1 then
-                "et un participant anonyme"
+                "et un.e participant.e anonyme"
 
             else
-                "et " ++ String.fromInt attendeeCount ++ " participants anonymes"
-    , andOneNanonymousNattendee = "Et un\nparticipant\nanonyme"
-    , aPlaceToJoinGroupsOfPeopleWithSharedInterests = "Un endroit pour rejoindre des groupes de personnes partageant des centres d'intérêt"
-    , beginsIn = "Commence dans "
-    , belowNCharactersPlease = \n -> "En dessous de " ++ String.fromInt n ++ " caractères, s'il vous plaît"
+                "et " ++ String.fromInt attendeeCount ++ " participant.es anonymes"
+    , andOneNanonymousNattendee = "Et un.e\nparticipant.e\nanonyme"
+    , aPlaceToJoinGroupsOfPeopleWithSharedInterests = "Un endroit où rejoindre des groupes de personnes qui partagent tes centres d'intérêt"
+    , beginsIn = "Début dans "
+    , belowNCharactersPlease = \n -> "Moins de " ++ String.fromInt n ++ " caractères, s'il te plaît"
     , buttonOnAGroupPage = "\" sur la page d'un groupe."
-    , byContinuingYouAgreeToThe = "En continuant, vous acceptez les "
+    , byContinuingYouAgreeToThe = "En continuant, tu acceptes les "
     , cancel = "Annuler"
-    , cancelChanges = "Annuler les modifications"
+    , cancelChanges = "Annuler les changements"
     , cancelEvent = "Annuler l'événement"
-    , checkYourSpamFolderIfYouDonTSeeIt = "Vérifiez votre dossier spam si vous ne le voyez pas."
-    , chooseWhatTypeOfEventThisIs = "Choisissez quel type d'événement c'est"
+    , checkYourSpamFolderIfYouDonTSeeIt = "Vérifie ton dossier spam si tu ne le vois pas."
+    , chooseWhatTypeOfEventThisIs = "Choisis le type d'événement"
     , codeOfConduct = "Code de conduite"
     , codeOfConduct1 = "Voici quelques conseils pour respecter la règle \"ne sois pas un.e imbécile\":"
-    , codeOfConduct2 = "• Respecte les personnes indépendamment de leur race, de leur sexe, de leur identité sexuelle, de leur nationalité, de leur apparence ou de toute autre caractéristique connexe."
-    , codeOfConduct3 = "• Sois respectueux envers les organisateurs de groupes. Ils consacrent du temps à coordonner un événement et ils sont prêts à inviter des gens qu'ils ne connaissent pas. Ne trahis pas leur confiance en toi!"
-    , codeOfConduct4 = "• Pour les organisateurs de groupes: Faites en sorte que les gens se sentent inclus. Il est difficile pour les gens de participer si ils se sentent comme des étrangers."
-    , codeOfConduct5 = "• Si quelqu'un est un imbécile, ce n'est pas une excuse pour être un imbécile en retour. Demande-leur de s'arrêter, et si cela ne fonctionne pas, évite-les et explique le problème ici "
+    , codeOfConduct2 = "• Respecte les gens, peu importe leur race, leur genre, leur identité sexuelle, leur nationalité, leur apparence ou toute autre caractéristique."
+    , codeOfConduct3 = "• Sois respectueux envers les organisateurs de groupes. Ils consacrent du temps à coordonner un événement et ils sont prêts à inviter des gens qu'ils ne connaissent pas. Ne trahis pas leur confiance en toi !"
+    , codeOfConduct4 = "• Pour les organisateurs de groupes: Faites en sorte que les gens se sentent inclus. Il est difficile pour les gens de participer s'ils se sentent comme des étrangers."
+    , codeOfConduct5 = "• Si quelqu'un.e est un.e imbécile, ce n'est pas une excuse pour l'être aussi. Dis-leur d'arrêter et si ça ne marche pas, évite-les et explique le problème ici "
     , copyPreviousEvent = "Copier l'événement précédent"
-    , createEvent = "Créer l'événement"
+    , createEvent = "Créer ton événement"
     , createGroup = "Créer un groupe"
     , creatingOne = "en créer un"
-    , creditGoesTo = ". Merci à "
+    , creditGoesTo = ". Un grand merci à "
     , dateValueMissing = "Date manquante"
-    , daysUntilEvent = \days -> "Jours jusqu'à l'événement: " ++ String.fromInt days
-    , deleteAccount = "Supprimer le compte"
+    , daysUntilEvent = \days -> "Jours jusqu'à l'événement : " ++ String.fromInt days
+    , deleteAccount = "Supprimer mon compte"
     , deleteGroup = "Supprimer le groupe"
-    , describeWhatYourGroupIsAboutYouCanFillOutThisLater = "Décrivez la nature de votre groupe (vous pouvez remplir cette partie plus tard)."
+    , describeWhatYourGroupIsAboutYouCanFillOutThisLater = "Décris l'objet de ton groupe (tu peux remplir cette partie plus tard)."
     , description = "Description"
-    , descriptionTooLong = \descriptionLength maxLength -> "La description est de " ++ String.fromInt descriptionLength ++ " caractères. Limitez-la à " ++ String.fromInt maxLength ++ "."
+    , descriptionTooLong = \descriptionLength maxLength -> "La description fait " ++ String.fromInt descriptionLength ++ " caractères. Limite-la à " ++ String.fromInt maxLength ++ "."
     , dontBeAJerk = "ne sois pas un.e imbécile"
     , edit = "Modifier"
     , editEvent = "Modifier l'événement"
     , ended = "Terminé "
     , endsIn = "Se termine dans "
-    , enterYourEmailAddress = "Entrez votre adresse email"
-    , enterYourEmailFirst = "Entrez votre email d'abord"
+    , enterYourEmailAddress = "Entre ton adresse email"
+    , enterYourEmailFirst = "Entre ton email d'abord"
     , eventCantBeMoreThan = "L'événement ne peut pas durer plus de "
     , eventCanTStartInThePast = "L'événement ne peut pas commencer dans le passé"
     , eventDescriptionOptional = "Description de l'événement (optionnel)"
@@ -753,41 +753,41 @@ frenchTexts =
             else
                 "• C'est un " ++ eventTypeText ++ " de " ++ durationText ++ "."
     , eventName = "Nom de l'événement"
-    , eventOverlapsOtherEvents = "L'événement chevauche d'autres événements"
-    , eventOverlapsWithAnotherEvent = "L'événement chevauche un autre événement"
+    , eventOverlapsOtherEvents = "L'événement a lieu en même temps que d'autres événements"
+    , eventOverlapsWithAnotherEvent = "L'événement a lieu en même temps qu'un autre événement"
     , eventsCanTStartInThePast = "Les événements ne peuvent pas commencer dans le passé"
     , failedToJoinEventThereArenTAnySpotsLeft = "Impossible de rejoindre l'événement, il n'y a plus de place."
-    , failedToJoinThisEventDoesnTExistTryRefreshingThePage = "Impossible de rejoindre, cet événement n'existe pas (essayez de rafraîchir la page ?)"
+    , failedToJoinThisEventDoesnTExistTryRefreshingThePage = "Impossible de rejoindre, cet événement n'existe pas (essaie de rafraîchir la page ?)"
     , failedToLeaveEvent = "Impossible de quitter l'événement"
-    , faq = "FAQ"
+    , faq = "Questions fréquentes"
     , faq1 = "Je n'aime pas que meetup.com soit payant, m'envoie des emails de spam et soit trop lourd. J'ai aussi voulu essayer de faire quelque chose de plus substantiel en utilisant "
-    , faq2 = " pour voir si c'est faisable de l'utiliser au travail."
+    , faq2 = " pour voir si c'était faisable de l'utiliser au travail."
     , faq3 = "Je dépense mon propre argent pour l'héberger. C'est ok car il est conçu pour coûter très peu à faire tourner. Dans le cas improbable où Meetdown deviendrait très populaire et que les coûts d'hébergement deviennent trop élevés, je demanderai des dons."
     , faqQuestion1 = "Qui est derrière tout ça ?"
     , faqQuestion2 = "Pourquoi avoir créé ce site web ?"
-    , faqQuestion3 = "Si ce site web est gratuit et ne vend pas vos données, comment fait-il pour se financer ?"
-    , forHelpingMeOutWithPartsOfTheApp = " pour m'avoir aidé avec certaines parties de l'application."
+    , faqQuestion3 = "Si ce site web est gratuit et ne vend pas tes données, comment est-il financé ?"
+    , forHelpingMeOutWithPartsOfTheApp = " pour m'avoir aidé avec certaines parties de l'appli."
     , frequentQuestions = "Questions fréquentes"
-    , futureEvents = "Événements futurs"
-    , goToHomepage = "Aller à la page d'accueil"
-    , group1 = "Vous n'êtes abonné à aucun groupe. Vous pouvez le faire en appuyant sur le button \""
+    , futureEvents = "Événements à venir"
+    , goToHomepage = "Aller à l'accueil"
+    , group1 = "Tu n'es abonné à aucun groupe. Tu peux le faire en appuyant sur le bouton \""
     , groupDescription = "Description du groupe"
     , groupName = "Nom du groupe"
     , groupNotFound = "Groupe introuvable"
-    , hideU_00A0Attendees = "(Cacher\u{00A0}les participants)"
+    , hideU_00A0Attendees = "(Masquer\u{00A0}les participants)"
     , hoursLong = " heures."
     , howManyHoursLongIsIt = "Combien d'heures dure-t-il ?"
-    , howManyPeopleCanJoinLeaveThisEmptyIfThereSNoLimit = "Combien de personnes peuvent rejoindre (laissez vide s'il n'y a pas de limite)"
-    , ifYouDontSeeTheEmailCheckYourSpamFolder = "Si vous ne le voyez pas, vérifiez votre dossier spam."
-    , imageEditor = "Editeur d'image"
-    , info = "Info"
+    , howManyPeopleCanJoinLeaveThisEmptyIfThereSNoLimit = "Combien de personnes peuvent rejoindre (laisse vide s'il n'y a pas de limite)"
+    , ifYouDontSeeTheEmailCheckYourSpamFolder = "Si tu ne vois pas l'email, vérifie ton dossier spam."
+    , imageEditor = "Éditeur d'image"
+    , info = "Infos"
     , inPersonEvent = "événement en personne 🤝"
     , invalidDateFormatExpectedSomethingLike_2020_01_31 = "Format de date invalide. Attendu quelque chose comme 2020-01-31"
     , invalidEmailAddress = "Adresse email invalide"
-    , invalidInput = "Entrée invalide. Écrivez quelque chose comme 1 ou 2.5"
+    , invalidInput = "Entrée invalide. Écris quelque chose comme 1 ou 2.5"
     , invalidTimeFormatExpectedSomethingLike_22_59 = "Format d'heure invalide. Attendu quelque chose comme 22:59"
-    , invalidUrlLong = "URL invalide. Entrez quelque chose comme https://my-hangouts.com ou laissez-le vide"
-    , invalidValueChooseAnIntegerLike5Or30OrLeaveItBlank = "Valeur invalide. Choisissez un entier comme 5 ou 30, ou laissez-le vide."
+    , invalidUrlLong = "URL invalide. Entre quelque chose comme https://my-hangout.com ou laisse-le vide"
+    , invalidValueChooseAnIntegerLike5Or30OrLeaveItBlank = "Valeur invalide. Choisis un entier comme 5 ou 30, ou laisse-le vide."
     , isItI = "C'est moi, "
     , itsTakingPlaceAt =
         \isPastEvent ->
@@ -797,7 +797,7 @@ frenchTexts =
             else
                 "• C'est à "
     , iWantThisGroupToBePubliclyVisible = "Je veux que ce groupe soit visible publiquement"
-    , iWantThisGroupToBeUnlistedPeopleCanOnlyFindItIfYouLinkItToThem = "Je veux que ce groupe soit non listé (les gens ne peuvent le trouver que si vous leur en donnez le lien)"
+    , iWantThisGroupToBeUnlistedPeopleCanOnlyFindItIfYouLinkItToThem = "Je veux que ce groupe soit non listé (les gens ne peuvent le trouver que si tu leur donnes le lien)"
     , joinEvent = "Rejoindre l'événement"
     , just_1AnonymousAttendee = "• Juste 1 participant anonyme"
     , justNanonymousNattendees =
@@ -807,7 +807,7 @@ frenchTexts =
 
             else
                 String.fromInt attendeeCount ++ " participants anonymes"
-    , keepItBelowNCharacters = \n -> "Restez en dessous de " ++ String.fromInt n ++ " caractères"
+    , keepItBelowNCharacters = \n -> "Reste en dessous de " ++ String.fromInt n ++ " caractères"
     , leaveEvent = "Quitter l'événement"
     , linkThatWillBeShownWhenTheEventStartsOptional = "Lien qui sera affiché lorsque l'événement commencera (optionnel)"
     , loading = "Chargement"
@@ -823,7 +823,7 @@ frenchTexts =
     , newEvent = "Nouvel événement"
     , newGroup = "Nouveau groupe"
     , nextEventIsIn = "Le prochain événement est dans "
-    , noGroupsYet = "Vous n'avez pas encore de groupes. Commencez par "
+    , noGroupsYet = "Tu n'as pas encore de groupes. Commence par "
     , noNewEventsHaveBeenPlannedYet = "Aucun nouvel événement n'a été planifié pour le moment."
     , noOneAttended = "• Personne n'y est allé 💔"
     , noOnePlansOnAttending = "• Personne ne compte y assister"
@@ -842,12 +842,12 @@ frenchTexts =
 
             else
                 nbMinutes ++ "\u{00A0}minutes"
-    , onePersonAttended = "• Une personne y est allé"
-    , onePersonAttendedItWasYou = "• Une personne y est allé (c'était vous)"
-    , onePersonIsAttending = "• Une personne y assistera"
-    , onePersonIsAttendingItSYou = "• Une personne y assistera (c'est vous)"
-    , onePersonPlansOnAttending = "• Une personne compte y assister"
-    , onePersonPlansOnAttendingItSYou = "• Une personne compte y assister (c'est vous)"
+    , onePersonAttended = "• Une personne y est allée"
+    , onePersonAttendedItWasYou = "• Une personne y est allée (c'était toi)"
+    , onePersonIsAttending = "• Une personne va y assister"
+    , onePersonIsAttendingItSYou = "• Une personne va y assister (c'est toi)"
+    , onePersonPlansOnAttending = "• Une personne prévoit d'y assister"
+    , onePersonPlansOnAttendingItSYou = "• Une personne prévoit d'y assister (c'est toi)"
     , ongoingEvent = "Événement en cours"
     , onlineAndInPersonEvent = "événement en ligne et en personne 🤝💻"
     , onlineEvent = "événement en ligne 💻"
@@ -859,13 +859,13 @@ frenchTexts =
         \attendeeCount isAttending ->
             if attendeeCount == 1 then
                 if isAttending then
-                    "• Vous êtes le seul participant"
+                    "• Tu es le seul participant"
 
                 else
                     "• Une personne participe"
 
             else if isAttending then
-                "• Vous et " ++ String.fromInt (attendeeCount - 1) ++ " autres personnes participez"
+                "• Tu et " ++ String.fromInt (attendeeCount - 1) ++ " autres personnes participez"
 
             else
                 "• " ++ String.fromInt attendeeCount ++ " personnes participent"
@@ -873,89 +873,85 @@ frenchTexts =
         \attendeeCount isAttending ->
             if attendeeCount == 1 then
                 if isAttending then
-                    "• Vous avez été le seul participant"
+                    "• Tu as été le seul participant"
 
                 else
                     "• Une personne a participé"
 
             else if isAttending then
-                "• Vous et " ++ String.fromInt (attendeeCount - 1) ++ " autres personnes avez participé"
+                "• Tu et " ++ String.fromInt (attendeeCount - 1) ++ " autres personnes avez participé"
 
             else
                 "• " ++ String.fromInt attendeeCount ++ " personnes ont participé"
-    , pickAVisibilitySetting = "Choisissez un paramètre de visibilité"
-    , pressTheLinkInItToConfirmDeletingYourAccount = "Appuyez sur le lien pour confirmer la suppression de votre compte."
+    , pickAVisibilitySetting = "Choisis un paramètre de visibilité"
+    , pressTheLinkInItToConfirmDeletingYourAccount = "Clique sur le lien pour confirmer la suppression de ton compte."
     , privacy = "Confidentialité"
     , privacyMarkdown =
         \termsOfServiceRoute ->
             """
 #### Version 1.0 – Juin 2021
 
-Nous nous engageons à protéger et à respecter votre vie privée. Si vous avez des questions sur vos informations personnelles, veuillez nous contacter par e-mail à [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """).
+Nous nous engageons à protéger et à respecter ta vie privée. Si tu as des questions sur tes informations personnelles, n'hésite pas à nous contacter par e-mail à [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """).
 
-### 👀 Les informations que nous détenons sur vous
+### 👀 Les informations que nous détenons sur toi
 
 #### - Informations sur les cookies
 
-Nous utilisons un seul cookie de session persistant sécurisé httpOnly pour reconnaître votre navigateur et vous garder connecté.
+Nous utilisons un seul cookie de session persistant sécurisé httpOnly pour reconnaître ton navigateur et te garder connecté.
 
 D'autres cookies peuvent être introduits à l'avenir, et si c'est le cas, notre politique de confidentialité sera mise à jour à ce moment-là.
 
-
 #### - Informations soumises à travers notre service ou notre site web
 
-- Par exemple, lorsque vous vous inscrivez au service et fournissez des détails tels que votre nom et votre adresse e-mail
+- Par exemple, lorsque tu t'inscris au service et fournis des détails tels que ton nom et ton adresse e-mail.
 
-Il peut arriver que vous nous donniez des informations «sensibles», qui comprennent des choses comme votre origine raciale, vos opinions politiques, vos croyances religieuses, vos détails d'adhésion à un syndicat ou vos données biométriques. Nous n'utiliserons ces informations que dans le strict respect de la loi.
+Il peut arriver que tu nous donnes des informations «sensibles», qui comprennent des choses comme ton origine raciale, tes opinions politiques, tes croyances religieuses, tes détails d'adhésion à un syndicat ou tes données biométriques. Nous n'utiliserons ces informations que dans le strict respect de la loi.
 
-
-### 🔍 Comment nous utilisons vos informations
+### 🔍 Comment nous utilisons tes informations
 
 Pour fournir nos services, nous les utilisons pour:
 
-- Nous aider à gérer votre compte
-
-- Vous envoyer des rappels pour les événements auxquels vous avez participé
+- T'aider à gérer ton compte
+- T'envoyer des rappels pour les événements auxquels tu as participé
 
 Pour répondre à nos obligations légales, nous les utilisons pour:
 
 - Prévenir les activités illégales telles que la piraterie et la fraude
 
-Avec votre permission, nous les utilisons pour:
+Avec ta permission, nous les utilisons pour:
 
-- Faire la promotion et communiquer nos produits et services où nous pensons que cela vous intéressera par e-mail. Vous pouvez toujours vous désabonner de la réception de ces e-mails si vous le souhaitez.
+- Faire la promotion et communiquer nos produits et services où nous pensons que cela t'intéressera par e-mail. Tu peux toujours te désabonner de la réception de ces e-mails si tu le souhaites.
 
+### 🤝 Avec qui nous partageons tes informations
 
-### 🤝 Qui nous les partageons
-
-Nous pouvons partager vos informations personnelles avec:
+Nous pouvons partager tes informations personnelles avec:
 
 - Toute personne qui travaille pour nous lorsque elle en a besoin pour faire son travail.
-- Toute personne à laquelle vous nous donnez une autorisation explicite de partager vos informations.
+- Toute personne à laquelle tu nous donnes une autorisation explicite de partager tes informations.
 
-Nous partagerons également vos informations pour nous conformer à la loi; pour faire respecter nos [Conditions d'utilisation](""" ++ termsOfServiceRoute ++ """) ou d'autres accords; ou pour protéger les droits, la propriété ou la sécurité de nous, de nos utilisateurs ou d'autres.
+Nous partagerons également tes informations pour nous conformer à la loi; pour faire respecter nos [Conditions d'utilisation](""" ++ termsOfServiceRoute ++ """) ou d'autres accords; ou pour protéger les droits, la propriété ou la sécurité de nous, de nos utilisateurs ou d'autres.
 
 ### 📁 Combien de temps nous les conservons
 
-Nous conservons vos données aussi longtemps que vous utilisez Meetdown, et pendant 1 an après cela pour nous conformer à la loi. Dans certains cas, comme les cas de fraude, nous pouvons conserver les données plus longtemps si nous en avons besoin et / ou que la loi nous y oblige.
+Nous conservons tes données aussi longtemps que tu utilises Meetdown, et pendant 1 an après cela pour nous conformer à la loi. Dans certains cas, comme les cas de fraude, nous pouvons conserver les données plus longtemps si nous en avons besoin et / ou que la loi nous y oblige.
 
-### ✅ Vos droits
+### ✅ Tes droits
 
-Vous avez le droit de:
+Tu as le droit de:
 
-- Accéder aux données personnelles que nous détenons sur vous, ou d'en obtenir une copie.
+- Accéder aux données personnelles que nous détenons sur toi, ou d'en obtenir une copie.
 - Nous demander de corriger des données inexactes.
-- Nous demander de supprimer, de bloquer ou de supprimer vos données, bien que pour des raisons légales, nous ne puissions pas toujours le faire.
-- Vous opposer à l'utilisation de vos données à des fins de marketing direct et dans certaines circonstances, à des fins de recherche et de statistiques.
-- Retirer votre consentement que nous vous avons précédemment donné.
+- Nous demander de supprimer, de bloquer ou de supprimer tes données, bien que pour des raisons légales, nous ne puissions pas toujours le faire.
+- T'opposer à l'utilisation de tes données à des fins de marketing direct et dans certaines circonstances, à des fins de recherche et de statistiques.
+- Retirer ton consentement que nous t'avons précédemment donné
 
-Pour ce faire, veuillez nous contacter par e-mail à [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """).
+Pour ce faire, contacte nous par e-mail à [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """).
 
-### 🔒 Où nous stockons ou envoyons vos données
+### 🔒 Où nous stockons ou envoyons tes données
 
-Nous pouvons transférer et stocker les données que nous collectons auprès de vous quelque part en dehors de l'Union européenne («UE»). Les personnes qui travaillent pour nous ou nos fournisseurs en dehors de l'UE peuvent également traiter vos données.
+Nous pouvons transférer et stocker les données que nous collectons quelque part en dehors de l'Union européenne («UE»). Les personnes qui travaillent pour nous ou nos fournisseurs en dehors de l'UE peuvent également traiter tes données.
 
-Nous pouvons partager des données avec des organisations et des pays qui:
+Nous pouvons partager tes données avec des organisations et des pays qui:
 
 - La Commission européenne dit avoir une protection des données adéquate, ou
 - Nous avons conclu des clauses-types de protection des données avec.
@@ -963,11 +959,11 @@ Nous pouvons partager des données avec des organisations et des pays qui:
 
 ### 😔 Comment faire une réclamation
 
-Si vous avez une réclamation, veuillez nous contacter par e-mail à [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """) et nous ferons de notre mieux pour résoudre le problème.
+Si tu as une réclamation, n'hésite pas à nous contacter par e-mail à [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """) et nous ferons de notre mieux pour résoudre le problème.
 
 ### 📝 Modifications de cette politique
 
-Nous publierons toute modification que nous apportons à notre avis de confidentialité sur cette page et, si elles sont des modifications importantes, nous vous en informerons par e-mail.
+Nous publierons toute modification que nous apportons à notre avis de confidentialité sur cette page et, si elles sont des modifications importantes, nous te préviendrons par e-mail.
 
 """
     , privacyNotice = "Notice de confidentialité"
@@ -977,34 +973,34 @@ Nous publierons toute modification que nous apportons à notre avis de confident
     , reset = "Réinitialiser"
     , save = "Enregistrer"
     , saveChanges = "Enregistrer les modifications"
-    , saving = "Enregistrement..."
+    , saving = "Enregistrement en cours..."
     , search = "Rechercher"
     , searchForGroups = "Rechercher des groupes"
-    , searchingForOne = "vous abonner à un groupe."
+    , subscribingToOne = "rejoindre un groupe."
     , searchResultsFor = "Résultats de recherche pour "
-    , showAll = "Afficher tout"
+    , showAll = "Tout afficher"
     , showFirst = "Afficher les premiers"
-    , showAttendees = "(Afficher\u{00A0}les participants)"
-    , signInAndWeWillGetYouSignedUpForThatEvent = "Connectez-vous et nous vous inscrirons pour cet événement"
-    , signInAndWeWillGetYouSignedUpForThe = \eventName -> "Connectez-vous et nous vous inscrirons pour l'événement \"" ++ eventName ++ "\""
-    , sinceThisIsYourFirstGroupWeRecommendYouReadThe = "Comme c'est votre premier groupe, nous vous recommandons de lire les "
-    , sorryThatGroupNameIsAlreadyBeingUsed = "Désolé, ce nom de groupe est déjà utilisé."
+    , showAttendees = "(Afficher\u{00A0}les\u{00A0}participant·e·s)"
+    , signInAndWeWillGetYouSignedUpForThatEvent = "Connecte-toi et nous t'inscrirons pour cet événement"
+    , signInAndWeWillGetYouSignedUpForThe = \eventName -> "Connecte-toi et nous t'inscrirons pour l'événement \"" ++ eventName ++ "\""
+    , sinceThisIsYourFirstGroupWeRecommendYouReadThe = "Comme c'est ton premier groupe, nous te recommandons de lire les "
+    , sorryThatGroupNameIsAlreadyBeingUsed = "Désolé·e, ce nom de groupe est déjà utilisé."
     , stopNotifyingMeOfNewEvents = "Ne plus me notifier des nouveaux événements"
-    , submit = "Soumettre"
-    , subscribedGroups = "Groupes auxquels je suis abonné"
+    , submit = "Valider"
+    , subscribedGroups = "Groupes auxquels je suis abonné·e"
     , terms = "conditions"
     , theEventCanTStartInThePast = "L'événement ne peut pas commencer dans le passé"
-    , theEventIsTakingPlaceNowAt = "• L'événement a lieu maintenant à "
+    , theEventIsTakingPlaceNowAt = "• L'événement a lieu actuellement à "
     , theEventWillTakePlaceAt = "• L'événement aura lieu à "
-    , theLinkYouUsedIsEitherInvalidOrHasExpired = "Le lien que vous avez utilisé est invalide ou a expiré."
+    , theLinkYouUsedIsEitherInvalidOrHasExpired = "Le lien que tu as utilisé est invalide ou a expiré."
     , theMostImportantRuleIs = "La règle la plus importante est"
     , theStartTimeCanTBeChangedSinceTheEventHasAlreadyStarted = "L'heure de début ne peut pas être modifiée car l'événement a déjà commencé."
     , thisEventDoesNotExist = "Cet événement n'existe pas."
-    , thisEventSomehowDoesNotExistTryRefreshingThePage = "Cet événement n'existe pas (essayez de rafraîchir la page ?)"
+    , thisEventSomehowDoesNotExistTryRefreshingThePage = "Cet événement n'existe pas (essaie de rafraîchir la page ?)"
     , thisEventWasCancelled = "Cet événement a été annulé "
-    , thisEventWillBeInPerson = "Cet événement sera en personne"
-    , thisEventWillBeOnline = "Cet événement sera en ligne"
-    , thisEventWillBeOnlineAndInPerson = "Cet événement sera en ligne et en personne"
+    , thisEventWillBeInPerson = "Cet événement se déroulera en personne"
+    , thisEventWillBeOnline = "Cet événement se déroulera en ligne"
+    , thisEventWillBeOnlineAndInPerson = "Cet événement se déroulera en ligne et en personne"
     , thisGroupHasTooManyEvents = "Ce groupe a trop d'événements"
     , thisGroupWasCreatedOn = "Ce groupe a été créé le "
     , timeDiffToString = diffToStringFrench
@@ -1017,15 +1013,15 @@ Nous publierons toute modification que nous apportons à notre avis de confident
 
 ### 🤔 Qu'est-ce que Meetdown
 
-Ces conditions légales sont entre vous et meetdown.app (« nous », « notre », « Meetdown », le logiciel) et vous acceptez ces conditions en utilisant le service Meetdown.
+Ces conditions légales sont entre toi et meetdown.app (« nous », « notre », « Meetdown », le logiciel) et tu acceptes ces conditions en utilisant le service Meetdown.
 
-Vous devriez lire ce document en même temps que notre [Notice de confidentialité](""" ++ privacyRoute ++ """).
+Tu devrais lire ce document en même temps que notre [Notice de confidentialité](""" ++ privacyRoute ++ """).
 
 ### 💬 Comment nous contacter
 
-Veuillez nous contacter par email à [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """)
+N'hésite pas à nous contacter par email à [""" ++ Env.contactEmailAddress ++ """](mailto:""" ++ Env.contactEmailAddress ++ """)
 
-Nous vous contacterons en anglais 🇬🇧 et en Emoji 😃.
+Nous te contacterons en anglais 🇬🇧 et en Emoji 😃.
 
 
 ### 🤝🏽 Garanties et attentes
@@ -1046,7 +1042,7 @@ Meetdown est un produit gratuit.
 
 ### 😔 Comment faire une réclamation
 
-Si vous avez une réclamation, veuillez nous contacter et nous ferons de notre mieux pour résoudre le problème.
+Si tu as une réclamation, n'hésite pas à nous contacter et nous ferons de notre mieux pour résoudre le problème.
 
 Veuillez consulter "Comment nous contacter" ci-dessus.
 
@@ -1055,19 +1051,19 @@ Veuillez consulter "Comment nous contacter" ci-dessus.
 
 Cet accord sera toujours disponible sur meetdown.app.
 
-Si nous apportons des modifications, nous vous en informerons une fois que nous les aurons apportées.
+Si nous apportons des modifications, nous t'en informerons une fois que nous les aurons apportées.
 
-Si vous n'êtes pas d'accord avec ces modifications, vous pouvez fermer votre compte en appuyant sur "Supprimer le compte" sur votre page de profil.
+Si tu n'es pas d'accord avec ces modifications, tu peux fermer ton compte en appuyant sur "Supprimer le compte" sur ta page de profil.
 
-Nous détruirons toutes les données de votre compte, sauf si nous devons les conserver pour une raison exposée dans notre [Politique de confidentialité](""" ++ privacyRoute ++ """).
+Nous détruirons toutes les données de ton compte, sauf si nous devons les conserver pour une raison exposée dans notre [Politique de confidentialité](""" ++ privacyRoute ++ """).
 
-### 😭 Fermer votre compte
+### 😭 Fermer ton compte
 
-Pour fermer votre compte, vous pouvez appuyer sur le bouton "Supprimer le compte" sur votre page de profil.
+Pour fermer ton compte, tu peux appuyer sur le bouton "Supprimer le compte" sur ta page de profil.
 
-Nous pouvons fermer votre compte en vous donnant au moins une semaine d'avance.
+Nous pouvons fermer ton compte en te donnant au moins une semaine d'avance.
 
-Nous pouvons fermer votre compte immédiatement si nous pensons que vous avez :
+Nous pouvons fermer ton compte immédiatement si nous pensons que tu as :
 
 - Violé les conditions de cet accord
 - Mis notre position dans laquelle nous pourrions enfreindre la loi
@@ -1082,18 +1078,18 @@ Nous pouvons fermer votre compte immédiatement si nous pensons que vous avez :
     , userNotFound = "Utilisateur introuvable"
     , valueMustBeGreaterThan0 = "La valeur doit être supérieure à 0."
     , weDontSellYourDataWeDontShowAdsAndItsFree = "Nous ne vendons pas vos données, nous ne montrons pas de publicités et c'est gratuit."
-    , welcomePage = "Bienvenue à l'événement!"
-    , whatDoYouWantPeopleToKnowAboutYou = "Que voulez-vous que les gens sachent de vous ?"
-    , whatSTheNameOfYourGroup = "Quel est le nom de votre groupe?"
-    , whenDoesItStart = "Quand commence-t-il ?"
-    , youCanDoThatHere = "Vous pouvez le faire ici."
-    , youCanTEditEventsThatHaveAlreadyHappened = "Vous ne pouvez pas modifier des événements qui ont déjà eu lieu"
-    , youCanTEditTheStartTimeOfAnEventThatIsOngoing = "Vous ne pouvez pas modifier l'heure de début d'un événement qui est en cours"
-    , youHavenTCreatedAnyGroupsYet = "Vous n'avez pas encore créé de groupes. "
-    , youNeedToAllowAtLeast2PeopleToJoinTheEvent = "Vous devez autoriser au moins 2 personnes à rejoindre l'événement."
-    , yourEmailAddress = "Votre adresse email"
-    , yourName = "Votre nom"
-    , yourNameCantBeEmpty = "Votre nom ne peut pas être vide"
+    , welcomePage = "Bienvenue à l'événement !"
+    , whatDoYouWantPeopleToKnowAboutYou = "Que veux-tu que les gens sachent sur toi ?"
+    , whatSTheNameOfYourGroup = "Comment s'appelle ton groupe ?"
+    , whenDoesItStart = "Quand est-ce que ça commence ?"
+    , youCanDoThatHere = "Tu peux le faire ici."
+    , youCanTEditEventsThatHaveAlreadyHappened = "Tu ne peux pas modifier les événements qui ont déjà eu lieu"
+    , youCanTEditTheStartTimeOfAnEventThatIsOngoing = "Tu ne peux pas modifier l'heure de début d'un événement qui est en cours"
+    , youHavenTCreatedAnyGroupsYet = "Tu n'as pas encore créé de groupes. "
+    , youNeedToAllowAtLeast2PeopleToJoinTheEvent = "Tu dois autoriser au moins 2 personnes à rejoindre l'événement."
+    , yourEmailAddress = "Ton adresse email"
+    , yourName = "Ton nom"
+    , yourNameCantBeEmpty = "Ton nom ne peut pas être vide"
     }
 
 
@@ -1383,8 +1379,7 @@ Publicaremos cualquier cambio que hagamos a nuestra política de privacidad en e
     , saving = "Guardando..."
     , search = "Buscar"
     , searchForGroups = "Buscar grupos"
-    , -- TODO: Check if it's searching or subscribing
-      searchingForOne = "Suscribiendo a un grupo."
+    , subscribingToOne = "suscribiendo a un grupo."
     , searchResultsFor = "Resultados de búsqueda para "
     , showAll = "Mostrar todo"
     , showFirst = "Mostrar primero"

@@ -1546,7 +1546,7 @@ myGroupsView ({ texts } as userConfig) model loggedIn =
                         [ Element.text texts.noGroupsYet
                         , Ui.routeLink userConfig.theme CreateGroupRoute texts.creatingOne
                         , Element.text texts.or
-                        , Ui.routeLink userConfig.theme (SearchGroupsRoute "") texts.searchingForOne
+                        , Ui.routeLink userConfig.theme (SearchGroupsRoute "") texts.subscribingToOne
                         ]
 
                   else
