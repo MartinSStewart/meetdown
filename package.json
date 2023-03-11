@@ -1,5 +1,10 @@
 {
+  "scripts": {
+    "snapshot": "lamdera make snapshot-runner/SnapshotRunner.elm --output snapshot-runner/SnapshotRunnerElm.js && cd snapshot-runner && node SnapshotRunner.js",
+    "check": "lamdera check && elm-test-rs && npx elm-review --fix-all && yarn run snapshot",
+    "deploy": "elm-test-rs && npx elm-review --fix-all && lamdera deploy && yarn run snapshot"
+  },
   "dependencies": {
-    "elm-review": "^2.7.1"
+    "elm-review": "^2.9.1"
   }
 }

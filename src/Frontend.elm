@@ -76,7 +76,7 @@ app =
                     document =
                         view model
                 in
-                { document | body = Html.div [] [ Element.layout [] Element.none ] :: document.body }
+                { document | body = document.body }
         }
 
 
@@ -1155,8 +1155,7 @@ view model =
     { title = "Meetdown"
     , body =
         [ Ui.css userConfig
-        , Element.layoutWith
-            { options = [ Element.noStaticStyleSheet ] }
+        , Element.layout
             [ Ui.defaultFontSize
             , Ui.defaultFont
             , Ui.defaultFontColor userConfig
