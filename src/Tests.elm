@@ -19,10 +19,11 @@ import Group exposing (EventId)
 import GroupName exposing (GroupName)
 import GroupPage
 import Html.Parser
-import Id exposing (GroupId, Id)
+import Id exposing (GroupId, Id, UserId)
 import Json.Decode
 import List.Extra as List
 import LoginForm
+import Name exposing (Name)
 import Ports
 import Postmark
 import ProfilePage
@@ -154,7 +155,7 @@ loginFromHomepage loginWithEnterKey sessionId sessionIdFromEmail emailAddress st
         windowSize
         (\( state3, client ) ->
             state3
-                |> TF.simulateTime Duration.second
+                |> shortWait
                 |> client.clickButton Frontend.signUpOrLoginButtonId
                 |> handleLoginForm False loginWithEnterKey client sessionIdFromEmail emailAddress stateFunc
         )
@@ -189,10 +190,10 @@ handleLoginForm takeSnapshots loginWithEnterKey client sessionIdFromEmail emailA
                 identity
     in
     state
-        |> TF.simulateTime Duration.second
+        |> shortWait
         |> takeSnapshot "Login page"
         |> client.inputText LoginForm.emailAddressInputId (EmailAddress.toString emailAddress)
-        |> TF.simulateTime Duration.second
+        |> shortWait
         |> takeSnapshot "Login page with email"
         |> (if loginWithEnterKey then
                 client.keyDownEvent LoginForm.emailAddressInputId { keyCode = Ui.enterKeyCode }
@@ -200,7 +201,7 @@ handleLoginForm takeSnapshots loginWithEnterKey client sessionIdFromEmail emailA
             else
                 client.clickButton LoginForm.submitButtonId
            )
-        |> TF.simulateTime Duration.second
+        |> shortWait
         |> TF.andThen
             (\state3 ->
                 case List.filterMap isLoginEmail state3.httpRequests |> List.head of
@@ -213,7 +214,7 @@ handleLoginForm takeSnapshots loginWithEnterKey client sessionIdFromEmail emailA
                                     windowSize
                                     (\( state4, clientFromEmail ) ->
                                         andThenFunc
-                                            { instructions = state4 |> TF.simulateTime Duration.second
+                                            { instructions = state4 |> shortWait
                                             , client = client
                                             , clientFromEmail = clientFromEmail
                                             }
@@ -247,7 +248,7 @@ loginFromHomepageWithSnapshots sessionId sessionIdFromEmail emailAddress stateFu
         windowSize
         (\( state3, client ) ->
             state3
-                |> TF.simulateTime Duration.second
+                |> shortWait
                 |> client.snapshotView { name = "Homepage" }
                 |> client.clickButton Frontend.signUpOrLoginButtonId
                 |> handleLoginForm True False client sessionIdFromEmail emailAddress stateFunc
@@ -507,13 +508,13 @@ tests =
             windowSize
             (\( state3, client ) ->
                 state3
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.clickButton Frontend.signUpOrLoginButtonId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.inputText LoginForm.emailAddressInputId "123"
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.clickButton LoginForm.submitButtonId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.snapshotView { name = "Invalid login email" }
             )
     , let
@@ -633,7 +634,7 @@ tests =
                                             windowSize
                                             (\( state2, client3 ) ->
                                                 state2
-                                                    |> TF.simulateTime Duration.second
+                                                    |> shortWait
                                                     |> checkLoadedFrontend
                                                         client3.clientId
                                                         (\frontend ->
@@ -820,11 +821,11 @@ tests =
                         inProgress2
                             |> client.inputText Frontend.groupSearchId "my group!"
                             |> client.keyDownEvent Frontend.groupSearchId { keyCode = Ui.enterKeyCode }
-                            |> TF.simulateTime Duration.second
+                            |> shortWait
                             |> client.clickLink { href = Route.GroupRoute groupId groupName |> Route.encode }
-                            |> TF.simulateTime Duration.second
+                            |> shortWait
                             |> client.clickButton GroupPage.joinEventButtonId
-                            |> TF.simulateTime Duration.second
+                            |> shortWait
                             |> TF.fastForward (Duration.hours 14)
                             |> TF.simulateTime (Duration.seconds 30)
                             |> TF.checkState
@@ -848,11 +849,11 @@ tests =
                 windowSize
                 (\( state, client ) ->
                     state
-                        |> TF.simulateTime Duration.second
+                        |> shortWait
                         |> client.clickButton Frontend.signUpOrLoginButtonId
                         |> client.inputText LoginForm.emailAddressInputId "my+good@email.eu"
                         |> client.clickButton LoginForm.submitButtonId
-                        |> TF.simulateTime Duration.second
+                        |> shortWait
                 )
       in
       TF.start config "Rate limit login for a given email address"
@@ -889,23 +890,23 @@ tests =
             windowSize
             (\( state, client ) ->
                 state
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.clickButton Frontend.signUpOrLoginButtonId
                     |> client.inputText LoginForm.emailAddressInputId "a@email.eu"
                     |> client.clickButton LoginForm.submitButtonId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.inputText LoginForm.emailAddressInputId "b@email.eu"
                     |> client.clickButton LoginForm.submitButtonId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.inputText LoginForm.emailAddressInputId "c@email.eu"
                     |> client.clickButton LoginForm.submitButtonId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.inputText LoginForm.emailAddressInputId "d@email.eu"
                     |> client.clickButton LoginForm.submitButtonId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.inputText LoginForm.emailAddressInputId "e@email.eu"
                     |> client.clickButton LoginForm.submitButtonId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> TF.checkState
                         (\state2 ->
                             let
@@ -924,7 +925,7 @@ tests =
                     |> TF.simulateTime Duration.minute
                     |> client.inputText LoginForm.emailAddressInputId "e@email.eu"
                     |> client.clickButton LoginForm.submitButtonId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> TF.checkState
                         (\state2 ->
                             let
@@ -956,16 +957,16 @@ tests =
             emailAddress
             (\{ instructions, client } ->
                 instructions
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.clickLink { href = Route.encode Route.MyProfileRoute }
                     |> client.clickButton ProfilePage.deleteAccountButtonId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.clickButton ProfilePage.deleteAccountButtonId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.clickButton ProfilePage.deleteAccountButtonId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.clickButton ProfilePage.deleteAccountButtonId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> TF.checkState
                         (\state2 ->
                             let
@@ -992,7 +993,7 @@ tests =
                         )
                     |> TF.simulateTime (Duration.minutes 1.5)
                     |> client.clickButton ProfilePage.deleteAccountButtonId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> TF.checkState
                         (\state2 ->
                             let
@@ -1038,7 +1039,7 @@ tests =
                             Group.PublicGroup
                         )
             )
-        |> TF.simulateTime Duration.second
+        |> shortWait
         |> TF.checkBackend
             (\backend ->
                 if Dict.isEmpty backend.groups then
@@ -1069,7 +1070,7 @@ tests =
             (\{ instructions, client } ->
                 instructions |> createGroup client "group" "description"
             )
-        |> TF.simulateTime Duration.second
+        |> shortWait
         |> loginFromHomepage
             False
             attackerSessionId
@@ -1086,7 +1087,7 @@ tests =
                     )
                     instructions
             )
-        |> TF.simulateTime Duration.second
+        |> shortWait
         |> TF.checkBackend
             (\backend ->
                 if Dict.isEmpty backend.deletedGroups && Dict.size backend.groups == 1 then
@@ -1149,7 +1150,7 @@ tests =
                     |> client.inputText GroupPage.createEventStartTimeId (Ui.timestamp 10 12)
                     |> client.inputText GroupPage.eventDurationId "1"
                     |> client.clickButton GroupPage.createEventSubmitId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
             )
         |> shortWait
         |> TF.checkState
@@ -1210,6 +1211,30 @@ findSingleGroup continueWith inProgress =
             )
 
 
+findUser :
+    Name
+    ->
+        (Id UserId
+         -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+         -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+        )
+    -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+    -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+findUser name continueWith inProgress =
+    inProgress
+        |> TF.andThen
+            (\state ->
+                case Dict.toList state.backend.users |> List.find (\( _, user ) -> user.name == name) of
+                    Just ( userId, _ ) ->
+                        continueWith userId inProgress
+
+                    Nothing ->
+                        TF.continueWith state
+                            |> TF.checkState
+                                (\_ -> "Expected to find user named \"" ++ Name.toString name ++ "\"" |> Err)
+            )
+
+
 createEventAndAnotherUserNotLoggedInJoinsIt : TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 createEventAndAnotherUserNotLoggedInJoinsIt =
     let
@@ -1254,14 +1279,14 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
                 findSingleGroup
                     (\groupId inProgress2 ->
                         inProgress2
-                            |> TF.simulateTime Duration.second
+                            |> shortWait
                             |> client.inputText Frontend.groupSearchId "my group!"
                             |> client.keyDownEvent Frontend.groupSearchId { keyCode = Ui.enterKeyCode }
-                            |> TF.simulateTime Duration.second
+                            |> shortWait
                             |> client.clickLink { href = Route.GroupRoute groupId groupName |> Route.encode }
-                            |> TF.simulateTime Duration.second
+                            |> shortWait
                             |> client.clickButton GroupPage.joinEventButtonId
-                            |> TF.simulateTime Duration.second
+                            |> shortWait
                             |> handleLoginForm
                                 False
                                 True
@@ -1270,7 +1295,7 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
                                 emailAddress1
                                 (\a ->
                                     a.instructions
-                                        |> TF.simulateTime Duration.second
+                                        |> shortWait
                                         -- We are just clicking the leave button to test that we had joined the event.
                                         |> a.clientFromEmail.clickButton GroupPage.leaveEventButtonId
                                 )
@@ -1322,7 +1347,7 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
             emailAddress1
             (\{ instructions, clientFromEmail } ->
                 instructions
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> clientFromEmail.clickButton Frontend.logOutButtonId
                     |> TF.simulateTime Duration.minute
             )
@@ -1333,14 +1358,14 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
                 findSingleGroup
                     (\groupId inProgress2 ->
                         inProgress2
-                            |> TF.simulateTime Duration.second
+                            |> shortWait
                             |> client.inputText Frontend.groupSearchId "my group!"
                             |> client.keyDownEvent Frontend.groupSearchId { keyCode = Ui.enterKeyCode }
-                            |> TF.simulateTime Duration.second
+                            |> shortWait
                             |> client.clickLink { href = Route.GroupRoute groupId groupName |> Route.encode }
-                            |> TF.simulateTime Duration.second
+                            |> shortWait
                             |> client.clickButton GroupPage.joinEventButtonId
-                            |> TF.simulateTime Duration.second
+                            |> shortWait
                             |> handleLoginForm
                                 False
                                 True
@@ -1349,7 +1374,7 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
                                 emailAddress1
                                 (\a ->
                                     a.instructions
-                                        |> TF.simulateTime Duration.second
+                                        |> shortWait
                                         -- We are just clicking the leave button to test that we had joined the event.
                                         |> a.clientFromEmail.clickButton GroupPage.leaveEventButtonId
                                 )
@@ -1367,12 +1392,12 @@ createGroup :
 createGroup loggedInClient groupName groupDescription state =
     state
         |> loggedInClient.clickLink { href = Route.encode Route.CreateGroupRoute }
-        |> TF.simulateTime Duration.second
+        |> shortWait
         |> loggedInClient.inputText CreateGroupPage.nameInputId groupName
         |> loggedInClient.inputText CreateGroupPage.descriptionInputId groupDescription
         |> loggedInClient.clickButton (CreateGroupPage.groupVisibilityId Group.PublicGroup)
         |> loggedInClient.clickButton CreateGroupPage.submitButtonId
-        |> TF.simulateTime Duration.second
+        |> shortWait
 
 
 createGroupAndEvent :
@@ -1399,19 +1424,25 @@ createGroupAndEvent loggedInClient { groupName, groupDescription, eventName, eve
         |> loggedInClient.inputText GroupPage.createEventStartTimeId (Ui.timestamp eventHour eventMinute)
         |> loggedInClient.inputText GroupPage.eventDurationId eventDuration
         |> loggedInClient.clickButton GroupPage.createEventSubmitId
-        |> TF.simulateTime Duration.second
+        |> shortWait
 
 
 snapshotPages : TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 snapshotPages =
     let
+        emailAddress : EmailAddress
         emailAddress =
             Unsafe.emailAddress "the@email.com"
 
+        groupName : GroupName
         groupName =
-            Unsafe.groupName "groupName"
+            Unsafe.groupName "The best group"
+
+        name : Name
+        name =
+            Unsafe.name "Mr. Longnamingsson Jr."
     in
-    TF.start config "Create an event and another user (who isn't logged in but has an account) joins it"
+    TF.start config "Snapshot pages"
         |> loginFromHomepage False
             (Lamdera.sessionIdFromString "sessionId0")
             (Lamdera.sessionIdFromString "sessionId0")
@@ -1420,29 +1451,29 @@ snapshotPages =
                 instructions
                     -- View my groups without group
                     |> client.clickLink { href = Route.encode Route.MyGroupsRoute }
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.snapshotView { name = "My groups page" }
                     -- Create group
                     |> client.clickLink { href = Route.encode Route.CreateGroupRoute }
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.snapshotView { name = "Create group page" }
                     |> client.clickButton CreateGroupPage.submitButtonId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.snapshotView { name = "Fail to create group" }
                     |> client.inputText CreateGroupPage.nameInputId (GroupName.toString groupName)
                     |> client.inputText CreateGroupPage.descriptionInputId "groupDescription"
                     |> client.clickButton (CreateGroupPage.groupVisibilityId Group.PublicGroup)
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.snapshotView { name = "Create group page with fields filled" }
                     |> client.clickButton CreateGroupPage.submitButtonId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.snapshotView { name = "Group page" }
                     |> client.clickButton GroupPage.createNewEventId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     -- Create group event
                     |> client.snapshotView { name = "Create event page" }
                     |> client.clickButton GroupPage.createEventSubmitId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.snapshotView { name = "Fail to create event" }
                     |> client.inputText GroupPage.eventNameInputId "eventName"
                     |> client.inputText GroupPage.eventDescriptionInputId "eventDescription"
@@ -1450,32 +1481,57 @@ snapshotPages =
                     |> client.inputText GroupPage.createEventStartDateId (Ui.datestamp (Date.fromCalendarDate 1970 Jan 2))
                     |> client.inputText GroupPage.createEventStartTimeId (Ui.timestamp 12 31)
                     |> client.inputText GroupPage.eventDurationId "2"
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.snapshotView { name = "Create event page with fields filled" }
                     |> client.clickButton GroupPage.createEventSubmitId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.snapshotView { name = "Group page with new event" }
                     |> client.clickButton GroupPage.showAttendeesButtonId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.snapshotView { name = "Group page with new event and show attendees" }
                     |> client.clickButton GroupPage.hideAttendeesButtonId
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     -- View my groups with group
                     |> client.clickLink { href = Route.encode Route.MyGroupsRoute }
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.snapshotView { name = "My groups page with group" }
                     -- Edit profile
                     |> client.clickLink { href = Route.encode Route.MyProfileRoute }
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.snapshotView { name = "Profile page" }
-                    |> client.inputText ProfilePage.nameTextInputId "Mr. Longnamingsson Jr."
+                    |> client.inputText ProfilePage.nameTextInputId (Name.toString name)
                     |> client.inputText ProfilePage.descriptionTextInputId "This is my description text that I have so thoughtfully written to take up at least one or two lines of spaces in the web page it's viewed on."
-                    |> client.inputText Frontend.groupSearchId groupName
-                    |> TF.simulateTime Duration.second
+                    |> client.inputText Frontend.groupSearchId (GroupName.toString groupName)
+                    |> TF.simulateTime (Duration.seconds 5)
                     |> client.snapshotView { name = "Profile page with changes and search prepared" }
                     -- Search for group
                     |> client.keyDownEvent Frontend.groupSearchId { keyCode = Ui.enterKeyCode }
-                    |> TF.simulateTime Duration.second
+                    |> shortWait
                     |> client.snapshotView { name = "Search page" }
-                    |> client.clickLink { href = Route.encode Route.GroupRoute groupName }
+                    |> findSingleGroup
+                        (\groupId instructions2 ->
+                            instructions2
+                                |> client.clickLink { href = Route.encode (Route.GroupRoute groupId groupName) }
+                        )
+                    |> shortWait
+                    |> client.clickButton GroupPage.showAttendeesButtonId
+                    |> shortWait
+                    |> client.snapshotView { name = "Group page with updated profile" }
+                    |> TF.fastForward (Duration.hours 23)
+                    |> shortWait
+                    |> client.snapshotView { name = "Group page with less than 1 hour to event" }
+                    |> TF.fastForward Duration.hour
+                    |> shortWait
+                    |> client.snapshotView { name = "Group page with event ongoing" }
+                    |> TF.fastForward Duration.hour
+                    |> shortWait
+                    |> client.snapshotView { name = "Group page with event ended" }
+                    -- View user profile
+                    |> findUser
+                        name
+                        (\userId instructions2 ->
+                            instructions2 |> client.clickLink { href = Route.encode (Route.UserRoute userId name) }
+                        )
+                    |> shortWait
+                    |> client.snapshotView { name = "User profile page" }
             )
