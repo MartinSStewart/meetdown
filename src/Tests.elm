@@ -1,4 +1,4 @@
-module Tests exposing (suite, tests)
+module Tests exposing (tests)
 
 import AssocList as Dict
 import Backend
@@ -461,11 +461,6 @@ findNodesByTag tagName nodes =
                     []
         )
         nodes
-
-
-suite : Test
-suite =
-    describe "App tests" (List.map TF.toTest tests)
 
 
 tests : List (TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel)
