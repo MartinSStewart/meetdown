@@ -38,7 +38,6 @@ import Env
 import FrontendUser exposing (FrontendUser)
 import Group
 import GroupPage
-import Html
 import Html.Attributes
 import HtmlId
 import Id exposing (Id, UserId)
