@@ -16,6 +16,7 @@ module GroupPage exposing
     , eventDurationId
     , eventMeetingTypeId
     , eventNameInputId
+    , hideAttendeesButtonId
     , init
     , joinEventButtonId
     , joinEventResponse
@@ -23,6 +24,7 @@ module GroupPage exposing
     , leaveEventResponse
     , savedDescription
     , savedName
+    , showAttendeesButtonId
     , subscribeButtonId
     , update
     , view

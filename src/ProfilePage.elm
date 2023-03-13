@@ -5,8 +5,10 @@ module ProfilePage exposing
     , Msg
     , ToBackend(..)
     , deleteAccountButtonId
+    , descriptionTextInputId
     , imageEditorIsActive
     , init
+    , nameTextInputId
     , subscriptions
     , update
     , view
@@ -753,6 +755,7 @@ view ({ theme, texts } as userConfig) windowSize currentValues ({ form } as mode
                 , Ui.columnCard
                     theme
                     [ editableTextInput
+                        nameTextInputId
                         userConfig
                         (\a -> FormChanged { form | name = a })
                         Name.toString
@@ -771,6 +774,7 @@ view ({ theme, texts } as userConfig) windowSize currentValues ({ form } as mode
                         form.name
                         texts.yourName
                     , editableMultiline
+                        descriptionTextInputId
                         userConfig
                         (\a -> FormChanged { form | description = a })
                         Description.toString
@@ -813,13 +817,24 @@ view ({ theme, texts } as userConfig) windowSize currentValues ({ form } as mode
                 ]
 
 
+nameTextInputId : HtmlId
+nameTextInputId =
+    HtmlId.textInputId "profilePage_name"
+
+
+descriptionTextInputId : HtmlId
+descriptionTextInputId =
+    HtmlId.textInputId "profilePage_description"
+
+
 deleteAccountButtonId : HtmlId
 deleteAccountButtonId =
     HtmlId.buttonId "profileDeleteAccount"
 
 
 editableTextInput :
-    UserConfig
+    HtmlId
+    -> UserConfig
     -> (Editable String -> msg)
     -> (a -> String)
     -> (String -> Result String a)
@@ -827,7 +842,7 @@ editableTextInput :
     -> Editable String
     -> String
     -> Element msg
-editableTextInput { theme, texts } onChange toString validate currentValue text labelText =
+editableTextInput htmlId { theme, texts } onChange toString validate currentValue text labelText =
     let
         result =
             case text of
@@ -849,7 +864,8 @@ editableTextInput { theme, texts } onChange toString validate currentValue text 
         [ Element.width Element.fill
         ]
         [ Element.Input.text
-            [ Element.width Element.fill
+            [ Dom.idToAttribute htmlId |> Element.htmlAttribute
+            , Element.width Element.fill
             , Element.Border.rounded 4
             , Ui.inputBorder theme (maybeError /= Nothing)
             , Ui.inputBorderWidth (maybeError /= Nothing)
@@ -940,8 +956,8 @@ editableEmailInput { theme, texts } onChange toString validate currentValue text
         ]
 
 
-editableMultiline : UserConfig -> (Editable String -> msg) -> (a -> String) -> (String -> Result String a) -> a -> Editable String -> String -> Element msg
-editableMultiline { theme, texts } onChange toString validate currentValue text labelText =
+editableMultiline : HtmlId -> UserConfig -> (Editable String -> msg) -> (a -> String) -> (String -> Result String a) -> a -> Editable String -> String -> Element msg
+editableMultiline htmlId { theme, texts } onChange toString validate currentValue text labelText =
     let
         result =
             case text of
@@ -964,7 +980,8 @@ editableMultiline { theme, texts } onChange toString validate currentValue text 
         , Element.Border.rounded 4
         ]
         [ Element.Input.multiline
-            [ Element.width Element.fill
+            [ Dom.idToAttribute htmlId |> Element.htmlAttribute
+            , Element.width Element.fill
             , Element.height (Element.px 200)
             , Ui.inputBorder theme (maybeError /= Nothing)
             , Ui.inputBorderWidth (maybeError /= Nothing)
