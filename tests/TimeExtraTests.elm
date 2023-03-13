@@ -5,6 +5,7 @@ import Expect
 import Test exposing (..)
 import Time
 import TimeExtra
+import UserConfig
 
 
 hour =
@@ -15,7 +16,7 @@ tests =
     describe "Time extra tests"
         [ test "5 hours" <|
             \_ ->
-                TimeExtra.diffToString (Time.millisToPosix 0) (Time.millisToPosix (5 * hour))
+                UserConfig.diffToStringEnglish (Time.millisToPosix 0) (Time.millisToPosix (5 * hour))
                     |> Expect.equal "5\u{00A0}hours"
         , test "4.9 hours" <|
             \_ ->
@@ -23,31 +24,31 @@ tests =
                     |> Duration.inMilliseconds
                     |> round
                     |> Time.millisToPosix
-                    |> TimeExtra.diffToString (Time.millisToPosix 0)
+                    |> UserConfig.diffToStringEnglish (Time.millisToPosix 0)
                     |> Expect.equal "4.9\u{00A0}hours"
         , test "5 hours ago" <|
             \_ ->
-                TimeExtra.diffToString (Time.millisToPosix (5 * hour)) (Time.millisToPosix 0)
+                UserConfig.diffToStringEnglish (Time.millisToPosix (5 * hour)) (Time.millisToPosix 0)
                     |> Expect.equal "5\u{00A0}hours ago"
         , test "yesterday" <|
             \_ ->
-                TimeExtra.diffToString (Time.millisToPosix (24 * hour)) (Time.millisToPosix 0)
+                UserConfig.diffToStringEnglish (Time.millisToPosix (24 * hour)) (Time.millisToPosix 0)
                     |> Expect.equal "yesterday"
         , test "1 day" <|
             \_ ->
-                TimeExtra.diffToString (Time.millisToPosix 0) (Time.millisToPosix (24 * hour))
+                UserConfig.diffToStringEnglish (Time.millisToPosix 0) (Time.millisToPosix (24 * hour))
                     |> Expect.equal "1\u{00A0}day"
         , test "2 days" <|
             \_ ->
-                TimeExtra.diffToString (Time.millisToPosix 0) (Time.millisToPosix (36 * hour))
+                UserConfig.diffToStringEnglish (Time.millisToPosix 0) (Time.millisToPosix (36 * hour))
                     |> Expect.equal "2\u{00A0}days"
         , test "1 day close to rounding point" <|
             \_ ->
-                TimeExtra.diffToString (Time.millisToPosix 0) (Time.millisToPosix (35 * hour))
+                UserConfig.diffToStringEnglish (Time.millisToPosix 0) (Time.millisToPosix (35 * hour))
                     |> Expect.equal "1\u{00A0}day"
         , test "2 days ago" <|
             \_ ->
-                TimeExtra.diffToString (Time.millisToPosix (36 * hour)) (Time.millisToPosix 0)
+                UserConfig.diffToStringEnglish (Time.millisToPosix (36 * hour)) (Time.millisToPosix 0)
                     |> Expect.equal "2\u{00A0}days ago"
         , test "Don't remove last 0" <|
             \_ -> TimeExtra.removeTrailing0s 2 0 |> Expect.equal "0"

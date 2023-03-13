@@ -326,10 +326,10 @@ englishTexts =
     , eventDurationText =
         \isPastEvent durationText eventTypeText ->
             if isPastEvent then
-                "• This was a " ++ durationText ++ " long " ++ eventTypeText ++ "."
+                "• This was a " ++ durationText ++ " long " ++ eventTypeText
 
             else
-                "• This is a " ++ durationText ++ " long " ++ eventTypeText ++ "."
+                "• This is a " ++ durationText ++ " long " ++ eventTypeText
     , eventName = "Event name"
     , eventOverlapsOtherEvents = "Event overlaps other events"
     , eventOverlapsWithAnotherEvent = "Event overlaps with another event"
@@ -748,10 +748,10 @@ frenchTexts =
     , eventDurationText =
         \isPastEvent durationText eventTypeText ->
             if isPastEvent then
-                "• C'était un " ++ eventTypeText ++ " de " ++ durationText ++ "."
+                "• C'était un " ++ eventTypeText ++ " de " ++ durationText
 
             else
-                "• C'est un " ++ eventTypeText ++ " de " ++ durationText ++ "."
+                "• C'est un " ++ eventTypeText ++ " de " ++ durationText
     , eventName = "Nom de l'événement"
     , eventOverlapsOtherEvents = "L'événement a lieu en même temps que d'autres événements"
     , eventOverlapsWithAnotherEvent = "L'événement a lieu en même temps qu'un autre événement"
@@ -1149,10 +1149,10 @@ spanishTexts =
     , eventDurationText =
         \isPastEvent durationText eventTypeText ->
             if isPastEvent then
-                "• Fue un " ++ eventTypeText ++ " de " ++ durationText ++ "."
+                "• Fue un " ++ eventTypeText ++ " de " ++ durationText
 
             else
-                "• Es un " ++ eventTypeText ++ " de " ++ durationText ++ "."
+                "• Es un " ++ eventTypeText ++ " de " ++ durationText
     , eventName = "Nombre del evento"
     , eventOverlapsOtherEvents = "El evento se superpone a otros eventos"
     , eventOverlapsWithAnotherEvent = "El evento se superpone con otro evento"
