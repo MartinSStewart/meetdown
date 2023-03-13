@@ -1400,7 +1400,7 @@ Publicaremos cualquier cambio que hagamos a nuestra política de privacidad en e
     , theStartTimeCanTBeChangedSinceTheEventHasAlreadyStarted = "La hora de inicio no se puede cambiar porque el evento ya ha comenzado."
     , thisEventDoesNotExist = "Este evento no existe."
     , thisEventSomehowDoesNotExistTryRefreshingThePage = "Este evento no existe (¿intente actualizar la página?)"
-    , thisEventWasCancelled = "Este evento fue cancelado "
+    , thisEventWasCancelled = "Este evento fue cancelado hace "
     , thisEventWillBeInPerson = "Este evento será en persona"
     , thisEventWillBeOnline = "Este evento será en línea"
     , thisEventWillBeOnlineAndInPerson = "Este evento será en línea y en persona"
@@ -1534,11 +1534,7 @@ diffToStringEnglish start end =
         String.fromInt days ++ "\u{00A0}days" ++ suffix
 
     else if hours > 22 then
-        if Time.posixToMillis start <= Time.posixToMillis end then
-            "1\u{00A0}day"
-
-        else
-            "yesterday"
+        "1\u{00A0}day" ++ suffix
 
     else if hours > 6 then
         String.fromInt hours ++ "\u{00A0}hours" ++ suffix
@@ -1592,11 +1588,7 @@ diffToStringFrench start end =
         String.fromInt days ++ "\u{00A0}jours" ++ suffix
 
     else if hours > 22 then
-        if Time.posixToMillis start <= Time.posixToMillis end then
-            "1\u{00A0}jour"
-
-        else
-            "hier"
+        "1\u{00A0}jour"
 
     else if hours > 6 then
         String.fromInt hours ++ "\u{00A0}heures" ++ suffix
@@ -1643,11 +1635,7 @@ diffToStringSpanish start end =
         String.fromInt days ++ "\u{00A0}días"
 
     else if hours > 22 then
-        if Time.posixToMillis start <= Time.posixToMillis end then
-            "1\u{00A0}día"
-
-        else
-            "ayer"
+        "1\u{00A0}día"
 
     else if hours > 6 then
         String.fromInt hours ++ "\u{00A0}horas"
