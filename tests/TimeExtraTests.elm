@@ -30,10 +30,10 @@ tests =
             \_ ->
                 UserConfig.diffToStringEnglish (Time.millisToPosix (5 * hour)) (Time.millisToPosix 0)
                     |> Expect.equal "5\u{00A0}hours ago"
-        , test "yesterday" <|
+        , test "1 day ago" <|
             \_ ->
                 UserConfig.diffToStringEnglish (Time.millisToPosix (24 * hour)) (Time.millisToPosix 0)
-                    |> Expect.equal "yesterday"
+                    |> Expect.equal "1\u{00A0}day ago"
         , test "1 day" <|
             \_ ->
                 UserConfig.diffToStringEnglish (Time.millisToPosix 0) (Time.millisToPosix (24 * hour))

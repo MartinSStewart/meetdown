@@ -1733,16 +1733,13 @@ eventCardHeader texts isMobile currentTime timezone eventStatus event =
             [ Ui.datetimeToString timezone (Event.startTime event) |> Element.text
             , (case eventStatus of
                 IsOngoingEvent ->
-                    texts.endsIn
-                        ++ texts.timeDiffToString currentTime (Event.endTime event)
+                    texts.endsIn ++ texts.timeDiffToString currentTime (Event.endTime event)
 
                 IsFutureEvent ->
-                    texts.beginsIn
-                        ++ texts.timeDiffToString currentTime (Event.startTime event)
+                    texts.beginsIn ++ texts.timeDiffToString currentTime (Event.startTime event)
 
                 IsPastEvent ->
-                    texts.ended
-                        ++ texts.timeDiffToString currentTime (Event.endTime event)
+                    texts.ended ++ texts.timeDiffToString currentTime (Event.endTime event)
               )
                 |> Element.text
                 |> Element.el [ Element.alignRight ]

@@ -1139,7 +1139,7 @@ spanishTexts =
     , dontBeAJerk = "no seas grosero"
     , edit = "Editar"
     , editEvent = "Editar evento"
-    , ended = "Terminado "
+    , ended = "Terminó hace "
     , endsIn = "Termina en "
     , enterYourEmailAddress = "Entre su dirección de correo electrónico"
     , enterYourEmailFirst = "Entre su correo electrónico primero"
@@ -1400,7 +1400,7 @@ Publicaremos cualquier cambio que hagamos a nuestra política de privacidad en e
     , theStartTimeCanTBeChangedSinceTheEventHasAlreadyStarted = "La hora de inicio no se puede cambiar porque el evento ya ha comenzado."
     , thisEventDoesNotExist = "Este evento no existe."
     , thisEventSomehowDoesNotExistTryRefreshingThePage = "Este evento no existe (¿intente actualizar la página?)"
-    , thisEventWasCancelled = "Este evento fue cancelado "
+    , thisEventWasCancelled = "Este evento fue cancelado hace "
     , thisEventWillBeInPerson = "Este evento será en persona"
     , thisEventWillBeOnline = "Este evento será en línea"
     , thisEventWillBeOnlineAndInPerson = "Este evento será en línea y en persona"
@@ -1534,11 +1534,7 @@ diffToStringEnglish start end =
         String.fromInt days ++ "\u{00A0}days" ++ suffix
 
     else if hours > 22 then
-        if Time.posixToMillis start <= Time.posixToMillis end then
-            "1\u{00A0}day"
-
-        else
-            "yesterday"
+        "1\u{00A0}day" ++ suffix
 
     else if hours > 6 then
         String.fromInt hours ++ "\u{00A0}hours" ++ suffix
@@ -1549,11 +1545,8 @@ diffToStringEnglish start end =
     else if minutes > 1 then
         String.fromInt minutes ++ "\u{00A0}minutes" ++ suffix
 
-    else if minutes == 1 then
-        "1\u{00A0}minute" ++ suffix
-
     else
-        "now"
+        "1\u{00A0}minute" ++ suffix
 
 
 diffToStringFrench : Time.Posix -> Time.Posix -> String
@@ -1595,11 +1588,7 @@ diffToStringFrench start end =
         String.fromInt days ++ "\u{00A0}jours" ++ suffix
 
     else if hours > 22 then
-        if Time.posixToMillis start <= Time.posixToMillis end then
-            "1\u{00A0}jour"
-
-        else
-            "hier"
+        "1\u{00A0}jour"
 
     else if hours > 6 then
         String.fromInt hours ++ "\u{00A0}heures" ++ suffix
@@ -1610,11 +1599,8 @@ diffToStringFrench start end =
     else if minutes > 1 then
         String.fromInt minutes ++ "\u{00A0}minutes" ++ suffix
 
-    else if minutes == 1 then
-        "1\u{00A0}minute" ++ suffix
-
     else
-        "maintenant"
+        "1\u{00A0}minute" ++ suffix
 
 
 diffToStringSpanish : Time.Posix -> Time.Posix -> String
@@ -1638,41 +1624,27 @@ diffToStringSpanish start end =
 
         minutes =
             Duration.inMinutes difference |> round
-
-        suffix =
-            if Time.posixToMillis start <= Time.posixToMillis end then
-                ""
-
-            else
-                " ago"
     in
     if months >= 2 then
-        String.fromInt months ++ "\u{00A0}meses" ++ suffix
+        String.fromInt months ++ "\u{00A0}meses"
 
     else if weeks >= 2 then
-        String.fromInt weeks ++ "\u{00A0}semanas" ++ suffix
+        String.fromInt weeks ++ "\u{00A0}semanas"
 
     else if days > 1 then
-        String.fromInt days ++ "\u{00A0}días" ++ suffix
+        String.fromInt days ++ "\u{00A0}días"
 
     else if hours > 22 then
-        if Time.posixToMillis start <= Time.posixToMillis end then
-            "1\u{00A0}día"
-
-        else
-            "ayer"
+        "1\u{00A0}día"
 
     else if hours > 6 then
-        String.fromInt hours ++ "\u{00A0}horas" ++ suffix
+        String.fromInt hours ++ "\u{00A0}horas"
 
     else if Duration.inHours difference >= 1.2 then
-        removeTrailing0s 1 (Duration.inHours difference) ++ "\u{00A0}horas" ++ suffix
+        removeTrailing0s 1 (Duration.inHours difference) ++ "\u{00A0}horas"
 
     else if minutes > 1 then
-        String.fromInt minutes ++ "\u{00A0}minutos" ++ suffix
-
-    else if minutes == 1 then
-        "1\u{00A0}minuto" ++ suffix
+        String.fromInt minutes ++ "\u{00A0}minutos"
 
     else
-        "ahora"
+        "1\u{00A0}minuto"
