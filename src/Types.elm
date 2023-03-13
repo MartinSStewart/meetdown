@@ -47,6 +47,7 @@ type alias LoadingFrontend =
     , windowSize : Maybe ( Quantity Int Pixels, Quantity Int Pixels )
     , time : Maybe Time.Posix
     , timezone : Maybe Time.Zone
+    , theme : ColorTheme
     }
 
 

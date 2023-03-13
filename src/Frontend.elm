@@ -118,6 +118,7 @@ init url key =
         , windowSize = Nothing
         , time = Nothing
         , timezone = Nothing
+        , theme = LightTheme
         }
     , Command.batch
         [ Time.now |> Task.perform GotTime
@@ -134,12 +135,13 @@ initLoadedFrontend :
     Key
     -> Quantity Int Pixels
     -> Quantity Int Pixels
+    -> ColorTheme
     -> Route
     -> Route.Token
     -> Time.Posix
     -> Time.Zone
     -> ( LoadedFrontend, Command FrontendOnly ToBackend FrontendMsg )
-initLoadedFrontend navigationKey windowWidth windowHeight route maybeLoginToken time timezone =
+initLoadedFrontend navigationKey windowWidth windowHeight theme route maybeLoginToken time timezone =
     let
         login =
             case maybeLoginToken of
@@ -177,7 +179,7 @@ initLoadedFrontend navigationKey windowWidth windowHeight route maybeLoginToken 
             , windowWidth = windowWidth
             , windowHeight = windowHeight
             , groupPage = Dict.empty
-            , theme = DarkTheme
+            , theme = theme
             }
 
         ( model2, cmd ) =
@@ -199,6 +201,7 @@ tryInitLoadedFrontend loading =
                 loading.navigationKey
                 windowWidth
                 windowHeight
+                loading.theme
                 loading.route
                 loading.routeToken
                 time
@@ -234,6 +237,19 @@ update msg model =
 
                 GotTimeZone result ->
                     gotTimeZone result loading |> tryInitLoadedFrontend
+
+                GotPrefersDarkTheme prefersDarkTheme ->
+                    ( { loading
+                        | theme =
+                            if prefersDarkTheme then
+                                DarkTheme
+
+                            else
+                                LightTheme
+                      }
+                        |> Loading
+                    , Command.none
+                    )
 
                 _ ->
                     ( model, Command.none )

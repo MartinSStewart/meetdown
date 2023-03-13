@@ -1449,6 +1449,19 @@ snapshotPages =
             emailAddress
             (\{ instructions, client } ->
                 instructions
+                    -- View miscellaneous pages
+                    |> client.clickLink { href = Route.encode Route.FrequentQuestionsRoute }
+                    |> shortWait
+                    |> client.snapshotView { name = "FAQ page" }
+                    |> client.clickLink { href = Route.encode Route.CodeOfConductRoute }
+                    |> shortWait
+                    |> client.snapshotView { name = "Code of conduct page" }
+                    |> client.clickLink { href = Route.encode Route.TermsOfServiceRoute }
+                    |> shortWait
+                    |> client.snapshotView { name = "Terms of service page" }
+                    |> client.clickLink { href = Route.encode Route.PrivacyRoute }
+                    |> shortWait
+                    |> client.snapshotView { name = "Privacy page" }
                     -- View my groups without group
                     |> client.clickLink { href = Route.encode Route.MyGroupsRoute }
                     |> shortWait
@@ -1475,11 +1488,11 @@ snapshotPages =
                     |> client.clickButton GroupPage.createEventSubmitId
                     |> shortWait
                     |> client.snapshotView { name = "Fail to create event" }
-                    |> client.inputText GroupPage.eventNameInputId "eventName"
-                    |> client.inputText GroupPage.eventDescriptionInputId "eventDescription"
+                    |> client.inputText GroupPage.eventNameInputId "First event!"
+                    |> client.inputText GroupPage.eventDescriptionInputId "Hey this is my cool first event! I'm so excited to host it and I hope a bunch of people join. We're going to have lots of fun doing stuff!"
                     |> client.clickButton (GroupPage.eventMeetingTypeId GroupPage.MeetOnline)
                     |> client.inputText GroupPage.createEventStartDateId (Ui.datestamp (Date.fromCalendarDate 1970 Jan 2))
-                    |> client.inputText GroupPage.createEventStartTimeId (Ui.timestamp 12 31)
+                    |> client.inputText GroupPage.createEventStartTimeId (Ui.timestamp 0 1)
                     |> client.inputText GroupPage.eventDurationId "2"
                     |> shortWait
                     |> client.snapshotView { name = "Create event page with fields filled" }
@@ -1491,6 +1504,14 @@ snapshotPages =
                     |> client.snapshotView { name = "Group page with new event and show attendees" }
                     |> client.clickButton GroupPage.hideAttendeesButtonId
                     |> shortWait
+                    -- View default user profile
+                    |> findUser
+                        Name.anonymous
+                        (\userId instructions2 ->
+                            instructions2 |> client.clickLink { href = Route.encode (Route.UserRoute userId Name.anonymous) }
+                        )
+                    |> shortWait
+                    |> client.snapshotView { name = "Default user profile page" }
                     -- View my groups with group
                     |> client.clickLink { href = Route.encode Route.MyGroupsRoute }
                     |> shortWait
@@ -1500,9 +1521,11 @@ snapshotPages =
                     |> shortWait
                     |> client.snapshotView { name = "Profile page" }
                     |> client.inputText ProfilePage.nameTextInputId (Name.toString name)
+                    |> TF.simulateTime (Duration.seconds 3)
                     |> client.inputText ProfilePage.descriptionTextInputId "This is my description text that I have so thoughtfully written to take up at least one or two lines of spaces in the web page it's viewed on."
+                    |> TF.simulateTime (Duration.seconds 3)
                     |> client.inputText Frontend.groupSearchId (GroupName.toString groupName)
-                    |> TF.simulateTime (Duration.seconds 5)
+                    |> TF.simulateTime (Duration.seconds 3)
                     |> client.snapshotView { name = "Profile page with changes and search prepared" }
                     -- Search for group
                     |> client.keyDownEvent Frontend.groupSearchId { keyCode = Ui.enterKeyCode }
@@ -1518,20 +1541,20 @@ snapshotPages =
                     |> shortWait
                     |> client.snapshotView { name = "Group page with updated profile" }
                     |> TF.fastForward (Duration.hours 23)
-                    |> shortWait
+                    |> TF.simulateTime Duration.minute
                     |> client.snapshotView { name = "Group page with less than 1 hour to event" }
                     |> TF.fastForward Duration.hour
-                    |> shortWait
+                    |> TF.simulateTime Duration.minute
                     |> client.snapshotView { name = "Group page with event ongoing" }
-                    |> TF.fastForward Duration.hour
-                    |> shortWait
+                    |> TF.fastForward (Duration.hours 3)
+                    |> TF.simulateTime Duration.minute
                     |> client.snapshotView { name = "Group page with event ended" }
-                    -- View user profile
+                    -- View user profile with edits
                     |> findUser
                         name
                         (\userId instructions2 ->
                             instructions2 |> client.clickLink { href = Route.encode (Route.UserRoute userId name) }
                         )
                     |> shortWait
-                    |> client.snapshotView { name = "User profile page" }
+                    |> client.snapshotView { name = "User profile page with edits" }
             )
