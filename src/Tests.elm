@@ -29,7 +29,6 @@ import Postmark
 import ProfilePage
 import Quantity
 import Route exposing (Route)
-import Test exposing (..)
 import Test.Html.Query
 import Test.Html.Selector
 import Time exposing (Month(..))
