@@ -5,8 +5,10 @@ module ProfilePage exposing
     , Msg
     , ToBackend(..)
     , deleteAccountButtonId
+    , descriptionTextInputId
     , imageEditorIsActive
     , init
+    , nameTextInputId
     , subscriptions
     , update
     , view
@@ -749,6 +751,7 @@ view userConfig windowSize currentValues ({ form } as model) =
                 , Ui.columnCard
                     userConfig
                     [ editableTextInput
+                        nameTextInputId
                         userConfig
                         (\a -> FormChanged { form | name = a })
                         Name.toString
@@ -767,6 +770,7 @@ view userConfig windowSize currentValues ({ form } as model) =
                         form.name
                         "Your name"
                     , editableMultiline
+                        descriptionTextInputId
                         userConfig
                         (\a -> FormChanged { form | description = a })
                         Description.toString
@@ -811,13 +815,24 @@ view userConfig windowSize currentValues ({ form } as model) =
                 ]
 
 
+nameTextInputId : HtmlId
+nameTextInputId =
+    HtmlId.textInputId "profilePage_name"
+
+
+descriptionTextInputId : HtmlId
+descriptionTextInputId =
+    HtmlId.textInputId "profilePage_description"
+
+
 deleteAccountButtonId : HtmlId
 deleteAccountButtonId =
     HtmlId.buttonId "profileDeleteAccount"
 
 
 editableTextInput :
-    UserConfig
+    HtmlId
+    -> UserConfig
     -> (Editable String -> msg)
     -> (a -> String)
     -> (String -> Result String a)
@@ -825,7 +840,7 @@ editableTextInput :
     -> Editable String
     -> String
     -> Element msg
-editableTextInput userConfig onChange toString validate currentValue text labelText =
+editableTextInput htmlId userConfig onChange toString validate currentValue text labelText =
     let
         result =
             case text of
@@ -847,7 +862,8 @@ editableTextInput userConfig onChange toString validate currentValue text labelT
         [ Element.width Element.fill
         ]
         [ Element.Input.text
-            [ Element.width Element.fill
+            [ Dom.idToAttribute htmlId |> Element.htmlAttribute
+            , Element.width Element.fill
             , Element.Border.rounded 4
             , Ui.inputBorder userConfig (maybeError /= Nothing)
             , Ui.inputBorderWidth (maybeError /= Nothing)
@@ -938,8 +954,8 @@ editableEmailInput userConfig onChange toString validate currentValue text label
         ]
 
 
-editableMultiline : UserConfig -> (Editable String -> msg) -> (a -> String) -> (String -> Result String a) -> a -> Editable String -> String -> Element msg
-editableMultiline userConfig onChange toString validate currentValue text labelText =
+editableMultiline : HtmlId -> UserConfig -> (Editable String -> msg) -> (a -> String) -> (String -> Result String a) -> a -> Editable String -> String -> Element msg
+editableMultiline htmlId userConfig onChange toString validate currentValue text labelText =
     let
         result =
             case text of
@@ -962,7 +978,8 @@ editableMultiline userConfig onChange toString validate currentValue text labelT
         , Element.Border.rounded 4
         ]
         [ Element.Input.multiline
-            [ Element.width Element.fill
+            [ Dom.idToAttribute htmlId |> Element.htmlAttribute
+            , Element.width Element.fill
             , Element.height (Element.px 200)
             , Ui.inputBorder userConfig (maybeError /= Nothing)
             , Ui.inputBorderWidth (maybeError /= Nothing)
