@@ -1,38 +1,38 @@
 module MarkdownThemed exposing (renderFull, renderMinimal)
 
-import Colors exposing (UserConfig)
-import Element exposing (..)
-import Element.Background as Background
-import Element.Border as Border
-import Element.Font as Font
-import Element.Region as Region
+import Element exposing (Element)
+import Element.Background
+import Element.Border
+import Element.Font
+import Element.Region
 import Html
 import Html.Attributes
-import Markdown.Block exposing (..)
+import Markdown.Block exposing (HeadingLevel, ListItem(..))
 import Markdown.Html
 import Markdown.Parser
 import Markdown.Renderer
+import UserConfig exposing (Texts, Theme, UserConfig)
 
 
 {-| Markdown with only the minimal parts, and a flag to restrict things even further e.g. for search result summaries
 -}
 renderMinimal : UserConfig -> Bool -> String -> Element msg
-renderMinimal userConfig isSearchPreview markdownBody =
+renderMinimal { theme, texts } isSearchPreview markdownBody =
     let
         rendererMinimal =
-            renderer userConfig isSearchPreview
-                |> (\r -> { r | heading = \data -> row [] [ paragraph [] data.children ] })
+            renderer theme isSearchPreview
+                |> (\r -> { r | heading = \data -> Element.row [] [ Element.paragraph [] data.children ] })
     in
-    render rendererMinimal markdownBody
+    render texts rendererMinimal markdownBody
 
 
 renderFull : UserConfig -> String -> Element msg
-renderFull userConfig markdownBody =
-    render (renderer userConfig False) markdownBody
+renderFull { theme, texts } markdownBody =
+    render texts (renderer theme False) markdownBody
 
 
-render : Markdown.Renderer.Renderer (Element msg) -> String -> Element msg
-render chosenRenderer markdownBody =
+render : Texts -> Markdown.Renderer.Renderer (Element msg) -> String -> Element msg
+render texts chosenRenderer markdownBody =
     Markdown.Parser.parse markdownBody
         -- @TODO show markdown parsing errors, i.e. malformed html?
         |> Result.withDefault []
@@ -45,187 +45,188 @@ render chosenRenderer markdownBody =
                                     elements
 
                                 Err err ->
-                                    [ text "Oops! Something went wrong rendering this page: ", text err ]
+                                    [ Element.text texts.oopsSomethingWentWrongRenderingThisPage, Element.text err ]
                        )
-                    |> column
-                        [ width fill
-                        , spacing 20
+                    |> Element.column
+                        [ Element.width Element.fill
+                        , Element.spacing 20
                         ]
            )
 
 
-renderer : UserConfig -> Bool -> Markdown.Renderer.Renderer (Element msg)
-renderer userConfig searchPreview =
-    { heading = \data -> row [] [ heading userConfig data ]
-    , paragraph = \children -> paragraph [ paddingXY 0 10 ] children
+renderer : Theme -> Bool -> Markdown.Renderer.Renderer (Element msg)
+renderer theme searchPreview =
+    { heading = \data -> Element.row [] [ heading theme data ]
+    , paragraph = \children -> Element.paragraph [ Element.paddingXY 0 10 ] children
     , blockQuote =
         \children ->
-            column
-                [ Font.size 20
-                , Font.italic
-                , Border.widthEach { bottom = 0, left = 4, right = 0, top = 0 }
-                , Border.color userConfig.grey
-                , Font.color userConfig.mutedText
-                , padding 10
+            Element.column
+                [ Element.Font.size 20
+                , Element.Font.italic
+                , Element.Border.widthEach { bottom = 0, left = 4, right = 0, top = 0 }
+                , Element.Border.color theme.grey
+                , Element.Font.color theme.mutedText
+                , Element.padding 10
                 ]
                 children
     , html = Markdown.Html.oneOf []
-    , text = \s -> el [] <| text s
+    , text = \s -> Element.el [] (Element.text s)
     , codeSpan =
-        \content -> fromHtml <| Html.code [] [ Html.text content ]
-    , strong = \list -> paragraph [ Font.bold ] list
-    , emphasis = \list -> paragraph [ Font.italic ] list
-    , hardLineBreak = fromHtml <| Html.br [] []
+        \content -> Element.html (Html.code [] [ Html.text content ])
+    , strong = \list -> Element.paragraph [ Element.Font.bold ] list
+    , emphasis = \list -> Element.paragraph [ Element.Font.italic ] list
+    , hardLineBreak = Element.html (Html.br [] [])
     , link =
         \{ title, destination } list ->
-            link
-                [ Font.underline
-                , Font.color
+            Element.link
+                [ Element.Font.underline
+                , Element.Font.color
                     (if searchPreview then
-                        userConfig.mutedText
+                        theme.mutedText
 
                      else
-                        userConfig.link
+                        theme.link
                     )
                 ]
                 { url = destination
                 , label =
                     case title of
                         Just title_ ->
-                            text title_
+                            Element.text title_
 
                         Nothing ->
-                            paragraph [] list
+                            Element.paragraph [] list
                 }
     , image =
         if searchPreview then
-            \_ -> none
+            \_ -> Element.none
 
         else
             \{ alt, src, title } ->
                 let
                     attrs =
-                        [ title |> Maybe.map (\title_ -> htmlAttribute <| Html.Attributes.attribute "title" title_) ]
+                        [ title |> Maybe.map (\title_ -> Element.htmlAttribute (Html.Attributes.attribute "title" title_)) ]
                             |> justs
                 in
-                image
+                Element.image
                     attrs
                     { src = src
                     , description = alt
                     }
     , unorderedList =
         \items ->
-            column [ spacing 15, width fill ]
+            Element.column [ Element.spacing 15, Element.width Element.fill ]
                 (items
                     |> List.map
                         (\listItem ->
                             case listItem of
                                 ListItem _ children ->
-                                    wrappedRow
-                                        [ spacing 5
-                                        , paddingEach { top = 0, right = 0, bottom = 0, left = 20 }
-                                        , width fill
+                                    Element.wrappedRow
+                                        [ Element.spacing 5
+                                        , Element.paddingEach { top = 0, right = 0, bottom = 0, left = 20 }
+                                        , Element.width Element.fill
                                         ]
-                                        [ paragraph
-                                            [ alignTop ]
-                                            (text " • " :: children)
+                                        [ Element.paragraph
+                                            [ Element.alignTop ]
+                                            (Element.text " • " :: children)
                                         ]
                         )
                 )
     , orderedList =
         \startingIndex items ->
-            column [ spacing 15, width fill ]
+            Element.column [ Element.spacing 15, Element.width Element.fill ]
                 (items
                     |> List.indexedMap
                         (\index itemBlocks ->
-                            wrappedRow
-                                [ spacing 5
-                                , paddingEach { top = 0, right = 0, bottom = 0, left = 20 }
-                                , width fill
+                            Element.wrappedRow
+                                [ Element.spacing 5
+                                , Element.paddingEach { top = 0, right = 0, bottom = 0, left = 20 }
+                                , Element.width Element.fill
                                 ]
-                                [ paragraph
-                                    [ alignTop ]
-                                    (text (String.fromInt (startingIndex + index) ++ ". ") :: itemBlocks)
+                                [ Element.paragraph
+                                    [ Element.alignTop ]
+                                    (Element.text (String.fromInt (startingIndex + index) ++ ". ") :: itemBlocks)
                                 ]
                         )
                 )
     , codeBlock =
         \{ body } ->
-            column
-                [ Font.family [ Font.monospace ]
-                , Background.color userConfig.lightGrey
-                , Border.rounded 5
-                , padding 10
-                , width fill
-                , htmlAttribute <| Html.Attributes.class "preserve-white-space"
+            Element.column
+                [ Element.Font.family [ Element.Font.monospace ]
+                , Element.Background.color theme.lightGrey
+                , Element.Border.rounded 5
+                , Element.padding 10
+                , Element.width Element.fill
+                , Element.htmlAttribute (Html.Attributes.class "preserve-white-space")
                 , if searchPreview then
-                    clipX
+                    Element.clipX
 
                   else
-                    scrollbarX
+                    Element.scrollbarX
                 ]
-                [ html (Html.text body)
+                [ Element.html (Html.text body)
                 ]
-    , thematicBreak = none
-    , table = \children -> column [ width fill ] children
-    , tableHeader = \children -> column [] children
-    , tableBody = \children -> column [] children
-    , tableRow = \children -> row [ width fill ] children
-    , tableCell = \_ children -> column [ width fill ] children
-    , tableHeaderCell = \_ children -> column [ width fill ] children
-    , strikethrough = \children -> paragraph [ Font.strike ] children
+    , thematicBreak = Element.none
+    , table = \children -> Element.column [ Element.width Element.fill ] children
+    , tableHeader = \children -> Element.column [] children
+    , tableBody = \children -> Element.column [] children
+    , tableRow = \children -> Element.row [ Element.width Element.fill ] children
+    , tableCell = \_ children -> Element.column [ Element.width Element.fill ] children
+    , tableHeaderCell = \_ children -> Element.column [ Element.width Element.fill ] children
+    , strikethrough = \children -> Element.paragraph [ Element.Font.strike ] children
     }
 
 
-heading : UserConfig -> { level : HeadingLevel, rawText : String, children : List (Element msg) } -> Element msg
-heading userConfig { level, rawText, children } =
-    paragraph
-        ((case headingLevelToInt level of
+heading : Theme -> { level : HeadingLevel, rawText : String, children : List (Element msg) } -> Element msg
+heading theme { level, rawText, children } =
+    Element.paragraph
+        ((case Markdown.Block.headingLevelToInt level of
             1 ->
-                [ Font.size 28
-                , Font.bold
-                , Font.color userConfig.defaultText
-                , paddingXY 0 20
+                [ Element.Font.size 28
+                , Element.Font.bold
+                , Element.Font.color theme.defaultText
+                , Element.paddingXY 0 20
                 ]
 
             2 ->
-                [ Font.color userConfig.defaultText
-                , Font.size 20
-                , Font.bold
-                , paddingEach { top = 50, right = 0, bottom = 20, left = 0 }
+                [ Element.Font.color theme.defaultText
+                , Element.Font.size 20
+                , Element.Font.bold
+                , Element.paddingEach { top = 50, right = 0, bottom = 20, left = 0 }
                 ]
 
             3 ->
-                [ Font.color userConfig.defaultText
-                , Font.size 18
-                , Font.bold
-                , paddingEach { top = 30, right = 0, bottom = 10, left = 0 }
+                [ Element.Font.color theme.defaultText
+                , Element.Font.size 18
+                , Element.Font.bold
+                , Element.paddingEach { top = 30, right = 0, bottom = 10, left = 0 }
                 ]
 
             4 ->
-                [ Font.color userConfig.defaultText
-                , Font.size 16
-                , Font.bold
-                , paddingEach { top = 0, right = 0, bottom = 10, left = 0 }
+                [ Element.Font.color theme.defaultText
+                , Element.Font.size 16
+                , Element.Font.bold
+                , Element.paddingEach { top = 0, right = 0, bottom = 10, left = 0 }
                 ]
 
             _ ->
-                [ Font.size 12
-                , Font.bold
-                , Font.center
-                , paddingXY 0 20
+                [ Element.Font.size 12
+                , Element.Font.bold
+                , Element.Font.center
+                , Element.paddingXY 0 20
                 ]
          )
-            ++ [ Region.heading (headingLevelToInt level)
-               , htmlAttribute
+            ++ [ Element.Region.heading (Markdown.Block.headingLevelToInt level)
+               , Element.htmlAttribute
                     (Html.Attributes.attribute "name" (rawTextToId rawText))
-               , htmlAttribute
+               , Element.htmlAttribute
                     (Html.Attributes.id (rawTextToId rawText))
                ]
         )
         children
 
 
+rawTextToId : String -> String
 rawTextToId rawText =
     rawText
         |> String.toLower
@@ -233,16 +234,13 @@ rawTextToId rawText =
         |> String.replace "." ""
 
 
-fromHtml =
-    html
-
-
+justs : List (Maybe a) -> List a
 justs =
     List.foldl
         (\v acc ->
             case v of
                 Just el ->
-                    [ el ] ++ acc
+                    el :: acc
 
                 Nothing ->
                     acc

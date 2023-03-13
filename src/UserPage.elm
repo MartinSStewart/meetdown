@@ -1,12 +1,12 @@
 module UserPage exposing (view)
 
-import Colors exposing (UserConfig)
 import Description
 import Element exposing (Element)
 import FrontendUser exposing (FrontendUser)
 import Name
 import ProfileImage
 import Ui
+import UserConfig exposing (UserConfig)
 
 
 view : UserConfig -> FrontendUser -> Element msg

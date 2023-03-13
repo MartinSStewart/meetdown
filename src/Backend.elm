@@ -314,7 +314,7 @@ sendLoginEmail msg emailAddress route loginToken maybeJoinEvent =
             { from = { name = "Meetdown", email = sender }
             , to = List.Nonempty.fromElement { name = "", email = emailAddress }
             , subject = loginEmailSubject
-            , body = Postmark.BodyHtml <| loginEmailContent route loginToken maybeJoinEvent
+            , body = Postmark.BodyHtml (loginEmailContent route loginToken maybeJoinEvent)
             , messageStream = "outbound"
             }
                 |> Postmark.sendEmail msg Env.postmarkServerToken
@@ -334,7 +334,7 @@ sendDeleteUserEmail msg emailAddress deleteUserToken =
             { from = { name = "Meetdown", email = sender }
             , to = List.Nonempty.fromElement { name = "", email = emailAddress }
             , subject = deleteAccountEmailSubject
-            , body = Postmark.BodyHtml <| deleteAccountEmailContent deleteUserToken
+            , body = Postmark.BodyHtml (deleteAccountEmailContent deleteUserToken)
             , messageStream = "outbound"
             }
                 |> Postmark.sendEmail msg Env.postmarkServerToken
@@ -357,7 +357,7 @@ sendEventReminderEmail msg groupId groupName event timezone emailAddress =
             { from = { name = "Meetdown", email = sender }
             , to = List.Nonempty.fromElement { name = "", email = emailAddress }
             , subject = eventReminderEmailSubject groupName event timezone
-            , body = Postmark.BodyHtml <| eventReminderEmailContent groupId groupName event
+            , body = Postmark.BodyHtml (eventReminderEmailContent groupId groupName event)
             , messageStream = "broadcast"
             }
                 |> Postmark.sendEmail msg Env.postmarkServerToken
@@ -1330,17 +1330,8 @@ isAdmin user =
 
 checkLogin : SessionId -> BackendModel -> Maybe { userId : Id UserId, user : BackendUser, isAdmin : Bool }
 checkLogin sessionId model =
-    case BiDict.get sessionId model.sessions of
-        Just userId ->
-            case Dict.get userId model.users of
-                Just user ->
-                    Just { userId = userId, user = user, isAdmin = isAdmin user }
-
-                Nothing ->
-                    Nothing
-
-        Nothing ->
-            Nothing
+    getUserFromSessionId sessionId model
+        |> Maybe.map (\( userId, user ) -> { userId = userId, user = user, isAdmin = isAdmin user })
 
 
 getGroup : Id GroupId -> BackendModel -> Maybe Group
@@ -1371,8 +1362,8 @@ loginEmailContent route loginToken maybeJoinEvent =
         loginLink =
             loginEmailLink route loginToken maybeJoinEvent
 
-        --_ =
-        --    Debug.log "login" loginLink
+        -- _ =
+        -- Debug.log "login" loginLink
     in
     Email.Html.div
         [ Email.Html.Attributes.padding "8px" ]

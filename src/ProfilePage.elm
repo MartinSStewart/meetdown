@@ -14,7 +14,6 @@ module ProfilePage exposing
     , view
     )
 
-import Colors exposing (..)
 import Description exposing (Description, Error(..))
 import Duration
 import Effect.Browser.Dom as Dom exposing (HtmlId)
@@ -45,6 +44,7 @@ import ProfileImage exposing (ProfileImage)
 import Quantity exposing (Quantity)
 import Ui
 import Untrusted exposing (Untrusted)
+import UserConfig exposing (Texts, UserConfig)
 
 
 type Msg
@@ -93,7 +93,7 @@ type DragPart
 
 type Editable a
     = Unchanged
-    | Editting a
+    | Editing a
 
 
 type alias Model =
@@ -160,7 +160,7 @@ update windowSize msg model =
                 validate : (a -> Maybe b) -> Editable a -> Maybe b
                 validate validator editable =
                     case editable of
-                        Editting value ->
+                        Editing value ->
                             validator value
 
                         Unchanged ->
@@ -205,14 +205,14 @@ update windowSize msg model =
         GotImageUrl imageUrl ->
             ( { model
                 | profileImage =
-                    Editting (Just { x = 0.1, y = 0.1, size = 0.8, imageUrl = imageUrl, dragState = Nothing, imageSize = Nothing })
+                    Editing (Just { x = 0.1, y = 0.1, size = 0.8, imageUrl = imageUrl, dragState = Nothing, imageSize = Nothing })
               }
             , Dom.getElement profileImagePlaceholderId |> Task.attempt GotImageSize
             )
 
         MouseDownImageEditor x y ->
             case model.profileImage of
-                Editting (Just imageData) ->
+                Editing (Just imageData) ->
                     let
                         ( tx, ty ) =
                             ( pixelToT windowSize x, pixelToT windowSize y )
@@ -249,7 +249,7 @@ update windowSize msg model =
                             }
                     in
                     ( { model
-                        | profileImage = Editting (Just { imageData | dragState = Just newDragState })
+                        | profileImage = Editing (Just { imageData | dragState = Just newDragState })
                       }
                     , Command.none
                     )
@@ -259,10 +259,10 @@ update windowSize msg model =
 
         MovedImageEditor x y ->
             case model.profileImage of
-                Editting (Just imageData) ->
+                Editing (Just imageData) ->
                     ( { model
                         | profileImage =
-                            Editting (Just (updateDragState (pixelToT windowSize x) (pixelToT windowSize y) imageData))
+                            Editing (Just (updateDragState (pixelToT windowSize x) (pixelToT windowSize y) imageData))
                       }
                     , Command.none
                     )
@@ -272,14 +272,14 @@ update windowSize msg model =
 
         MouseUpImageEditor x y ->
             case model.profileImage of
-                Editting (Just imageData) ->
+                Editing (Just imageData) ->
                     let
                         newImageData =
                             updateDragState (pixelToT windowSize x) (pixelToT windowSize y) imageData
                                 |> getActualImageState
                                 |> (\a -> { a | dragState = Nothing })
                     in
-                    ( { model | profileImage = Editting (Just newImageData) }
+                    ( { model | profileImage = Editing (Just newImageData) }
                     , Command.none
                     )
 
@@ -288,13 +288,13 @@ update windowSize msg model =
 
         TouchEndImageEditor ->
             case model.profileImage of
-                Editting (Just imageData) ->
+                Editing (Just imageData) ->
                     let
                         newImageData =
                             getActualImageState imageData
                                 |> (\a -> { a | dragState = Nothing })
                     in
-                    ( { model | profileImage = Editting (Just newImageData) }
+                    ( { model | profileImage = Editing (Just newImageData) }
                     , Command.none
                     )
 
@@ -303,7 +303,7 @@ update windowSize msg model =
 
         PressedConfirmImage ->
             case model.profileImage of
-                Editting (Just imageData) ->
+                Editing (Just imageData) ->
                     case imageData.imageSize of
                         Just ( w, _ ) ->
                             ( model
@@ -330,7 +330,7 @@ update windowSize msg model =
 
         GotImageSize result ->
             case ( result, model.profileImage ) of
-                ( Ok { element }, Editting (Just imageData) ) ->
+                ( Ok { element }, Editing (Just imageData) ) ->
                     if element.height <= 0 then
                         ( model
                         , Dom.getElement profileImagePlaceholderId |> Task.attempt GotImageSize
@@ -346,7 +346,7 @@ update windowSize msg model =
                                     , size = min 0.9 (element.height / element.width - 0.1)
                                 }
                                     |> Just
-                                    |> Editting
+                                    |> Editing
                           }
                         , Command.none
                         )
@@ -528,7 +528,7 @@ profileImagePlaceholderId =
 imageEditorIsActive : Model -> Bool
 imageEditorIsActive model =
     case model.profileImage of
-        Editting (Just _) ->
+        Editing (Just _) ->
             True
 
         _ ->
@@ -540,7 +540,7 @@ imageEditorView :
     -> { a | windowWidth : Quantity Int Pixels, windowHeight : Quantity Int Pixels }
     -> ImageEdit
     -> Element Msg
-imageEditorView userConfig windowSize imageEdit =
+imageEditorView { theme, texts } windowSize imageEdit =
     let
         { x, y, size, imageUrl, dragState } =
             getActualImageState imageEdit
@@ -552,10 +552,10 @@ imageEditorView userConfig windowSize imageEdit =
                     , Element.height (Element.px 8)
                     , Element.moveRight (tToPixel windowSize x_ - 4)
                     , Element.moveDown (tToPixel windowSize y_ - 4)
-                    , Element.Background.color <| Element.rgb 1 1 1
+                    , Element.Background.color (Element.rgb 1 1 1)
                     , Element.Border.width 2
-                    , Element.Border.color <| Element.rgb 0 0 0
-                    , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                    , Element.Border.color (Element.rgb 0 0 0)
+                    , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
                     ]
                     Element.none
                 )
@@ -563,14 +563,14 @@ imageEditorView userConfig windowSize imageEdit =
         drawHorizontalLine x_ y_ width =
             Element.inFront
                 (Element.el
-                    [ Element.width (Element.px <| round (tToPixel windowSize width))
+                    [ Element.width (Element.px (round (tToPixel windowSize width)))
                     , Element.height (Element.px 6)
                     , Element.moveRight (tToPixel windowSize x_)
                     , Element.moveDown (tToPixel windowSize y_ - 3)
-                    , Element.Background.color <| Element.rgb 1 1 1
+                    , Element.Background.color (Element.rgb 1 1 1)
                     , Element.Border.width 2
-                    , Element.Border.color <| Element.rgb 0 0 0
-                    , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                    , Element.Border.color (Element.rgb 0 0 0)
+                    , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
                     ]
                     Element.none
                 )
@@ -578,14 +578,14 @@ imageEditorView userConfig windowSize imageEdit =
         drawVerticalLine x_ y_ height =
             Element.inFront
                 (Element.el
-                    [ Element.height (Element.px <| round (tToPixel windowSize height))
+                    [ Element.height (Element.px (round (tToPixel windowSize height)))
                     , Element.width (Element.px 6)
                     , Element.moveRight (tToPixel windowSize x_ - 3)
                     , Element.moveDown (tToPixel windowSize y_)
-                    , Element.Background.color <| Element.rgb 1 1 1
+                    , Element.Background.color (Element.rgb 1 1 1)
                     , Element.Border.width 2
-                    , Element.Border.color <| Element.rgb 0 0 0
-                    , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                    , Element.Border.color (Element.rgb 0 0 0)
+                    , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
                     ]
                     Element.none
                 )
@@ -595,8 +595,8 @@ imageEditorView userConfig windowSize imageEdit =
     in
     Element.column
         [ Element.spacing 8
-        , Element.inFront <|
-            case imageEdit.imageSize of
+        , Element.inFront
+            (case imageEdit.imageSize of
                 Just _ ->
                     Element.none
 
@@ -605,20 +605,22 @@ imageEditorView userConfig windowSize imageEdit =
                         [ Element.transparent True
                         , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
                         ]
-                        (Element.html <|
-                            Html.img
+                        (Element.html
+                            (Html.img
                                 [ Dom.idToAttribute profileImagePlaceholderId
                                 , Html.Attributes.src imageUrl
                                 ]
                                 []
+                            )
                         )
+            )
         , Element.centerX
         ]
         [ Element.image
-            [ Element.width <| Element.px imageEditorWidth_
+            [ Element.width (Element.px imageEditorWidth_)
             , case imageEdit.imageSize of
                 Just ( w, h ) ->
-                    Element.height <| Element.px <| round <| toFloat (imageEditorWidth_ * h) / toFloat w
+                    Element.height (Element.px (round (toFloat (imageEditorWidth_ * h) / toFloat w)))
 
                 Nothing ->
                     Element.inFront Element.none
@@ -670,27 +672,27 @@ imageEditorView userConfig windowSize imageEdit =
                     |> Element.htmlAttribute
             , Element.inFront
                 (Element.el
-                    [ Element.height (Element.px <| round (size * toFloat imageEditorWidth_))
-                    , Element.width (Element.px <| round (size * toFloat imageEditorWidth_))
+                    [ Element.height (Element.px (round (size * toFloat imageEditorWidth_)))
+                    , Element.width (Element.px (round (size * toFloat imageEditorWidth_)))
                     , Element.moveRight (x * toFloat imageEditorWidth_)
                     , Element.moveDown (y * toFloat imageEditorWidth_)
                     , Element.Border.width 2
-                    , Element.Border.color <| Element.rgb 0 0 0
+                    , Element.Border.color (Element.rgb 0 0 0)
                     , Element.Border.rounded 99999
-                    , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                    , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
                     ]
                     Element.none
                 )
             , Element.inFront
                 (Element.el
-                    [ Element.height (Element.px <| round (size * toFloat imageEditorWidth_ - 4))
-                    , Element.width (Element.px <| round (size * toFloat imageEditorWidth_ - 4))
+                    [ Element.height (Element.px (round (size * toFloat imageEditorWidth_ - 4)))
+                    , Element.width (Element.px (round (size * toFloat imageEditorWidth_ - 4)))
                     , Element.moveRight (x * toFloat imageEditorWidth_ + 2)
                     , Element.moveDown (y * toFloat imageEditorWidth_ + 2)
                     , Element.Border.width 2
-                    , Element.Border.color <| Element.rgb 1 1 1
+                    , Element.Border.color (Element.rgb 1 1 1)
                     , Element.Border.rounded 99999
-                    , Element.htmlAttribute <| Html.Attributes.style "pointer-events" "none"
+                    , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
                     ]
                     Element.none
                 )
@@ -704,20 +706,22 @@ imageEditorView userConfig windowSize imageEdit =
             , drawNode (x + size) (y + size)
             ]
             { src = imageUrl
-            , description = "Image editor"
+            , description = texts.imageEditor
             }
         , Element.wrappedRow
             [ Element.width Element.fill, Element.spacingXY 16 8, Element.paddingXY 8 0 ]
-            [ Ui.submitButton userConfig uploadImageButtonId False { onPress = PressedConfirmImage, label = "Upload image" }
-            , Ui.button userConfig cancelImageButtonId { onPress = PressedCancelImage, label = "Cancel" }
+            [ Ui.submitButton theme uploadImageButtonId False { onPress = PressedConfirmImage, label = texts.uploadImage }
+            , Ui.button theme cancelImageButtonId { onPress = PressedCancelImage, label = texts.cancel }
             ]
         ]
 
 
+uploadImageButtonId : HtmlId
 uploadImageButtonId =
     HtmlId.buttonId "profileUploadImage"
 
 
+cancelImageButtonId : HtmlId
 cancelImageButtonId =
     HtmlId.buttonId "profileCancelImage"
 
@@ -728,28 +732,28 @@ view :
     -> CurrentValues
     -> Model
     -> Element Msg
-view userConfig windowSize currentValues ({ form } as model) =
+view ({ theme, texts } as userConfig) windowSize currentValues ({ form } as model) =
     case model.profileImage of
-        Editting (Just imageEdit) ->
+        Editing (Just imageEdit) ->
             imageEditorView userConfig windowSize imageEdit
 
         _ ->
             Element.column
                 Ui.pageContentAttributes
                 [ Element.wrappedRow [ Element.width Element.fill ]
-                    [ Element.el [ Element.alignTop ] (Ui.title "Profile")
+                    [ Element.el [ Element.alignTop ] (Ui.title texts.profile)
                     , Element.Input.button
                         [ Element.alignRight
                         , Element.Border.rounded 9999
                         , Element.clip
-                        , Element.Background.color userConfig.grey
+                        , Element.Background.color theme.grey
                         ]
                         { onPress = Just PressedProfileImage
                         , label = ProfileImage.image userConfig ProfileImage.defaultSize currentValues.profileImage
                         }
                     ]
                 , Ui.columnCard
-                    userConfig
+                    theme
                     [ editableTextInput
                         nameTextInputId
                         userConfig
@@ -761,14 +765,14 @@ view userConfig windowSize currentValues ({ form } as model) =
                                     Ok name
 
                                 Err Name.NameTooShort ->
-                                    Err "Your name can't be empty"
+                                    Err texts.yourNameCantBeEmpty
 
                                 Err Name.NameTooLong ->
-                                    "Keep it below " ++ String.fromInt (Name.maxLength + 1) ++ " characters" |> Err
+                                    Err (texts.keepItBelowNCharacters (Name.maxLength + 1))
                         )
                         currentValues.name
                         form.name
-                        "Your name"
+                        texts.yourName
                     , editableMultiline
                         descriptionTextInputId
                         userConfig
@@ -780,34 +784,32 @@ view userConfig windowSize currentValues ({ form } as model) =
                                     Ok name
 
                                 Err DescriptionTooLong ->
-                                    "Less than "
-                                        ++ String.fromInt Description.maxLength
-                                        ++ " characters please"
-                                        |> Err
+                                    Err (texts.belowNCharactersPlease Description.maxLength)
                         )
                         currentValues.description
                         form.description
-                        "What do you want people to know about you?"
+                        texts.whatDoYouWantPeopleToKnowAboutYou
                     , editableEmailInput
                         userConfig
-                        (\_ -> FormChanged form)
+                        (always (FormChanged form))
+                        -- For now, changing email address is not supported
                         --(\a -> FormChanged { form | emailAddress = a })
                         EmailAddress.toString
-                        (EmailAddress.fromString >> Result.fromMaybe "Invalid email")
+                        (EmailAddress.fromString >> Result.fromMaybe texts.invalidEmailAddress)
                         currentValues.emailAddress
                         form.emailAddress
-                        "Your email address"
+                        texts.yourEmailAddress
                     ]
-                , Ui.dangerButton userConfig deleteAccountButtonId False { onPress = PressedDeleteAccount, label = "Delete account" }
+                , Ui.dangerButton theme deleteAccountButtonId False { onPress = PressedDeleteAccount, label = texts.deleteAccount }
                 , if model.pressedDeleteAccount then
                     Element.column
                         [ Element.spacing 20 ]
                         [ Element.paragraph []
-                            [ Element.text "An account deletion email has been sent to "
+                            [ Element.text texts.anAccountDeletionEmailHasBeenSentTo
                             , Ui.emailAddressText currentValues.emailAddress
-                            , Element.text ". Press the link in it to confirm deleting your account."
+                            , Element.text texts.pressTheLinkInItToConfirmDeletingYourAccount
                             ]
-                        , Element.paragraph [] [ Element.text "If you don't see the email, check your spam folder." ]
+                        , Element.paragraph [] [ Element.text texts.ifYouDontSeeTheEmailCheckYourSpamFolder ]
                         ]
 
                   else
@@ -840,14 +842,14 @@ editableTextInput :
     -> Editable String
     -> String
     -> Element msg
-editableTextInput htmlId userConfig onChange toString validate currentValue text labelText =
+editableTextInput htmlId { theme, texts } onChange toString validate currentValue text labelText =
     let
         result =
             case text of
                 Unchanged ->
                     Ok currentValue
 
-                Editting edit ->
+                Editing edit ->
                     validate edit
 
         maybeError =
@@ -865,31 +867,31 @@ editableTextInput htmlId userConfig onChange toString validate currentValue text
             [ Dom.idToAttribute htmlId |> Element.htmlAttribute
             , Element.width Element.fill
             , Element.Border.rounded 4
-            , Ui.inputBorder userConfig (maybeError /= Nothing)
+            , Ui.inputBorder theme (maybeError /= Nothing)
             , Ui.inputBorderWidth (maybeError /= Nothing)
-            , Element.Background.color userConfig.background
+            , Element.Background.color theme.background
             ]
             { text =
                 case text of
                     Unchanged ->
                         toString currentValue
 
-                    Editting value ->
+                    Editing value ->
                         value
-            , onChange = Editting >> onChange
+            , onChange = Editing >> onChange
             , placeholder = Nothing
-            , label = Ui.formLabelAbove userConfig labelText
+            , label = Ui.formLabelAbove theme labelText
             }
         , case maybeError of
             Just error ->
-                Ui.error userConfig error
+                Ui.error theme error
 
             Nothing ->
                 if result == Ok currentValue then
                     Element.none
 
                 else
-                    savingText
+                    savingText texts
         ]
 
 
@@ -902,14 +904,14 @@ editableEmailInput :
     -> Editable String
     -> String
     -> Element msg
-editableEmailInput userConfig onChange toString validate currentValue text labelText =
+editableEmailInput { theme, texts } onChange toString validate currentValue text labelText =
     let
         result =
             case text of
                 Unchanged ->
                     Ok currentValue
 
-                Editting edit ->
+                Editing edit ->
                     validate edit
 
         maybeError =
@@ -922,47 +924,47 @@ editableEmailInput userConfig onChange toString validate currentValue text label
     in
     Element.column
         [ Element.width Element.fill
-        , Ui.inputBackground userConfig (maybeError /= Nothing)
+        , Ui.inputBackground theme (maybeError /= Nothing)
         , Element.Border.rounded 4
         ]
         [ Element.Input.email
             [ Element.width Element.fill
-            , Element.Background.color userConfig.background
-            , Element.Border.color userConfig.darkGrey
+            , Element.Background.color theme.background
+            , Element.Border.color theme.darkGrey
             ]
             { text =
                 case text of
                     Unchanged ->
                         toString currentValue
 
-                    Editting value ->
+                    Editing value ->
                         value
-            , onChange = Editting >> onChange
+            , onChange = Editing >> onChange
             , placeholder = Nothing
-            , label = Ui.formLabelAbove userConfig labelText
+            , label = Ui.formLabelAbove theme labelText
             }
         , case maybeError of
             Just error ->
-                Ui.error userConfig error
+                Ui.error theme error
 
             Nothing ->
                 if result == Ok currentValue then
                     Element.none
 
                 else
-                    savingText
+                    savingText texts
         ]
 
 
 editableMultiline : HtmlId -> UserConfig -> (Editable String -> msg) -> (a -> String) -> (String -> Result String a) -> a -> Editable String -> String -> Element msg
-editableMultiline htmlId userConfig onChange toString validate currentValue text labelText =
+editableMultiline htmlId { theme, texts } onChange toString validate currentValue text labelText =
     let
         result =
             case text of
                 Unchanged ->
                     Ok currentValue
 
-                Editting edit ->
+                Editing edit ->
                     validate edit
 
         maybeError =
@@ -981,38 +983,39 @@ editableMultiline htmlId userConfig onChange toString validate currentValue text
             [ Dom.idToAttribute htmlId |> Element.htmlAttribute
             , Element.width Element.fill
             , Element.height (Element.px 200)
-            , Ui.inputBorder userConfig (maybeError /= Nothing)
+            , Ui.inputBorder theme (maybeError /= Nothing)
             , Ui.inputBorderWidth (maybeError /= Nothing)
-            , Element.Background.color userConfig.background
+            , Element.Background.color theme.background
             ]
             { text =
                 case text of
                     Unchanged ->
                         toString currentValue
 
-                    Editting value ->
+                    Editing value ->
                         value
-            , onChange = Editting >> onChange
+            , onChange = Editing >> onChange
             , placeholder = Nothing
-            , label = Ui.formLabelAbove userConfig labelText
+            , label = Ui.formLabelAbove theme labelText
             , spellcheck = True
             }
         , case maybeError of
             Just error ->
-                Ui.error userConfig error
+                Ui.error theme error
 
             Nothing ->
                 if result == Ok currentValue then
                     Element.none
 
                 else
-                    savingText
+                    savingText texts
         ]
 
 
-savingText =
+savingText : Texts -> Element msg
+savingText texts =
     Element.el
         [ Element.paddingEach { left = 0, right = 0, top = 10, bottom = 0 }
         , Element.Font.size 12
         ]
-        (Element.text "Saving...")
+        (Element.text texts.saving)

@@ -2,19 +2,20 @@ module AdminPage exposing (..)
 
 import AdminStatus exposing (AdminStatus(..))
 import Array
-import Colors exposing (UserConfig)
+import Effect.Browser.Dom exposing (HtmlId)
 import Element exposing (Element)
 import HtmlId
 import Time
 import Types exposing (AdminCache(..), AdminModel, FrontendMsg(..), Log)
 import Ui
+import UserConfig exposing (UserConfig)
 
 
 view : UserConfig -> Time.Zone -> { a | adminState : AdminCache, adminStatus : AdminStatus } -> Element FrontendMsg
 view userConfig timezone loggedIn =
     case loggedIn.adminStatus of
         IsNotAdmin ->
-            Ui.loadingError userConfig "Sorry, you aren't allowed to view this page"
+            Ui.loadingError userConfig.theme "Sorry, you aren't allowed to view this page"
 
         IsAdminAndEnabled ->
             adminView userConfig True timezone loggedIn
@@ -24,17 +25,17 @@ view userConfig timezone loggedIn =
 
 
 adminView : UserConfig -> Bool -> Time.Zone -> { a | adminState : AdminCache } -> Element FrontendMsg
-adminView userConfig adminEnabled timezone loggedIn =
+adminView ({ theme, texts } as userConfig) adminEnabled timezone loggedIn =
     case loggedIn.adminState of
         AdminCached model ->
             Element.column
                 Ui.pageContentAttributes
                 [ Ui.title "Admin panel"
                 , if adminEnabled then
-                    Ui.submitButton userConfig enableAdminId False { onPress = PressedDisableAdmin, label = "Disable admin" }
+                    Ui.submitButton theme enableAdminId False { onPress = PressedDisableAdmin, label = "Disable admin" }
 
                   else
-                    Ui.dangerButton userConfig enableAdminId False { onPress = PressedEnableAdmin, label = "Enable admin" }
+                    Ui.dangerButton theme enableAdminId False { onPress = PressedEnableAdmin, label = "Enable admin" }
                 , Element.paragraph
                     []
                     [ Element.text "Logs last updated at: "
@@ -46,12 +47,13 @@ adminView userConfig adminEnabled timezone loggedIn =
                 ]
 
         AdminCachePending ->
-            Ui.loadingView
+            Ui.loadingView texts
 
         AdminCacheNotRequested ->
-            Ui.loadingView
+            Ui.loadingView texts
 
 
+enableAdminId : HtmlId
 enableAdminId =
     HtmlId.buttonId "adminPageEnableAdmin"
 
@@ -64,7 +66,7 @@ logView userConfig timezone model log =
     in
     Element.column
         []
-        [ Ui.datetimeToString timezone time |> Ui.formLabelAboveEl userConfig
+        [ Ui.datetimeToString timezone time |> Ui.formLabelAboveEl userConfig.theme
         , Element.paragraph []
             [ if isError then
                 Element.text "🔥 "

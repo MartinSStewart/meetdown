@@ -115,6 +115,18 @@ type alias LoginForm =
     }
 
 
+type Language
+    = English
+    | French
+    | Spanish
+
+
+type alias LoadedUserConfig =
+    { theme : ColorTheme
+    , language : Language
+    }
+
+
 type alias LoadedFrontend =
     { navigationKey : Effect.Browser.Navigation.Key
     , loginStatus : LoginStatus
@@ -135,7 +147,8 @@ type alias LoadedFrontend =
     , windowWidth : Quantity.Quantity Int Pixels.Pixels
     , windowHeight : Quantity.Quantity Int Pixels.Pixels
     , groupPage : AssocList.Dict (Evergreen.V63.Id.Id Evergreen.V63.Id.GroupId) Evergreen.V63.GroupPage.Model
-    , theme : ColorTheme
+    , loadedUserConfig : LoadedUserConfig
+    , miniLanguageSelectorOpened : Bool
     }
 
 
@@ -183,7 +196,8 @@ type alias BackendModel =
 
 
 type FrontendMsg
-    = UrlClicked Browser.UrlRequest
+    = NoOpFrontendMsg
+    | UrlClicked Browser.UrlRequest
     | UrlChanged Url.Url
     | GotTime Time.Posix
     | PressedLogin
@@ -202,7 +216,10 @@ type FrontendMsg
     | PressedEnableAdmin
     | PressedDisableAdmin
     | PressedThemeToggle
+    | LanguageSelected Language
     | GotPrefersDarkTheme Bool
+    | GotLanguage String
+    | ToggleLanguageSelect
 
 
 type BackendMsg

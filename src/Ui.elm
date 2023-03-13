@@ -1,5 +1,6 @@
 module Ui exposing
-    ( button
+    ( attributeNone
+    , button
     , cardAttributes
     , columnCard
     , contentWidth
@@ -18,6 +19,7 @@ module Ui exposing
     , formError
     , formLabelAbove
     , formLabelAboveEl
+    , greedyOnClick
     , headerButton
     , headerLink
     , horizontalLine
@@ -46,10 +48,10 @@ module Ui exposing
     , titleFontSize
     )
 
-import Colors exposing (UserConfig)
+import Colors
 import Date exposing (Date)
 import Effect.Browser.Dom as Dom exposing (HtmlId)
-import Element exposing (Element)
+import Element exposing (Attr, Attribute, Element)
 import Element.Background
 import Element.Border
 import Element.Font
@@ -67,16 +69,17 @@ import Svg.Attributes
 import Time
 import Time.Extra as Time
 import TimeExtra as Time
+import UserConfig exposing (Texts, Theme)
 
 
-css : UserConfig -> Html msg
-css userConfig =
+css : Theme -> Html msg
+css theme =
     Html.node "style"
         []
-        [ """
+        [ """ 
           @import url('https://rsms.me/inter/inter.css');
           html { font-family: 'Inter', sans-serif; scrollbar-gutter: stable; background-color: """
-            ++ Colors.toCssString userConfig.background
+            ++ Colors.toCssString theme.background
             ++ """; }
           @supports (font-variation-settings: normal) {
             html { font-family: 'Inter var', sans-serif; }
@@ -100,7 +103,7 @@ css userConfig =
         ]
 
 
-onEnter : msg -> Element.Attribute msg
+onEnter : msg -> Attribute msg
 onEnter msg =
     Html.Events.preventDefaultOn "keydown"
         (Json.Decode.field "keyCode" Json.Decode.int
@@ -116,11 +119,12 @@ onEnter msg =
         |> Element.htmlAttribute
 
 
+enterKeyCode : number
 enterKeyCode =
     13
 
 
-pageContentAttributes : List (Element.Attribute msg)
+pageContentAttributes : List (Attribute msg)
 pageContentAttributes =
     [ Element.padding 8
     , Element.centerX
@@ -129,17 +133,17 @@ pageContentAttributes =
     ]
 
 
-inputFocusClass : Element.Attribute msg
+inputFocusClass : Attribute msg
 inputFocusClass =
-    Element.htmlAttribute <| Html.Attributes.class "linkFocus"
+    Element.htmlAttribute (Html.Attributes.class "linkFocus")
 
 
-horizontalLine : UserConfig -> Element msg
-horizontalLine userConfig =
+horizontalLine : Theme -> Element msg
+horizontalLine theme =
     Element.el
         [ Element.width Element.fill
         , Element.height (Element.px 1)
-        , Element.Background.color userConfig.darkGrey
+        , Element.Background.color theme.darkGrey
         ]
         Element.none
 
@@ -147,7 +151,7 @@ horizontalLine userConfig =
 headerButton : Bool -> HtmlId -> { onPress : msg, label : String } -> Element msg
 headerButton isMobile_ htmlId { onPress, label } =
     Element.Input.button
-        [ Element.mouseOver [ Element.Background.color <| Element.rgba 1 1 1 0.5 ]
+        [ Element.mouseOver [ Element.Background.color (Element.rgba 1 1 1 0.5) ]
         , if isMobile_ then
             Element.padding 6
 
@@ -167,24 +171,25 @@ headerButton isMobile_ htmlId { onPress, label } =
         }
 
 
-headerLink : UserConfig -> Bool -> Bool -> { route : Route, label : String } -> Element msg
-headerLink userConfig isMobile_ isSelected { route, label } =
+headerLink : Theme -> Bool -> Bool -> { route : Route, label : String } -> Element msg
+headerLink theme isMobile_ isSelected { route, label } =
     Element.link
-        [ Element.mouseOver [ Element.Background.color <| Element.rgba 1 1 1 0.5 ]
-        , Element.below <|
-            if isSelected then
+        [ Element.mouseOver [ Element.Background.color (Element.rgba 1 1 1 0.5) ]
+        , Element.below
+            (if isSelected then
                 Element.el
                     [ Element.paddingXY 4 0, Element.width Element.fill ]
                     (Element.el
-                        [ Element.Background.color userConfig.submit
+                        [ Element.Background.color theme.submit
                         , Element.width Element.fill
                         , Element.height (Element.px 2)
                         ]
                         Element.none
                     )
 
-            else
+             else
                 Element.none
+            )
         , if isMobile_ then
             Element.padding 6
 
@@ -210,31 +215,31 @@ emailAddressText emailAddress =
         (Element.text (EmailAddress.toString emailAddress))
 
 
-routeLink : UserConfig -> Route -> String -> Element msg
-routeLink userConfig route label =
+routeLink : Theme -> Route -> String -> Element msg
+routeLink theme route label =
     Element.link
-        [ Element.Font.color userConfig.link, inputFocusClass, Element.Font.underline ]
+        [ Element.Font.color theme.link, inputFocusClass, Element.Font.underline ]
         { url = Route.encode route, label = Element.text label }
 
 
-routeLinkNewTab : UserConfig -> Route -> String -> Element msg
-routeLinkNewTab userConfig route label =
+routeLinkNewTab : Theme -> Route -> String -> Element msg
+routeLinkNewTab theme route label =
     Element.newTabLink
-        [ Element.Font.color userConfig.link, inputFocusClass, Element.Font.underline ]
+        [ Element.Font.color theme.link, inputFocusClass, Element.Font.underline ]
         { url = "https://meetdown.app" ++ Route.encode route, label = Element.text label }
 
 
-externalLink : UserConfig -> String -> String -> Element msg
-externalLink userConfig url label =
+externalLink : Theme -> String -> String -> Element msg
+externalLink theme url label =
     Element.newTabLink
-        [ Element.Font.color userConfig.link, inputFocusClass, Element.Font.underline ]
+        [ Element.Font.color theme.link, inputFocusClass, Element.Font.underline ]
         { url = url, label = Element.text label }
 
 
-mailToLink : UserConfig -> String -> Maybe String -> Element msg
-mailToLink userConfig emailAddress maybeSubject =
+mailToLink : Theme -> String -> Maybe String -> Element msg
+mailToLink theme emailAddress maybeSubject =
     Element.link
-        [ Element.Font.color userConfig.link, inputFocusClass ]
+        [ Element.Font.color theme.link, inputFocusClass ]
         { url =
             "mailto:"
                 ++ emailAddress
@@ -249,12 +254,12 @@ mailToLink userConfig emailAddress maybeSubject =
         }
 
 
-section : UserConfig -> String -> Element msg -> Element msg
-section userConfig sectionTitle content =
+section : Theme -> String -> Element msg -> Element msg
+section theme sectionTitle content =
     Element.column
         [ Element.spacing 8
         , Element.Border.rounded 4
-        , inputBackground userConfig False
+        , inputBackground theme False
         , Element.alignTop
         ]
         [ Element.paragraph [ Element.Font.bold ] [ Element.text sectionTitle ]
@@ -262,15 +267,15 @@ section userConfig sectionTitle content =
         ]
 
 
-button : UserConfig -> HtmlId -> { onPress : msg, label : String } -> Element msg
-button userConfig htmlId { onPress, label } =
+button : Theme -> HtmlId -> { onPress : msg, label : String } -> Element msg
+button theme htmlId { onPress, label } =
     Element.Input.button
         [ Element.Border.width 2
-        , Element.Border.color userConfig.grey
+        , Element.Border.color theme.grey
         , Element.padding 8
         , Element.Border.rounded 4
         , Element.Font.center
-        , Element.Font.color userConfig.mutedText
+        , Element.Font.color theme.mutedText
         , Element.width (Element.minimum 150 Element.fill)
         , Dom.idToAttribute htmlId |> Element.htmlAttribute
         ]
@@ -279,15 +284,15 @@ button userConfig htmlId { onPress, label } =
         }
 
 
-linkButton : UserConfig -> { route : Route, label : String } -> Element msg
-linkButton userConfig { route, label } =
+linkButton : Theme -> { route : Route, label : String } -> Element msg
+linkButton theme { route, label } =
     Element.link
         [ Element.Border.width 2
-        , Element.Border.color userConfig.grey
+        , Element.Border.color theme.grey
         , Element.padding 8
         , Element.Border.rounded 4
         , Element.Font.center
-        , Element.Font.color userConfig.mutedText
+        , Element.Font.color theme.mutedText
         , Element.width (Element.minimum 150 Element.fill)
         ]
         { url = Route.encode route
@@ -295,14 +300,14 @@ linkButton userConfig { route, label } =
         }
 
 
-submitButton : UserConfig -> HtmlId -> Bool -> { onPress : msg, label : String } -> Element msg
-submitButton userConfig htmlId isSubmitting { onPress, label } =
+submitButton : Theme -> HtmlId -> Bool -> { onPress : msg, label : String } -> Element msg
+submitButton theme htmlId isSubmitting { onPress, label } =
     Element.Input.button
-        [ Element.Background.color userConfig.submit
+        [ Element.Background.color theme.submit
         , Element.padding 10
         , Element.Border.rounded 4
         , Element.Font.center
-        , Element.Font.color userConfig.invertedText
+        , Element.Font.color theme.invertedText
         , Dom.idToAttribute htmlId |> Element.htmlAttribute
         , Element.width Element.fill
         , Element.Font.medium
@@ -315,11 +320,11 @@ submitButton userConfig htmlId isSubmitting { onPress, label } =
 smallSubmitButton : HtmlId -> Bool -> { onPress : msg, label : String } -> Element msg
 smallSubmitButton htmlId isSubmitting { onPress, label } =
     Element.Input.button
-        [ Element.Background.color <| Element.rgb 0.1 0.6 0.25
+        [ Element.Background.color (Element.rgb 0.1 0.6 0.25)
         , Element.paddingXY 8 4
         , Element.Border.rounded 4
         , Element.Font.center
-        , Element.Font.color <| Element.rgb 1 1 1
+        , Element.Font.color (Element.rgb 1 1 1)
         , Dom.idToAttribute htmlId |> Element.htmlAttribute
         ]
         { onPress = Just onPress
@@ -327,14 +332,14 @@ smallSubmitButton htmlId isSubmitting { onPress, label } =
         }
 
 
-dangerButton : UserConfig -> HtmlId -> Bool -> { onPress : msg, label : String } -> Element msg
-dangerButton userConfig htmlId isSubmitting { onPress, label } =
+dangerButton : Theme -> HtmlId -> Bool -> { onPress : msg, label : String } -> Element msg
+dangerButton theme htmlId isSubmitting { onPress, label } =
     Element.Input.button
-        [ Element.Background.color userConfig.error
+        [ Element.Background.color theme.error
         , Element.padding 10
         , Element.Border.rounded 4
         , Element.Font.center
-        , Element.Font.color userConfig.invertedText
+        , Element.Font.color theme.invertedText
         , Dom.idToAttribute htmlId |> Element.htmlAttribute
         ]
         { onPress = Just onPress
@@ -356,22 +361,22 @@ labelWithHourglass isSubmitting label =
         (Element.text label)
 
 
-titleFontSize : Element.Attr decorative msg
+titleFontSize : Attr decorative msg
 titleFontSize =
     Element.Font.size 28
 
 
-defaultFont : Element.Attribute msg
+defaultFont : Attribute msg
 defaultFont =
     Element.Font.family [ Element.Font.typeface "Inter" ]
 
 
-defaultFontColor : UserConfig -> Element.Attr decorative msg
-defaultFontColor userConfig =
-    Element.Font.color userConfig.defaultText
+defaultFontColor : Theme -> Attr decorative msg
+defaultFontColor theme =
+    Element.Font.color theme.defaultText
 
 
-defaultFontSize : Element.Attr decorative msg
+defaultFontSize : Attr decorative msg
 defaultFontSize =
     Element.Font.size 16
 
@@ -381,24 +386,25 @@ title text =
     Element.paragraph [ titleFontSize, Element.Region.heading 1 ] [ Element.text text ]
 
 
-error : UserConfig -> String -> Element msg
-error userConfig errorMessage =
+error : Theme -> String -> Element msg
+error theme errorMessage =
     Element.paragraph
         [ Element.paddingEach { left = 4, right = 4, top = 4, bottom = 0 }
-        , Element.Font.color userConfig.error
+        , Element.Font.color theme.error
         , Element.Font.size 14
         , Element.Font.medium
         ]
         [ Element.text errorMessage ]
 
 
-formError : UserConfig -> String -> Element msg
-formError userConfig errorMessage =
+formError : Theme -> String -> Element msg
+formError theme errorMessage =
     Element.paragraph
-        [ Element.Font.color userConfig.error ]
+        [ Element.Font.color theme.error ]
         [ Element.text errorMessage ]
 
 
+checkboxChecked : Element msg
 checkboxChecked =
     Svg.svg
         [ Svg.Attributes.width "60.768"
@@ -418,6 +424,7 @@ checkboxChecked =
         |> Element.el [ Element.alignTop ]
 
 
+checkboxEmpty : Element msg
 checkboxEmpty =
     Svg.svg
         [ Svg.Attributes.width "60.768"
@@ -437,8 +444,8 @@ checkboxEmpty =
         |> Element.el [ Element.alignTop ]
 
 
-radioGroup : UserConfig -> (a -> HtmlId) -> (a -> msg) -> Nonempty a -> Maybe a -> (a -> String) -> Maybe String -> Element msg
-radioGroup userConfig htmlId onSelect options selected optionToLabel maybeError =
+radioGroup : Theme -> (a -> HtmlId) -> (a -> msg) -> Nonempty a -> Maybe a -> (a -> String) -> Maybe String -> Element msg
+radioGroup theme htmlId onSelect options selected optionToLabel maybeError =
     let
         optionsView =
             List.Nonempty.map
@@ -468,47 +475,50 @@ radioGroup userConfig htmlId onSelect options selected optionToLabel maybeError 
                 |> List.Nonempty.toList
     in
     optionsView
-        ++ [ Maybe.map (error userConfig) maybeError |> Maybe.withDefault Element.none ]
+        ++ [ Maybe.map (error theme) maybeError |> Maybe.withDefault Element.none ]
         |> Element.column []
 
 
-inputBackground : UserConfig -> Bool -> Element.Attr decorative msg
-inputBackground userConfig hasError =
-    Element.Background.color <|
-        if hasError then
-            userConfig.errorBackground
+inputBackground : Theme -> Bool -> Attr decorative msg
+inputBackground theme hasError =
+    Element.Background.color
+        (if hasError then
+            theme.errorBackground
 
-        else
+         else
             Element.rgba255 0 0 0 0
+        )
 
 
-contentWidth : Element.Attribute msg
+contentWidth : Attribute msg
 contentWidth =
     Element.width (Element.maximum 800 Element.fill)
 
 
-inputBorder : UserConfig -> Bool -> Element.Attr decorative msg
-inputBorder userConfig hasError =
-    Element.Border.color <|
-        if hasError then
-            userConfig.error
+inputBorder : Theme -> Bool -> Attr decorative msg
+inputBorder theme hasError =
+    Element.Border.color
+        (if hasError then
+            theme.error
 
-        else
-            userConfig.darkGrey
+         else
+            theme.darkGrey
+        )
 
 
-inputBorderWidth : Bool -> Element.Attribute msg
+inputBorderWidth : Bool -> Attribute msg
 inputBorderWidth hasError =
-    Element.Border.width <|
-        if hasError then
+    Element.Border.width
+        (if hasError then
             2
 
-        else
+         else
             1
+        )
 
 
-textInput : UserConfig -> HtmlId -> (String -> msg) -> String -> String -> Maybe String -> Element msg
-textInput userConfig htmlId onChange text labelText maybeError =
+textInput : Theme -> HtmlId -> (String -> msg) -> String -> String -> Maybe String -> Element msg
+textInput theme htmlId onChange text labelText maybeError =
     Element.column
         [ Element.width Element.fill
         , Element.Border.rounded 4
@@ -516,20 +526,20 @@ textInput userConfig htmlId onChange text labelText maybeError =
         [ Element.Input.text
             [ Element.width Element.fill
             , Dom.idToAttribute htmlId |> Element.htmlAttribute
-            , inputBorder userConfig (maybeError /= Nothing)
-            , Element.Background.color userConfig.background
+            , inputBorder theme (maybeError /= Nothing)
+            , Element.Background.color theme.background
             ]
             { text = text
             , onChange = onChange
             , placeholder = Nothing
-            , label = formLabelAbove userConfig labelText
+            , label = formLabelAbove theme labelText
             }
-        , Maybe.map (error userConfig) maybeError |> Maybe.withDefault Element.none
+        , Maybe.map (error theme) maybeError |> Maybe.withDefault Element.none
         ]
 
 
-multiline : UserConfig -> HtmlId -> (String -> msg) -> String -> String -> Maybe String -> Element msg
-multiline userConfig htmlId onChange text labelText maybeError =
+multiline : Theme -> HtmlId -> (String -> msg) -> String -> String -> Maybe String -> Element msg
+multiline theme htmlId onChange text labelText maybeError =
     Element.column
         [ Element.width Element.fill
         , Element.Border.rounded 4
@@ -538,26 +548,26 @@ multiline userConfig htmlId onChange text labelText maybeError =
             [ Element.width Element.fill
             , Element.height (Element.px 200)
             , Dom.idToAttribute htmlId |> Element.htmlAttribute
-            , inputBorder userConfig (maybeError /= Nothing)
+            , inputBorder theme (maybeError /= Nothing)
             , inputBorderWidth (maybeError /= Nothing)
-            , Element.Background.color userConfig.background
+            , Element.Background.color theme.background
             ]
             { text = text
             , onChange = onChange
             , placeholder = Nothing
-            , label = formLabelAbove userConfig labelText
+            , label = formLabelAbove theme labelText
             , spellcheck = True
             }
-        , Maybe.map (error userConfig) maybeError |> Maybe.withDefault Element.none
+        , Maybe.map (error theme) maybeError |> Maybe.withDefault Element.none
         ]
 
 
-numberInput : UserConfig -> HtmlId -> (String -> msg) -> String -> String -> Maybe String -> Element msg
-numberInput userConfig htmlId onChange value labelText maybeError =
+numberInput : Theme -> HtmlId -> (String -> msg) -> String -> String -> Maybe String -> Element msg
+numberInput theme htmlId onChange value labelText maybeError =
     Element.column
         [ Element.spacing 4
         ]
-        [ formLabelAboveEl userConfig labelText
+        [ formLabelAboveEl theme labelText
         , Html.input
             ([ Html.Attributes.type_ "number"
              , Html.Events.onInput onChange
@@ -567,17 +577,17 @@ numberInput userConfig htmlId onChange value labelText maybeError =
              , Html.Attributes.style "text-align" "right"
              , Html.Attributes.style "padding-right" "4px"
              ]
-                ++ htmlInputStyle userConfig
+                ++ htmlInputStyle theme
             )
             []
             |> Element.html
             |> Element.el []
-        , maybeError |> Maybe.map (error userConfig) |> Maybe.withDefault Element.none
+        , maybeError |> Maybe.map (error theme) |> Maybe.withDefault Element.none
         ]
 
 
 dateTimeInput :
-    UserConfig
+    Theme
     ->
         { dateInputId : HtmlId
         , timeInputId : HtmlId
@@ -592,20 +602,20 @@ dateTimeInput :
         , maybeError : Maybe String
         }
     -> Element msg
-dateTimeInput userConfig { dateInputId, timeInputId, dateChanged, timeChanged, labelText, minTime, timezone, dateText, timeText, isDisabled, maybeError } =
+dateTimeInput theme { dateInputId, timeInputId, dateChanged, timeChanged, labelText, minTime, timezone, dateText, timeText, isDisabled, maybeError } =
     Element.column
         [ Element.spacing 4 ]
-        [ formLabelAboveEl userConfig labelText
+        [ formLabelAboveEl theme labelText
         , Element.wrappedRow [ Element.spacing 8 ]
-            [ dateInput userConfig dateInputId dateChanged (Date.fromPosix timezone minTime) dateText isDisabled
-            , timeInput userConfig timeInputId timeChanged timeText isDisabled
+            [ dateInput theme dateInputId dateChanged (Date.fromPosix timezone minTime) dateText isDisabled
+            , timeInput theme timeInputId timeChanged timeText isDisabled
             ]
-        , maybeError |> Maybe.map (error userConfig) |> Maybe.withDefault Element.none
+        , maybeError |> Maybe.map (error theme) |> Maybe.withDefault Element.none
         ]
 
 
-timeInput : UserConfig -> HtmlId -> (String -> msg) -> String -> Bool -> Element msg
-timeInput userConfig htmlId onChange time isDisabled =
+timeInput : Theme -> HtmlId -> (String -> msg) -> String -> Bool -> Element msg
+timeInput theme htmlId onChange time isDisabled =
     Html.input
         ([ Html.Attributes.type_ "time"
          , Html.Events.onInput onChange
@@ -614,7 +624,7 @@ timeInput userConfig htmlId onChange time isDisabled =
          , Dom.idToAttribute htmlId
          , Html.Attributes.disabled isDisabled
          ]
-            ++ htmlInputStyle userConfig
+            ++ htmlInputStyle theme
         )
         []
         |> Element.html
@@ -628,8 +638,8 @@ timeToString timezone time =
         ++ String.padLeft 2 '0' (String.fromInt (Time.toMinute timezone time))
 
 
-dateInput : UserConfig -> HtmlId -> (String -> msg) -> Date -> String -> Bool -> Element msg
-dateInput userConfig htmlId onChange minDateTime date isDisabled =
+dateInput : Theme -> HtmlId -> (String -> msg) -> Date -> String -> Bool -> Element msg
+dateInput theme htmlId onChange minDateTime date isDisabled =
     Html.input
         ([ Html.Attributes.type_ "date"
          , Html.Attributes.min (datestamp minDateTime)
@@ -639,7 +649,7 @@ dateInput userConfig htmlId onChange minDateTime date isDisabled =
          , Dom.idToAttribute htmlId
          , Html.Attributes.disabled isDisabled
          ]
-            ++ htmlInputStyle userConfig
+            ++ htmlInputStyle theme
         )
         []
         |> Element.html
@@ -679,50 +689,50 @@ timestamp hour minute =
     String.padLeft 2 '0' (String.fromInt hour) ++ ":" ++ String.padLeft 2 '0' (String.fromInt minute)
 
 
-formLabelAbove : UserConfig -> String -> Element.Input.Label msg
-formLabelAbove userConfig labelText =
+formLabelAbove : Theme -> String -> Element.Input.Label msg
+formLabelAbove theme labelText =
     Element.Input.labelAbove
         [ Element.paddingEach { top = 0, right = 0, bottom = 5, left = 0 }
         , Element.Font.medium
         , Element.Font.size 13
-        , Element.Font.color userConfig.textInputHeading
+        , Element.Font.color theme.textInputHeading
         ]
         (Element.paragraph [] [ Element.text labelText ])
 
 
-formLabelAboveEl : UserConfig -> String -> Element msg
-formLabelAboveEl userConfig labelText =
+formLabelAboveEl : Theme -> String -> Element msg
+formLabelAboveEl theme labelText =
     Element.el
         [ Element.paddingEach { top = 0, right = 0, bottom = 5, left = 0 }
         , Element.Font.medium
         , Element.Font.size 13
-        , Element.Font.color userConfig.textInputHeading
+        , Element.Font.color theme.textInputHeading
         ]
         (Element.paragraph [] [ Element.text labelText ])
 
 
-columnCard : UserConfig -> List (Element msg) -> Element msg
-columnCard userConfig children =
+columnCard : Theme -> List (Element msg) -> Element msg
+columnCard theme children =
     Element.column
         (Element.width Element.fill
             :: Element.spacing 30
-            :: cardAttributes userConfig
+            :: cardAttributes theme
         )
         children
 
 
-cardAttributes : UserConfig -> List (Element.Attribute msg)
-cardAttributes userConfig =
+cardAttributes : Theme -> List (Attribute msg)
+cardAttributes theme =
     [ Element.Border.rounded 4
     , Element.padding 15
     , Element.Border.width 1
-    , Element.Border.color userConfig.grey
-    , Element.Border.shadow { offset = ( 0, 3 ), size = -1, blur = 3, color = userConfig.grey }
+    , Element.Border.color theme.grey
+    , Element.Border.shadow { offset = ( 0, 3 ), size = -1, blur = 3, color = theme.grey }
     ]
 
 
-loadingView : Element msg
-loadingView =
+loadingView : Texts -> Element msg
+loadingView texts =
     Element.el
         [ Element.Font.size 20
         , Element.centerX
@@ -730,26 +740,36 @@ loadingView =
         , Element.htmlAttribute (Html.Attributes.style "animation-name" "fade-in")
         , Element.htmlAttribute (Html.Attributes.style "animation-duration" "1s")
         ]
-        (Element.text "Loading")
+        (Element.text texts.loading)
 
 
-loadingError : UserConfig -> String -> Element msg
-loadingError userConfig text =
+loadingError : Theme -> String -> Element msg
+loadingError theme text_ =
     Element.el
         [ Element.Font.size 20
         , Element.centerX
         , Element.centerY
-        , Element.Font.color userConfig.error
+        , Element.Font.color theme.error
         ]
-        (Element.text text)
+        (Element.text text_)
 
 
-htmlInputStyle : UserConfig -> List (Html.Attribute msg)
-htmlInputStyle userConfig =
-    [ Html.Attributes.style "border-color" (Colors.toCssString userConfig.darkGrey)
+htmlInputStyle : Theme -> List (Html.Attribute msg)
+htmlInputStyle theme =
+    [ Html.Attributes.style "border-color" (Colors.toCssString theme.darkGrey)
     , Html.Attributes.style "border-width" "1px"
     , Html.Attributes.style "border-style" "solid"
     , Html.Attributes.style "border-radius" "4px"
-    , Html.Attributes.style "background-color" (Colors.toCssString userConfig.background)
-    , Html.Attributes.style "color" (Colors.toCssString userConfig.defaultText)
+    , Html.Attributes.style "background-color" (Colors.toCssString theme.background)
+    , Html.Attributes.style "color" (Colors.toCssString theme.defaultText)
     ]
+
+
+attributeNone : Attribute msg
+attributeNone =
+    Element.htmlAttribute (Html.Attributes.style "none" "none")
+
+
+greedyOnClick : msg -> Attribute msg
+greedyOnClick msg =
+    Element.htmlAttribute (Html.Events.custom "click" (Json.Decode.succeed { message = msg, preventDefault = True, stopPropagation = True }))

@@ -6,13 +6,14 @@ import Expect
 import Test exposing (..)
 import Tests
 import Unsafe
+import UserConfig
 
 
 tests =
     describe "Event duration tests"
         [ test "toString" <|
             \_ ->
-                EventDuration.toString (Unsafe.eventDuration (5 * 60))
+                EventDuration.toString UserConfig.englishTexts (Unsafe.eventDuration (5 * 60))
                     |> Expect.equal "5\u{00A0}hours"
         ]
 

@@ -59,9 +59,7 @@
         }
     },
     "test-dependencies": {
-        "direct": {},
-        "indirect": {
-            "elm-community/basics-extra": "4.1.0"
-        }
+      "direct": {},
+      "indirect": {}
     }
 }

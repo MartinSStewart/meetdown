@@ -838,7 +838,7 @@ tests =
     , let
         connectAndLogin count =
             TF.connectFrontend
-                (Lamdera.sessionIdFromString <| "session " ++ String.fromInt count)
+                (Lamdera.sessionIdFromString ("session " ++ String.fromInt count))
                 (Unsafe.url Env.domain)
                 windowSize
                 (\( state, client ) ->

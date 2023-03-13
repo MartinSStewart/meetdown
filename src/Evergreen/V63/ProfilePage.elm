@@ -12,7 +12,7 @@ import Evergreen.V63.Untrusted
 
 type Editable a
     = Unchanged
-    | Editting a
+    | Editing a
 
 
 type alias Form =

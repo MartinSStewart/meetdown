@@ -11,7 +11,6 @@ when inside the directory containing this file.
 
 -}
 
-import NoUnused.CustomTypeConstructorArgs
 import NoUnused.CustomTypeConstructors
 import NoUnused.Dependencies
 import NoUnused.Exports
@@ -20,6 +19,8 @@ import NoUnused.Parameters
 import NoUnused.Patterns
 import NoUnused.Variables
 import Review.Rule exposing (Rule)
+import ReviewPipelineStyles
+import ReviewPipelineStyles.Fixes
 
 
 config : List Rule
@@ -31,6 +32,15 @@ config =
     , NoUnused.Exports.rule
     , NoUnused.Modules.rule
     , NoUnused.Parameters.rule
+    , ReviewPipelineStyles.rule
+        [ ReviewPipelineStyles.forbid ReviewPipelineStyles.leftPizzaPipelines
+            |> ReviewPipelineStyles.andTryToFixThemBy ReviewPipelineStyles.Fixes.convertingToParentheticalApplication
+            |> ReviewPipelineStyles.andCallThem "forbidden <| pipeline"
+        , ReviewPipelineStyles.forbid ReviewPipelineStyles.leftCompositionPipelines
+            |> ReviewPipelineStyles.andTryToFixThemBy ReviewPipelineStyles.Fixes.convertingToRightComposition
+            |> ReviewPipelineStyles.andCallThem "forbidden << composition"
+        ]
+        |> Review.Rule.ignoreErrorsForDirectories [ "tests" ]
     ]
         |> List.map (Review.Rule.ignoreErrorsForDirectories [ "src/Evergreen", "justinmimbs", "send-grid" ])
         |> List.map (Review.Rule.ignoreErrorsForFiles [ "src/Postmark.elm", "src/Unsafe.elm" ])

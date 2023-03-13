@@ -16,11 +16,10 @@ import AssocList as Dict exposing (Dict)
 import AssocSet as Set
 import Browser exposing (UrlRequest(..))
 import Cache exposing (Cache(..))
-import Colors exposing (UserConfig)
 import CreateGroupPage
 import DictExtra as Dict
 import Duration
-import Effect.Browser.Dom as Dom
+import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Effect.Browser.Events as BrowserEvents
 import Effect.Browser.Navigation as BrowserNavigation exposing (Key)
 import Effect.Command as Command exposing (Command, FrontendOnly)
@@ -28,9 +27,10 @@ import Effect.Lamdera
 import Effect.Subscription as Subscription exposing (Subscription)
 import Effect.Task as Task
 import Effect.Time as Time
-import Element exposing (Element)
+import Element exposing (Color, Element)
 import Element.Background
 import Element.Border
+import Element.Events
 import Element.Font
 import Element.Input
 import Element.Region
@@ -57,6 +57,7 @@ import Types exposing (..)
 import Ui
 import Untrusted
 import Url exposing (Url)
+import UserConfig exposing (Theme, UserConfig)
 import UserPage
 
 
@@ -91,6 +92,7 @@ subscriptions model =
         , BrowserEvents.onResize GotWindowSize
         , Time.every Duration.minute GotTime
         , Ports.gotPrefersDarkTheme GotPrefersDarkTheme
+        , Ports.gotLanguage GotLanguage
         ]
 
 
@@ -104,7 +106,7 @@ onUrlChange =
     UrlChanged
 
 
-init : Url -> Key -> ( FrontendModel, Command FrontendOnly ToBackend FrontendMsg )
+init : Url -> Key -> ( FrontendModel, Command FrontendOnly toMsg FrontendMsg )
 init url key =
     let
         ( route, token ) =
@@ -126,6 +128,7 @@ init url key =
                 (\{ scene } -> GotWindowSize (round scene.width) (round scene.height))
         , TimeZone.getZone |> Task.attempt GotTimeZone
         , Ports.getPrefersDarkTheme
+        , Ports.getLanguage
         ]
     )
 
@@ -178,7 +181,8 @@ initLoadedFrontend navigationKey windowWidth windowHeight theme route maybeLogin
             , windowWidth = windowWidth
             , windowHeight = windowHeight
             , groupPage = Dict.empty
-            , theme = theme
+            , loadedUserConfig = { theme = theme, language = English }
+            , miniLanguageSelectorOpened = False
             }
 
         ( model2, cmd ) =
@@ -353,17 +357,22 @@ checkAdminState model =
             ( model, Command.none )
 
 
+navigationReplaceRoute : Key -> Route -> Command FrontendOnly toMsg msg
 navigationReplaceRoute navKey route =
     Route.encode route |> BrowserNavigation.replaceUrl navKey
 
 
+navigationPushRoute : Key -> Route -> Command FrontendOnly toMsg msg
 navigationPushRoute navKey route =
     Route.encode route |> BrowserNavigation.pushUrl navKey
 
 
 updateLoaded : FrontendMsg -> LoadedFrontend -> ( LoadedFrontend, Command FrontendOnly ToBackend FrontendMsg )
-updateLoaded msg model =
+updateLoaded msg ({ loadedUserConfig } as model) =
     case msg of
+        NoOpFrontendMsg ->
+            ( model, Command.none )
+
         UrlClicked urlRequest ->
             case urlRequest of
                 Internal url ->
@@ -500,6 +509,7 @@ updateLoaded msg model =
                             let
                                 ( newModel, effects, { joinEvent, requestUserData } ) =
                                     GroupPage.update
+                                        (loadedUserConfigToUserConfig loadedUserConfig).texts
                                         model
                                         group
                                         (case model.loginStatus of
@@ -609,28 +619,56 @@ updateLoaded msg model =
         PressedThemeToggle ->
             let
                 newTheme =
-                    case model.theme of
+                    case loadedUserConfig.theme of
                         LightTheme ->
                             DarkTheme
 
                         DarkTheme ->
                             LightTheme
             in
-            ( { model | theme = newTheme }
+            ( { model | loadedUserConfig = { loadedUserConfig | theme = newTheme } }
             , Ports.setPrefersDarkTheme (newTheme == DarkTheme)
             )
 
         GotPrefersDarkTheme prefersDarkTheme ->
             ( { model
-                | theme =
-                    if prefersDarkTheme then
-                        DarkTheme
+                | loadedUserConfig =
+                    { loadedUserConfig
+                        | theme =
+                            if prefersDarkTheme then
+                                DarkTheme
 
-                    else
-                        LightTheme
+                            else
+                                LightTheme
+                    }
               }
             , Command.none
             )
+
+        LanguageSelected language ->
+            ( { model | miniLanguageSelectorOpened = False, loadedUserConfig = { loadedUserConfig | language = language } }
+            , Ports.setLanguage (languageToString language)
+            )
+
+        GotLanguage language ->
+            case languageFromString language of
+                Just languageStr ->
+                    ( { model
+                        | loadedUserConfig =
+                            { loadedUserConfig
+                                | language = languageStr
+                            }
+                      }
+                    , Command.none
+                    )
+
+                Nothing ->
+                    ( model
+                    , Command.none
+                    )
+
+        ToggleLanguageSelect ->
+            ( { model | miniLanguageSelectorOpened = not model.miniLanguageSelectorOpened }, Command.none )
 
 
 closeLoginForm : LoadedFrontend -> LoadedFrontend
@@ -1150,6 +1188,36 @@ updateLoadedFromBackend msg model =
             )
 
 
+loadedUserConfigToUserConfig : LoadedUserConfig -> UserConfig
+loadedUserConfigToUserConfig config =
+    { theme = loadedColorThemeToColorTheme config.theme
+    , texts = loadedLanguageToLanguage config.language
+    }
+
+
+loadedColorThemeToColorTheme : ColorTheme -> UserConfig.Theme
+loadedColorThemeToColorTheme theme =
+    case theme of
+        LightTheme ->
+            UserConfig.lightTheme
+
+        DarkTheme ->
+            UserConfig.darkTheme
+
+
+loadedLanguageToLanguage : Language -> UserConfig.Texts
+loadedLanguageToLanguage language =
+    case language of
+        English ->
+            UserConfig.englishTexts
+
+        French ->
+            UserConfig.frenchTexts
+
+        Spanish ->
+            UserConfig.spanishTexts
+
+
 view : FrontendModel -> Browser.Document FrontendMsg
 view model =
     let
@@ -1157,23 +1225,18 @@ view model =
         userConfig =
             case model of
                 Loading _ ->
-                    Colors.lightTheme
+                    UserConfig.default
 
                 Loaded loaded ->
-                    case loaded.theme of
-                        LightTheme ->
-                            Colors.lightTheme
-
-                        DarkTheme ->
-                            Colors.darkTheme
+                    loadedUserConfigToUserConfig loaded.loadedUserConfig
     in
     { title = "Meetdown"
     , body =
-        [ Ui.css userConfig
+        [ Ui.css userConfig.theme
         , Element.layout
             [ Ui.defaultFontSize
             , Ui.defaultFont
-            , Ui.defaultFontColor userConfig
+            , Ui.defaultFontColor userConfig.theme
             ]
             (case model of
                 Loading _ ->
@@ -1193,69 +1256,79 @@ isMobile { windowWidth } =
 
 viewLoaded : UserConfig -> LoadedFrontend -> Element FrontendMsg
 viewLoaded userConfig model =
-    Element.column
+    Element.el
         [ Element.width Element.fill
         , Element.height Element.fill
+        , if model.miniLanguageSelectorOpened then
+            Element.Events.onClick ToggleLanguageSelect
+
+          else
+            Ui.attributeNone
         ]
-        [ case model.loginStatus of
-            LoginStatusPending ->
-                Element.none
-
-            LoggedIn loggedIn ->
-                if ProfilePage.imageEditorIsActive loggedIn.profileForm then
-                    Element.none
-
-                else
-                    header userConfig (Just loggedIn) model
-
-            NotLoggedIn _ ->
-                header userConfig Nothing model
-        , Element.el
-            [ Element.Region.mainContent
-            , Element.width Element.fill
+        (Element.column
+            [ Element.width Element.fill
             , Element.height Element.fill
             ]
-            (if model.hasLoginTokenError then
-                Element.column
-                    (Element.centerY :: Ui.pageContentAttributes ++ [ Element.spacing 16 ])
-                    [ Element.paragraph
-                        [ Element.Font.center ]
-                        [ Element.text "The link you used is either invalid or has expired." ]
-                    , Element.el
-                        [ Element.centerX ]
-                        (Ui.linkButton userConfig { route = Route.HomepageRoute, label = "Go to homepage" })
-                    ]
-
-             else
-                case model.loginStatus of
-                    NotLoggedIn { showLogin, joiningEvent } ->
-                        if showLogin then
-                            LoginForm.view userConfig joiningEvent model.cachedGroups model.loginForm
-
-                        else
-                            viewPage userConfig model
-
-                    LoggedIn _ ->
-                        viewPage userConfig model
-
-                    LoginStatusPending ->
-                        Element.none
-            )
-        , footer
-            userConfig
-            (isMobile model)
-            model.route
-            (case model.loginStatus of
-                LoggedIn loggedIn ->
-                    Just loggedIn
-
+            [ case model.loginStatus of
                 LoginStatusPending ->
-                    Nothing
+                    Element.none
+
+                LoggedIn loggedIn ->
+                    if ProfilePage.imageEditorIsActive loggedIn.profileForm then
+                        Element.none
+
+                    else
+                        header userConfig (Just loggedIn) model
 
                 NotLoggedIn _ ->
-                    Nothing
-            )
-        ]
+                    header userConfig Nothing model
+            , Element.el
+                [ Element.Region.mainContent
+                , Element.width Element.fill
+                , Element.height Element.fill
+                ]
+                (if model.hasLoginTokenError then
+                    Element.column
+                        (Element.centerY :: Ui.pageContentAttributes ++ [ Element.spacing 16 ])
+                        [ Element.paragraph
+                            [ Element.Font.center ]
+                            [ Element.text userConfig.texts.theLinkYouUsedIsEitherInvalidOrHasExpired ]
+                        , Element.el
+                            [ Element.centerX ]
+                            (Ui.linkButton userConfig.theme { route = Route.HomepageRoute, label = userConfig.texts.goToHomepage })
+                        ]
+
+                 else
+                    case model.loginStatus of
+                        NotLoggedIn { showLogin, joiningEvent } ->
+                            if showLogin then
+                                LoginForm.view userConfig joiningEvent model.cachedGroups model.loginForm
+
+                            else
+                                viewPage userConfig model
+
+                        LoggedIn _ ->
+                            viewPage userConfig model
+
+                        LoginStatusPending ->
+                            Element.none
+                )
+            , footer
+                userConfig
+                (isMobile model)
+                model.route
+                (case model.loginStatus of
+                    LoggedIn loggedIn ->
+                        Just loggedIn
+
+                    LoginStatusPending ->
+                        Nothing
+
+                    NotLoggedIn _ ->
+                        Nothing
+                )
+            ]
+        )
 
 
 loginRequiredPage : UserConfig -> LoadedFrontend -> (LoggedIn_ -> Element FrontendMsg) -> Element FrontendMsg
@@ -1282,22 +1355,23 @@ getCachedUser userId loadedFrontend =
 
 
 viewPage : UserConfig -> LoadedFrontend -> Element FrontendMsg
-viewPage userConfig model =
+viewPage ({ theme, texts } as userConfig) model =
     case model.route of
         HomepageRoute ->
             Element.column
                 [ Element.padding 8, Element.width Element.fill, Element.spacing 30 ]
-                [ Element.el [ Element.paddingEach { top = 40, right = 0, bottom = 20, left = 0 }, Element.centerX ] <|
-                    Element.image
-                        [ Element.width <| (Element.fill |> Element.maximum 650) ]
-                        { src = userConfig.heroSvg, description = "Two people on a video conference" }
+                [ Element.el [ Element.paddingEach { top = 40, right = 0, bottom = 20, left = 0 }, Element.centerX ]
+                    (Element.image
+                        [ Element.width (Element.fill |> Element.maximum 650) ]
+                        { src = theme.heroSvg, description = texts.twoPeopleOnAVideoConference }
+                    )
                 , Element.paragraph
                     [ Element.Font.center ]
-                    [ Element.text "A place to join groups of people with shared interests." ]
+                    [ Element.text texts.aPlaceToJoinGroupsOfPeopleWithSharedInterests ]
                 , Element.paragraph
                     [ Element.Font.center ]
-                    [ Element.text " We don't sell your data, we don't show ads, and it's free. "
-                    , Ui.routeLink userConfig Route.FrequentQuestionsRoute "Read more"
+                    [ Element.text (texts.weDontSellYourDataWeDontShowAdsAndItsFree ++ " ")
+                    , Ui.routeLink theme Route.FrequentQuestionsRoute texts.readMore
                     ]
                 , searchInputLarge userConfig model.searchText
                 ]
@@ -1333,13 +1407,13 @@ viewPage userConfig model =
                                 |> Element.map GroupPageMsg
 
                         Nothing ->
-                            Ui.loadingView
+                            Ui.loadingView texts
 
                 Just ItemDoesNotExist ->
-                    Ui.loadingError userConfig "Group not found"
+                    Ui.loadingError theme texts.groupNotFound
 
                 Just ItemRequestPending ->
-                    Ui.loadingView
+                    Ui.loadingView texts
 
                 Nothing ->
                     Element.none
@@ -1358,7 +1432,7 @@ viewPage userConfig model =
                                 |> Element.map CreateGroupPageMsg
 
                         Nothing ->
-                            Ui.loadingView
+                            Ui.loadingView texts
                 )
 
         MyGroupsRoute ->
@@ -1383,13 +1457,13 @@ viewPage userConfig model =
                                 |> Element.map ProfileFormMsg
 
                         Just ItemRequestPending ->
-                            Ui.loadingView
+                            Ui.loadingView texts
 
                         Just ItemDoesNotExist ->
-                            Ui.loadingError userConfig "User not found"
+                            Ui.loadingError theme texts.userNotFound
 
                         Nothing ->
-                            Ui.loadingError userConfig "User not found"
+                            Ui.loadingError theme texts.userNotFound
                 )
 
         SearchGroupsRoute searchText ->
@@ -1401,7 +1475,7 @@ viewPage userConfig model =
                     UserPage.view userConfig user
 
                 Nothing ->
-                    Ui.loadingView
+                    Ui.loadingView texts
 
         PrivacyRoute ->
             Privacy.view userConfig
@@ -1412,24 +1486,20 @@ viewPage userConfig model =
         CodeOfConductRoute ->
             Element.column
                 (Ui.pageContentAttributes ++ [ Element.spacing 28 ])
-                [ Ui.title "Code of conduct"
+                [ Ui.title texts.codeOfConduct
                 , Element.paragraph []
-                    [ Element.text "The most important rule is, "
-                    , Element.el [ Element.Font.bold ] (Element.text "don't be a jerk")
+                    [ Element.text (texts.theMostImportantRuleIs ++ ", ")
+                    , Element.el [ Element.Font.bold ] (Element.text texts.dontBeAJerk)
                     , Element.text "."
                     ]
-                , Element.paragraph [] [ Element.text "Here is some guidance in order to fulfill the \"don't be a jerk\" rule:" ]
-                , Element.paragraph [] [ Element.text "• Respect people regardless of their race, gender, sexual identity, nationality, appearance, or related characteristics." ]
+                , Element.paragraph [] [ Element.text texts.codeOfConduct1 ]
+                , Element.paragraph [] [ Element.text texts.codeOfConduct2 ]
+                , Element.paragraph [] [ Element.text texts.codeOfConduct3 ]
+                , Element.paragraph [] [ Element.text texts.codeOfConduct4 ]
                 , Element.paragraph
                     []
-                    [ Element.text "• Be respectful to the group organizer. They put in the time to coordinate an event and they are willing to invite strangers. Don't betray their trust in you!" ]
-                , Element.paragraph
-                    []
-                    [ Element.text "• To group organizers: Make people feel included. It's hard for people to participate if they feel like an outsider." ]
-                , Element.paragraph
-                    []
-                    [ Element.text "• If someone is being a jerk that is not an excuse to be a jerk back. Ask them to stop, and if that doesn't work, avoid them and explain the problem here "
-                    , Ui.mailToLink userConfig Env.contactEmailAddress (Just "Moderation help request")
+                    [ Element.text texts.codeOfConduct5
+                    , Ui.mailToLink theme Env.contactEmailAddress (Just texts.moderationHelpRequest)
                     , Element.text "."
                     ]
                 ]
@@ -1446,28 +1516,30 @@ viewPage userConfig model =
             in
             Element.column
                 (Ui.pageContentAttributes ++ [ Element.spacing 28 ])
-                [ Ui.title "Frequently asked questions"
-                , questionAndAnswer "Who is behind all this?"
-                    [ Element.text "It is I, "
-                    , Ui.externalLink userConfig "https://github.com/MartinSStewart/" "Martin"
-                    , Element.text ". Credit goes to "
-                    , Ui.externalLink userConfig "https://twitter.com/realmario" "Mario Rogic"
-                    , Element.text " for helping me out with parts of the app."
+                [ Ui.title texts.frequentQuestions
+                , questionAndAnswer
+                    texts.faqQuestion1
+                    [ Element.text texts.isItI
+                    , Ui.externalLink theme "https://github.com/MartinSStewart/" "Martin"
+                    , Element.text texts.creditGoesTo
+                    , Ui.externalLink theme "https://twitter.com/realmario" "Mario Rogic"
+                    , Element.text texts.forHelpingMeOutWithPartsOfTheApp
                     ]
                 , questionAndAnswer
-                    "Why was this website made?"
-                    [ Element.text "I dislike that meetup.com charges money, spams me with emails, and feels bloated. Also I wanted to try making something more substantial using "
-                    , Ui.externalLink userConfig "https://www.lamdera.com/" "Lamdera"
-                    , Element.text " to see if it's feasible to use at work."
+                    texts.faqQuestion2
+                    [ Element.text texts.faq1
+                    , Ui.externalLink theme "https://www.lamdera.com/" "Lamdera"
+                    , Element.text texts.faq2
                     ]
                 , questionAndAnswer
-                    "If this website is free and doesn't run ads or sell data, how does it sustain itself?"
-                    [ Element.text "I just spend my own money to host it. That's okay because it's designed to cost very little to run. In the unlikely event that Meetdown gets very popular and hosting costs become too expensive, I'll ask for donations." ]
+                    texts.faqQuestion3
+                    [ Element.text texts.faq3
+                    ]
                 ]
 
 
 myGroupsView : UserConfig -> LoadedFrontend -> LoggedIn_ -> Element FrontendMsg
-myGroupsView userConfig model loggedIn =
+myGroupsView ({ texts } as userConfig) model loggedIn =
     case loggedIn.myGroups of
         Just myGroups ->
             let
@@ -1481,14 +1553,14 @@ myGroupsView userConfig model loggedIn =
             in
             Element.column
                 Ui.pageContentAttributes
-                [ Ui.title "My groups"
+                [ Ui.title texts.myGroups
                 , if List.isEmpty myGroupsList && Set.isEmpty loggedIn.subscribedGroups then
                     Element.paragraph
                         []
-                        [ Element.text "You don't have any groups. Get started by "
-                        , Ui.routeLink userConfig CreateGroupRoute "creating one"
-                        , Element.text " or "
-                        , Ui.routeLink userConfig (SearchGroupsRoute "") "subscribing to one."
+                        [ Element.text texts.noGroupsYet
+                        , Ui.routeLink userConfig.theme CreateGroupRoute texts.creatingOne
+                        , Element.text texts.or
+                        , Ui.routeLink userConfig.theme (SearchGroupsRoute "") texts.subscribingToOne
                         ]
 
                   else
@@ -1496,20 +1568,20 @@ myGroupsView userConfig model loggedIn =
                         [ Element.width Element.fill, Element.spacing 32 ]
                         [ if List.isEmpty myGroupsList then
                             Element.paragraph []
-                                [ Element.text "You haven't created any groups. "
-                                , Ui.routeLink userConfig CreateGroupRoute "You can do that here."
+                                [ Element.text texts.youHavenTCreatedAnyGroupsYet
+                                , Ui.routeLink userConfig.theme CreateGroupRoute texts.youCanDoThatHere
                                 ]
 
                           else
                             Element.column [ Element.spacing 8, Element.width Element.fill ] myGroupsList
                         , Element.column
                             [ Element.width Element.fill, Element.spacing 20 ]
-                            [ Ui.title "Subscribed groups"
+                            [ Ui.title texts.subscribedGroups
                             , if Set.isEmpty loggedIn.subscribedGroups then
                                 Element.paragraph []
-                                    [ "You haven't subscribed to any groups. You can do that by pressing the \""
-                                        ++ GroupPage.notifyMeOfNewEvents
-                                        ++ "\" button on a group page."
+                                    [ texts.group1
+                                        ++ texts.notifyMeOfNewEvents
+                                        ++ texts.buttonOnAGroupPage
                                         |> Element.text
                                     ]
 
@@ -1525,163 +1597,169 @@ myGroupsView userConfig model loggedIn =
                 ]
 
         Nothing ->
-            Ui.loadingView
+            Ui.loadingView texts
 
 
 searchInput : UserConfig -> String -> Element FrontendMsg
-searchInput userConfig searchText =
+searchInput { theme, texts } searchText =
     Element.Input.text
-        [ Element.width (Element.maximum 400 Element.fill)
+        [ Element.width (Element.maximum 400 (Element.minimum 100 Element.fill))
         , Element.Border.rounded 5
-        , Element.Border.color userConfig.darkGrey
+        , Element.Border.color theme.darkGrey
         , Element.paddingEach { left = 24, right = 8, top = 4, bottom = 4 }
-        , Element.Background.color userConfig.background
+        , Element.Background.color theme.background
         , Ui.onEnter SubmittedSearchBox
         , Dom.idToAttribute groupSearchId |> Element.htmlAttribute
-        , Element.inFront
-            (Element.el
-                [ Element.Font.size 12
-                , Element.moveDown 6
-                , Element.moveRight 4
-                , Element.alpha 0.8
-                , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
-                ]
-                (Element.text "🔍")
-            )
+        , Element.el
+            [ Element.Font.size 12
+            , Element.moveDown 6
+            , Element.moveRight 4
+            , Element.alpha 0.8
+            , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
+            ]
+            (Element.text "🔍")
+            |> Element.inFront
         ]
         { text = searchText
         , onChange = TypedSearchText
         , placeholder = Nothing
-        , label = Element.Input.labelHidden "Search for groups"
+        , label = Element.Input.labelHidden texts.searchForGroups
         }
 
 
 searchInputLarge : UserConfig -> String -> Element FrontendMsg
-searchInputLarge userConfig searchText =
+searchInputLarge { theme, texts } searchText =
     Element.row
-        [ Element.width <| Element.maximum 400 Element.fill
+        [ Element.width (Element.maximum 400 Element.fill)
         , Element.centerX
         ]
         [ Element.Input.text
             [ Element.Border.roundEach { topLeft = 5, bottomLeft = 5, bottomRight = 0, topRight = 0 }
-            , Element.Border.color userConfig.darkGrey
+            , Element.Border.color theme.darkGrey
             , Element.Border.widthEach { bottom = 1, left = 1, right = 0, top = 1 }
             , Element.paddingEach { left = 30, right = 8, top = 8, bottom = 8 }
             , Ui.onEnter SubmittedSearchBox
-            , Element.Background.color userConfig.background
+            , Element.Background.color theme.background
             , Dom.idToAttribute groupSearchLargeId |> Element.htmlAttribute
-            , Element.inFront
-                (Element.el
-                    [ Element.Font.size 14
-                    , Element.moveDown 9
-                    , Element.moveRight 6
-                    , Element.alpha 0.8
-                    , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
-                    ]
-                    (Element.text "🔍")
-                )
+            , Element.el
+                [ Element.Font.size 14
+                , Element.moveDown 9
+                , Element.moveRight 6
+                , Element.alpha 0.8
+                , Element.htmlAttribute (Html.Attributes.style "pointer-events" "none")
+                ]
+                (Element.text "🔍")
+                |> Element.inFront
             ]
             { text = searchText
             , onChange = TypedSearchText
             , placeholder = Nothing
-            , label = Element.Input.labelHidden "Search for groups"
+            , label = Element.Input.labelHidden texts.searchForGroups
             }
         , Element.Input.button
-            [ Element.Background.color userConfig.submit
+            [ Element.Background.color theme.submit
             , Element.Border.roundEach { topLeft = 0, bottomLeft = 0, bottomRight = 5, topRight = 5 }
             , Element.height Element.fill
-            , Element.Font.color userConfig.invertedText
+            , Element.Font.color theme.invertedText
             , Element.paddingXY 16 0
             ]
             { onPress = Just SubmittedSearchBox
-            , label = Element.text "Search"
+            , label = Element.text texts.search
             }
         ]
 
 
-adminStatusColor userConfig maybeLoggedIn =
+adminStatusColor : Theme -> Maybe LoggedIn_ -> Color
+adminStatusColor theme maybeLoggedIn =
     case Maybe.map .adminStatus maybeLoggedIn of
         Just IsNotAdmin ->
             if Env.isProduction then
-                userConfig.grey
+                theme.grey
 
             else
-                userConfig.submit
+                theme.submit
 
         Just IsAdminButDisabled ->
             if Env.isProduction then
-                userConfig.grey
+                theme.grey
 
             else
-                userConfig.submit
+                theme.submit
 
         Just IsAdminAndEnabled ->
             if Env.isProduction then
-                userConfig.error
+                theme.error
 
             else
-                userConfig.submit
+                theme.submit
 
         Nothing ->
             if Env.isProduction then
-                userConfig.grey
+                theme.grey
 
             else
-                userConfig.submit
+                theme.submit
 
 
 header : UserConfig -> Maybe LoggedIn_ -> LoadedFrontend -> Element FrontendMsg
-header userConfig maybeLoggedIn model =
+header ({ theme, texts } as userConfig) maybeLoggedIn model =
     let
         isMobile_ =
             isMobile model
     in
-    Element.column [ Element.width Element.fill, Element.spacing 10, Element.padding 10 ]
-        [ Element.row
+    Element.column
+        [ Element.width Element.fill, Element.spacing 10, Element.padding 10 ]
+        [ Element.wrappedRow
             [ Element.width Element.fill
             , Element.paddingEach { left = 4, right = 0, top = 0, bottom = 0 }
             , Element.Region.navigation
             , Element.spacing 8
             ]
-            [ if isMobile_ then
+            ([ if isMobile_ then
                 Element.none
 
-              else
+               else
                 Element.link [ Element.paddingEach { left = 0, right = 10, top = 0, bottom = 0 } ]
                     { url = "/"
                     , label =
                         Element.row [ Element.spacing 10 ]
                             [ Element.image
-                                [ Element.width <| Element.px 30 ]
+                                [ Element.width (Element.px 30) ]
                                 { src = "/meetdown-logo.png", description = "Meetdown logo" }
                             , Element.text "Meetdown"
                             ]
                     }
-            , searchInput userConfig model.searchText
-            , Element.row
-                [ Element.alignRight ]
-                (case maybeLoggedIn of
-                    Just loggedIn ->
-                        headerButtons userConfig isMobile_ (loggedIn.adminStatus /= IsNotAdmin) model.route
-                            ++ [ Ui.headerButton isMobile_
-                                    logOutButtonId
-                                    { onPress = PressedLogout
-                                    , label = "Logout"
-                                    }
-                               , themeToggleButton isMobile_ model
-                               ]
+             , searchInput userConfig model.searchText
+             ]
+                ++ (case maybeLoggedIn of
+                        Just loggedIn ->
+                            headerButtons userConfig isMobile_ (loggedIn.adminStatus /= IsNotAdmin) model.route
+                                ++ [ Ui.headerButton
+                                        isMobile_
+                                        logOutButtonId
+                                        { onPress = PressedLogout, label = texts.logout }
+                                   , languageButton
+                                        theme
+                                        isMobile_
+                                        model.miniLanguageSelectorOpened
+                                        model.loadedUserConfig.language
+                                   , themeToggleButton isMobile_ model.loadedUserConfig.theme
+                                   ]
 
-                    Nothing ->
-                        [ Ui.headerButton
-                            isMobile_
-                            signUpOrLoginButtonId
-                            { onPress = PressedLogin
-                            , label = "Sign up / Login"
-                            }
-                        , themeToggleButton isMobile_ model
-                        ]
-                )
-            ]
+                        Nothing ->
+                            [ Ui.headerButton
+                                isMobile_
+                                signUpOrLoginButtonId
+                                { onPress = PressedLogin, label = texts.login }
+                            , languageButton
+                                theme
+                                isMobile_
+                                model.miniLanguageSelectorOpened
+                                model.loadedUserConfig.language
+                            , themeToggleButton isMobile_ model.loadedUserConfig.theme
+                            ]
+                   )
+            )
         , largeLine userConfig maybeLoggedIn
         ]
 
@@ -1691,13 +1769,14 @@ themeToggleButtonId =
     Dom.id "header_themeToggleButton"
 
 
-themeToggleButton isMobile_ model =
+themeToggleButton : Bool -> ColorTheme -> Element FrontendMsg
+themeToggleButton isMobile_ theme =
     Ui.headerButton
         isMobile_
         themeToggleButtonId
         { onPress = PressedThemeToggle
         , label =
-            case model.theme of
+            case theme of
                 LightTheme ->
                     "🌙"
 
@@ -1706,10 +1785,129 @@ themeToggleButton isMobile_ model =
         }
 
 
+languageToFlag : Language -> String
+languageToFlag language =
+    case language of
+        English ->
+            "🇬🇧"
+
+        French ->
+            "🇫🇷"
+
+        Spanish ->
+            "🇪🇸"
+
+
+languageToString : Language -> String
+languageToString language =
+    case language of
+        English ->
+            "en"
+
+        French ->
+            "fr"
+
+        Spanish ->
+            "es"
+
+
+languageFromString : String -> Maybe Language
+languageFromString string =
+    case string of
+        "en" ->
+            Just English
+
+        "fr" ->
+            Just French
+
+        "es" ->
+            Just Spanish
+
+        _ ->
+            Nothing
+
+
+languageButton : Theme -> Bool -> Bool -> Language -> Element FrontendMsg
+languageButton theme isMobile_ miniLanguageSelectorOpened language =
+    Element.row
+        [ Element.alignRight
+        , if miniLanguageSelectorOpened then
+            Element.below (miniLanguageSelect theme isMobile_ language)
+
+          else
+            Ui.attributeNone
+        , if miniLanguageSelectorOpened then
+            Element.Background.color theme.lightGrey
+
+          else
+            Element.Background.color theme.background
+        , Ui.greedyOnClick NoOpFrontendMsg
+        ]
+        [ Ui.headerButton
+            isMobile_
+            (Dom.id "header_languageButton")
+            { onPress = ToggleLanguageSelect
+            , label = languageToFlag language
+            }
+        ]
+
+
+miniLanguageSelect : Theme -> Bool -> Language -> Element FrontendMsg
+miniLanguageSelect theme isMobile_ language =
+    List.filter ((/=) language) [ English, French, Spanish ]
+        |> List.map (languageOption isMobile_)
+        |> Element.column
+            [ Element.Background.color theme.lightGrey
+            , Element.alignTop
+            , Element.alignRight
+            , Element.Border.shadow { offset = ( 0, 1 ), size = 0, blur = 1, color = Element.rgba 0 0 0 0.1 }
+            ]
+
+
+selectLanguageButtonId : Language -> HtmlId
+selectLanguageButtonId language =
+    "frontend_selectLanguageButton_" ++ languageToString language |> Dom.id
+
+
+languageOption : Bool -> Language -> Element FrontendMsg
+languageOption isMobile_ language =
+    Element.Input.button
+        [ Element.mouseOver [ Element.Background.color (Element.rgba 1 1 1 0.5) ]
+        , if isMobile_ then
+            Element.padding 6
+
+          else
+            Element.padding 8
+        , Element.width Element.fill
+        , Ui.inputFocusClass
+        , Dom.idToAttribute (selectLanguageButtonId language) |> Element.htmlAttribute
+        , if isMobile_ then
+            Element.Font.size 13
+
+          else
+            Element.Font.size 16
+        ]
+        { onPress = Just (LanguageSelected language)
+        , label =
+            (case language of
+                English ->
+                    "English 🇬🇧"
+
+                French ->
+                    "Français 🇫🇷"
+
+                Spanish ->
+                    "Español 🇪🇸"
+            )
+                |> Element.text
+                |> Element.el [ Element.alignRight ]
+        }
+
+
 largeLine : UserConfig -> Maybe LoggedIn_ -> Element msg
 largeLine userConfig maybeLoggedIn =
     Element.row
-        [ Element.Background.color (adminStatusColor userConfig maybeLoggedIn)
+        [ Element.Background.color (adminStatusColor userConfig.theme maybeLoggedIn)
         , Element.width Element.fill
         , Element.height (Element.px 2)
         ]
@@ -1717,71 +1915,51 @@ largeLine userConfig maybeLoggedIn =
 
 
 footer : UserConfig -> Bool -> Route -> Maybe LoggedIn_ -> Element msg
-footer userConfig isMobile_ route maybeLoggedIn =
+footer ({ theme, texts } as userConfig) isMobile_ route maybeLoggedIn =
     Element.column
         [ Element.width Element.fill
         , Element.spacing 8
         , Element.padding 8
         ]
         [ largeLine userConfig maybeLoggedIn
-        , Element.row
+        , Element.wrappedRow
             [ Element.width Element.fill, Element.alignBottom, Element.spacing 8 ]
-            [ Ui.headerLink userConfig isMobile_ (route == PrivacyRoute) { route = PrivacyRoute, label = "Privacy" }
-            , Ui.headerLink userConfig isMobile_ (route == TermsOfServiceRoute) { route = TermsOfServiceRoute, label = "Terms of service" }
-            , Ui.headerLink userConfig isMobile_ (route == CodeOfConductRoute) { route = CodeOfConductRoute, label = "Code of conduct" }
-            , Ui.headerLink userConfig isMobile_ (route == FrequentQuestionsRoute) { route = FrequentQuestionsRoute, label = "FaQ" }
+            [ Ui.headerLink theme isMobile_ (route == PrivacyRoute) { route = PrivacyRoute, label = texts.privacy }
+            , Ui.headerLink theme isMobile_ (route == TermsOfServiceRoute) { route = TermsOfServiceRoute, label = texts.tos }
+            , Ui.headerLink theme isMobile_ (route == CodeOfConductRoute) { route = CodeOfConductRoute, label = texts.codeOfConduct }
+            , Ui.headerLink theme isMobile_ (route == FrequentQuestionsRoute) { route = FrequentQuestionsRoute, label = texts.faq }
             ]
         ]
 
 
 headerButtons : UserConfig -> Bool -> Bool -> Route -> List (Element msg)
-headerButtons userConfig isMobile_ isAdmin route =
+headerButtons { theme, texts } isMobile_ isAdmin route =
     [ if isAdmin then
-        Ui.headerLink
-            userConfig
-            isMobile_
-            (route == AdminRoute)
-            { route = AdminRoute
-            , label = "Admin"
-            }
+        Ui.headerLink theme isMobile_ (route == AdminRoute) { route = AdminRoute, label = "Admin" }
 
       else
         Element.none
-    , Ui.headerLink
-        userConfig
-        isMobile_
-        (route == CreateGroupRoute)
-        { route = CreateGroupRoute
-        , label = "New group"
-        }
-    , Ui.headerLink
-        userConfig
-        isMobile_
-        (route == MyGroupsRoute)
-        { route = MyGroupsRoute
-        , label = "My groups"
-        }
-    , Ui.headerLink
-        userConfig
-        isMobile_
-        (route == MyProfileRoute)
-        { route = MyProfileRoute
-        , label = "Profile"
-        }
+    , Ui.headerLink theme isMobile_ (route == CreateGroupRoute) { route = CreateGroupRoute, label = texts.newGroup }
+    , Ui.headerLink theme isMobile_ (route == MyGroupsRoute) { route = MyGroupsRoute, label = texts.myGroups }
+    , Ui.headerLink theme isMobile_ (route == MyProfileRoute) { route = MyProfileRoute, label = texts.profile }
     ]
 
 
+groupSearchId : HtmlId
 groupSearchId =
     HtmlId.textInputId "headerGroupSearch"
 
 
+groupSearchLargeId : HtmlId
 groupSearchLargeId =
     HtmlId.textInputId "headerGroupSearchLarge"
 
 
+logOutButtonId : HtmlId
 logOutButtonId =
     HtmlId.buttonId "headerLogOut"
 
 
+signUpOrLoginButtonId : HtmlId
 signUpOrLoginButtonId =
     HtmlId.buttonId "headerSignUpOrLogin"
