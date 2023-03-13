@@ -29,8 +29,8 @@ type ToBackend
 
 type Editable validated
     = Unchanged
-    | Editting String
-    | Submitting validated
+    | Editing String
+    | Submiting validated
 
 
 type SubmitStatus error
