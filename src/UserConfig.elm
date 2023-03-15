@@ -738,7 +738,7 @@ frenchTexts =
     , dontBeAJerk = "ne sois pas un.e imbécile"
     , edit = "Modifier"
     , editEvent = "Modifier l'événement"
-    , ended = "Terminé "
+    , ended = "Terminé il y a "
     , endsIn = "Se termine dans "
     , enterYourEmailAddress = "Entre ton adresse email"
     , enterYourEmailFirst = "Entre ton email d'abord"
@@ -865,7 +865,7 @@ frenchTexts =
                     "• Une personne participe"
 
             else if isAttending then
-                "• Tu et " ++ String.fromInt (attendeeCount - 1) ++ " autres personnes participez"
+                "• Toi et " ++ String.fromInt (attendeeCount - 1) ++ " autres personnes participez"
 
             else
                 "• " ++ String.fromInt attendeeCount ++ " personnes participent"
@@ -879,7 +879,7 @@ frenchTexts =
                     "• Une personne a participé"
 
             else if isAttending then
-                "• Tu et " ++ String.fromInt (attendeeCount - 1) ++ " autres personnes avez participé"
+                "• Toi et " ++ String.fromInt (attendeeCount - 1) ++ " autres personnes avez participé"
 
             else
                 "• " ++ String.fromInt attendeeCount ++ " personnes ont participé"
@@ -1570,37 +1570,30 @@ diffToStringFrench start end =
 
         minutes =
             Duration.inMinutes difference |> round
-
-        suffix =
-            if Time.posixToMillis start <= Time.posixToMillis end then
-                ""
-
-            else
-                " ago"
     in
     if months >= 2 then
-        String.fromInt months ++ "\u{00A0}mois" ++ suffix
+        String.fromInt months ++ "\u{00A0}mois"
 
     else if weeks >= 2 then
-        String.fromInt weeks ++ "\u{00A0}semaines" ++ suffix
+        String.fromInt weeks ++ "\u{00A0}semaines"
 
     else if days > 1 then
-        String.fromInt days ++ "\u{00A0}jours" ++ suffix
+        String.fromInt days ++ "\u{00A0}jours"
 
     else if hours > 22 then
         "1\u{00A0}jour"
 
     else if hours > 6 then
-        String.fromInt hours ++ "\u{00A0}heures" ++ suffix
+        String.fromInt hours ++ "\u{00A0}heures"
 
     else if Duration.inHours difference >= 1.2 then
-        removeTrailing0s 1 (Duration.inHours difference) ++ "\u{00A0}heures" ++ suffix
+        removeTrailing0s 1 (Duration.inHours difference) ++ "\u{00A0}heures"
 
     else if minutes > 1 then
-        String.fromInt minutes ++ "\u{00A0}minutes" ++ suffix
+        String.fromInt minutes ++ "\u{00A0}minutes"
 
     else
-        "1\u{00A0}minute" ++ suffix
+        "1\u{00A0}minute"
 
 
 diffToStringSpanish : Time.Posix -> Time.Posix -> String

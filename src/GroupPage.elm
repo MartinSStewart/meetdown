@@ -1792,16 +1792,7 @@ futureEventView ({ theme, texts } as userConfig) isMobile cachedUsers currentTim
                         Element.text texts.onePersonPlansOnAttending
 
                 _ ->
-                    "• "
-                        ++ String.fromInt attendeeCount
-                        ++ " people plan on attending"
-                        ++ (if isAttending then
-                                " (including you)"
-
-                            else
-                                ""
-                           )
-                        |> Element.text
+                    Element.text (texts.peopleAttended attendeeCount isAttending)
             , Element.text " "
             , showAttendeesButton userConfig eventId showAttendees_
             ]
