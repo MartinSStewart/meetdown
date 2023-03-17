@@ -1347,7 +1347,7 @@ groupView ({ theme, texts } as userConfig) isMobile currentTime timezone owner c
             texts.info
             (Element.paragraph
                 [ Element.alignRight ]
-                [ Element.text (texts.thisGroupWasCreatedOn ++ dateToString (Just timezone) (Group.createdAt group)) ]
+                [ Element.text (texts.thisGroupWasCreatedOn ++ dateToString texts (Just timezone) (Group.createdAt group)) ]
             )
         , if canEdit_ then
             Element.el []
@@ -1730,7 +1730,7 @@ eventCardHeader texts isMobile currentTime timezone eventStatus event =
         [ eventTitle event
         , Element.column
             [ Element.spacing 4, Element.alignTop ]
-            [ Ui.datetimeToString timezone (Event.startTime event) |> Element.text
+            [ Ui.datetimeToString texts timezone (Event.startTime event) |> Element.text
             , (case eventStatus of
                 IsOngoingEvent ->
                     texts.endsIn ++ texts.timeDiffToString currentTime (Event.endTime event)
@@ -2650,13 +2650,13 @@ createEventStartTimeId =
     HtmlId.timeInputId "groupPageCreateEventStartTime"
 
 
-dateToString : Maybe Time.Zone -> Time.Posix -> String
-dateToString maybeTimezone posix =
+dateToString : Texts -> Maybe Time.Zone -> Time.Posix -> String
+dateToString texts maybeTimezone posix =
     let
         timezone =
             Maybe.withDefault Time.utc maybeTimezone
     in
-    posix |> Date.fromPosix timezone |> Date.format "MMMM ddd"
+    posix |> Date.fromPosix timezone |> texts.formatDate
 
 
 validateDuration : Texts -> String -> Result String EventDuration
