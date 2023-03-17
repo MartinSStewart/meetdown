@@ -656,13 +656,13 @@ dateInput theme htmlId onChange minDateTime date isDisabled =
         |> Element.el []
 
 
-datetimeToString : Time.Zone -> Time.Posix -> String
-datetimeToString timezone time =
+datetimeToString : Texts -> Time.Zone -> Time.Posix -> String
+datetimeToString texts timezone time =
     let
         offset =
             toFloat (Time.toOffset timezone time) / 60
     in
-    (time |> Date.fromPosix timezone |> Date.format "MMMM ddd")
+    (time |> Date.fromPosix timezone |> texts.formatDate)
         ++ ", "
         ++ timeToString timezone time
         ++ (if offset >= 0 then

@@ -59,14 +59,14 @@ enableAdminId =
 
 
 logView : UserConfig -> Time.Zone -> AdminModel -> Log -> Element msg
-logView userConfig timezone model log =
+logView { theme, texts } timezone model log =
     let
         { message, time, isError } =
             Types.logData model log
     in
     Element.column
         []
-        [ Ui.datetimeToString timezone time |> Ui.formLabelAboveEl userConfig.theme
+        [ Ui.datetimeToString texts timezone time |> Ui.formLabelAboveEl theme
         , Element.paragraph []
             [ if isError then
                 Element.text "🔥 "

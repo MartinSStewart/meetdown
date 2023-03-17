@@ -1,11 +1,12 @@
 module UserConfig exposing (..)
 
 import Colors exposing (fromHex)
+import Date exposing (Date)
 import Duration exposing (Duration)
 import Element exposing (Color)
 import Env
 import Quantity
-import Time
+import Time exposing (Month(..), Weekday(..))
 import TimeExtra exposing (removeTrailing0s)
 
 
@@ -137,6 +138,7 @@ type alias Texts =
     , faqQuestion2 : String
     , faqQuestion3 : String
     , forHelpingMeOutWithPartsOfTheApp : String
+    , formatDate : Date -> String
     , frequentQuestions : String
     , futureEvents : String
     , goToHomepage : String
@@ -345,6 +347,7 @@ englishTexts =
     , faqQuestion2 = "Why was this website made?"
     , faqQuestion3 = "If this website is free and doesn't run ads or sell data, how does it sustain itself?"
     , forHelpingMeOutWithPartsOfTheApp = " for helping me out with parts of the app."
+    , formatDate = Date.format "MMMM ddd"
     , frequentQuestions = "Frequently asked questions"
     , futureEvents = "Future events"
     , goToHomepage = "Go to homepage"
@@ -767,6 +770,90 @@ frenchTexts =
     , faqQuestion2 = "Pourquoi avoir créé ce site web ?"
     , faqQuestion3 = "Si ce site web est gratuit et ne vend pas tes données, comment est-il financé ?"
     , forHelpingMeOutWithPartsOfTheApp = " pour m'avoir aidé avec certaines parties de l'appli."
+    , formatDate =
+        let
+            monthToName : Date.Month -> String
+            monthToName m =
+                case m of
+                    Jan ->
+                        "janvier"
+
+                    Feb ->
+                        "février"
+
+                    Mar ->
+                        "mars"
+
+                    Apr ->
+                        "avril"
+
+                    May ->
+                        "mai"
+
+                    Jun ->
+                        "juin"
+
+                    Jul ->
+                        "juillet"
+
+                    Aug ->
+                        "août"
+
+                    Sep ->
+                        "septembre"
+
+                    Oct ->
+                        "octobre"
+
+                    Nov ->
+                        "novembre"
+
+                    Dec ->
+                        "décembre"
+
+            weekdayToName : Weekday -> String
+            weekdayToName wd =
+                case wd of
+                    Mon ->
+                        "lundi"
+
+                    Tue ->
+                        "mardi"
+
+                    Wed ->
+                        "mercredi"
+
+                    Thu ->
+                        "jeudi"
+
+                    Fri ->
+                        "vendredi"
+
+                    Sat ->
+                        "samedi"
+
+                    Sun ->
+                        "dimanche"
+
+            withOrdinalSuffix : Int -> String
+            withOrdinalSuffix n =
+                case n of
+                    1 ->
+                        "1er"
+
+                    _ ->
+                        String.fromInt n
+
+            dateLanguageFr : Date.Language
+            dateLanguageFr =
+                { monthName = monthToName
+                , monthNameShort = monthToName >> String.left 3
+                , weekdayName = weekdayToName
+                , weekdayNameShort = weekdayToName >> String.left 3
+                , dayWithSuffix = withOrdinalSuffix
+                }
+        in
+        Date.formatWithLanguage dateLanguageFr "ddd MMMM"
     , frequentQuestions = "Questions fréquentes"
     , futureEvents = "Événements à venir"
     , goToHomepage = "Aller à l'accueil"
@@ -1168,6 +1255,85 @@ spanishTexts =
     , faqQuestion2 = "¿Por qué crear este sitio web?"
     , faqQuestion3 = "Si este sitio web es gratuito y no vende sus datos, ¿cómo se financia?"
     , forHelpingMeOutWithPartsOfTheApp = " para ayudarme con algunas partes de la aplicación."
+    , formatDate =
+        let
+            monthToName : Month -> String
+            monthToName m =
+                case m of
+                    Jan ->
+                        "enero"
+
+                    Feb ->
+                        "febrero"
+
+                    Mar ->
+                        "marzo"
+
+                    Apr ->
+                        "abril"
+
+                    May ->
+                        "mayo"
+
+                    Jun ->
+                        "junio"
+
+                    Jul ->
+                        "julio"
+
+                    Aug ->
+                        "agosto"
+
+                    Sep ->
+                        "septiembre"
+
+                    Oct ->
+                        "octubre"
+
+                    Nov ->
+                        "noviembre"
+
+                    Dec ->
+                        "diciembre"
+
+            weekdayToName : Weekday -> String
+            weekdayToName wd =
+                case wd of
+                    Mon ->
+                        "lunes"
+
+                    Tue ->
+                        "martes"
+
+                    Wed ->
+                        "miércoles"
+
+                    Thu ->
+                        "jueves"
+
+                    Fri ->
+                        "viernes"
+
+                    Sat ->
+                        "sábado"
+
+                    Sun ->
+                        "domingo"
+
+            withOrdinalSuffix : Int -> String
+            withOrdinalSuffix n =
+                String.fromInt n ++ "º"
+
+            dateLanguage : Date.Language
+            dateLanguage =
+                { monthName = monthToName
+                , monthNameShort = monthToName >> String.left 3
+                , weekdayName = weekdayToName
+                , weekdayNameShort = weekdayToName >> String.left 3
+                , dayWithSuffix = withOrdinalSuffix
+                }
+        in
+        Date.formatWithLanguage dateLanguage "ddd MMMM"
     , frequentQuestions = "Preguntas frecuentes"
     , futureEvents = "Eventos futuros"
     , goToHomepage = "Ir a la página de inicio"
