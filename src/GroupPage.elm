@@ -1792,7 +1792,7 @@ futureEventView ({ theme, texts } as userConfig) isMobile cachedUsers currentTim
                         Element.text texts.onePersonPlansOnAttending
 
                 _ ->
-                    Element.text (texts.peopleAttended attendeeCount isAttending)
+                    Element.text (texts.peoplePlanOnAttending attendeeCount isAttending)
             , Element.text " "
             , showAttendeesButton userConfig eventId showAttendees_
             ]

@@ -203,6 +203,7 @@ type alias Texts =
     , or : String
     , organizer : String
     , pastEvents : String
+    , peoplePlanOnAttending : Int -> Bool -> String
     , peopleAreAttending : Int -> Bool -> String
     , peopleAttended : Int -> Bool -> String
     , pickAVisibilitySetting : String
@@ -436,44 +437,39 @@ englishTexts =
     , or = " or "
     , organizer = "Organizer"
     , pastEvents = "Past events"
+    , peoplePlanOnAttending =
+        \attendeeCount isAttending ->
+            "• "
+                ++ String.fromInt attendeeCount
+                ++ " people plan on attending"
+                ++ (if isAttending then
+                        " (including you)"
+
+                    else
+                        ""
+                   )
     , peopleAreAttending =
         \attendeeCount isAttending ->
-            if attendeeCount == 1 then
-                if isAttending then
-                    "• One person is attending (including you)"
+            "• "
+                ++ String.fromInt attendeeCount
+                ++ " people are attending"
+                ++ (if isAttending then
+                        " (including you)"
 
-                else
-                    "• One person is attending"
-
-            else
-                "• "
-                    ++ String.fromInt attendeeCount
-                    ++ " people are attending"
-                    ++ (if isAttending then
-                            " (including you)"
-
-                        else
-                            ""
-                       )
+                    else
+                        ""
+                   )
     , peopleAttended =
         \attendeeCount isAttending ->
-            if attendeeCount == 1 then
-                if isAttending then
-                    "• One person attended (including you)"
+            "• "
+                ++ String.fromInt attendeeCount
+                ++ " people attended"
+                ++ (if isAttending then
+                        " (including you)"
 
-                else
-                    "• One person attended"
-
-            else
-                "• "
-                    ++ String.fromInt attendeeCount
-                    ++ " people attended"
-                    ++ (if isAttending then
-                            " (including you)"
-
-                        else
-                            ""
-                       )
+                    else
+                        ""
+                   )
     , pickAVisibilitySetting = "Pick a visibility setting"
     , pressTheLinkInItToConfirmDeletingYourAccount = ". Press the link in it to confirm deleting your account."
     , privacy = "Privacy"
@@ -942,30 +938,27 @@ frenchTexts =
     , or = " ou "
     , organizer = "Organisateur"
     , pastEvents = "Événements passés"
+    , peoplePlanOnAttending =
+        \attendeeCount isAttending ->
+            "• "
+                ++ String.fromInt attendeeCount
+                ++ " personnes prévoient de participer"
+                ++ (if isAttending then
+                        " (toi y compris)"
+
+                    else
+                        ""
+                   )
     , peopleAreAttending =
         \attendeeCount isAttending ->
-            if attendeeCount == 1 then
-                if isAttending then
-                    "• Tu es le seul participant"
-
-                else
-                    "• Une personne participe"
-
-            else if isAttending then
+            if isAttending then
                 "• Toi et " ++ String.fromInt (attendeeCount - 1) ++ " autres personnes participez"
 
             else
                 "• " ++ String.fromInt attendeeCount ++ " personnes participent"
     , peopleAttended =
         \attendeeCount isAttending ->
-            if attendeeCount == 1 then
-                if isAttending then
-                    "• Tu as été le seul participant"
-
-                else
-                    "• Une personne a participé"
-
-            else if isAttending then
+            if isAttending then
                 "• Toi et " ++ String.fromInt (attendeeCount - 1) ++ " autres personnes avez participé"
 
             else
@@ -1422,30 +1415,27 @@ spanishTexts =
     , or = " o "
     , organizer = "Organizador"
     , pastEvents = "Eventos pasados"
+    , peoplePlanOnAttending =
+        \attendeeCount isAttending ->
+            "• "
+                ++ String.fromInt attendeeCount
+                ++ " gente planean en asistir"
+                ++ (if isAttending then
+                        " (incluyéndote)"
+
+                    else
+                        ""
+                   )
     , peopleAreAttending =
         \attendeeCount isAttending ->
-            if attendeeCount == 1 then
-                if isAttending then
-                    "• Usted es el único participante"
-
-                else
-                    "• Una persona participa"
-
-            else if isAttending then
+            if isAttending then
                 "• Usted y " ++ String.fromInt (attendeeCount - 1) ++ " otras personas participan"
 
             else
                 "• " ++ String.fromInt attendeeCount ++ " personas participan"
     , peopleAttended =
         \attendeeCount isAttending ->
-            if attendeeCount == 1 then
-                if isAttending then
-                    "• Usted ha sido el único participante"
-
-                else
-                    "• Una persona ha participado"
-
-            else if isAttending then
+            if isAttending then
                 "• Usted y " ++ String.fromInt (attendeeCount - 1) ++ " otras personas han participado"
 
             else
