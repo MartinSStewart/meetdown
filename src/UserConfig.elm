@@ -441,7 +441,7 @@ englishTexts =
         \attendeeCount isAttending ->
             "• "
                 ++ String.fromInt attendeeCount
-                ++ " people are going to attend"
+                ++ " people plan on attending"
                 ++ (if isAttending then
                         " (including you)"
 
