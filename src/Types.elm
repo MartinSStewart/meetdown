@@ -351,6 +351,7 @@ type BackendMsg
     | BackendGotTime Time.Posix
     | Connected SessionId ClientId
     | Disconnected SessionId ClientId
+    | NoOpBackendMsg
 
 
 type ToFrontend

@@ -14,6 +14,7 @@ import AssocSet as Set
 import BiDict.Assoc as BiDict
 import CreateGroupPage exposing (CreateGroupError(..))
 import Date
+import DebugApp
 import Description exposing (Description)
 import Duration
 import Effect.Command as Command exposing (BackendOnly, Command)
@@ -49,7 +50,9 @@ import Untrusted
 
 
 app =
-    Effect.Lamdera.backend
+    DebugApp.backend
+        NoOpBackendMsg
+        ""
         Lamdera.broadcast
         Lamdera.sendToFrontend
         { init = init
@@ -284,6 +287,9 @@ update msg model =
 
         SentNewEventNotificationEmail userId groupId result ->
             ( addLog (LogNewEventNotificationEmail model.time result userId groupId) model, Command.none )
+
+        NoOpBackendMsg ->
+            ( model, Command.none )
 
 
 addLog : Log -> BackendModel -> BackendModel
