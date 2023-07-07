@@ -1217,6 +1217,9 @@ loadedLanguageToLanguage language =
         Spanish ->
             UserConfig.spanishTexts
 
+        Thai ->
+            UserConfig.thaiTexts
+
 
 view : FrontendModel -> Browser.Document FrontendMsg
 view model =
@@ -1797,6 +1800,9 @@ languageToFlag language =
         Spanish ->
             "🇪🇸"
 
+        Thai ->
+            "🇹🇭"
+
 
 languageToString : Language -> String
 languageToString language =
@@ -1810,6 +1816,9 @@ languageToString language =
         Spanish ->
             "es"
 
+        Thai ->
+            "th"
+
 
 languageFromString : String -> Maybe Language
 languageFromString string =
@@ -1822,6 +1831,9 @@ languageFromString string =
 
         "es" ->
             Just Spanish
+
+        "th" ->
+            Just Thai
 
         _ ->
             Nothing
@@ -1854,7 +1866,7 @@ languageButton theme isMobile_ miniLanguageSelectorOpened language =
 
 miniLanguageSelect : Theme -> Bool -> Language -> Element FrontendMsg
 miniLanguageSelect theme isMobile_ language =
-    List.filter ((/=) language) [ English, French, Spanish ]
+    List.filter ((/=) language) [ English, French, Spanish, Thai ]
         |> List.map (languageOption isMobile_)
         |> Element.column
             [ Element.Background.color theme.lightGrey
@@ -1898,6 +1910,9 @@ languageOption isMobile_ language =
 
                 Spanish ->
                     "Español 🇪🇸"
+
+                Thai ->
+                    "ไทย 🇹🇭"
             )
                 |> Element.text
                 |> Element.el [ Element.alignRight ]

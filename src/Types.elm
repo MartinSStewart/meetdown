@@ -90,6 +90,7 @@ type Language
     = English
     | French
     | Spanish
+    | Thai
 
 
 type GroupRequest
