@@ -1657,7 +1657,7 @@ thaiTexts =
     , addressTooLong = \length maxLength -> "ที่อยู่ยาว " ++ String.fromInt length ++ " ตัวอักษร กรุณาตัดให้สั้นลงอยู่ใน " ++ String.fromInt maxLength ++ " ตัวอักษร"
     , addressTooShort = \length minLength -> "ที่อยู่สั้น " ++ String.fromInt length ++ " ตัวอักษร ต้องมีอย่างน้อย " ++ String.fromInt minLength ++ " ตัวอักษร"
     , aLoginEmailHasBeenSentTo = "อีเมลล็อกอินถูกส่งไปที่ "
-    , anAccountDeletionEmailHasBeenSentTo = "อีเมลล์สำหรับลบบัญชีถูกส่งไปที่ "
+    , anAccountDeletionEmailHasBeenSentTo = "อีเมลสำหรับลบบัญชีถูกส่งไปที่ "
     , andNanonymousNattendees =
         \attendeeCount ->
             if attendeeCount == 1 then
