@@ -14,7 +14,6 @@ import AssocSet as Set
 import BiDict.Assoc as BiDict
 import CreateGroupPage exposing (CreateGroupError(..))
 import Date
-import DebugApp
 import Description exposing (Description)
 import Duration
 import Effect.Command as Command exposing (BackendOnly, Command)
@@ -50,9 +49,7 @@ import Untrusted
 
 
 app =
-    DebugApp.backend
-        NoOpBackendMsg
-        ""
+    Effect.Lamdera.backend
         Lamdera.broadcast
         Lamdera.sendToFrontend
         { init = init
