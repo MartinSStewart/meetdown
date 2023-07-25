@@ -1757,7 +1757,7 @@ thaiTexts =
             else
                 "• มันกำลังจะจัดขึ้นที่ "
     , iWantThisGroupToBePubliclyVisible = "ฉันต้องการให้กลุ่มนี้มองเห็นได้สาธารณะ"
-    , iWantThisGroupToBeUnlistedPeopleCanOnlyFindItIfYouLinkItToThem = "ฉันต้องการให้กลุ่มนี้ไม่ระบุ (คนอื่นจะสามารถหาได้เฉพาะเมื่อคุณส่งลิงก์ให้)"
+    , iWantThisGroupToBeUnlistedPeopleCanOnlyFindItIfYouLinkItToThem = "ฉันต้องการให้กลุ่มนี้ไม่ปรากฏในรายการ (คนอื่นๆจะสามารถหาเจอกลุ่มนี้ได้เฉพาะเมื่อคุณส่งลิงก์ให้กับพวกเขา)"
     , joinEvent = "เข้าร่วมกิจกรรม"
     , just_1AnonymousAttendee = "• มีเพียง 1 ผู้เข้าร่วมที่ไม่ระบุชื่อ"
     , justNanonymousNattendees =
