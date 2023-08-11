@@ -11,10 +11,10 @@ import Event
 import Group exposing (Group)
 import GroupName
 import Id exposing (GroupId, Id)
+import MyUi
 import Route exposing (Route(..))
 import Time
 import Types exposing (FrontendMsg, LoadedFrontend)
-import Ui
 import UserConfig exposing (UserConfig)
 
 
@@ -44,7 +44,7 @@ view : UserConfig -> Bool -> String -> LoadedFrontend -> Element FrontendMsg
 view ({ texts } as userConfig) isMobile searchText model =
     Element.column
         [ Element.padding 8
-        , Ui.contentWidth
+        , MyUi.contentWidth
         , Element.centerX
         , Element.spacing 8
         ]
@@ -65,8 +65,8 @@ groupPreview : UserConfig -> Bool -> Time.Posix -> Id GroupId -> Group -> Elemen
 groupPreview ({ theme, texts } as userConfig) isMobile currentTime groupId group =
     Element.link
         (Element.width Element.fill
-            :: Ui.inputFocusClass
-            :: Ui.cardAttributes theme
+            :: MyUi.inputFocusClass
+            :: MyUi.cardAttributes theme
             ++ [ Element.paddingEach { top = 15, left = 15, right = 15, bottom = 0 }
                , Element.Border.color theme.darkGrey
                ]
@@ -128,7 +128,7 @@ groupPreview ({ theme, texts } as userConfig) isMobile currentTime groupId group
                                         Font.size 14
 
                                       else
-                                        Ui.defaultFontSize
+                                        MyUi.defaultFontSize
                                     ]
 
                         Nothing ->

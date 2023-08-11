@@ -5,9 +5,9 @@ import Array
 import Effect.Browser.Dom exposing (HtmlId)
 import Element exposing (Element)
 import HtmlId
+import MyUi
 import Time
 import Types exposing (AdminCache(..), AdminModel, FrontendMsg(..), Log)
-import Ui
 import UserConfig exposing (UserConfig)
 
 
@@ -15,7 +15,7 @@ view : UserConfig -> Time.Zone -> { a | adminState : AdminCache, adminStatus : A
 view userConfig timezone loggedIn =
     case loggedIn.adminStatus of
         IsNotAdmin ->
-            Ui.loadingError userConfig.theme "Sorry, you aren't allowed to view this page"
+            MyUi.loadingError userConfig.theme "Sorry, you aren't allowed to view this page"
 
         IsAdminAndEnabled ->
             adminView userConfig True timezone loggedIn
@@ -29,17 +29,17 @@ adminView ({ theme, texts } as userConfig) adminEnabled timezone loggedIn =
     case loggedIn.adminState of
         AdminCached model ->
             Element.column
-                Ui.pageContentAttributes
-                [ Ui.title "Admin panel"
+                MyUi.pageContentAttributes
+                [ MyUi.title "Admin panel"
                 , if adminEnabled then
-                    Ui.submitButton theme enableAdminId False { onPress = PressedDisableAdmin, label = "Disable admin" }
+                    MyUi.submitButton theme enableAdminId False { onPress = PressedDisableAdmin, label = "Disable admin" }
 
                   else
-                    Ui.dangerButton theme enableAdminId False { onPress = PressedEnableAdmin, label = "Enable admin" }
+                    MyUi.dangerButton theme enableAdminId False { onPress = PressedEnableAdmin, label = "Enable admin" }
                 , Element.paragraph
                     []
                     [ Element.text "Logs last updated at: "
-                    , Element.text (Ui.timeToString timezone model.lastLogCheck)
+                    , Element.text (MyUi.timeToString timezone model.lastLogCheck)
                     ]
                 , Array.toList model.logs
                     |> List.map (logView userConfig timezone model)
@@ -47,10 +47,10 @@ adminView ({ theme, texts } as userConfig) adminEnabled timezone loggedIn =
                 ]
 
         AdminCachePending ->
-            Ui.loadingView texts
+            MyUi.loadingView texts
 
         AdminCacheNotRequested ->
-            Ui.loadingView texts
+            MyUi.loadingView texts
 
 
 enableAdminId : HtmlId
@@ -66,7 +66,7 @@ logView { theme, texts } timezone model log =
     in
     Element.column
         []
-        [ Ui.datetimeToString texts timezone time |> Ui.formLabelAboveEl theme
+        [ MyUi.datetimeToString texts timezone time |> MyUi.formLabelAboveEl theme
         , Element.paragraph []
             [ if isError then
                 Element.text "🔥 "

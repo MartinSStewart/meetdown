@@ -3,9 +3,9 @@ module ProfileImage exposing (ProfileImage(..), customImage, defaultImage, defau
 import Element exposing (Element)
 import Element.Background
 import Element.Border
+import MyUi
 import Pixels exposing (Pixels)
 import Quantity exposing (Quantity)
-import Ui
 import UserConfig exposing (UserConfig)
 
 
@@ -58,7 +58,7 @@ image userConfig size profileImage =
         , Element.height (Element.px (Pixels.inPixels size))
         , Element.Border.rounded 9999
         , Element.clip
-        , Ui.inputBackground userConfig.theme False
+        , MyUi.inputBackground userConfig.theme False
         ]
         { src =
             case profileImage of

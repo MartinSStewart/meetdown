@@ -37,12 +37,12 @@ import Html.Events.Extra.Touch
 import HtmlId
 import Json.Decode
 import List.Extra as List
+import MyUi
 import Name exposing (Error(..), Name)
 import Pixels exposing (Pixels)
 import Ports exposing (CropImageDataResponse)
 import ProfileImage exposing (ProfileImage)
 import Quantity exposing (Quantity)
-import Ui
 import Untrusted exposing (Untrusted)
 import UserConfig exposing (Texts, UserConfig)
 
@@ -710,8 +710,8 @@ imageEditorView { theme, texts } windowSize imageEdit =
             }
         , Element.wrappedRow
             [ Element.width Element.fill, Element.spacingXY 16 8, Element.paddingXY 8 0 ]
-            [ Ui.submitButton theme uploadImageButtonId False { onPress = PressedConfirmImage, label = texts.uploadImage }
-            , Ui.button theme cancelImageButtonId { onPress = PressedCancelImage, label = texts.cancel }
+            [ MyUi.submitButton theme uploadImageButtonId False { onPress = PressedConfirmImage, label = texts.uploadImage }
+            , MyUi.button theme cancelImageButtonId { onPress = PressedCancelImage, label = texts.cancel }
             ]
         ]
 
@@ -739,9 +739,9 @@ view ({ theme, texts } as userConfig) windowSize currentValues ({ form } as mode
 
         _ ->
             Element.column
-                Ui.pageContentAttributes
+                MyUi.pageContentAttributes
                 [ Element.wrappedRow [ Element.width Element.fill ]
-                    [ Element.el [ Element.alignTop ] (Ui.title texts.profile)
+                    [ Element.el [ Element.alignTop ] (MyUi.title texts.profile)
                     , Element.Input.button
                         [ Element.alignRight
                         , Element.Border.rounded 9999
@@ -752,7 +752,7 @@ view ({ theme, texts } as userConfig) windowSize currentValues ({ form } as mode
                         , label = ProfileImage.image userConfig ProfileImage.defaultSize currentValues.profileImage
                         }
                     ]
-                , Ui.columnCard
+                , MyUi.columnCard
                     theme
                     [ editableTextInput
                         nameTextInputId
@@ -800,13 +800,13 @@ view ({ theme, texts } as userConfig) windowSize currentValues ({ form } as mode
                         form.emailAddress
                         texts.yourEmailAddress
                     ]
-                , Ui.dangerButton theme deleteAccountButtonId False { onPress = PressedDeleteAccount, label = texts.deleteAccount }
+                , MyUi.dangerButton theme deleteAccountButtonId False { onPress = PressedDeleteAccount, label = texts.deleteAccount }
                 , if model.pressedDeleteAccount then
                     Element.column
                         [ Element.spacing 20 ]
                         [ Element.paragraph []
                             [ Element.text texts.anAccountDeletionEmailHasBeenSentTo
-                            , Ui.emailAddressText currentValues.emailAddress
+                            , MyUi.emailAddressText currentValues.emailAddress
                             , Element.text texts.pressTheLinkInItToConfirmDeletingYourAccount
                             ]
                         , Element.paragraph [] [ Element.text texts.ifYouDontSeeTheEmailCheckYourSpamFolder ]
@@ -867,8 +867,8 @@ editableTextInput htmlId { theme, texts } onChange toString validate currentValu
             [ Dom.idToAttribute htmlId |> Element.htmlAttribute
             , Element.width Element.fill
             , Element.Border.rounded 4
-            , Ui.inputBorder theme (maybeError /= Nothing)
-            , Ui.inputBorderWidth (maybeError /= Nothing)
+            , MyUi.inputBorder theme (maybeError /= Nothing)
+            , MyUi.inputBorderWidth (maybeError /= Nothing)
             , Element.Background.color theme.background
             ]
             { text =
@@ -880,11 +880,11 @@ editableTextInput htmlId { theme, texts } onChange toString validate currentValu
                         value
             , onChange = Editing >> onChange
             , placeholder = Nothing
-            , label = Ui.formLabelAbove theme labelText
+            , label = MyUi.formLabelAbove theme labelText
             }
         , case maybeError of
             Just error ->
-                Ui.error theme error
+                MyUi.error theme error
 
             Nothing ->
                 if result == Ok currentValue then
@@ -924,7 +924,7 @@ editableEmailInput { theme, texts } onChange toString validate currentValue text
     in
     Element.column
         [ Element.width Element.fill
-        , Ui.inputBackground theme (maybeError /= Nothing)
+        , MyUi.inputBackground theme (maybeError /= Nothing)
         , Element.Border.rounded 4
         ]
         [ Element.Input.email
@@ -941,11 +941,11 @@ editableEmailInput { theme, texts } onChange toString validate currentValue text
                         value
             , onChange = Editing >> onChange
             , placeholder = Nothing
-            , label = Ui.formLabelAbove theme labelText
+            , label = MyUi.formLabelAbove theme labelText
             }
         , case maybeError of
             Just error ->
-                Ui.error theme error
+                MyUi.error theme error
 
             Nothing ->
                 if result == Ok currentValue then
@@ -983,8 +983,8 @@ editableMultiline htmlId { theme, texts } onChange toString validate currentValu
             [ Dom.idToAttribute htmlId |> Element.htmlAttribute
             , Element.width Element.fill
             , Element.height (Element.px 200)
-            , Ui.inputBorder theme (maybeError /= Nothing)
-            , Ui.inputBorderWidth (maybeError /= Nothing)
+            , MyUi.inputBorder theme (maybeError /= Nothing)
+            , MyUi.inputBorderWidth (maybeError /= Nothing)
             , Element.Background.color theme.background
             ]
             { text =
@@ -996,12 +996,12 @@ editableMultiline htmlId { theme, texts } onChange toString validate currentValu
                         value
             , onChange = Editing >> onChange
             , placeholder = Nothing
-            , label = Ui.formLabelAbove theme labelText
+            , label = MyUi.formLabelAbove theme labelText
             , spellcheck = True
             }
         , case maybeError of
             Just error ->
-                Ui.error theme error
+                MyUi.error theme error
 
             Nothing ->
                 if result == Ok currentValue then

@@ -23,6 +23,7 @@ import Id exposing (GroupId, Id, UserId)
 import Json.Decode
 import List.Extra as List
 import LoginForm
+import MyUi
 import Name exposing (Name)
 import Ports
 import Postmark
@@ -33,7 +34,6 @@ import Test.Html.Query
 import Test.Html.Selector
 import Time exposing (Month(..))
 import Types exposing (BackendModel, BackendMsg, FrontendModel(..), FrontendMsg(..), LoadedFrontend, LoginStatus(..), ToBackend(..), ToFrontend)
-import Ui
 import Unsafe
 import Untrusted
 import Url
@@ -195,7 +195,7 @@ handleLoginForm takeSnapshots loginWithEnterKey client sessionIdFromEmail emailA
         |> shortWait
         |> takeSnapshot "Login page with email"
         |> (if loginWithEnterKey then
-                client.keyDownEvent LoginForm.emailAddressInputId { keyCode = Ui.enterKeyCode }
+                client.keyDownEvent LoginForm.emailAddressInputId { keyCode = MyUi.enterKeyCode }
 
             else
                 client.clickButton LoginForm.submitButtonId
@@ -814,7 +814,7 @@ tests =
                     (\groupId inProgress2 ->
                         inProgress2
                             |> client.inputText Frontend.groupSearchId "my group!"
-                            |> client.keyDownEvent Frontend.groupSearchId { keyCode = Ui.enterKeyCode }
+                            |> client.keyDownEvent Frontend.groupSearchId { keyCode = MyUi.enterKeyCode }
                             |> shortWait
                             |> client.clickLink { href = Route.GroupRoute groupId groupName |> Route.encode }
                             |> shortWait
@@ -1127,7 +1127,7 @@ tests =
                                     instructions2
                                         |> shortWait
                                         |> a.client.inputText Frontend.groupSearchId "my group!"
-                                        |> a.client.keyDownEvent Frontend.groupSearchId { keyCode = Ui.enterKeyCode }
+                                        |> a.client.keyDownEvent Frontend.groupSearchId { keyCode = MyUi.enterKeyCode }
                                         |> shortWait
                                         |> a.client.clickLink { href = Route.GroupRoute groupId groupName |> Route.encode }
                                         |> shortWait
@@ -1140,8 +1140,8 @@ tests =
                     |> client.inputText GroupPage.eventNameInputId "Event!"
                     |> client.inputText GroupPage.eventDescriptionInputId "Event description"
                     |> client.clickButton (GroupPage.eventMeetingTypeId GroupPage.MeetOnline)
-                    |> client.inputText GroupPage.createEventStartDateId (Ui.datestamp (Date.fromRataDie 737485))
-                    |> client.inputText GroupPage.createEventStartTimeId (Ui.timestamp 10 12)
+                    |> client.inputText GroupPage.createEventStartDateId (MyUi.datestamp (Date.fromRataDie 737485))
+                    |> client.inputText GroupPage.createEventStartTimeId (MyUi.timestamp 10 12)
                     |> client.inputText GroupPage.eventDurationId "1"
                     |> client.clickButton GroupPage.createEventSubmitId
                     |> shortWait
@@ -1275,7 +1275,7 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
                         inProgress2
                             |> shortWait
                             |> client.inputText Frontend.groupSearchId "my group!"
-                            |> client.keyDownEvent Frontend.groupSearchId { keyCode = Ui.enterKeyCode }
+                            |> client.keyDownEvent Frontend.groupSearchId { keyCode = MyUi.enterKeyCode }
                             |> shortWait
                             |> client.clickLink { href = Route.GroupRoute groupId groupName |> Route.encode }
                             |> shortWait
@@ -1354,7 +1354,7 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
                         inProgress2
                             |> shortWait
                             |> client.inputText Frontend.groupSearchId "my group!"
-                            |> client.keyDownEvent Frontend.groupSearchId { keyCode = Ui.enterKeyCode }
+                            |> client.keyDownEvent Frontend.groupSearchId { keyCode = MyUi.enterKeyCode }
                             |> shortWait
                             |> client.clickLink { href = Route.GroupRoute groupId groupName |> Route.encode }
                             |> shortWait
@@ -1414,8 +1414,8 @@ createGroupAndEvent loggedInClient { groupName, groupDescription, eventName, eve
         |> loggedInClient.inputText GroupPage.eventNameInputId eventName
         |> loggedInClient.inputText GroupPage.eventDescriptionInputId eventDescription
         |> loggedInClient.clickButton (GroupPage.eventMeetingTypeId GroupPage.MeetOnline)
-        |> loggedInClient.inputText GroupPage.createEventStartDateId (Ui.datestamp eventDate)
-        |> loggedInClient.inputText GroupPage.createEventStartTimeId (Ui.timestamp eventHour eventMinute)
+        |> loggedInClient.inputText GroupPage.createEventStartDateId (MyUi.datestamp eventDate)
+        |> loggedInClient.inputText GroupPage.createEventStartTimeId (MyUi.timestamp eventHour eventMinute)
         |> loggedInClient.inputText GroupPage.eventDurationId eventDuration
         |> loggedInClient.clickButton GroupPage.createEventSubmitId
         |> shortWait
@@ -1485,8 +1485,8 @@ snapshotPages =
                     |> client.inputText GroupPage.eventNameInputId "First event!"
                     |> client.inputText GroupPage.eventDescriptionInputId "Hey this is my cool first event! I'm so excited to host it and I hope a bunch of people join. We're going to have lots of fun doing stuff!"
                     |> client.clickButton (GroupPage.eventMeetingTypeId GroupPage.MeetOnline)
-                    |> client.inputText GroupPage.createEventStartDateId (Ui.datestamp (Date.fromCalendarDate 1970 Jan 2))
-                    |> client.inputText GroupPage.createEventStartTimeId (Ui.timestamp 0 1)
+                    |> client.inputText GroupPage.createEventStartDateId (MyUi.datestamp (Date.fromCalendarDate 1970 Jan 2))
+                    |> client.inputText GroupPage.createEventStartTimeId (MyUi.timestamp 0 1)
                     |> client.inputText GroupPage.eventDurationId "2"
                     |> shortWait
                     |> client.snapshotView { name = "Create event page with fields filled" }
@@ -1522,7 +1522,7 @@ snapshotPages =
                     |> TF.simulateTime (Duration.seconds 3)
                     |> client.snapshotView { name = "Profile page with changes and search prepared" }
                     -- Search for group
-                    |> client.keyDownEvent Frontend.groupSearchId { keyCode = Ui.enterKeyCode }
+                    |> client.keyDownEvent Frontend.groupSearchId { keyCode = MyUi.enterKeyCode }
                     |> shortWait
                     |> client.snapshotView { name = "Search page" }
                     |> findSingleGroup

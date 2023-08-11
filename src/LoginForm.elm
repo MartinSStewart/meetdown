@@ -13,9 +13,9 @@ import Group exposing (EventId, Group)
 import GroupName
 import HtmlId
 import Id exposing (GroupId, Id)
+import MyUi
 import Route exposing (Route)
 import Types exposing (FrontendMsg(..), LoginForm, ToBackend(..))
-import Ui
 import Untrusted
 import UserConfig exposing (Texts, UserConfig)
 
@@ -26,8 +26,8 @@ emailInput userConfig id onSubmit onChange text labelText maybeError =
         [ Element.width Element.fill ]
         [ Element.Input.email
             [ Element.width Element.fill
-            , Ui.onEnter onSubmit
-            , Ui.inputBorder userConfig.theme (maybeError /= Nothing)
+            , MyUi.onEnter onSubmit
+            , MyUi.inputBorder userConfig.theme (maybeError /= Nothing)
             , Dom.idToAttribute id |> Element.htmlAttribute
             , Element.Background.color userConfig.theme.background
             ]
@@ -39,7 +39,7 @@ emailInput userConfig id onSubmit onChange text labelText maybeError =
                     []
                     (Element.paragraph [] [ Element.text labelText ])
             }
-        , Maybe.map (Ui.error userConfig.theme) maybeError |> Maybe.withDefault Element.none
+        , Maybe.map (MyUi.error userConfig.theme) maybeError |> Maybe.withDefault Element.none
         ]
 
 
@@ -59,7 +59,7 @@ view ({ texts } as userConfig) joiningEvent cachedGroups { email, pressedSubmitE
                         [ Element.paragraph
                             []
                             [ Element.text texts.aLoginEmailHasBeenSentTo
-                            , Ui.emailAddressText emailAddress
+                            , MyUi.emailAddressText emailAddress
                             , Element.text "."
                             ]
                         , Element.paragraph [] [ Element.text texts.checkYourSpamFolderIfYouDonTSeeIt ]
@@ -103,13 +103,13 @@ view ({ texts } as userConfig) joiningEvent cachedGroups { email, pressedSubmitE
             )
         , Element.paragraph []
             [ Element.text texts.byContinuingYouAgreeToThe
-            , Ui.routeLink userConfig.theme Route.TermsOfServiceRoute texts.terms
+            , MyUi.routeLink userConfig.theme Route.TermsOfServiceRoute texts.terms
             , Element.text "."
             ]
         , Element.wrappedRow
             [ Element.spacingXY 16 8, Element.width Element.fill ]
-            [ Ui.submitButton userConfig.theme submitButtonId False { onPress = PressedSubmitLogin, label = texts.login }
-            , Ui.button userConfig.theme cancelButtonId { onPress = PressedCancelLogin, label = texts.cancel }
+            [ MyUi.submitButton userConfig.theme submitButtonId False { onPress = PressedSubmitLogin, label = texts.login }
+            , MyUi.button userConfig.theme cancelButtonId { onPress = PressedCancelLogin, label = texts.cancel }
             ]
         ]
 

@@ -21,8 +21,8 @@ import Group exposing (GroupVisibility(..))
 import GroupName exposing (GroupName)
 import HtmlId
 import List.Nonempty exposing (Nonempty(..))
+import MyUi
 import Route
-import Ui
 import UserConfig exposing (UserConfig)
 
 
@@ -166,10 +166,10 @@ formView { theme, texts } isMobile firstGroup maybeSubmitError isSubmitting form
     Element.column
         (Element.width Element.fill
             :: Element.spacing 20
-            :: Ui.pageContentAttributes
+            :: MyUi.pageContentAttributes
         )
-        [ Ui.title texts.createGroup
-        , Ui.textInput
+        [ MyUi.title texts.createGroup
+        , MyUi.textInput
             theme
             nameInputId
             (\a -> FormChanged { form | name = a })
@@ -187,7 +187,7 @@ formView { theme, texts } isMobile firstGroup maybeSubmitError isSubmitting form
                 _ ->
                     Nothing
             )
-        , Ui.multiline
+        , MyUi.multiline
             theme
             descriptionInputId
             (\a -> FormChanged { form | description = a })
@@ -200,7 +200,7 @@ formView { theme, texts } isMobile firstGroup maybeSubmitError isSubmitting form
                 _ ->
                     Nothing
             )
-        , Ui.radioGroup
+        , MyUi.radioGroup
             theme
             groupVisibilityId
             (\a -> FormChanged { form | visibility = Just a })
@@ -227,7 +227,7 @@ formView { theme, texts } isMobile firstGroup maybeSubmitError isSubmitting form
                 [ Element.paragraph
                     []
                     [ Element.text texts.sinceThisIsYourFirstGroupWeRecommendYouReadThe
-                    , Ui.routeLinkNewTab theme Route.CodeOfConductRoute texts.codeOfConduct
+                    , MyUi.routeLinkNewTab theme Route.CodeOfConductRoute texts.codeOfConduct
                     , Element.text "."
                     ]
                 ]
@@ -238,7 +238,7 @@ formView { theme, texts } isMobile firstGroup maybeSubmitError isSubmitting form
             [ Element.spacing 8, Element.paddingXY 0 16, Element.width Element.fill ]
             [ case maybeSubmitError of
                 Just error ->
-                    Ui.formError theme error
+                    MyUi.formError theme error
 
                 Nothing ->
                     Element.none
@@ -249,7 +249,7 @@ formView { theme, texts } isMobile firstGroup maybeSubmitError isSubmitting form
                   else
                     Element.width (Element.px 200)
                 ]
-                (Ui.submitButton theme submitButtonId isSubmitting { onPress = PressedSubmit, label = texts.submit })
+                (MyUi.submitButton theme submitButtonId isSubmitting { onPress = PressedSubmit, label = texts.submit })
             ]
         ]
 
