@@ -4,7 +4,9 @@
         "src",
         "send-grid",
         "justinmimbs/timezone-data/4.0.2/src",
-        "snapshot-runner"
+        "snapshot-runner",
+        "mdgriffith/elm-ui/2.0.0/src",
+        "mdgriffith/elm-animator/2.0.0/src"
     ],
     "elm-version": "0.19.1",
     "dependencies": {
@@ -28,6 +30,7 @@
             "elm/svg": "1.0.1",
             "elm/time": "1.0.0",
             "elm/url": "1.0.0",
+            "elm/virtual-dom": "1.0.2",
             "elm-community/list-extra": "8.3.0",
             "elm-explorations/test": "2.1.0",
             "erlandsona/assoc-set": "1.1.0",
@@ -49,7 +52,6 @@
         "indirect": {
             "elm/random": "1.0.0",
             "elm/regex": "1.0.0",
-            "elm/virtual-dom": "1.0.2",
             "elm-community/dict-extra": "2.4.0",
             "elm-explorations/webgl": "1.1.3",
             "folkertdev/elm-sha2": "1.0.0",
