@@ -1,10 +1,10 @@
 module Id exposing
-    ( DeleteUserToken
-    , GroupId
+    ( DeleteUserToken(..)
+    , GroupId(..)
     , Id(..)
-    , LoginToken
+    , LoginToken(..)
     , SessionIdFirst4Chars(..)
-    , UserId
+    , UserId(..)
     , anonymizeSessionId
     , cryptoHashFromString
     , cryptoHashToString
