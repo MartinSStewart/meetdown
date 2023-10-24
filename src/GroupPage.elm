@@ -82,6 +82,7 @@ type alias Model =
     , pendingToggleVisibility : Bool
     , subscribePending : SubscribeStatus
     , showAttendees : Set EventId
+    , showDeleteConfirm : Maybe { groupName : String, submitStatus : SubmitStatus () }
     }
 
 
@@ -128,6 +129,8 @@ type Msg
     | PressedUnsubscribe
     | PressedShowAttendees EventId
     | PressedHideAttendees EventId
+    | TypedDeleteGroup String
+    | PressedConfirmDeleteGroup
 
 
 type SubmitStatus error
@@ -176,6 +179,7 @@ init =
     , pendingToggleVisibility = False
     , subscribePending = NotPendingSubscribe
     , showAttendees = Set.empty
+    , showDeleteConfirm = Nothing
     }
 
 
@@ -313,6 +317,7 @@ type ToBackend
     | DeleteGroupAdminRequest
     | SubscribeRequest
     | UnsubscribeRequest
+    | DeleteGroupUserRequest
 
 
 update :
@@ -807,12 +812,7 @@ update texts config group maybeLoggedIn msg model =
                 noChange
 
         PressedDeleteGroup ->
-            case Maybe.map (.adminStatus >> AdminStatus.isAdminEnabled) maybeLoggedIn of
-                Just True ->
-                    ( model, Lamdera.sendToBackend DeleteGroupAdminRequest, noOutMsg )
-
-                _ ->
-                    noChange
+            ( { model | showDeleteConfirm = Just { groupName = "", submitStatus = NotSubmitted { pressedSubmit = False } } }, Command.none, noOutMsg )
 
         PressedCopyPreviousEvent ->
             case model.eventOverlay of
@@ -868,6 +868,56 @@ update texts config group maybeLoggedIn msg model =
             , Command.none
             , noOutMsg
             )
+
+        TypedDeleteGroup groupName ->
+            ( { model
+                | showDeleteConfirm =
+                    case model.showDeleteConfirm of
+                        Just confirm ->
+                            Just { confirm | groupName = groupName }
+
+                        Nothing ->
+                            Nothing
+              }
+            , Command.none
+            , noOutMsg
+            )
+
+        PressedConfirmDeleteGroup ->
+            case maybeLoggedIn of
+                Just loggedIn ->
+                    case model.showDeleteConfirm of
+                        Just confirm ->
+                            if String.trim confirm.groupName == GroupName.toString (Group.name group) then
+                                if AdminStatus.isAdminEnabled loggedIn.adminStatus then
+                                    ( { model | showDeleteConfirm = Just { confirm | submitStatus = IsSubmitting } }
+                                    , Lamdera.sendToBackend DeleteGroupAdminRequest
+                                    , noOutMsg
+                                    )
+
+                                else if loggedIn.userId == Group.ownerId group then
+                                    ( { model | showDeleteConfirm = Just { confirm | submitStatus = IsSubmitting } }
+                                    , Lamdera.sendToBackend DeleteGroupUserRequest
+                                    , noOutMsg
+                                    )
+
+                                else
+                                    noChange
+
+                            else
+                                ( { model
+                                    | showDeleteConfirm =
+                                        Just { confirm | submitStatus = NotSubmitted { pressedSubmit = True } }
+                                  }
+                                , Command.none
+                                , noOutMsg
+                                )
+
+                        Nothing ->
+                            noChange
+
+                Nothing ->
+                    noChange
 
 
 latestEvent : Group -> Maybe Event
@@ -1369,9 +1419,51 @@ groupView ({ theme, texts } as userConfig) isMobile currentTime timezone owner c
 
           else
             Element.none
-        , case Maybe.map (.adminStatus >> AdminStatus.isAdminEnabled) maybeLoggedIn of
-            Just True ->
-                Ui.dangerButton theme deleteGroupButtonId False { onPress = PressedDeleteGroup, label = texts.deleteGroup }
+        , case maybeLoggedIn of
+            Just loggedIn ->
+                if AdminStatus.isAdminEnabled loggedIn.adminStatus || loggedIn.userId == Group.ownerId group then
+                    case model.showDeleteConfirm of
+                        Just { groupName, submitStatus } ->
+                            Ui.columnCard
+                                theme
+                                [ Ui.textInput
+                                    theme
+                                    deleteGroupTextInputId
+                                    TypedDeleteGroup
+                                    groupName
+                                    ("Are you sure you want to delete "
+                                        ++ GroupName.toString (Group.name group)
+                                        ++ "? If yes, please type \""
+                                        ++ GroupName.toString (Group.name group)
+                                        ++ "\"."
+                                    )
+                                    (case submitStatus of
+                                        NotSubmitted { pressedSubmit } ->
+                                            if pressedSubmit && String.trim groupName /= GroupName.toString (Group.name group) then
+                                                Just "Input doesn't match the group name"
+
+                                            else
+                                                Nothing
+
+                                        _ ->
+                                            Nothing
+                                    )
+                                , Ui.dangerButton
+                                    theme
+                                    confirmDeleteGroupButtonId
+                                    (submitStatus == IsSubmitting)
+                                    { onPress = PressedConfirmDeleteGroup, label = "Confirm deletion" }
+                                ]
+
+                        Nothing ->
+                            Ui.dangerButton
+                                theme
+                                deleteGroupButtonId
+                                False
+                                { onPress = PressedDeleteGroup, label = texts.deleteGroup }
+
+                else
+                    Element.none
 
             _ ->
                 Element.none
@@ -1381,6 +1473,16 @@ groupView ({ theme, texts } as userConfig) isMobile currentTime timezone owner c
 deleteGroupButtonId : HtmlId
 deleteGroupButtonId =
     HtmlId.buttonId "groupPageDeleteGroup"
+
+
+confirmDeleteGroupButtonId : HtmlId
+confirmDeleteGroupButtonId =
+    HtmlId.buttonId "groupPageConfirmDeleteGroup"
+
+
+deleteGroupTextInputId : HtmlId
+deleteGroupTextInputId =
+    HtmlId.textInputId "groupPageTypeDeleteGroup"
 
 
 makeUnlistedGroupId : HtmlId

@@ -381,3 +381,4 @@ type ToFrontend
     | DeleteGroupAdminResponse (Id GroupId)
     | SubscribeResponse (Id GroupId)
     | UnsubscribeResponse (Id GroupId)
+    | DeleteGroupUserResponse (Id GroupId)

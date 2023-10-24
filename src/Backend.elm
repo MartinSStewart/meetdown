@@ -88,7 +88,7 @@ init =
 --fakeInit =
 --    let
 --        _ =
---            Debug.log "This prevents accidentally deploying fakeInit to production" ""
+--            Debug.toString "This prevents accidentally deploying fakeInit to production"
 --    in
 --    ( { users =
 --            Dict.fromList
@@ -1035,6 +1035,35 @@ updateFromFrontend sessionId clientId msg model =
                     )
                 )
 
+        GroupRequest groupId GroupPage.DeleteGroupUserRequest ->
+            userAuthorization
+                sessionId
+                model
+                (\( userId, user ) ->
+                    case Dict.get groupId model.groups of
+                        Just group ->
+                            if Group.ownerId group == userId then
+                                ( deleteGroup groupId group model
+                                , sendToFrontends
+                                    (getClientIdsForUser userId model)
+                                    (DeleteGroupUserResponse groupId)
+                                )
+
+                            else
+                                ( model, Command.none )
+
+                        Nothing ->
+                            ( model, Command.none )
+                )
+
+
+deleteGroup : Id GroupId -> Group -> BackendModel -> BackendModel
+deleteGroup groupId group model =
+    { model
+        | groups = Dict.remove groupId model.groups
+        , deletedGroups = Dict.insert groupId group model.deletedGroups
+    }
+
 
 getGroupSubscribers : Id GroupId -> BackendModel -> List (Id UserId)
 getGroupSubscribers groupId model =
@@ -1365,8 +1394,8 @@ loginEmailContent route loginToken maybeJoinEvent =
         loginLink =
             loginEmailLink route loginToken maybeJoinEvent
 
-        --_ =
-        --    Debug.log "login" loginLink
+        _ =
+            Debug.log "login" loginLink
     in
     Email.Html.div
         [ Email.Html.Attributes.padding "8px" ]
@@ -1389,8 +1418,8 @@ deleteAccountEmailContent deleteUserToken =
         deleteUserLink =
             Env.domain ++ Route.encodeWithToken HomepageRoute (Route.DeleteUserToken deleteUserToken)
 
-        --_ =
-        --    Debug.log "delete user" deleteUserLink
+        _ =
+            Debug.log "delete user" deleteUserLink
     in
     Email.Html.div
         [ Email.Html.Attributes.padding "8px" ]

@@ -1187,6 +1187,11 @@ updateLoadedFromBackend msg model =
             , Command.none
             )
 
+        DeleteGroupUserResponse groupId ->
+            ( { model | cachedGroups = Dict.updateJust groupId (\_ -> ItemDoesNotExist) model.cachedGroups }
+            , Command.none
+            )
+
 
 loadedUserConfigToUserConfig : LoadedUserConfig -> UserConfig
 loadedUserConfigToUserConfig config =
