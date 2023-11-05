@@ -1039,7 +1039,7 @@ updateFromFrontend sessionId clientId msg model =
             userAuthorization
                 sessionId
                 model
-                (\( userId, user ) ->
+                (\( userId, _ ) ->
                     case Dict.get groupId model.groups of
                         Just group ->
                             if Group.ownerId group == userId then

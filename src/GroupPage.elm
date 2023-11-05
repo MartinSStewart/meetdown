@@ -872,12 +872,8 @@ update texts config group maybeLoggedIn msg model =
         TypedDeleteGroup groupName ->
             ( { model
                 | showDeleteConfirm =
-                    case model.showDeleteConfirm of
-                        Just confirm ->
-                            Just { confirm | groupName = groupName }
-
-                        Nothing ->
-                            Nothing
+                    Maybe.map (\confirm -> { confirm | groupName = groupName })
+                        model.showDeleteConfirm
               }
             , Command.none
             , noOutMsg
@@ -1431,16 +1427,11 @@ groupView ({ theme, texts } as userConfig) isMobile currentTime timezone owner c
                                     deleteGroupTextInputId
                                     TypedDeleteGroup
                                     groupName
-                                    ("Are you sure you want to delete "
-                                        ++ GroupName.toString (Group.name group)
-                                        ++ "? If yes, please type \""
-                                        ++ GroupName.toString (Group.name group)
-                                        ++ "\"."
-                                    )
+                                    (texts.deleteGroupWarning (GroupName.toString (Group.name group)))
                                     (case submitStatus of
                                         NotSubmitted { pressedSubmit } ->
                                             if pressedSubmit && String.trim groupName /= GroupName.toString (Group.name group) then
-                                                Just "Input doesn't match the group name"
+                                                Just texts.inputDoesntMatchGroupName
 
                                             else
                                                 Nothing
@@ -1452,7 +1443,7 @@ groupView ({ theme, texts } as userConfig) isMobile currentTime timezone owner c
                                     theme
                                     confirmDeleteGroupButtonId
                                     (submitStatus == IsSubmitting)
-                                    { onPress = PressedConfirmDeleteGroup, label = "Confirm deletion" }
+                                    { onPress = PressedConfirmDeleteGroup, label = texts.confirmDeletion }
                                 ]
 
                         Nothing ->

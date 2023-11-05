@@ -100,6 +100,7 @@ type alias Texts =
     , codeOfConduct3 : String
     , codeOfConduct4 : String
     , codeOfConduct5 : String
+    , confirmDeletion : String
     , copyPreviousEvent : String
     , createEvent : String
     , createGroup : String
@@ -109,6 +110,7 @@ type alias Texts =
     , daysUntilEvent : Int -> String
     , deleteAccount : String
     , deleteGroup : String
+    , deleteGroupWarning : String -> String
     , describeWhatYourGroupIsAboutYouCanFillOutThisLater : String
     , description : String
     , descriptionTooLong : Int -> Int -> String
@@ -154,6 +156,7 @@ type alias Texts =
     , imageEditor : String
     , info : String
     , inPersonEvent : String
+    , inputDoesntMatchGroupName : String
     , invalidDateFormatExpectedSomethingLike_2020_01_31 : String
     , invalidEmailAddress : String
     , invalidInput : String
@@ -203,9 +206,9 @@ type alias Texts =
     , or : String
     , organizer : String
     , pastEvents : String
-    , peoplePlanOnAttending : Int -> Bool -> String
     , peopleAreAttending : Int -> Bool -> String
     , peopleAttended : Int -> Bool -> String
+    , peoplePlanOnAttending : Int -> Bool -> String
     , pickAVisibilitySetting : String
     , pressTheLinkInItToConfirmDeletingYourAccount : String
     , privacy : String
@@ -220,11 +223,10 @@ type alias Texts =
     , saving : String
     , search : String
     , searchForGroups : String
-    , subscribingToOne : String
     , searchResultsFor : String
     , showAll : String
-    , showFirst : String
     , showAttendees : String
+    , showFirst : String
     , signInAndWeWillGetYouSignedUpForThatEvent : String
     , signInAndWeWillGetYouSignedUpForThe : String -> String
     , sinceThisIsYourFirstGroupWeRecommendYouReadThe : String
@@ -232,6 +234,7 @@ type alias Texts =
     , stopNotifyingMeOfNewEvents : String
     , submit : String
     , subscribedGroups : String
+    , subscribingToOne : String
     , terms : String
     , theEventCanTStartInThePast : String
     , theEventIsTakingPlaceNowAt : String
@@ -304,6 +307,7 @@ englishTexts =
     , codeOfConduct3 = "• Be respectful to the group organizers. They put in the time to coordinate an event and they are willing to invite strangers. Don't betray their trust in you!"
     , codeOfConduct4 = "• To group organizers: Make people feel included. It's hard for people to participate if they feel like an outsider."
     , codeOfConduct5 = "• If someone is being a jerk that is not an excuse to be a jerk back. Ask them to stop, and if that doesn't work, avoid them and explain the problem here "
+    , confirmDeletion = "Confirm deletion"
     , copyPreviousEvent = "Copy previous event"
     , createEvent = "Create event"
     , createGroup = "Create group"
@@ -313,6 +317,7 @@ englishTexts =
     , daysUntilEvent = \days -> "Days until event: " ++ String.fromInt days
     , deleteAccount = "Delete account"
     , deleteGroup = "Delete group"
+    , deleteGroupWarning = \groupName -> "Are you sure you want to delete " ++ groupName ++ "? If yes, please type \"" ++ groupName ++ "\"."
     , describeWhatYourGroupIsAboutYouCanFillOutThisLater = "Describe what your group is about (you can fill out this later)"
     , description = "Description"
     , descriptionTooLong = \descriptionLength maxLength -> "Description is " ++ String.fromInt descriptionLength ++ " characters long. Keep it under " ++ String.fromInt maxLength ++ "."
@@ -364,6 +369,7 @@ englishTexts =
     , imageEditor = "Image editor"
     , info = "Info"
     , inPersonEvent = "in-person event 🤝"
+    , inputDoesntMatchGroupName = "Input doesn't match group name"
     , invalidDateFormatExpectedSomethingLike_2020_01_31 = "Invalid date format. Expected something like 2020-01-31"
     , invalidEmailAddress = "Invalid email address"
     , invalidInput = "Invalid input. Write something like 1 or 2.5"
@@ -720,8 +726,9 @@ frenchTexts =
     , codeOfConduct1 = "Voici quelques conseils pour respecter la règle \"ne sois pas un.e imbécile\":"
     , codeOfConduct2 = "• Respecte les gens, peu importe leur race, leur genre, leur identité sexuelle, leur nationalité, leur apparence ou toute autre caractéristique."
     , codeOfConduct3 = "• Sois respectueux envers les organisateurs de groupes. Ils consacrent du temps à coordonner un événement et ils sont prêts à inviter des gens qu'ils ne connaissent pas. Ne trahis pas leur confiance en toi !"
-    , codeOfConduct4 = "• Pour les organisateurs de groupes: Faites en sorte que les gens se sentent inclus. Il est difficile pour les gens de participer s'ils se sentent comme des étrangers."
+    , codeOfConduct4 = "• Pour les organisateurs de groupes : Faites en sorte que les gens se sentent inclus. Il est difficile pour les gens de participer s'ils se sentent comme des étrangers."
     , codeOfConduct5 = "• Si quelqu'un.e est un.e imbécile, ce n'est pas une excuse pour l'être aussi. Dis-leur d'arrêter et si ça ne marche pas, évite-les et explique le problème ici "
+    , confirmDeletion = "Confirmer la suppression"
     , copyPreviousEvent = "Copier l'événement précédent"
     , createEvent = "Créer ton événement"
     , createGroup = "Créer un groupe"
@@ -731,6 +738,7 @@ frenchTexts =
     , daysUntilEvent = \days -> "Jours jusqu'à l'événement : " ++ String.fromInt days
     , deleteAccount = "Supprimer mon compte"
     , deleteGroup = "Supprimer le groupe"
+    , deleteGroupWarning = \groupName -> "Es-tu sûr.e de vouloir supprimer " ++ groupName ++ " ? Si oui, écris \"" ++ groupName ++ "\"."
     , describeWhatYourGroupIsAboutYouCanFillOutThisLater = "Décris l'objet de ton groupe (tu peux remplir cette partie plus tard)."
     , description = "Description"
     , descriptionTooLong = \descriptionLength maxLength -> "La description fait " ++ String.fromInt descriptionLength ++ " caractères. Limite-la à " ++ String.fromInt maxLength ++ "."
@@ -865,6 +873,7 @@ frenchTexts =
     , imageEditor = "Éditeur d'image"
     , info = "Infos"
     , inPersonEvent = "événement en personne 🤝"
+    , inputDoesntMatchGroupName = "L'entrée ne correspond pas au nom du groupe"
     , invalidDateFormatExpectedSomethingLike_2020_01_31 = "Format de date invalide. Attendu quelque chose comme 2020-01-31"
     , invalidEmailAddress = "Adresse email invalide"
     , invalidInput = "Entrée invalide. Écris quelque chose comme 1 ou 2.5"
@@ -1204,6 +1213,7 @@ spanishTexts =
     , codeOfConduct3 = "• Sea respetuoso con los organizadores de grupos. Invierten su tiempo en coordinar un evento y están dispuestos a invitar a personas que no conocen. ¡No les traiciones su confianza!"
     , codeOfConduct4 = "• Para los organizadores de grupos: asegúrese de que la gente se sienta incluida. Es difícil para la gente participar si se sienten como extranjeros."
     , codeOfConduct5 = "• Si alguien esta siendo grosero, eso no es una excusa para ser grosero de regreso. Pídeles que paren y, si no funciona, evítalos y explica el problema aquí "
+    , confirmDeletion = "Confirmar eliminación"
     , copyPreviousEvent = "Copiar evento anterior"
     , createEvent = "Crear evento"
     , createGroup = "Crear grupo"
@@ -1213,6 +1223,7 @@ spanishTexts =
     , daysUntilEvent = \days -> "Días hasta el evento: " ++ String.fromInt days
     , deleteAccount = "Eliminar cuenta"
     , deleteGroup = "Eliminar grupo"
+    , deleteGroupWarning = \groupName -> "¿Estás seguro de que quieres eliminar " ++ groupName ++ "? Si es así, escribe \"" ++ groupName ++ "\"."
     , describeWhatYourGroupIsAboutYouCanFillOutThisLater = "Describe de qué es su grupo (puede completar esto más tarde)."
     , description = "Descripción"
     , descriptionTooLong = \descriptionLength maxLength -> "La descripción es de " ++ String.fromInt descriptionLength ++ " caracteres. Manténgase por debajo de " ++ String.fromInt maxLength ++ "."
@@ -1342,6 +1353,7 @@ spanishTexts =
     , imageEditor = "Editor de imágenes"
     , info = "Info"
     , inPersonEvent = "evento en persona 🤝"
+    , inputDoesntMatchGroupName = "La entrada no coincide con el nombre del grupo"
     , invalidDateFormatExpectedSomethingLike_2020_01_31 = "Formato de fecha no válido. Se esperaba algo como 2020-01-31"
     , invalidEmailAddress = "Dirección de correo electrónico no válida"
     , invalidInput = "Entrada no válida. Escriba algo como 1 o 2.5"
@@ -1682,6 +1694,7 @@ thaiTexts =
     , codeOfConduct3 = "• โปรดให้ความเคารพกับผู้จัดตั้งกลุ่มนี้ เนื่องจากพวกเขาใช้เวลาประสานงานการจัดกิจกรรม และยินดีที่จะเรียนเชิญทุกคนเข้าร่วมกิจกรรม อย่าทำลายความไว้วางใจที่พวกเขามีให้คุณ!"
     , codeOfConduct4 = "• สำหรับผู้จัดกลุ่ม: ทำให้คนรู้สึกว่าพวกเขาเป็นส่วนหนึ่งของกลุ่ม คนจะไม่สามารถเข้าร่วมได้ถ้าพวกเขารู้สึกว่าตัวเองเป็นคนนอก."
     , codeOfConduct5 = "• ถ้ามีคนทำตัวไม่ดี นั่นไม่ใช่เหตุผลให้คุณต้องทำตัวไม่ดีกลับ โปรดขอให้พวกเขาหยุด หากการขอให้พวกเขาหยุดไม่สำเร็จ ควรหลีกเลี่ยงพวกเขาและรายงานปัญหาที่นี่ "
+    , confirmDeletion = "ยืนยันการลบ"
     , copyPreviousEvent = "คัดลอกกิจกรรมก่อนหน้านี้"
     , createEvent = "สร้างกิจกรรม"
     , createGroup = "สร้างกลุ่ม"
@@ -1691,6 +1704,7 @@ thaiTexts =
     , daysUntilEvent = \days -> "วันจนถึงกิจกรรม: " ++ String.fromInt days
     , deleteAccount = "ลบบัญชี"
     , deleteGroup = "ลบกลุ่ม"
+    , deleteGroupWarning = \groupName -> "คุณแน่ใจหรือไม่ว่าต้องการลบ" ++ groupName ++ "? หากใช่โปรดพิมพ์ \"" ++ groupName ++ "\"."
     , describeWhatYourGroupIsAboutYouCanFillOutThisLater = "อธิบายว่ากลุ่มของคุณเกี่ยวกับอะไร (คุณสามารถเติมข้อมูลนี้ภายหลัง)"
     , description = "คำอธิบาย"
     , descriptionTooLong = \descriptionLength maxLength -> "คำอธิบายยาว " ++ String.fromInt descriptionLength ++ " ตัวอักษร ต้องสั้นลงเป็น " ++ String.fromInt maxLength ++ " ตัวอักษร"
@@ -1742,6 +1756,7 @@ thaiTexts =
     , imageEditor = "ตัวแก้ไขรูปภาพ"
     , info = "ข้อมูล"
     , inPersonEvent = "กิจกรรมที่เจอกันด้วยตัวเอง 🤝"
+    , inputDoesntMatchGroupName = "ข้อมูลที่ป้อนไม่ตรงกับชื่อกลุ่ม"
     , invalidDateFormatExpectedSomethingLike_2020_01_31 = "รูปแบบวันที่ไม่ถูกต้อง คาดว่าจะมีลักษณะประมาณ 2020-01-31"
     , invalidEmailAddress = "ที่อยู่อีเมลไม่ถูกต้อง"
     , invalidInput = "ข้อมูลที่ป้อนไม่ถูกต้อง เขียนบางอย่างที่เป็นแบบ 1 หรือ 2.5"
