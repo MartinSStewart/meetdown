@@ -11,7 +11,7 @@ import Dict as RegularDict
 import Duration
 import Effect.Http as Http
 import Effect.Lamdera as Lamdera exposing (ClientId, SessionId)
-import Effect.Test as TF
+import Effect.Test as TF exposing (HttpResponse(..))
 import EmailAddress exposing (EmailAddress)
 import Env
 import Frontend
@@ -39,7 +39,7 @@ import Untrusted
 import Url
 
 
-main : Program () (TF.Model FrontendModel) TF.Msg
+main : Program () (TF.Model ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel) (TF.Msg ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel)
 main =
     TF.viewer tests
 
@@ -65,15 +65,15 @@ config =
         (Unsafe.url Env.domain)
 
 
-handleHttpRequests : { currentRequest : TF.HttpRequest, pastRequests : List TF.HttpRequest } -> Http.Response Bytes
+handleHttpRequests : { currentRequest : TF.HttpRequest, pastRequests : List TF.HttpRequest } -> HttpResponse
 handleHttpRequests { currentRequest } =
-    Http.GoodStatus_
+    StringHttpResponse
         { url = currentRequest.url
         , statusCode = 200
         , statusText = "OK"
         , headers = RegularDict.empty
         }
-        (Bytes.Encode.sequence [] |> Bytes.Encode.encode)
+        ""
 
 
 handlePortToJs :
