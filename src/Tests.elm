@@ -62,6 +62,7 @@ config =
         handleHttpRequests
         handlePortToJs
         handleFileRequest
+        handleFilesRequest
         (Unsafe.url Env.domain)
 
 
@@ -101,14 +102,18 @@ handlePortToJs { currentRequest } =
 
 handleFileRequest :
     { mimeTypes : List String }
-    -> Maybe { name : String, mimeType : String, content : String, lastModified : Time.Posix }
+    -> TF.FileUpload
 handleFileRequest _ =
-    { name = "Image0.png"
-    , content = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAABhWlDQ1BJQ0MgcHJvZmlsZQAAKJF9kT1Iw0AcxV9Ta0UqgnYQcchQnayIijhKFYtgobQVWnUwufRDaNKQpLg4Cq4FBz8Wqw4uzro6uAqC4AeIm5uToouU+L+k0CLGg+N+vLv3uHsHCPUyU82OcUDVLCMVj4nZ3IoYfEUn/OhDAGMSM/VEeiEDz/F1Dx9f76I8y/vcn6NHyZsM8InEs0w3LOJ14ulNS+e8TxxmJUkhPiceNeiCxI9cl11+41x0WOCZYSOTmiMOE4vFNpbbmJUMlXiKOKKoGuULWZcVzluc1XKVNe/JXxjKa8tprtMcQhyLSCAJETKq2EAZFqK0aqSYSNF+zMM/6PiT5JLJtQFGjnlUoEJy/OB/8LtbszA54SaFYkDgxbY/hoHgLtCo2fb3sW03TgD/M3CltfyVOjDzSXqtpUWOgN5t4OK6pcl7wOUOMPCkS4bkSH6aQqEAvJ/RN+WA/luge9XtrbmP0wcgQ10t3QAHh8BIkbLXPN7d1d7bv2ea/f0AT2FymQ2GVEYAAAAJcEhZcwAALiMAAC4jAXilP3YAAAAHdElNRQflBgMSBgvJgnPPAAAAGXRFWHRDb21tZW50AENyZWF0ZWQgd2l0aCBHSU1QV4EOFwAAAAxJREFUCNdjmH36PwAEagJmf/sZfAAAAABJRU5ErkJggg=="
-    , lastModified = Time.millisToPosix 0
-    , mimeType = "image/png"
-    }
-        |> Just
+    TF.uploadStringFile
+        "Image0.png"
+        "image/png"
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAABhWlDQ1BJQ0MgcHJvZmlsZQAAKJF9kT1Iw0AcxV9Ta0UqgnYQcchQnayIijhKFYtgobQVWnUwufRDaNKQpLg4Cq4FBz8Wqw4uzro6uAqC4AeIm5uToouU+L+k0CLGg+N+vLv3uHsHCPUyU82OcUDVLCMVj4nZ3IoYfEUn/OhDAGMSM/VEeiEDz/F1Dx9f76I8y/vcn6NHyZsM8InEs0w3LOJ14ulNS+e8TxxmJUkhPiceNeiCxI9cl11+41x0WOCZYSOTmiMOE4vFNpbbmJUMlXiKOKKoGuULWZcVzluc1XKVNe/JXxjKa8tprtMcQhyLSCAJETKq2EAZFqK0aqSYSNF+zMM/6PiT5JLJtQFGjnlUoEJy/OB/8LtbszA54SaFYkDgxbY/hoHgLtCo2fb3sW03TgD/M3CltfyVOjDzSXqtpUWOgN5t4OK6pcl7wOUOMPCkS4bkSH6aQqEAvJ/RN+WA/luge9XtrbmP0wcgQ10t3QAHh8BIkbLXPN7d1d7bv2ea/f0AT2FymQ2GVEYAAAAJcEhZcwAALiMAAC4jAXilP3YAAAAHdElNRQflBgMSBgvJgnPPAAAAGXRFWHRDb21tZW50AENyZWF0ZWQgd2l0aCBHSU1QV4EOFwAAAAxJREFUCNdjmH36PwAEagJmf/sZfAAAAABJRU5ErkJggg=="
+        (Time.millisToPosix 0)
+        |> TF.UploadFile
+
+
+handleFilesRequest _ =
+    TF.CancelMultipleFilesUpload
 
 
 checkLoadedFrontend :
@@ -1150,7 +1155,7 @@ tests =
         |> TF.checkState
             (\state ->
                 case
-                    ( Dict.toList state.backend.groups
+                    ( Dict.toList state.model.groups
                     , List.filterMap isNewEventNotificationEmail state.httpRequests
                     )
                 of
@@ -1189,7 +1194,7 @@ findSingleGroup continueWith inProgress =
     inProgress
         |> TF.andThen
             (\state ->
-                case Dict.keys state.backend.groups of
+                case Dict.keys state.model.groups of
                     [ groupId ] ->
                         TF.continueWith state
                             |> continueWith groupId
@@ -1218,7 +1223,7 @@ findUser name continueWith inProgress =
     inProgress
         |> TF.andThen
             (\state ->
-                case Dict.toList state.backend.users |> List.find (\( _, user ) -> user.name == name) of
+                case Dict.toList state.model.users |> List.find (\( _, user ) -> user.name == name) of
                     Just ( userId, _ ) ->
                         continueWith userId inProgress
 
