@@ -714,13 +714,13 @@ tests =
                     , groupDescription = "This is the best group"
                     , eventName = "First group event!"
                     , eventDescription = "We're gonna party!"
-                    , eventDate = Date.fromPosix Time.utc (Duration.addTo TF.startTime (Duration.days 3))
+                    , eventDate = Date.fromPosix Time.utc (Duration.addTo TF.startTime (Duration.days 1))
                     , eventHour = 14
                     , eventMinute = 0
                     , eventDuration = "1"
                     }
                     instructions
-                    |> TF.fastForward (Duration.days 1.999 |> Quantity.plus (Duration.hours 14))
+                    |> TF.fastForward (Duration.days -0.001 |> Quantity.plus (Duration.hours 14))
                     |> TF.checkState
                         (\model ->
                             if gotReminder emailAddress model.httpRequests then
