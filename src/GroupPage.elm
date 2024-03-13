@@ -2070,19 +2070,22 @@ eventTypeView texts isPastEvent event =
     in
     case Event.eventType event of
         Event.MeetInPerson maybeAddress ->
-            Element.paragraph []
-                (Element.text eventDurationText
-                    :: (case maybeAddress of
-                            Just address ->
-                                [ Element.text (texts.itsTakingPlaceAt isPastEvent)
-                                , Element.el [ Element.Font.bold ] (Element.text (Address.toString address))
-                                , Element.text "."
-                                ]
+            Element.column
+                [ Element.spacing 16 ]
+                [ Element.paragraph [] [ Element.text eventDurationText ]
+                , Element.paragraph
+                    []
+                    (case maybeAddress of
+                        Just address ->
+                            [ Element.text (texts.itsTakingPlaceAt isPastEvent)
+                            , Element.el [ Element.Font.bold ] (Element.text (Address.toString address))
+                            , Element.text "."
+                            ]
 
-                            Nothing ->
-                                []
-                       )
-                )
+                        Nothing ->
+                            []
+                    )
+                ]
 
         Event.MeetOnline _ ->
             Element.paragraph
@@ -2090,20 +2093,22 @@ eventTypeView texts isPastEvent event =
                 [ Element.text eventDurationText ]
 
         Event.MeetOnlineAndInPerson _ maybeAddress ->
-            Element.paragraph
-                []
-                (Element.text eventDurationText
-                    :: (case maybeAddress of
-                            Just address ->
-                                [ Element.text (texts.itsTakingPlaceAt isPastEvent)
-                                , Element.el [ Element.Font.bold ] (Element.text (Address.toString address))
-                                , Element.text "."
-                                ]
+            Element.column
+                [ Element.spacing 16 ]
+                [ Element.paragraph [] [ Element.text eventDurationText ]
+                , Element.paragraph
+                    []
+                    (case maybeAddress of
+                        Just address ->
+                            [ Element.text (texts.itsTakingPlaceAt isPastEvent)
+                            , Element.el [ Element.Font.bold ] (Element.text (Address.toString address))
+                            , Element.text "."
+                            ]
 
-                            Nothing ->
-                                []
-                       )
-                )
+                        Nothing ->
+                            []
+                    )
+                ]
 
 
 cancelEventId : HtmlId
