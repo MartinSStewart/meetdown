@@ -2,14 +2,11 @@ module Tests exposing (tests)
 
 import AssocList as Dict
 import Backend
-import Bytes exposing (Bytes)
-import Bytes.Encode
 import Codec
 import CreateGroupPage
 import Date
 import Dict as RegularDict
 import Duration
-import Effect.Http as Http
 import Effect.Lamdera as Lamdera exposing (ClientId, SessionId)
 import Effect.Test as TF exposing (HttpResponse(..))
 import EmailAddress exposing (EmailAddress)

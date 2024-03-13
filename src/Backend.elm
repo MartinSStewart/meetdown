@@ -285,9 +285,6 @@ update msg model =
         SentNewEventNotificationEmail userId groupId result ->
             ( addLog (LogNewEventNotificationEmail model.time result userId groupId) model, Command.none )
 
-        NoOpBackendMsg ->
-            ( model, Command.none )
-
 
 addLog : Log -> BackendModel -> BackendModel
 addLog log model =
