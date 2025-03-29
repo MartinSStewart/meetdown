@@ -1,7 +1,6 @@
 module Backend exposing
     ( app
     , init
-    , loginEmailLink
     , loginEmailLinkAbsolutePath
     , subscriptions
     , update
@@ -43,7 +42,6 @@ import Quantity
 import Route exposing (Route(..))
 import SeqDict as Dict
 import SeqSet as Set
-import Set as RegularSet
 import String.Nonempty exposing (NonemptyString(..))
 import Toop exposing (T5(..))
 import Types exposing (..)

@@ -42,5 +42,5 @@ config =
         ]
         |> Review.Rule.ignoreErrorsForDirectories [ "tests" ]
     ]
-        |> List.map (Review.Rule.ignoreErrorsForDirectories [ "src/Evergreen", "justinmimbs", "send-grid" ])
+        |> List.map (Review.Rule.ignoreErrorsForDirectories [ "src/Evergreen", "vendored", "send-grid" ])
         |> List.map (Review.Rule.ignoreErrorsForFiles [ "src/Postmark.elm", "src/Unsafe.elm" ])
