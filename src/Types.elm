@@ -2,8 +2,6 @@ module Types exposing (..)
 
 import AdminStatus exposing (AdminStatus)
 import Array exposing (Array)
-import AssocList as Dict exposing (Dict)
-import AssocSet exposing (Set)
 import BiDict.Assoc exposing (BiDict)
 import Browser exposing (UrlRequest)
 import Cache exposing (Cache)
@@ -28,6 +26,8 @@ import ProfileImage exposing (ProfileImage)
 import ProfilePage
 import Quantity exposing (Quantity)
 import Route exposing (Route)
+import SeqDict as Dict exposing (SeqDict)
+import SeqSet exposing (SeqSet)
 import Time
 import TimeZone
 import Untrusted exposing (Untrusted)
@@ -54,8 +54,8 @@ type alias LoadedFrontend =
     { navigationKey : Key
     , loginStatus : LoginStatus
     , route : Route
-    , cachedGroups : Dict (Id GroupId) (Cache Group)
-    , cachedUsers : Dict (Id UserId) (Cache FrontendUser)
+    , cachedGroups : SeqDict (Id GroupId) (Cache Group)
+    , cachedUsers : SeqDict (Id UserId) (Cache FrontendUser)
     , time : Time.Posix
     , timezone : Time.Zone
     , lastConnectionCheck : Time.Posix
@@ -69,7 +69,7 @@ type alias LoadedFrontend =
     , searchList : List (Id GroupId)
     , windowWidth : Quantity Int Pixels
     , windowHeight : Quantity Int Pixels
-    , groupPage : Dict (Id GroupId) GroupPage.Model
+    , groupPage : SeqDict (Id GroupId) GroupPage.Model
     , loadedUserConfig : LoadedUserConfig
     , miniLanguageSelectorOpened : Bool
     }
@@ -95,7 +95,7 @@ type Language
 
 type GroupRequest
     = GroupNotFound_
-    | GroupFound_ Group (Dict (Id UserId) FrontendUser)
+    | GroupFound_ Group (SeqDict (Id UserId) FrontendUser)
 
 
 type AdminCache
@@ -121,32 +121,32 @@ type alias LoggedIn_ =
     { userId : Id UserId
     , emailAddress : EmailAddress
     , profileForm : ProfilePage.Model
-    , myGroups : Maybe (Set (Id GroupId))
-    , subscribedGroups : Set (Id GroupId)
+    , myGroups : Maybe (SeqSet (Id GroupId))
+    , subscribedGroups : SeqSet (Id GroupId)
     , adminState : AdminCache
     , adminStatus : AdminStatus
     }
 
 
 type alias AdminModel =
-    { cachedEmailAddress : Dict (Id UserId) EmailAddress
+    { cachedEmailAddress : SeqDict (Id UserId) EmailAddress
     , logs : Array Log
     , lastLogCheck : Time.Posix
     }
 
 
 type alias BackendModel =
-    { users : Dict (Id UserId) BackendUser
-    , groups : Dict (Id GroupId) Group
-    , deletedGroups : Dict (Id GroupId) Group
+    { users : SeqDict (Id UserId) BackendUser
+    , groups : SeqDict (Id GroupId) Group
+    , deletedGroups : SeqDict (Id GroupId) Group
     , sessions : BiDict SessionId (Id UserId)
-    , loginAttempts : Dict SessionId (Nonempty Time.Posix)
-    , connections : Dict SessionId (Nonempty ClientId)
+    , loginAttempts : SeqDict SessionId (Nonempty Time.Posix)
+    , connections : SeqDict SessionId (Nonempty ClientId)
     , logs : Array Log
     , time : Time.Posix
     , secretCounter : Int
-    , pendingLoginTokens : Dict (Id LoginToken) LoginTokenData
-    , pendingDeleteUserTokens : Dict (Id DeleteUserToken) DeleteUserTokenData
+    , pendingLoginTokens : SeqDict (Id LoginToken) LoginTokenData
+    , pendingDeleteUserTokens : SeqDict (Id DeleteUserToken) DeleteUserTokenData
     }
 
 
@@ -289,7 +289,7 @@ type alias BackendUser =
     , profileImage : ProfileImage
     , timezone : Time.Zone
     , allowEventReminders : Bool
-    , subscribedGroups : Set (Id GroupId)
+    , subscribedGroups : SeqSet (Id GroupId)
     }
 
 
@@ -357,7 +357,7 @@ type BackendMsg
 
 type ToFrontend
     = GetGroupResponse (Id GroupId) GroupRequest
-    | GetUserResponse (Dict (Id UserId) (Result () FrontendUser))
+    | GetUserResponse (SeqDict (Id UserId) (Result () FrontendUser))
     | CheckLoginResponse (Maybe { userId : Id UserId, user : BackendUser, isAdmin : Bool })
     | LoginWithTokenResponse (Result () { userId : Id UserId, user : BackendUser, isAdmin : Bool })
     | GetAdminDataResponse AdminModel

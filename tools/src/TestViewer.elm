@@ -1,6 +1,6 @@
 module TestViewer exposing (..)
 
-import AssocList as Dict
+import SeqDict as Dict
 import Browser exposing (Document, UrlRequest)
 import Browser.Navigation exposing (Key)
 import Colors

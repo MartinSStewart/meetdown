@@ -1,6 +1,5 @@
 module Tests exposing (tests)
 
-import AssocList as Dict
 import Backend
 import Codec
 import CreateGroupPage
@@ -26,6 +25,7 @@ import Postmark
 import ProfilePage
 import Quantity
 import Route exposing (Route)
+import SeqDict as Dict
 import Test.Html.Query
 import Test.Html.Selector
 import Time exposing (Month(..))
@@ -111,13 +111,18 @@ handleFilesRequest _ =
     TF.CancelMultipleFilesUpload
 
 
+type alias Action toBackend frontendMsg frontendModel toFrontend backendMsg backendModel =
+    TF.Instructions toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
+    -> TF.Instructions toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
+
+
 checkLoadedFrontend :
     ClientId
     -> (LoadedFrontend -> Result String ())
-    -> TF.Instructions ToBackend FrontendMsg FrontendModel toFrontend backendMsg backendModel
-    -> TF.Instructions ToBackend FrontendMsg FrontendModel toFrontend backendMsg backendModel
+    -> Action ToBackend FrontendMsg FrontendModel toFrontend backendMsg backendModel
 checkLoadedFrontend clientId checkFunc =
     TF.checkState
+        100
         (\state ->
             case Dict.get clientId state.frontends of
                 Just (Loaded loaded) ->
@@ -137,23 +142,22 @@ loginFromHomepage :
     -> SessionId
     -> EmailAddress.EmailAddress
     ->
-        ({ instructions : TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
-         , client : TF.FrontendActions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+        ({ client : TF.FrontendActions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
          , clientFromEmail : TF.FrontendActions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
          }
-         -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+         -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
         )
-    -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
-    -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+    -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 loginFromHomepage loginWithEnterKey sessionId sessionIdFromEmail emailAddress stateFunc =
     TF.connectFrontend
+        100
         sessionId
-        (Unsafe.url Env.domain)
+        "/"
         windowSize
-        (\( state3, client ) ->
-            state3
-                |> client.clickButton Frontend.signUpOrLoginButtonId
-                |> handleLoginForm False loginWithEnterKey client sessionIdFromEmail emailAddress stateFunc
+        (\client ->
+            [ client.click 100 Frontend.signUpOrLoginButtonId
+            , handleLoginForm False loginWithEnterKey client sessionIdFromEmail emailAddress stateFunc
+            ]
         )
 
 
@@ -168,57 +172,61 @@ handleLoginForm :
     -> SessionId
     -> EmailAddress
     ->
-        ({ instructions : TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
-         , client : TF.FrontendActions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+        ({ client : TF.FrontendActions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
          , clientFromEmail : TF.FrontendActions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
          }
-         -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+         -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
         )
-    -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
-    -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
-handleLoginForm takeSnapshots loginWithEnterKey client sessionIdFromEmail emailAddress andThenFunc state =
+    -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+handleLoginForm takeSnapshots loginWithEnterKey client sessionIdFromEmail emailAddress andThenFunc =
     let
+        takeSnapshot : String -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
         takeSnapshot name =
             if takeSnapshots then
-                client.snapshotView { name = name }
+                client.snapshotView 100 { name = name }
 
             else
                 identity
     in
-    state
-        |> takeSnapshot "Login page"
-        |> client.inputText LoginForm.emailAddressInputId (EmailAddress.toString emailAddress)
-        |> takeSnapshot "Login page with email"
-        |> (if loginWithEnterKey then
-                client.keyDownEvent LoginForm.emailAddressInputId { keyCode = Ui.enterKeyCode }
+    [ takeSnapshot "Login page"
+    , client.input 100 LoginForm.emailAddressInputId (EmailAddress.toString emailAddress)
+    , takeSnapshot "Login page with email"
+    , if loginWithEnterKey then
+        client.keyDown 100 LoginForm.emailAddressInputId "Enter" []
 
-            else
-                client.clickButton LoginForm.submitButtonId
-           )
-        |> TF.andThen
-            (\data state3 ->
-                case List.filterMap isLoginEmail data.httpRequests |> List.head of
-                    Just loginEmail ->
-                        if loginEmail.emailAddress == emailAddress then
-                            TF.connectFrontend
-                                sessionIdFromEmail
-                                (Unsafe.url (Backend.loginEmailLink loginEmail.route loginEmail.loginToken loginEmail.maybeJoinEvent))
-                                windowSize
-                                (\( state4, clientFromEmail ) ->
-                                    andThenFunc
-                                        { instructions = state4
-                                        , client = client
-                                        , clientFromEmail = clientFromEmail
-                                        }
-                                )
-                                state3
+      else
+        client.click 100 LoginForm.submitButtonId
+    , TF.andThen
+        100
+        (\data ->
+            case List.filterMap isLoginEmail data.httpRequests |> List.head of
+                Just loginEmail ->
+                    if loginEmail.emailAddress == emailAddress then
+                        [ TF.connectFrontend
+                            100
+                            sessionIdFromEmail
+                            (Backend.loginEmailLinkAbsolutePath loginEmail.route loginEmail.loginToken loginEmail.maybeJoinEvent)
+                            windowSize
+                            (\clientFromEmail ->
+                                [ andThenFunc
+                                    { client = client
+                                    , clientFromEmail = clientFromEmail
+                                    }
+                                ]
+                            )
+                        ]
 
-                        else
-                            TF.checkState (\_ -> Err "Got a login email but it was to the wrong address") state3
+                    else
+                        [ TF.checkState
+                            100
+                            (\_ -> Err "Got a login email but it was to the wrong address")
+                        ]
 
-                    _ ->
-                        TF.checkState (\_ -> Err "Should have gotten a login email") state3
-            )
+                _ ->
+                    [ TF.checkState 100 (\_ -> Err "Should have gotten a login email") ]
+        )
+    ]
+        |> TF.group
 
 
 loginFromHomepageWithSnapshots :
@@ -226,24 +234,23 @@ loginFromHomepageWithSnapshots :
     -> SessionId
     -> EmailAddress.EmailAddress
     ->
-        ({ instructions : TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
-         , client : TF.FrontendActions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+        ({ client : TF.FrontendActions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
          , clientFromEmail : TF.FrontendActions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
          }
-         -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+         -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
         )
-    -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
-    -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+    -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 loginFromHomepageWithSnapshots sessionId sessionIdFromEmail emailAddress stateFunc =
     TF.connectFrontend
+        100
         sessionId
-        (Unsafe.url Env.domain)
+        "/"
         windowSize
-        (\( state3, client ) ->
-            state3
-                |> client.snapshotView { name = "Homepage" }
-                |> client.clickButton Frontend.signUpOrLoginButtonId
-                |> handleLoginForm True False client sessionIdFromEmail emailAddress stateFunc
+        (\client ->
+            [ client.snapshotView 100 { name = "Homepage" }
+            , client.click 100 Frontend.signUpOrLoginButtonId
+            , handleLoginForm True False client sessionIdFromEmail emailAddress stateFunc
+            ]
         )
 
 
@@ -455,6 +462,11 @@ findNodesByTag tagName nodes =
         nodes
 
 
+startTime : Time.Posix
+startTime =
+    Time.millisToPosix 0
+
+
 tests : List (TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel)
 tests =
     [ let
@@ -464,42 +476,48 @@ tests =
         emailAddress =
             Unsafe.emailAddress "the@email.com"
       in
-      TF.start config "Login from homepage and submit with login button"
-        |> loginFromHomepageWithSnapshots
+      TF.start "Login from homepage and submit with login button"
+        startTime
+        config
+        [ loginFromHomepageWithSnapshots
             sessionId
             sessionId
             emailAddress
-            (\{ instructions, clientFromEmail } ->
-                instructions
-                    |> checkLoadedFrontend
-                        clientFromEmail.clientId
-                        (\frontend ->
-                            case frontend.loginStatus of
-                                LoggedIn loggedIn ->
-                                    if loggedIn.emailAddress == emailAddress then
-                                        Ok ()
+            (\{ clientFromEmail } ->
+                checkLoadedFrontend
+                    clientFromEmail.clientId
+                    (\frontend ->
+                        case frontend.loginStatus of
+                            LoggedIn loggedIn ->
+                                if loggedIn.emailAddress == emailAddress then
+                                    Ok ()
 
-                                    else
-                                        "Incorrect email address "
-                                            ++ EmailAddress.toString loggedIn.emailAddress
-                                            |> Err
+                                else
+                                    "Incorrect email address "
+                                        ++ EmailAddress.toString loggedIn.emailAddress
+                                        |> Err
 
-                                _ ->
-                                    Err "Failed to log in"
-                        )
+                            _ ->
+                                Err "Failed to log in"
+                    )
             )
-    , TF.start config "Attempt login with invalid email address"
-        |> TF.connectFrontend
+        ]
+    , TF.start "Attempt login with invalid email address"
+        startTime
+        config
+        [ TF.connectFrontend
+            100
             (Lamdera.sessionIdFromString "session0")
-            (Unsafe.url Env.domain)
+            "/"
             windowSize
-            (\( state3, client ) ->
-                state3
-                    |> client.clickButton Frontend.signUpOrLoginButtonId
-                    |> client.inputText LoginForm.emailAddressInputId "123"
-                    |> client.clickButton LoginForm.submitButtonId
-                    |> client.snapshotView { name = "Invalid login email" }
+            (\client ->
+                [ client.click 100 Frontend.signUpOrLoginButtonId
+                , client.input 100 LoginForm.emailAddressInputId "123"
+                , client.click 100 LoginForm.submitButtonId
+                , client.snapshotView 100 { name = "Invalid login email" }
+                ]
             )
+        ]
     , let
         sessionId =
             Lamdera.sessionIdFromString "session0"
@@ -507,31 +525,33 @@ tests =
         emailAddress =
             Unsafe.emailAddress "the@email.com"
       in
-      TF.start config "Login from homepage and submit with enter key"
-        |> loginFromHomepage
+      TF.start "Login from homepage and submit with enter key"
+        startTime
+        config
+        [ loginFromHomepage
             True
             sessionId
             sessionId
             emailAddress
-            (\{ instructions, clientFromEmail } ->
-                instructions
-                    |> checkLoadedFrontend
-                        clientFromEmail.clientId
-                        (\frontend ->
-                            case frontend.loginStatus of
-                                LoggedIn loggedIn ->
-                                    if loggedIn.emailAddress == emailAddress then
-                                        Ok ()
+            (\{ clientFromEmail } ->
+                checkLoadedFrontend
+                    clientFromEmail.clientId
+                    (\frontend ->
+                        case frontend.loginStatus of
+                            LoggedIn loggedIn ->
+                                if loggedIn.emailAddress == emailAddress then
+                                    Ok ()
 
-                                    else
-                                        "Incorrect email address "
-                                            ++ EmailAddress.toString loggedIn.emailAddress
-                                            |> Err
+                                else
+                                    "Incorrect email address "
+                                        ++ EmailAddress.toString loggedIn.emailAddress
+                                        |> Err
 
-                                _ ->
-                                    Err "Failed to log in"
-                        )
+                            _ ->
+                                Err "Failed to log in"
+                    )
             )
+        ]
     , let
         sessionId =
             Lamdera.sessionIdFromString "session0"
@@ -539,53 +559,57 @@ tests =
         emailAddress =
             Unsafe.emailAddress "the@email.com"
       in
-      TF.start config "Login from homepage and check that original clientId also got logged in since it's on the same session"
-        |> loginFromHomepage
+      TF.start "Login from homepage and check that original clientId also got logged in since it's on the same session"
+        startTime
+        config
+        [ loginFromHomepage
             True
             sessionId
             sessionId
             emailAddress
-            (\{ instructions, client } ->
-                instructions
-                    |> checkLoadedFrontend
-                        client.clientId
-                        (\frontend ->
-                            case frontend.loginStatus of
-                                LoggedIn loggedIn ->
-                                    if loggedIn.emailAddress == emailAddress then
-                                        Ok ()
+            (\{ client } ->
+                checkLoadedFrontend
+                    client.clientId
+                    (\frontend ->
+                        case frontend.loginStatus of
+                            LoggedIn loggedIn ->
+                                if loggedIn.emailAddress == emailAddress then
+                                    Ok ()
 
-                                    else
-                                        "Incorrect email address "
-                                            ++ EmailAddress.toString loggedIn.emailAddress
-                                            |> Err
+                                else
+                                    "Incorrect email address "
+                                        ++ EmailAddress.toString loggedIn.emailAddress
+                                        |> Err
 
-                                _ ->
-                                    Err "Failed to log in"
-                        )
+                            _ ->
+                                Err "Failed to log in"
+                    )
             )
-    , TF.start config "Login from homepage and check that original clientId did not get logged since it has a different sessionId"
-        |> loginFromHomepage
+        ]
+    , TF.start "Login from homepage and check that original clientId did not get logged since it has a different sessionId"
+        startTime
+        config
+        [ loginFromHomepage
             True
             (Lamdera.sessionIdFromString "session0")
             (Lamdera.sessionIdFromString "session1")
             (Unsafe.emailAddress "the@email.com")
-            (\{ instructions, client } ->
-                instructions
-                    |> checkLoadedFrontend
-                        client.clientId
-                        (\frontend ->
-                            case frontend.loginStatus of
-                                LoggedIn _ ->
-                                    Err "Should not have been logged in"
+            (\{ client } ->
+                checkLoadedFrontend
+                    client.clientId
+                    (\frontend ->
+                        case frontend.loginStatus of
+                            LoggedIn _ ->
+                                Err "Should not have been logged in"
 
-                                NotLoggedIn _ ->
-                                    Ok ()
+                            NotLoggedIn _ ->
+                                Ok ()
 
-                                LoginStatusPending ->
-                                    Err "Failed to check login"
-                        )
+                            LoginStatusPending ->
+                                Err "Failed to check login"
+                    )
             )
+        ]
     , let
         emailAddress =
             Unsafe.emailAddress "the@email.com"
@@ -593,53 +617,55 @@ tests =
         sessionId =
             Lamdera.sessionIdFromString "session0"
       in
-      TF.start config "Login from homepage and check it's not possible to use the same login token twice"
-        |> loginFromHomepage True
+      TF.start "Login from homepage and check it's not possible to use the same login token twice"
+        startTime
+        config
+        [ loginFromHomepage True
             sessionId
             sessionId
             emailAddress
-            (\{ instructions } ->
-                instructions
-                    |> TF.andThen
-                        (\data state ->
-                            case List.filterMap isLoginEmail data.httpRequests of
-                                [ loginEmail ] ->
-                                    TF.connectFrontend
-                                        (Lamdera.sessionIdFromString "session1")
-                                        (Unsafe.url
-                                            (Backend.loginEmailLink
-                                                loginEmail.route
-                                                loginEmail.loginToken
-                                                loginEmail.maybeJoinEvent
+            (\_ ->
+                TF.andThen
+                    100
+                    (\data ->
+                        case List.filterMap isLoginEmail data.httpRequests of
+                            [ loginEmail ] ->
+                                [ TF.connectFrontend
+                                    100
+                                    (Lamdera.sessionIdFromString "session1")
+                                    (Backend.loginEmailLinkAbsolutePath
+                                        loginEmail.route
+                                        loginEmail.loginToken
+                                        loginEmail.maybeJoinEvent
+                                    )
+                                    windowSize
+                                    (\client3 ->
+                                        [ checkLoadedFrontend
+                                            client3.clientId
+                                            (\frontend ->
+                                                case frontend.loginStatus of
+                                                    LoggedIn _ ->
+                                                        Err "Should not have been logged in"
+
+                                                    NotLoggedIn _ ->
+                                                        if frontend.hasLoginTokenError then
+                                                            Ok ()
+
+                                                        else
+                                                            Err "Correctly didn't log in but failed to show error"
+
+                                                    LoginStatusPending ->
+                                                        Err "Failed to check login"
                                             )
-                                        )
-                                        windowSize
-                                        (\( state2, client3 ) ->
-                                            checkLoadedFrontend
-                                                client3.clientId
-                                                (\frontend ->
-                                                    case frontend.loginStatus of
-                                                        LoggedIn _ ->
-                                                            Err "Should not have been logged in"
+                                        ]
+                                    )
+                                ]
 
-                                                        NotLoggedIn _ ->
-                                                            if frontend.hasLoginTokenError then
-                                                                Ok ()
-
-                                                            else
-                                                                Err "Correctly didn't log in but failed to show error"
-
-                                                        LoginStatusPending ->
-                                                            Err "Failed to check login"
-                                                )
-                                                state2
-                                        )
-                                        state
-
-                                _ ->
-                                    Debug.todo "Didn't find login email"
-                        )
+                            _ ->
+                                Debug.todo "Didn't find login email"
+                    )
             )
+        ]
     , let
         session0 =
             Lamdera.sessionIdFromString "session0"
@@ -650,34 +676,40 @@ tests =
         groupDescription =
             "This is the best group"
       in
-      TF.start config "Creating a group redirects to newly created group page"
-        |> loginFromHomepage False
+      TF.start "Creating a group redirects to newly created group page"
+        startTime
+        config
+        [ loginFromHomepage False
             session0
             session0
             (Unsafe.emailAddress "the@email.com")
-            (\{ instructions, clientFromEmail } ->
-                createGroup clientFromEmail groupName groupDescription instructions
-                    |> checkLoadedFrontend
-                        clientFromEmail.clientId
-                        (\loaded ->
-                            case Dict.keys loaded.cachedGroups of
-                                [ groupId ] ->
-                                    if loaded.route == Route.GroupRoute groupId (Unsafe.groupName groupName) then
-                                        Ok ()
+            (\{ clientFromEmail } ->
+                [ createGroup clientFromEmail groupName groupDescription
+                , checkLoadedFrontend
+                    clientFromEmail.clientId
+                    (\loaded ->
+                        case Dict.keys loaded.cachedGroups of
+                            [ groupId ] ->
+                                if loaded.route == Route.GroupRoute groupId (Unsafe.groupName groupName) then
+                                    Ok ()
 
-                                    else
-                                        Err "Was redirected to incorrect route"
+                                else
+                                    Err "Was redirected to incorrect route"
 
-                                _ ->
-                                    Err "No cached groups were found"
-                        )
-                    |> clientFromEmail.checkView
-                        (Test.Html.Query.has
-                            [ Test.Html.Selector.text groupName
-                            , Test.Html.Selector.text groupDescription
-                            ]
-                        )
+                            _ ->
+                                Err "No cached groups were found"
+                    )
+                , clientFromEmail.checkView
+                    100
+                    (Test.Html.Query.has
+                        [ Test.Html.Selector.text groupName
+                        , Test.Html.Selector.text groupDescription
+                        ]
+                    )
+                ]
+                    |> TF.group
             )
+        ]
     , let
         session0 =
             Lamdera.sessionIdFromString "session0"
@@ -685,43 +717,48 @@ tests =
         emailAddress =
             Unsafe.emailAddress "the@email.com"
       in
-      TF.start config "Create an event and get an email a day before it occurs"
-        |> loginFromHomepage False
+      TF.start "Create an event and get an email a day before it occurs"
+        startTime
+        config
+        [ loginFromHomepage False
             session0
             session0
             emailAddress
-            (\{ instructions, client } ->
-                createGroupAndEvent
+            (\{ client } ->
+                [ createGroupAndEvent
                     client
                     { groupName = "It's my Group!"
                     , groupDescription = "This is the best group"
                     , eventName = "First group event!"
                     , eventDescription = "We're gonna party!"
-                    , eventDate = Date.fromPosix Time.utc (Duration.addTo TF.startTime (Duration.days 1))
+                    , eventDate = Date.fromPosix Time.utc (Duration.addTo startTime (Duration.days 1))
                     , eventHour = 14
                     , eventMinute = 0
                     , eventDuration = "1"
                     }
-                    instructions
-                    |> TF.fastForward (Duration.days -0.001 |> Quantity.plus (Duration.hours 14))
-                    |> TF.checkState
-                        (\model ->
-                            if gotReminder emailAddress model.httpRequests then
-                                Err "Shouldn't have gotten an event notification yet"
+                , TF.fastForward (Duration.days -0.001 |> Quantity.plus (Duration.hours 14))
+                , TF.checkState
+                    100
+                    (\model ->
+                        if gotReminder emailAddress model.httpRequests then
+                            Err "Shouldn't have gotten an event notification yet"
 
-                            else
-                                Ok ()
-                        )
-                    |> TF.simulateTime (Duration.days 0.002)
-                    |> TF.checkState
-                        (\model ->
-                            if gotReminder emailAddress model.httpRequests then
-                                Ok ()
+                        else
+                            Ok ()
+                    )
+                , TF.checkState
+                    (Duration.days 0.002 |> Duration.inMilliseconds)
+                    (\model ->
+                        if gotReminder emailAddress model.httpRequests then
+                            Ok ()
 
-                            else
-                                Err "Should have gotten an event notification"
-                        )
+                        else
+                            Err "Should have gotten an event notification"
+                    )
+                ]
+                    |> TF.group
             )
+        ]
     , let
         session0 =
             Lamdera.sessionIdFromString "session0"
@@ -729,35 +766,39 @@ tests =
         emailAddress =
             Unsafe.emailAddress "the@email.com"
       in
-      TF.start config "Create an event and but don't get a notification if it's occurring within 24 hours"
-        |> loginFromHomepage False
+      TF.start "Create an event and but don't get a notification if it's occurring within 24 hours"
+        startTime
+        config
+        [ loginFromHomepage False
             session0
             session0
             emailAddress
-            (\{ instructions, client } ->
-                createGroupAndEvent
+            (\{ client } ->
+                [ createGroupAndEvent
                     client
                     { groupName = "It's my Group!"
                     , groupDescription = "This is the best group"
                     , eventName = "First group event!"
                     , eventDescription = "We're gonna party!"
-                    , eventDate = Date.fromPosix Time.utc TF.startTime
+                    , eventDate = Date.fromPosix Time.utc startTime
                     , eventHour = 14
                     , eventMinute = 0
                     , eventDuration = "1"
                     }
-                    instructions
-                    |> TF.fastForward (Duration.hours 1.99)
-                    |> TF.simulateTime (Duration.hours 0.02)
-                    |> TF.checkState
-                        (\model ->
-                            if gotReminder emailAddress model.httpRequests then
-                                Err "Shouldn't have gotten an event notification"
+                , TF.fastForward (Duration.hours 1.99)
+                , TF.checkState
+                    (Duration.hours 0.02 |> Duration.inMilliseconds)
+                    (\model ->
+                        if gotReminder emailAddress model.httpRequests then
+                            Err "Shouldn't have gotten an event notification"
 
-                            else
-                                Ok ()
-                        )
+                        else
+                            Ok ()
+                    )
+                ]
+                    |> TF.group
             )
+        ]
     , let
         session0 =
             Lamdera.sessionIdFromString "session0"
@@ -774,71 +815,76 @@ tests =
         groupName =
             Unsafe.groupName "It's my Group!"
       in
-      TF.start config "Create an event and another user joins it and gets an event reminder"
-        |> loginFromHomepage False
+      TF.start "Create an event and another user joins it and gets an event reminder"
+        startTime
+        config
+        [ loginFromHomepage False
             session0
             session0
             emailAddress0
-            (\{ instructions, client } ->
+            (\{ client } ->
                 createGroupAndEvent
                     client
                     { groupName = GroupName.toString groupName
                     , groupDescription = "This is the best group"
                     , eventName = "First group event!"
                     , eventDescription = "We're gonna party!"
-                    , eventDate = Date.fromPosix Time.utc (Duration.addTo TF.startTime Duration.day)
+                    , eventDate = Date.fromPosix Time.utc (Duration.addTo startTime Duration.day)
                     , eventHour = 14
                     , eventMinute = 0
                     , eventDuration = "1"
                     }
-                    instructions
             )
-        |> loginFromHomepage False
+        , loginFromHomepage False
             session1
             session1
             emailAddress1
-            (\{ instructions, client } ->
+            (\{ client } ->
                 findSingleGroup
-                    (\groupId inProgress2 ->
-                        inProgress2
-                            |> client.inputText Frontend.groupSearchId "my group!"
-                            |> client.keyDownEvent Frontend.groupSearchId { keyCode = Ui.enterKeyCode }
-                            |> client.clickLink { href = Route.GroupRoute groupId groupName |> Route.encode }
-                            |> client.clickButton GroupPage.joinEventButtonId
-                            |> TF.fastForward (Duration.hours 14)
-                            |> TF.simulateTime (Duration.seconds 30)
-                            |> TF.checkState
-                                (\model ->
-                                    if gotReminder emailAddress1 model.httpRequests then
-                                        Ok ()
+                    (\groupId ->
+                        [ client.input 100 Frontend.groupSearchId "my group!"
+                        , client.keyDown 100 Frontend.groupSearchId "Enter" []
+                        , client.clickLink 100 (Route.GroupRoute groupId groupName |> Route.encode)
+                        , client.click 100 GroupPage.joinEventButtonId
+                        , TF.fastForward (Duration.hours 14)
+                        , TF.checkState
+                            (Duration.seconds 30 |> Duration.inMilliseconds)
+                            (\model ->
+                                if gotReminder emailAddress1 model.httpRequests then
+                                    Ok ()
 
-                                    else
-                                        Err "Should have gotten an event notification"
-                                )
+                                else
+                                    Err "Should have gotten an event notification"
+                            )
+                        ]
                     )
-                    instructions
             )
+        ]
     , createEventAndAnotherUserNotLoggedInJoinsIt
     , createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt
     , let
-        connectAndLogin count =
+        connectAndLogin wait count =
             TF.connectFrontend
+                wait
                 (Lamdera.sessionIdFromString ("session " ++ String.fromInt count))
-                (Unsafe.url Env.domain)
+                "/"
                 windowSize
-                (\( state, client ) ->
-                    state
-                        |> client.clickButton Frontend.signUpOrLoginButtonId
-                        |> client.inputText LoginForm.emailAddressInputId "my+good@email.eu"
-                        |> client.clickButton LoginForm.submitButtonId
+                (\client ->
+                    [ client.click 100 Frontend.signUpOrLoginButtonId
+                    , client.input 100 LoginForm.emailAddressInputId "my+good@email.eu"
+                    , client.click 100 LoginForm.submitButtonId
+                    ]
                 )
       in
-      TF.start config "Rate limit login for a given email address"
-        |> connectAndLogin 1
-        |> connectAndLogin 2
-        |> connectAndLogin 3
-        |> connectAndLogin 4
-        |> TF.checkState
+      TF.start "Rate limit login for a given email address"
+        startTime
+        config
+        [ connectAndLogin 100 1
+        , connectAndLogin 100 2
+        , connectAndLogin 100 3
+        , connectAndLogin 100 4
+        , TF.checkState
+            100
             (\state2 ->
                 if List.filterMap isLoginEmail state2.httpRequests |> List.length |> (==) 1 then
                     Ok ()
@@ -846,9 +892,9 @@ tests =
                 else
                     Err "Only one email should have been sent"
             )
-        |> TF.simulateTime (Duration.minutes 2)
-        |> connectAndLogin 5
-        |> TF.checkState
+        , connectAndLogin (Duration.minutes 2 |> Duration.inMilliseconds) 5
+        , TF.checkState
+            100
             (\state2 ->
                 if List.filterMap isLoginEmail state2.httpRequests |> List.length |> (==) 2 then
                     Ok ()
@@ -856,62 +902,68 @@ tests =
                 else
                     Err "Two emails should have been sent"
             )
+        ]
     , let
         session0 =
             Lamdera.sessionIdFromString "session0"
       in
-      TF.start config "Rate limit login for a given session"
-        |> TF.connectFrontend
+      TF.start "Rate limit login for a given session"
+        startTime
+        config
+        [ TF.connectFrontend
+            100
             session0
-            (Unsafe.url Env.domain)
+            "/"
             windowSize
-            (\( state, client ) ->
-                state
-                    |> client.clickButton Frontend.signUpOrLoginButtonId
-                    |> client.inputText LoginForm.emailAddressInputId "a@email.eu"
-                    |> client.clickButton LoginForm.submitButtonId
-                    |> client.inputText LoginForm.emailAddressInputId "b@email.eu"
-                    |> client.clickButton LoginForm.submitButtonId
-                    |> client.inputText LoginForm.emailAddressInputId "c@email.eu"
-                    |> client.clickButton LoginForm.submitButtonId
-                    |> client.inputText LoginForm.emailAddressInputId "d@email.eu"
-                    |> client.clickButton LoginForm.submitButtonId
-                    |> client.inputText LoginForm.emailAddressInputId "e@email.eu"
-                    |> client.clickButton LoginForm.submitButtonId
-                    |> TF.checkState
-                        (\state2 ->
-                            let
-                                count =
-                                    List.filterMap isLoginEmail state2.httpRequests |> List.length
-                            in
-                            if count == 1 then
-                                Ok ()
+            (\client ->
+                [ client.click 100 Frontend.signUpOrLoginButtonId
+                , client.input 100 LoginForm.emailAddressInputId "a@email.eu"
+                , client.click 100 LoginForm.submitButtonId
+                , client.input 100 LoginForm.emailAddressInputId "b@email.eu"
+                , client.click 100 LoginForm.submitButtonId
+                , client.input 100 LoginForm.emailAddressInputId "c@email.eu"
+                , client.click 100 LoginForm.submitButtonId
+                , client.input 100 LoginForm.emailAddressInputId "d@email.eu"
+                , client.click 100 LoginForm.submitButtonId
+                , client.input 100 LoginForm.emailAddressInputId "e@email.eu"
+                , client.click 100 LoginForm.submitButtonId
+                , TF.checkState
+                    100
+                    (\state2 ->
+                        let
+                            count =
+                                List.filterMap isLoginEmail state2.httpRequests |> List.length
+                        in
+                        if count == 1 then
+                            Ok ()
 
-                            else
-                                "Only one email should have been sent, got "
-                                    ++ String.fromInt count
-                                    ++ " instead"
-                                    |> Err
-                        )
-                    |> TF.simulateTime Duration.minute
-                    |> client.inputText LoginForm.emailAddressInputId "e@email.eu"
-                    |> client.clickButton LoginForm.submitButtonId
-                    |> TF.checkState
-                        (\state2 ->
-                            let
-                                count =
-                                    List.filterMap isLoginEmail state2.httpRequests |> List.length
-                            in
-                            if count == 2 then
-                                Ok ()
+                        else
+                            "Only one email should have been sent, got "
+                                ++ String.fromInt count
+                                ++ " instead"
+                                |> Err
+                    )
+                , client.input (60 * 1000) LoginForm.emailAddressInputId "e@email.eu"
+                , client.click 100 LoginForm.submitButtonId
+                , TF.checkState
+                    100
+                    (\state2 ->
+                        let
+                            count =
+                                List.filterMap isLoginEmail state2.httpRequests |> List.length
+                        in
+                        if count == 2 then
+                            Ok ()
 
-                            else
-                                "Two emails should have been sent, got "
-                                    ++ String.fromInt count
-                                    ++ " instead"
-                                    |> Err
-                        )
+                        else
+                            "Two emails should have been sent, got "
+                                ++ String.fromInt count
+                                ++ " instead"
+                                |> Err
+                    )
+                ]
             )
+        ]
     , let
         session0 =
             Lamdera.sessionIdFromString "session0"
@@ -919,91 +971,99 @@ tests =
         emailAddress =
             Unsafe.emailAddress "a@email.eu"
       in
-      TF.start config "Rate limit delete account email"
-        |> loginFromHomepage
+      TF.start "Rate limit delete account email"
+        startTime
+        config
+        [ loginFromHomepage
             True
             session0
             session0
             emailAddress
-            (\{ instructions, client } ->
-                instructions
-                    |> client.clickLink { href = Route.encode Route.MyProfileRoute }
-                    |> client.clickButton ProfilePage.deleteAccountButtonId
-                    |> client.clickButton ProfilePage.deleteAccountButtonId
-                    |> client.clickButton ProfilePage.deleteAccountButtonId
-                    |> client.clickButton ProfilePage.deleteAccountButtonId
-                    |> TF.checkState
-                        (\state2 ->
-                            let
-                                count =
-                                    List.count
-                                        (\httpRequest ->
-                                            case isDeleteUserEmail httpRequest of
-                                                Just deleteUserEmail ->
-                                                    deleteUserEmail.emailAddress == emailAddress
+            (\{ client } ->
+                [ client.clickLink 100 (Route.encode Route.MyProfileRoute)
+                , client.click 100 ProfilePage.deleteAccountButtonId
+                , client.click 100 ProfilePage.deleteAccountButtonId
+                , client.click 100 ProfilePage.deleteAccountButtonId
+                , client.click 100 ProfilePage.deleteAccountButtonId
+                , TF.checkState
+                    100
+                    (\state2 ->
+                        let
+                            count =
+                                List.count
+                                    (\httpRequest ->
+                                        case isDeleteUserEmail httpRequest of
+                                            Just deleteUserEmail ->
+                                                deleteUserEmail.emailAddress == emailAddress
 
-                                                Nothing ->
-                                                    False
-                                        )
-                                        state2.httpRequests
-                            in
-                            if count == 1 then
-                                Ok ()
+                                            Nothing ->
+                                                False
+                                    )
+                                    state2.httpRequests
+                        in
+                        if count == 1 then
+                            Ok ()
 
-                            else
-                                "Only one account deletion email should have been sent, got "
-                                    ++ String.fromInt count
-                                    ++ " instead"
-                                    |> Err
-                        )
-                    |> TF.simulateTime (Duration.minutes 1.5)
-                    |> client.clickButton ProfilePage.deleteAccountButtonId
-                    |> TF.checkState
-                        (\state2 ->
-                            let
-                                count =
-                                    List.count
-                                        (\httpRequest ->
-                                            case isDeleteUserEmail httpRequest of
-                                                Just deleteUserEmail ->
-                                                    deleteUserEmail.emailAddress == emailAddress
+                        else
+                            "Only one account deletion email should have been sent, got "
+                                ++ String.fromInt count
+                                ++ " instead"
+                                |> Err
+                    )
+                , client.click (Duration.minutes 1.5 |> Duration.inMilliseconds) ProfilePage.deleteAccountButtonId
+                , TF.checkState
+                    100
+                    (\state2 ->
+                        let
+                            count =
+                                List.count
+                                    (\httpRequest ->
+                                        case isDeleteUserEmail httpRequest of
+                                            Just deleteUserEmail ->
+                                                deleteUserEmail.emailAddress == emailAddress
 
-                                                Nothing ->
-                                                    False
-                                        )
-                                        state2.httpRequests
-                            in
-                            if count == 2 then
-                                Ok ()
+                                            Nothing ->
+                                                False
+                                    )
+                                    state2.httpRequests
+                        in
+                        if count == 2 then
+                            Ok ()
 
-                            else
-                                "Two account deletion emails should have been sent, got "
-                                    ++ String.fromInt count
-                                    ++ " instead"
-                                    |> Err
-                        )
+                        else
+                            "Two account deletion emails should have been sent, got "
+                                ++ String.fromInt count
+                                ++ " instead"
+                                |> Err
+                    )
+                ]
+                    |> TF.group
             )
+        ]
     , let
         sessionId =
             Lamdera.sessionIdFromString "sessionId"
       in
-      TF.start config "Not logged in users can't create groups"
-        |> TF.connectFrontend
+      TF.start "Not logged in users can't create groups"
+        startTime
+        config
+        [ TF.connectFrontend
+            100
             sessionId
-            (Env.domain ++ Route.encode Route.HomepageRoute |> Unsafe.url)
+            (Route.encode Route.HomepageRoute)
             windowSize
-            (\( instructions, client ) ->
-                instructions
-                    |> TF.sendToBackend
-                        sessionId
-                        client.clientId
-                        (CreateGroupRequest
-                            (Unsafe.groupName "group" |> Untrusted.untrust)
-                            (Unsafe.description "description" |> Untrusted.untrust)
-                            Group.PublicGroup
-                        )
+            (\client ->
+                [ client.sendToBackend
+                    100
+                    (CreateGroupRequest
+                        (Unsafe.groupName "group" |> Untrusted.untrust)
+                        (Unsafe.description "description" |> Untrusted.untrust)
+                        Group.PublicGroup
+                    )
+                ]
             )
-        |> TF.checkBackend
+        , TF.checkBackend
+            100
             (\backend ->
                 if Dict.isEmpty backend.groups then
                     Ok ()
@@ -1011,6 +1071,7 @@ tests =
                 else
                     Err "No group should have been created"
             )
+        ]
     , let
         sessionId =
             Lamdera.sessionIdFromString "sessionId"
@@ -1024,32 +1085,33 @@ tests =
         attackerEmailAddress =
             Unsafe.emailAddress "hacker@email.com"
       in
-      TF.start config "Non-admin users can't delete groups"
-        |> loginFromHomepage
+      TF.start "Non-admin users can't delete groups"
+        startTime
+        config
+        [ loginFromHomepage
             True
             sessionId
             sessionId
             emailAddress
-            (\{ instructions, client } ->
-                instructions |> createGroup client "group" "description"
+            (\{ client } ->
+                createGroup client "group" "description"
             )
-        |> loginFromHomepage
+        , loginFromHomepage
             False
             attackerSessionId
             attackerSessionId
             attackerEmailAddress
-            (\{ instructions, client } ->
+            (\{ client } ->
                 findSingleGroup
-                    (\groupId instructions2 ->
-                        instructions2
-                            |> TF.sendToBackend
-                                sessionId
-                                client.clientId
-                                (GroupRequest groupId GroupPage.DeleteGroupAdminRequest)
+                    (\groupId ->
+                        [ client.sendToBackend
+                            100
+                            (GroupRequest groupId GroupPage.DeleteGroupAdminRequest)
+                        ]
                     )
-                    instructions
             )
-        |> TF.checkBackend
+        , TF.checkBackend
+            100
             (\backend ->
                 if Dict.isEmpty backend.deletedGroups && Dict.size backend.groups == 1 then
                     Ok ()
@@ -1057,6 +1119,7 @@ tests =
                 else
                     Err "No group should have been deleted"
             )
+        ]
     , let
         sessionId =
             Lamdera.sessionIdFromString "sessionId"
@@ -1073,41 +1136,44 @@ tests =
         groupName =
             Unsafe.groupName "group"
       in
-      TF.start config "Get new event notification"
-        |> loginFromHomepage
+      TF.start "Get new event notification"
+        startTime
+        config
+        [ loginFromHomepage
             True
             sessionId
             sessionId
             emailAddress
-            (\{ instructions, client } ->
-                instructions
-                    |> createGroup client (GroupName.toString groupName) "description"
-                    |> loginFromHomepage
-                        False
-                        subscriberSessionId
-                        subscriberSessionId
-                        subscriberEmail
-                        (\a ->
-                            findSingleGroup
-                                (\groupId instructions2 ->
-                                    instructions2
-                                        |> a.client.inputText Frontend.groupSearchId "my group!"
-                                        |> a.client.keyDownEvent Frontend.groupSearchId { keyCode = Ui.enterKeyCode }
-                                        |> a.client.clickLink { href = Route.GroupRoute groupId groupName |> Route.encode }
-                                        |> a.client.clickButton GroupPage.subscribeButtonId
-                                )
-                                a.instructions
-                        )
-                    |> client.clickButton GroupPage.createNewEventId
-                    |> client.inputText GroupPage.eventNameInputId "Event!"
-                    |> client.inputText GroupPage.eventDescriptionInputId "Event description"
-                    |> client.clickButton (GroupPage.eventMeetingTypeId GroupPage.MeetOnline)
-                    |> client.inputText GroupPage.createEventStartDateId (Ui.datestamp (Date.fromRataDie 737485))
-                    |> client.inputText GroupPage.createEventStartTimeId (Ui.timestamp 10 12)
-                    |> client.inputText GroupPage.eventDurationId "1"
-                    |> client.clickButton GroupPage.createEventSubmitId
+            (\{ client } ->
+                [ createGroup client (GroupName.toString groupName) "description"
+                , loginFromHomepage
+                    False
+                    subscriberSessionId
+                    subscriberSessionId
+                    subscriberEmail
+                    (\a ->
+                        findSingleGroup
+                            (\groupId ->
+                                [ a.client.input 100 Frontend.groupSearchId "my group!"
+                                , a.client.keyDown 100 Frontend.groupSearchId "Enter" []
+                                , a.client.clickLink 100 (Route.GroupRoute groupId groupName |> Route.encode)
+                                , a.client.click 100 GroupPage.subscribeButtonId
+                                ]
+                            )
+                    )
+                , client.click 100 GroupPage.createNewEventId
+                , client.input 100 GroupPage.eventNameInputId "Event!"
+                , client.input 100 GroupPage.eventDescriptionInputId "Event description"
+                , client.click 100 (GroupPage.eventMeetingTypeId GroupPage.MeetOnline)
+                , client.input 100 GroupPage.createEventStartDateId (Ui.datestamp (Date.fromRataDie 737485))
+                , client.input 100 GroupPage.createEventStartTimeId (Ui.timestamp 10 12)
+                , client.input 100 GroupPage.eventDurationId "1"
+                , client.click 100 GroupPage.createEventSubmitId
+                ]
+                    |> TF.group
             )
-        |> TF.checkState
+        , TF.checkState
+            100
             (\state ->
                 case
                     ( Dict.toList state.backend.groups
@@ -1127,58 +1193,57 @@ tests =
                     _ ->
                         Err "New event notification email not found"
             )
+        ]
     , snapshotPages
     ]
 
 
 findSingleGroup :
     (Id GroupId
-     -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
-     -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+     -> List (Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel)
     )
-    -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
-    -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
-findSingleGroup continueWith inProgress =
-    inProgress
-        |> TF.andThen
-            (\data state ->
-                case Dict.keys data.backend.groups of
-                    [ groupId ] ->
-                        continueWith groupId state
+    -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+findSingleGroup continueWith =
+    TF.andThen
+        100
+        (\data ->
+            case Dict.keys data.backend.groups of
+                [ groupId ] ->
+                    continueWith groupId
 
-                    keys ->
-                        TF.checkState
-                            (\_ ->
-                                "Expected to find exactly one group, instead got "
-                                    ++ String.fromInt (List.length keys)
-                                    |> Err
-                            )
-                            state
-            )
+                keys ->
+                    [ TF.checkState
+                        100
+                        (\_ ->
+                            "Expected to find exactly one group, instead got "
+                                ++ String.fromInt (List.length keys)
+                                |> Err
+                        )
+                    ]
+        )
 
 
 findUser :
     Name
     ->
         (Id UserId
-         -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
-         -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+         -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
         )
-    -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
-    -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
-findUser name continueWith inProgress =
-    inProgress
-        |> TF.andThen
-            (\data state ->
-                case Dict.toList data.backend.users |> List.find (\( _, user ) -> user.name == name) of
-                    Just ( userId, _ ) ->
-                        continueWith userId inProgress
+    -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+findUser name continueWith =
+    TF.andThen
+        100
+        (\data ->
+            [ case Dict.toList data.backend.users |> List.find (\( _, user ) -> user.name == name) of
+                Just ( userId, _ ) ->
+                    continueWith userId
 
-                    Nothing ->
-                        TF.checkState
-                            (\_ -> "Expected to find user named \"" ++ Name.toString name ++ "\"" |> Err)
-                            state
-            )
+                Nothing ->
+                    TF.checkState
+                        100
+                        (\_ -> "Expected to find user named \"" ++ Name.toString name ++ "\"" |> Err)
+            ]
+        )
 
 
 createEventAndAnotherUserNotLoggedInJoinsIt : TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
@@ -1199,50 +1264,53 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
         groupName =
             Unsafe.groupName "It's my Group!"
     in
-    TF.start config "Create an event and another user (who isn't logged in) joins it"
-        |> loginFromHomepage False
+    TF.start "Create an event and another user (who isn't logged in) joins it"
+        startTime
+        config
+        [ loginFromHomepage False
             session0
             session0
             emailAddress0
-            (\{ instructions, client } ->
+            (\{ client } ->
                 createGroupAndEvent
                     client
                     { groupName = GroupName.toString groupName
                     , groupDescription = "This is the best group"
                     , eventName = "First group event!"
                     , eventDescription = "We're gonna party!"
-                    , eventDate = Date.fromPosix Time.utc (Duration.addTo TF.startTime Duration.day)
+                    , eventDate = Date.fromPosix Time.utc (Duration.addTo startTime Duration.day)
                     , eventHour = 14
                     , eventMinute = 0
                     , eventDuration = "1"
                     }
-                    instructions
             )
-        |> TF.connectFrontend session1
-            (Env.domain ++ Route.encode Route.HomepageRoute |> Unsafe.url)
+        , TF.connectFrontend
+            100
+            session1
+            (Route.encode Route.HomepageRoute)
             windowSize
-            (\( instructions, client ) ->
-                findSingleGroup
-                    (\groupId inProgress2 ->
-                        inProgress2
-                            |> client.inputText Frontend.groupSearchId "my group!"
-                            |> client.keyDownEvent Frontend.groupSearchId { keyCode = Ui.enterKeyCode }
-                            |> client.clickLink { href = Route.GroupRoute groupId groupName |> Route.encode }
-                            |> client.clickButton GroupPage.joinEventButtonId
-                            |> handleLoginForm
-                                False
-                                True
-                                client
-                                session1
-                                emailAddress1
-                                (\a ->
-                                    a.instructions
-                                        -- We are just clicking the leave button to test that we had joined the event.
-                                        |> a.clientFromEmail.clickButton GroupPage.leaveEventButtonId
-                                )
+            (\client ->
+                [ findSingleGroup
+                    (\groupId ->
+                        [ client.input 100 Frontend.groupSearchId "my group!"
+                        , client.keyDown 100 Frontend.groupSearchId "Enter" []
+                        , client.clickLink 100 (Route.GroupRoute groupId groupName |> Route.encode)
+                        , client.click 100 GroupPage.joinEventButtonId
+                        , handleLoginForm
+                            False
+                            True
+                            client
+                            session1
+                            emailAddress1
+                            (\a ->
+                                -- We are just clicking the leave button to test that we had joined the event.
+                                a.clientFromEmail.click 100 GroupPage.leaveEventButtonId
+                            )
+                        ]
                     )
-                    instructions
+                ]
             )
+        ]
 
 
 createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt : TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
@@ -1263,74 +1331,75 @@ createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
         groupName =
             Unsafe.groupName "It's my Group!"
     in
-    TF.start config "Create an event and another user (who isn't logged in but has an account) joins it"
-        |> loginFromHomepage False
+    TF.start "Create an event and another user (who isn't logged in but has an account) joins it"
+        startTime
+        config
+        [ loginFromHomepage False
             session0
             session0
             emailAddress0
-            (\{ instructions, client } ->
+            (\{ client } ->
                 createGroupAndEvent
                     client
                     { groupName = GroupName.toString groupName
                     , groupDescription = "This is the best group"
                     , eventName = "First group event!"
                     , eventDescription = "We're gonna party!"
-                    , eventDate = Date.fromPosix Time.utc (Duration.addTo TF.startTime Duration.day)
+                    , eventDate = Date.fromPosix Time.utc (Duration.addTo startTime Duration.day)
                     , eventHour = 14
                     , eventMinute = 0
                     , eventDuration = "1"
                     }
-                    instructions
             )
-        |> loginFromHomepage False
+        , loginFromHomepage False
             session1
             session1
             emailAddress1
-            (\{ instructions, clientFromEmail } ->
-                instructions
-                    |> clientFromEmail.clickButton Frontend.logOutButtonId
-                    |> TF.simulateTime Duration.minute
+            (\{ clientFromEmail } ->
+                clientFromEmail.click 100 Frontend.logOutButtonId
             )
-        |> TF.connectFrontend session1
-            (Env.domain ++ Route.encode Route.HomepageRoute |> Unsafe.url)
+        , TF.connectFrontend
+            (60 * 1000)
+            session1
+            (Route.encode Route.HomepageRoute)
             windowSize
-            (\( instructions, client ) ->
-                findSingleGroup
-                    (\groupId inProgress2 ->
-                        inProgress2
-                            |> client.inputText Frontend.groupSearchId "my group!"
-                            |> client.keyDownEvent Frontend.groupSearchId { keyCode = Ui.enterKeyCode }
-                            |> client.clickLink { href = Route.GroupRoute groupId groupName |> Route.encode }
-                            |> client.clickButton GroupPage.joinEventButtonId
-                            |> handleLoginForm
-                                False
-                                True
-                                client
-                                session1
-                                emailAddress1
-                                (\a ->
-                                    a.instructions
-                                        -- We are just clicking the leave button to test that we had joined the event.
-                                        |> a.clientFromEmail.clickButton GroupPage.leaveEventButtonId
-                                )
+            (\client ->
+                [ findSingleGroup
+                    (\groupId ->
+                        [ client.input 100 Frontend.groupSearchId "my group!"
+                        , client.keyDown 100 Frontend.groupSearchId "Enter" []
+                        , client.clickLink 100 (Route.GroupRoute groupId groupName |> Route.encode)
+                        , client.click 100 GroupPage.joinEventButtonId
+                        , handleLoginForm
+                            False
+                            True
+                            client
+                            session1
+                            emailAddress1
+                            (\a ->
+                                -- We are just clicking the leave button to test that we had joined the event.
+                                a.clientFromEmail.click 100 GroupPage.leaveEventButtonId
+                            )
+                        ]
                     )
-                    instructions
+                ]
             )
+        ]
 
 
 createGroup :
     TF.FrontendActions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
     -> String
     -> String
-    -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
-    -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
-createGroup loggedInClient groupName groupDescription state =
-    state
-        |> loggedInClient.clickLink { href = Route.encode Route.CreateGroupRoute }
-        |> loggedInClient.inputText CreateGroupPage.nameInputId groupName
-        |> loggedInClient.inputText CreateGroupPage.descriptionInputId groupDescription
-        |> loggedInClient.clickButton (CreateGroupPage.groupVisibilityId Group.PublicGroup)
-        |> loggedInClient.clickButton CreateGroupPage.submitButtonId
+    -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+createGroup loggedInClient groupName groupDescription =
+    [ loggedInClient.clickLink 100 (Route.encode Route.CreateGroupRoute)
+    , loggedInClient.input 100 CreateGroupPage.nameInputId groupName
+    , loggedInClient.input 100 CreateGroupPage.descriptionInputId groupDescription
+    , loggedInClient.click 100 (CreateGroupPage.groupVisibilityId Group.PublicGroup)
+    , loggedInClient.click 100 CreateGroupPage.submitButtonId
+    ]
+        |> TF.group
 
 
 createGroupAndEvent :
@@ -1345,18 +1414,19 @@ createGroupAndEvent :
         , eventMinute : Int
         , eventDuration : String
         }
-    -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
-    -> TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
-createGroupAndEvent loggedInClient { groupName, groupDescription, eventName, eventDescription, eventDate, eventHour, eventMinute, eventDuration } state =
-    createGroup loggedInClient groupName groupDescription state
-        |> loggedInClient.clickButton GroupPage.createNewEventId
-        |> loggedInClient.inputText GroupPage.eventNameInputId eventName
-        |> loggedInClient.inputText GroupPage.eventDescriptionInputId eventDescription
-        |> loggedInClient.clickButton (GroupPage.eventMeetingTypeId GroupPage.MeetOnline)
-        |> loggedInClient.inputText GroupPage.createEventStartDateId (Ui.datestamp eventDate)
-        |> loggedInClient.inputText GroupPage.createEventStartTimeId (Ui.timestamp eventHour eventMinute)
-        |> loggedInClient.inputText GroupPage.eventDurationId eventDuration
-        |> loggedInClient.clickButton GroupPage.createEventSubmitId
+    -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+createGroupAndEvent loggedInClient { groupName, groupDescription, eventName, eventDescription, eventDate, eventHour, eventMinute, eventDuration } =
+    [ createGroup loggedInClient groupName groupDescription
+    , loggedInClient.click 100 GroupPage.createNewEventId
+    , loggedInClient.input 100 GroupPage.eventNameInputId eventName
+    , loggedInClient.input 100 GroupPage.eventDescriptionInputId eventDescription
+    , loggedInClient.click 100 (GroupPage.eventMeetingTypeId GroupPage.MeetOnline)
+    , loggedInClient.input 100 GroupPage.createEventStartDateId (Ui.datestamp eventDate)
+    , loggedInClient.input 100 GroupPage.createEventStartTimeId (Ui.timestamp eventHour eventMinute)
+    , loggedInClient.input 100 GroupPage.eventDurationId eventDuration
+    , loggedInClient.click 100 GroupPage.createEventSubmitId
+    ]
+        |> TF.group
 
 
 snapshotPages : TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
@@ -1374,97 +1444,102 @@ snapshotPages =
         name =
             Unsafe.name "Mr. Longnamingsson Jr."
     in
-    TF.start config "Snapshot pages"
-        |> loginFromHomepage False
+    TF.start "Snapshot pages"
+        startTime
+        config
+        [ loginFromHomepage False
             (Lamdera.sessionIdFromString "sessionId0")
             (Lamdera.sessionIdFromString "sessionId0")
             emailAddress
-            (\{ instructions, client } ->
-                instructions
-                    -- View miscellaneous pages
-                    |> client.clickLink { href = Route.encode Route.FrequentQuestionsRoute }
-                    |> client.snapshotView { name = "FAQ page" }
-                    |> client.clickLink { href = Route.encode Route.CodeOfConductRoute }
-                    |> client.snapshotView { name = "Code of conduct page" }
-                    |> client.clickLink { href = Route.encode Route.TermsOfServiceRoute }
-                    |> client.snapshotView { name = "Terms of service page" }
-                    |> client.clickLink { href = Route.encode Route.PrivacyRoute }
-                    |> client.snapshotView { name = "Privacy page" }
-                    -- View my groups without group
-                    |> client.clickLink { href = Route.encode Route.MyGroupsRoute }
-                    |> client.snapshotView { name = "My groups page" }
-                    -- Create group
-                    |> client.clickLink { href = Route.encode Route.CreateGroupRoute }
-                    |> client.snapshotView { name = "Create group page" }
-                    |> client.clickButton CreateGroupPage.submitButtonId
-                    |> client.snapshotView { name = "Fail to create group" }
-                    |> client.inputText CreateGroupPage.nameInputId (GroupName.toString groupName)
-                    |> client.inputText CreateGroupPage.descriptionInputId "groupDescription"
-                    |> client.clickButton (CreateGroupPage.groupVisibilityId Group.PublicGroup)
-                    |> client.snapshotView { name = "Create group page with fields filled" }
-                    |> client.clickButton CreateGroupPage.submitButtonId
-                    |> client.snapshotView { name = "Group page" }
-                    |> client.clickButton GroupPage.createNewEventId
-                    -- Create group event
-                    |> client.snapshotView { name = "Create event page" }
-                    |> client.clickButton GroupPage.createEventSubmitId
-                    |> client.snapshotView { name = "Fail to create event" }
-                    |> client.inputText GroupPage.eventNameInputId "First event!"
-                    |> client.inputText GroupPage.eventDescriptionInputId "Hey this is my cool first event! I'm so excited to host it and I hope a bunch of people join. We're going to have lots of fun doing stuff!"
-                    |> client.clickButton (GroupPage.eventMeetingTypeId GroupPage.MeetOnline)
-                    |> client.inputText GroupPage.createEventStartDateId (Ui.datestamp (Date.fromCalendarDate 1970 Jan 2))
-                    |> client.inputText GroupPage.createEventStartTimeId (Ui.timestamp 0 1)
-                    |> client.inputText GroupPage.eventDurationId "2"
-                    |> client.snapshotView { name = "Create event page with fields filled" }
-                    |> client.clickButton GroupPage.createEventSubmitId
-                    |> client.snapshotView { name = "Group page with new event" }
-                    |> client.clickButton GroupPage.showAttendeesButtonId
-                    |> client.snapshotView { name = "Group page with new event and show attendees" }
-                    |> client.clickButton GroupPage.hideAttendeesButtonId
-                    -- View default user profile
-                    |> findUser
-                        Name.anonymous
-                        (\userId instructions2 ->
-                            instructions2 |> client.clickLink { href = Route.encode (Route.UserRoute userId Name.anonymous) }
-                        )
-                    |> client.snapshotView { name = "Default user profile page" }
-                    -- View my groups with group
-                    |> client.clickLink { href = Route.encode Route.MyGroupsRoute }
-                    |> client.snapshotView { name = "My groups page with group" }
-                    -- Edit profile
-                    |> client.clickLink { href = Route.encode Route.MyProfileRoute }
-                    |> client.snapshotView { name = "Profile page" }
-                    |> client.inputText ProfilePage.nameTextInputId (Name.toString name)
-                    |> TF.simulateTime (Duration.seconds 3)
-                    |> client.inputText ProfilePage.descriptionTextInputId "This is my description text that I have so thoughtfully written to take up at least one or two lines of spaces in the web page it's viewed on."
-                    |> TF.simulateTime (Duration.seconds 3)
-                    |> client.inputText Frontend.groupSearchId (GroupName.toString groupName)
-                    |> TF.simulateTime (Duration.seconds 3)
-                    |> client.snapshotView { name = "Profile page with changes and search prepared" }
-                    -- Search for group
-                    |> client.keyDownEvent Frontend.groupSearchId { keyCode = Ui.enterKeyCode }
-                    |> client.snapshotView { name = "Search page" }
-                    |> findSingleGroup
-                        (\groupId instructions2 ->
-                            instructions2
-                                |> client.clickLink { href = Route.encode (Route.GroupRoute groupId groupName) }
-                        )
-                    |> client.clickButton GroupPage.showAttendeesButtonId
-                    |> client.snapshotView { name = "Group page with updated profile" }
-                    |> TF.fastForward (Duration.hours 23)
-                    |> TF.simulateTime Duration.minute
-                    |> client.snapshotView { name = "Group page with less than 1 hour to event" }
-                    |> TF.fastForward Duration.hour
-                    |> TF.simulateTime Duration.minute
-                    |> client.snapshotView { name = "Group page with event ongoing" }
-                    |> TF.fastForward (Duration.hours 3)
-                    |> TF.simulateTime Duration.minute
-                    |> client.snapshotView { name = "Group page with event ended" }
-                    -- View user profile with edits
-                    |> findUser
-                        name
-                        (\userId instructions2 ->
-                            instructions2 |> client.clickLink { href = Route.encode (Route.UserRoute userId name) }
-                        )
-                    |> client.snapshotView { name = "User profile page with edits" }
+            (\{ client } ->
+                -- View miscellaneous pages
+                [ client.clickLink 100 (Route.encode Route.FrequentQuestionsRoute)
+                , client.snapshotView 100 { name = "FAQ page" }
+                , client.clickLink 100 (Route.encode Route.CodeOfConductRoute)
+                , client.snapshotView 100 { name = "Code of conduct page" }
+                , client.clickLink 100 (Route.encode Route.TermsOfServiceRoute)
+                , client.snapshotView 100 { name = "Terms of service page" }
+                , client.clickLink 100 (Route.encode Route.PrivacyRoute)
+                , client.snapshotView 100 { name = "Privacy page" }
+
+                -- View my groups without group
+                , client.clickLink 100 (Route.encode Route.MyGroupsRoute)
+                , client.snapshotView 100 { name = "My groups page" }
+
+                -- Create group
+                , client.clickLink 100 (Route.encode Route.CreateGroupRoute)
+                , client.snapshotView 100 { name = "Create group page" }
+                , client.click 100 CreateGroupPage.submitButtonId
+                , client.snapshotView 100 { name = "Fail to create group" }
+                , client.input 100 CreateGroupPage.nameInputId (GroupName.toString groupName)
+                , client.input 100 CreateGroupPage.descriptionInputId "groupDescription"
+                , client.click 100 (CreateGroupPage.groupVisibilityId Group.PublicGroup)
+                , client.snapshotView 100 { name = "Create group page with fields filled" }
+                , client.click 100 CreateGroupPage.submitButtonId
+                , client.snapshotView 100 { name = "Group page" }
+                , client.click 100 GroupPage.createNewEventId
+
+                -- Create group event
+                , client.snapshotView 100 { name = "Create event page" }
+                , client.click 100 GroupPage.createEventSubmitId
+                , client.snapshotView 100 { name = "Fail to create event" }
+                , client.input 100 GroupPage.eventNameInputId "First event!"
+                , client.input 100 GroupPage.eventDescriptionInputId "Hey this is my cool first event! I'm so excited to host it and I hope a bunch of people join. We're going to have lots of fun doing stuff!"
+                , client.click 100 (GroupPage.eventMeetingTypeId GroupPage.MeetOnline)
+                , client.input 100 GroupPage.createEventStartDateId (Ui.datestamp (Date.fromCalendarDate 1970 Jan 2))
+                , client.input 100 GroupPage.createEventStartTimeId (Ui.timestamp 0 1)
+                , client.input 100 GroupPage.eventDurationId "2"
+                , client.snapshotView 100 { name = "Create event page with fields filled" }
+                , client.click 100 GroupPage.createEventSubmitId
+                , client.snapshotView 100 { name = "Group page with new event" }
+                , client.click 100 GroupPage.showAttendeesButtonId
+                , client.snapshotView 100 { name = "Group page with new event and show attendees" }
+                , client.click 100 GroupPage.hideAttendeesButtonId
+
+                -- View default user profile
+                , findUser
+                    Name.anonymous
+                    (\userId ->
+                        client.clickLink 100 (Route.encode (Route.UserRoute userId Name.anonymous))
+                    )
+                , client.snapshotView 100 { name = "Default user profile page" }
+
+                -- View my groups with group
+                , client.clickLink 100 (Route.encode Route.MyGroupsRoute)
+                , client.snapshotView 100 { name = "My groups page with group" }
+
+                -- Edit profile
+                , client.clickLink 100 (Route.encode Route.MyProfileRoute)
+                , client.snapshotView 100 { name = "Profile page" }
+                , client.input 100 ProfilePage.nameTextInputId (Name.toString name)
+                , client.input 3000 ProfilePage.descriptionTextInputId "This is my description text that I have so thoughtfully written to take up at least one or two lines of spaces in the web page it's viewed on."
+                , client.input 3000 Frontend.groupSearchId (GroupName.toString groupName)
+                , client.snapshotView 3000 { name = "Profile page with changes and search prepared" }
+
+                -- Search for group
+                , client.keyDown 100 Frontend.groupSearchId "Enter" []
+                , client.snapshotView 100 { name = "Search page" }
+                , findSingleGroup
+                    (\groupId ->
+                        [ client.clickLink 100 (Route.encode (Route.GroupRoute groupId groupName)) ]
+                    )
+                , client.click 100 GroupPage.showAttendeesButtonId
+                , client.snapshotView 100 { name = "Group page with updated profile" }
+                , TF.fastForward (Duration.hours 23)
+                , client.snapshotView (60 * 1000) { name = "Group page with less than 1 hour to event" }
+                , TF.fastForward Duration.hour
+                , client.snapshotView (60 * 1000) { name = "Group page with event ongoing" }
+                , TF.fastForward (Duration.hours 3)
+                , client.snapshotView (60 * 1000) { name = "Group page with event ended" }
+
+                -- View user profile with edits
+                , findUser
+                    name
+                    (\userId ->
+                        client.clickLink 100 (Route.encode (Route.UserRoute userId name))
+                    )
+                , client.snapshotView 100 { name = "User profile page with edits" }
+                ]
+                    |> TF.group
             )
+        ]

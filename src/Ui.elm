@@ -13,7 +13,6 @@ module Ui exposing
     , defaultFontColor
     , defaultFontSize
     , emailAddressText
-    , enterKeyCode
     , error
     , externalLink
     , formError
@@ -106,10 +105,10 @@ css theme =
 onEnter : msg -> Attribute msg
 onEnter msg =
     Html.Events.preventDefaultOn "keydown"
-        (Json.Decode.field "keyCode" Json.Decode.int
+        (Json.Decode.field "key" Json.Decode.string
             |> Json.Decode.andThen
                 (\code ->
-                    if code == enterKeyCode then
+                    if code == "Enter" then
                         Json.Decode.succeed ( msg, True )
 
                     else
@@ -117,11 +116,6 @@ onEnter msg =
                 )
         )
         |> Element.htmlAttribute
-
-
-enterKeyCode : number
-enterKeyCode =
-    13
 
 
 pageContentAttributes : List (Attribute msg)

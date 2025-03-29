@@ -27,7 +27,6 @@ module Event exposing
     )
 
 import Address exposing (Address)
-import AssocSet as Set exposing (Set)
 import Description exposing (Description)
 import Duration
 import EventDuration exposing (EventDuration)
@@ -35,6 +34,7 @@ import EventName exposing (EventName)
 import Id exposing (Id, UserId)
 import Link exposing (Link)
 import MaxAttendees exposing (MaxAttendees)
+import SeqSet as Set exposing (SeqSet)
 import Time
 
 
@@ -43,7 +43,7 @@ type Event
         { name : EventName
         , description : Description
         , eventType : EventType
-        , attendees : Set (Id UserId)
+        , attendees : SeqSet (Id UserId)
         , startTime : Time.Posix
         , duration : EventDuration
         , cancellationStatus : Maybe ( CancellationStatus, Time.Posix )
@@ -120,7 +120,7 @@ eventType (Event event) =
     event.eventType
 
 
-attendees : Event -> Set (Id UserId)
+attendees : Event -> SeqSet (Id UserId)
 attendees (Event event) =
     event.attendees
 

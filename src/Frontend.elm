@@ -12,12 +12,9 @@ module Frontend exposing
 
 import AdminPage
 import AdminStatus exposing (AdminStatus(..))
-import AssocList as Dict exposing (Dict)
-import AssocSet as Set
 import Browser exposing (UrlRequest(..))
 import Cache exposing (Cache(..))
 import CreateGroupPage
-import DictExtra as Dict
 import Duration
 import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Effect.Browser.Events as BrowserEvents
@@ -51,6 +48,8 @@ import ProfilePage
 import Quantity exposing (Quantity)
 import Route exposing (Route(..))
 import SearchPage
+import SeqDict as Dict exposing (SeqDict)
+import SeqSet as Set
 import Terms
 import TimeZone
 import Types exposing (..)
@@ -732,7 +731,7 @@ updateLoadedFromBackend msg model =
 
         GetUserResponse userData ->
             let
-                newUserData : Dict (Id UserId) (Cache FrontendUser)
+                newUserData : SeqDict (Id UserId) (Cache FrontendUser)
                 newUserData =
                     Dict.map
                         (\_ result ->
@@ -853,7 +852,7 @@ updateLoadedFromBackend msg model =
                 LoggedIn loggedIn ->
                     ( { model
                         | cachedUsers =
-                            Dict.updateJust
+                            Dict.updateIfExists
                                 loggedIn.userId
                                 (Cache.map (\a -> { a | name = name }))
                                 model.cachedUsers
@@ -872,7 +871,7 @@ updateLoadedFromBackend msg model =
                 LoggedIn loggedIn ->
                     ( { model
                         | cachedUsers =
-                            Dict.updateJust
+                            Dict.updateIfExists
                                 loggedIn.userId
                                 (Cache.map (\a -> { a | description = description }))
                                 model.cachedUsers
@@ -917,7 +916,7 @@ updateLoadedFromBackend msg model =
                 LoggedIn loggedIn ->
                     ( { model
                         | cachedUsers =
-                            Dict.updateJust
+                            Dict.updateIfExists
                                 loggedIn.userId
                                 (Cache.map (\a -> { a | profileImage = profileImage }))
                                 model.cachedUsers
@@ -971,10 +970,10 @@ updateLoadedFromBackend msg model =
         ChangeGroupNameResponse groupId groupName ->
             ( { model
                 | cachedGroups =
-                    Dict.updateJust groupId
+                    Dict.updateIfExists groupId
                         (Cache.map (Group.withName groupName))
                         model.cachedGroups
-                , groupPage = Dict.updateJust groupId GroupPage.savedName model.groupPage
+                , groupPage = Dict.updateIfExists groupId GroupPage.savedName model.groupPage
               }
             , Command.none
             )
@@ -982,10 +981,10 @@ updateLoadedFromBackend msg model =
         ChangeGroupDescriptionResponse groupId description ->
             ( { model
                 | cachedGroups =
-                    Dict.updateJust groupId
+                    Dict.updateIfExists groupId
                         (Cache.map (Group.withDescription description))
                         model.cachedGroups
-                , groupPage = Dict.updateJust groupId GroupPage.savedDescription model.groupPage
+                , groupPage = Dict.updateIfExists groupId GroupPage.savedDescription model.groupPage
               }
             , Command.none
             )
@@ -995,13 +994,13 @@ updateLoadedFromBackend msg model =
                 | cachedGroups =
                     case result of
                         Ok event ->
-                            Dict.updateJust groupId
+                            Dict.updateIfExists groupId
                                 (Cache.map (\group -> Group.addEvent event group |> Result.withDefault group))
                                 model.cachedGroups
 
                         Err _ ->
                             model.cachedGroups
-                , groupPage = Dict.updateJust groupId (GroupPage.addedNewEvent result) model.groupPage
+                , groupPage = Dict.updateIfExists groupId (GroupPage.addedNewEvent result) model.groupPage
               }
             , Command.none
             )
@@ -1013,7 +1012,7 @@ updateLoadedFromBackend msg model =
                         Ok () ->
                             { model
                                 | cachedGroups =
-                                    Dict.updateJust groupId
+                                    Dict.updateIfExists groupId
                                         (Cache.map
                                             (\group ->
                                                 case Group.joinEvent loggedIn.userId eventId group of
@@ -1026,7 +1025,7 @@ updateLoadedFromBackend msg model =
                                         )
                                         model.cachedGroups
                                 , groupPage =
-                                    Dict.updateJust
+                                    Dict.updateIfExists
                                         groupId
                                         (GroupPage.joinEventResponse eventId result)
                                         model.groupPage
@@ -1035,7 +1034,7 @@ updateLoadedFromBackend msg model =
                         Err _ ->
                             { model
                                 | groupPage =
-                                    Dict.updateJust
+                                    Dict.updateIfExists
                                         groupId
                                         (GroupPage.joinEventResponse eventId result)
                                         model.groupPage
@@ -1056,11 +1055,11 @@ updateLoadedFromBackend msg model =
                         Ok () ->
                             { model
                                 | cachedGroups =
-                                    Dict.updateJust groupId
+                                    Dict.updateIfExists groupId
                                         (Cache.map (Group.leaveEvent loggedIn.userId eventId))
                                         model.cachedGroups
                                 , groupPage =
-                                    Dict.updateJust
+                                    Dict.updateIfExists
                                         groupId
                                         (GroupPage.leaveEventResponse eventId result)
                                         model.groupPage
@@ -1069,7 +1068,7 @@ updateLoadedFromBackend msg model =
                         Err () ->
                             { model
                                 | groupPage =
-                                    Dict.updateJust
+                                    Dict.updateIfExists
                                         groupId
                                         (GroupPage.leaveEventResponse eventId result)
                                         model.groupPage
@@ -1088,7 +1087,7 @@ updateLoadedFromBackend msg model =
                 | cachedGroups =
                     case result of
                         Ok event ->
-                            Dict.updateJust groupId
+                            Dict.updateIfExists groupId
                                 (Cache.map
                                     (\group ->
                                         case Group.editEvent backendTime eventId (\_ -> event) group of
@@ -1104,7 +1103,7 @@ updateLoadedFromBackend msg model =
                         Err _ ->
                             model.cachedGroups
                 , groupPage =
-                    Dict.updateJust groupId (GroupPage.editEventResponse result) model.groupPage
+                    Dict.updateIfExists groupId (GroupPage.editEventResponse result) model.groupPage
               }
             , Command.none
             )
@@ -1114,7 +1113,7 @@ updateLoadedFromBackend msg model =
                 | cachedGroups =
                     case result of
                         Ok cancellationStatus ->
-                            Dict.updateJust groupId
+                            Dict.updateIfExists groupId
                                 (Cache.map
                                     (\group ->
                                         case
@@ -1136,7 +1135,7 @@ updateLoadedFromBackend msg model =
                         Err _ ->
                             model.cachedGroups
                 , groupPage =
-                    Dict.updateJust groupId (GroupPage.editCancellationStatusResponse eventId result) model.groupPage
+                    Dict.updateIfExists groupId (GroupPage.editCancellationStatusResponse eventId result) model.groupPage
               }
             , Command.none
             )
@@ -1144,14 +1143,14 @@ updateLoadedFromBackend msg model =
         ChangeGroupVisibilityResponse groupId visibility ->
             ( { model
                 | cachedGroups =
-                    Dict.updateJust groupId (Cache.map (Group.withVisibility visibility)) model.cachedGroups
-                , groupPage = Dict.updateJust groupId (GroupPage.changeVisibilityResponse visibility) model.groupPage
+                    Dict.updateIfExists groupId (Cache.map (Group.withVisibility visibility)) model.cachedGroups
+                , groupPage = Dict.updateIfExists groupId (GroupPage.changeVisibilityResponse visibility) model.groupPage
               }
             , Command.none
             )
 
         DeleteGroupAdminResponse groupId ->
-            ( { model | cachedGroups = Dict.updateJust groupId (\_ -> ItemDoesNotExist) model.cachedGroups }
+            ( { model | cachedGroups = Dict.updateIfExists groupId (\_ -> ItemDoesNotExist) model.cachedGroups }
             , Command.none
             )
 
@@ -1188,7 +1187,7 @@ updateLoadedFromBackend msg model =
             )
 
         DeleteGroupUserResponse groupId ->
-            ( { model | cachedGroups = Dict.updateJust groupId (\_ -> ItemDoesNotExist) model.cachedGroups }
+            ( { model | cachedGroups = Dict.updateIfExists groupId (\_ -> ItemDoesNotExist) model.cachedGroups }
             , Command.none
             )
 
