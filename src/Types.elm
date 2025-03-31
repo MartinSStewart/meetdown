@@ -2,7 +2,7 @@ module Types exposing (..)
 
 import AdminStatus exposing (AdminStatus)
 import Array exposing (Array)
-import BiDict.Assoc exposing (BiDict)
+import BiDict.Assoc2 exposing (BiDict)
 import Browser exposing (UrlRequest)
 import Cache exposing (Cache)
 import CreateGroupPage exposing (CreateGroupError)

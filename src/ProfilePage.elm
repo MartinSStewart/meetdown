@@ -1,8 +1,12 @@
 module ProfilePage exposing
     ( CurrentValues
+    , DragPart(..)
+    , DragState
+    , Editable(..)
     , Form
+    , ImageEdit
     , Model
-    , Msg
+    , Msg(..)
     , ToBackend(..)
     , deleteAccountButtonId
     , descriptionTextInputId
@@ -47,6 +51,8 @@ import Untrusted exposing (Untrusted)
 import UserConfig exposing (Texts, UserConfig)
 
 
+{-| OpaqueVariants
+-}
 type Msg
     = FormChanged Form
     | SleepFinished Int
@@ -64,6 +70,8 @@ type Msg
     | CroppedImage (Result String CropImageDataResponse)
 
 
+{-| Opaque
+-}
 type alias ImageEdit =
     { x : Float
     , y : Float
@@ -74,6 +82,8 @@ type alias ImageEdit =
     }
 
 
+{-| Opaque
+-}
 type alias DragState =
     { startX : Float
     , startY : Float
@@ -83,6 +93,8 @@ type alias DragState =
     }
 
 
+{-| Opaque
+-}
 type DragPart
     = TopLeft
     | TopRight
@@ -91,6 +103,8 @@ type DragPart
     | Center
 
 
+{-| Opaque
+-}
 type Editable a
     = Unchanged
     | Editing a

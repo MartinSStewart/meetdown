@@ -1,4 +1,4 @@
-module MultiDict exposing
+module MultiDict2 exposing
     ( MultiDict
     , toDict, fromDict
     , empty, singleton, insert, update, remove, removeAll

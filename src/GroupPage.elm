@@ -1,8 +1,15 @@
 module GroupPage exposing
     ( CreateEventError(..)
+    , EditEvent
+    , Editable(..)
+    , EventJoinOrLeaveStatus(..)
+    , EventOverlay(..)
     , EventType(..)
     , Model
-    , Msg
+    , Msg(..)
+    , NewEvent
+    , SubmitStatus(..)
+    , SubscribeStatus(..)
     , ToBackend(..)
     , addedNewEvent
     , changeVisibilityResponse
@@ -86,18 +93,24 @@ type alias Model =
     }
 
 
+{-| Opaque
+-}
 type EventJoinOrLeaveStatus
     = JoinOrLeavePending
     | LeaveFailure
     | JoinFailure Group.JoinEventError
 
 
+{-| Opaque
+-}
 type Editable validated
     = Unchanged
     | Editing String
     | Submiting validated
 
 
+{-| OpaqueVariants
+-}
 type Msg
     = PressedEditDescription
     | PressedSaveDescription
@@ -133,12 +146,16 @@ type Msg
     | PressedConfirmDeleteGroup
 
 
+{-| Opaque
+-}
 type SubmitStatus error
     = NotSubmitted { pressedSubmit : Bool }
     | IsSubmitting
     | Failed error
 
 
+{-| Opaque
+-}
 type alias NewEvent =
     { submitStatus : SubmitStatus CreateEventError
     , eventName : String
@@ -153,6 +170,8 @@ type alias NewEvent =
     }
 
 
+{-| Opaque
+-}
 type alias EditEvent =
     { submitStatus : SubmitStatus EditEventError
     , eventName : String
@@ -183,12 +202,16 @@ init =
     }
 
 
+{-| Opaque
+-}
 type SubscribeStatus
     = NotPendingSubscribe
     | PendingSubscribe
     | PendingUnsubscribe
 
 
+{-| Opaque
+-}
 type EventOverlay
     = AddingNewEvent
     | EdittingEvent EventId EditEvent

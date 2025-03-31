@@ -1,4 +1,4 @@
-module BiDict exposing
+module BiDict2 exposing
     ( BiDict
     , toDict, fromDict, getReverse, uniqueValues, uniqueValuesCount, toReverseList
     , empty, singleton, insert, update, remove

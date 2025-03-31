@@ -1,8 +1,9 @@
 module CreateGroupPage exposing
     ( CreateGroupError(..)
+    , Form
     , GroupFormValidated
-    , Model
-    , Msg
+    , Model(..)
+    , Msg(..)
     , OutMsg(..)
     , descriptionInputId
     , groupVisibilityId
@@ -26,6 +27,8 @@ import Ui
 import UserConfig exposing (UserConfig)
 
 
+{-| OpaqueVariants
+-}
 type Model
     = Editting Form
     | Submitting GroupFormValidated
@@ -48,11 +51,15 @@ validatedToForm validated =
     }
 
 
+{-| OpaqueVariants
+-}
 type Msg
     = FormChanged Form
     | PressedSubmit
 
 
+{-| Opaque
+-}
 type alias Form =
     { pressedSubmit : Bool
     , name : String

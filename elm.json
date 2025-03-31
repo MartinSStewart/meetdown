@@ -10,6 +10,7 @@
     "elm-version": "0.19.1",
     "dependencies": {
         "direct": {
+            "Janiczek/elm-bidict": "3.1.1",
             "MartinSStewart/elm-nonempty-string": "2.0.0",
             "NoRedInk/elm-json-decode-pipeline": "1.0.1",
             "avh4/elm-color": "1.0.0",
@@ -30,6 +31,7 @@
             "elm/url": "1.0.0",
             "elm-explorations/test": "2.2.0",
             "elmcraft/core-extra": "2.1.0",
+            "erlandsona/assoc-set": "1.1.3",
             "hecrj/html-parser": "2.4.0",
             "ianmackenzie/elm-units": "2.10.0",
             "justinmimbs/date": "4.1.0",
@@ -43,18 +45,21 @@
             "miniBill/elm-codec": "2.2.0",
             "mpizenberg/elm-pointer-events": "4.0.2",
             "myrho/elm-round": "1.0.5",
-            "noahzgordon/elm-color-extra": "1.0.2"
+            "noahzgordon/elm-color-extra": "1.0.2",
+            "pzp1997/assoc-list": "1.0.0"
         },
         "indirect": {
             "elm/random": "1.0.0",
             "elm/regex": "1.0.0",
             "elm/virtual-dom": "1.0.3",
+            "elm-community/dict-extra": "2.4.0",
             "elm-community/list-extra": "8.7.0",
             "elm-explorations/linear-algebra": "1.0.3",
             "elm-explorations/webgl": "1.1.3",
             "folkertdev/elm-sha2": "1.0.0",
             "fredcy/elm-parseint": "2.0.1",
-            "rtfeldman/elm-hex": "1.0.0"
+            "rtfeldman/elm-hex": "1.0.0",
+            "skyqrose/assoc-list-extra": "1.0.0"
         }
     },
     "test-dependencies": {

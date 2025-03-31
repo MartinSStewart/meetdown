@@ -1,5 +1,5 @@
-module BiDict.Assoc exposing
-    ( BiDict
+module BiDict.Assoc2 exposing
+    ( BiDict(..)
     , toDict, fromDict, getReverse, uniqueValues, uniqueValuesCount, toReverseList
     , empty, singleton, insert, update, remove
     , isEmpty, member, get, size
@@ -69,7 +69,7 @@ import SeqDict as Dict exposing (SeqDict)
 import SeqSet as Set exposing (SeqSet)
 
 
-{-| The underlying data structure. Think about it as
+{-| OpaqueVariants. The underlying data structure. Think about it as
 
     type alias BiDict a b =
         { forward : Dict a b -- just a normal Dict!

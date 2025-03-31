@@ -9,7 +9,7 @@ module Backend exposing
 
 import Address
 import Array
-import BiDict.Assoc as BiDict
+import BiDict.Assoc2 as BiDict
 import CreateGroupPage exposing (CreateGroupError(..))
 import Date
 import Description exposing (Description)

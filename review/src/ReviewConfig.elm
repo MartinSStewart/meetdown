@@ -18,6 +18,7 @@ import NoUnused.Modules
 import NoUnused.Parameters
 import NoUnused.Patterns
 import NoUnused.Variables
+import OpaqueTypes
 import Review.Rule exposing (Rule)
 import ReviewPipelineStyles
 import ReviewPipelineStyles.Fixes
@@ -25,7 +26,8 @@ import ReviewPipelineStyles.Fixes
 
 config : List Rule
 config =
-    [ NoUnused.CustomTypeConstructors.rule []
+    [ OpaqueTypes.rule
+    , NoUnused.CustomTypeConstructors.rule []
     , NoUnused.Variables.rule
     , NoUnused.Patterns.rule
     , NoUnused.Dependencies.rule
