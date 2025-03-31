@@ -28,8 +28,6 @@ module Group exposing
     , withVisibility
     )
 
-import AssocList as Dict exposing (Dict)
-import AssocSet as Set exposing (Set)
 import Description exposing (Description)
 import Duration
 import Event exposing (CancellationStatus, Event)
@@ -37,6 +35,8 @@ import GroupName exposing (GroupName)
 import Id exposing (Id, UserId)
 import List.Extra as List
 import Quantity
+import SeqDict as Dict exposing (SeqDict)
+import SeqSet as Set exposing (SeqSet)
 import Time
 
 
@@ -45,7 +45,7 @@ type Group
         { ownerId : Id UserId
         , name : GroupName
         , description : Description
-        , events : Dict EventId Event
+        , events : SeqDict EventId Event
         , visibility : GroupVisibility
         , eventCounter : Int
         , createdAt : Time.Posix
@@ -121,7 +121,7 @@ eventIdToInt (EventId a) =
     a
 
 
-addEvent : Event -> Group -> Result (Set EventId) Group
+addEvent : Event -> Group -> Result (SeqSet EventId) Group
 addEvent event (Group a) =
     case Dict.toList a.events |> List.filter (Tuple.second >> Event.overlaps event) of
         head :: rest ->
@@ -172,7 +172,7 @@ getEvent currentTime eventId group =
 
 type EditEventError
     = EditEventStartsInThePast
-    | EditEventOverlapsOtherEvents (Set EventId)
+    | EditEventOverlapsOtherEvents (SeqSet EventId)
     | CantEditPastEvent
     | CantChangeStartTimeOfOngoingEvent
     | EditEventNotFound
@@ -286,7 +286,7 @@ totalEvents (Group a) =
     Dict.size a.events
 
 
-allEvents : Group -> Dict EventId Event
+allEvents : Group -> SeqDict EventId Event
 allEvents (Group group) =
     group.events
 

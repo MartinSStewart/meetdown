@@ -1,6 +1,6 @@
 module Cache exposing (..)
 
-import AssocList as Dict exposing (Dict)
+import SeqDict as Dict exposing (SeqDict)
 
 
 type Cache item
@@ -22,7 +22,7 @@ map mapFunc userCache =
             ItemRequestPending
 
 
-get : key -> Dict key (Cache value) -> Maybe value
+get : key -> SeqDict key (Cache value) -> Maybe value
 get key dict =
     case Dict.get key dict of
         Just ItemDoesNotExist ->

@@ -1,7 +1,7 @@
 module Backend exposing
     ( app
     , init
-    , loginEmailLink
+    , loginEmailLinkAbsolutePath
     , subscriptions
     , update
     , updateFromFrontend
@@ -9,8 +9,6 @@ module Backend exposing
 
 import Address
 import Array
-import AssocList as Dict
-import AssocSet as Set
 import BiDict.Assoc as BiDict
 import CreateGroupPage exposing (CreateGroupError(..))
 import Date
@@ -42,6 +40,8 @@ import ProfileImage
 import ProfilePage
 import Quantity
 import Route exposing (Route(..))
+import SeqDict as Dict
+import SeqSet as Set
 import String.Nonempty exposing (NonemptyString(..))
 import Toop exposing (T5(..))
 import Types exposing (..)
@@ -61,7 +61,12 @@ app =
 
 loginEmailLink : Route -> Id LoginToken -> Maybe ( Id GroupId, EventId ) -> String
 loginEmailLink route loginToken maybeJoinEvent =
-    Env.domain ++ Route.encodeWithToken route (Route.LoginToken loginToken maybeJoinEvent)
+    Env.domain ++ loginEmailLinkAbsolutePath route loginToken maybeJoinEvent
+
+
+loginEmailLinkAbsolutePath : Route -> Id LoginToken -> Maybe ( Id GroupId, EventId ) -> String
+loginEmailLinkAbsolutePath route loginToken maybeJoinEvent =
+    Route.encodeWithToken route (Route.LoginToken loginToken maybeJoinEvent)
 
 
 init : ( BackendModel, Command BackendOnly ToFrontend BackendMsg )

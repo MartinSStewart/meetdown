@@ -1,12 +1,12 @@
 port module SnapshotRunner exposing (main)
 
-import AssocList as Dict exposing (Dict)
 import Bytes exposing (Bytes)
 import Effect.Snapshot exposing (PercyApiKey(..), Snapshot)
 import Effect.Test
 import Html
 import Json.Decode exposing (Decoder)
 import List.Nonempty exposing (Nonempty(..))
+import SeqDict as Dict exposing (Dict)
 import Task
 import Tests
 

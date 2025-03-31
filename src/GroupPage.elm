@@ -32,8 +32,6 @@ module GroupPage exposing
 
 import Address exposing (Address, Error(..))
 import AdminStatus exposing (AdminStatus(..))
-import AssocList as Dict exposing (Dict)
-import AssocSet as Set exposing (Set)
 import Cache exposing (Cache)
 import Date
 import Description exposing (Description)
@@ -63,6 +61,8 @@ import Pixels
 import ProfileImage
 import Quantity
 import Route
+import SeqDict as Dict exposing (SeqDict)
+import SeqSet as Set exposing (SeqSet)
 import Time
 import Time.Extra as Time
 import TimeExtra as Time
@@ -76,12 +76,12 @@ type alias Model =
     , description : Editable Description
     , eventOverlay : Maybe EventOverlay
     , newEvent : NewEvent
-    , pendingJoinOrLeave : Dict EventId EventJoinOrLeaveStatus
+    , pendingJoinOrLeave : SeqDict EventId EventJoinOrLeaveStatus
     , showAllFutureEvents : Bool
-    , pendingEventCancelOrUncancel : Set EventId
+    , pendingEventCancelOrUncancel : SeqSet EventId
     , pendingToggleVisibility : Bool
     , subscribePending : SubscribeStatus
-    , showAttendees : Set EventId
+    , showAttendees : SeqSet EventId
     , showDeleteConfirm : Maybe { groupName : String, submitStatus : SubmitStatus () }
     }
 
@@ -236,7 +236,7 @@ changeVisibilityResponse _ model =
 
 type CreateEventError
     = EventStartsInThePast
-    | EventOverlapsOtherEvents (Set EventId)
+    | EventOverlapsOtherEvents (SeqSet EventId)
     | TooManyEvents
 
 
@@ -322,12 +322,12 @@ type ToBackend
 
 update :
     Texts
-    -> { a | time : Time.Posix, timezone : Time.Zone, cachedUsers : Dict (Id UserId) (Cache FrontendUser) }
+    -> { a | time : Time.Posix, timezone : Time.Zone, cachedUsers : SeqDict (Id UserId) (Cache FrontendUser) }
     -> Group
     -> Maybe LoggedInData
     -> Msg
     -> Model
-    -> ( Model, Command FrontendOnly ToBackend Msg, { joinEvent : Maybe EventId, requestUserData : Set (Id UserId) } )
+    -> ( Model, Command FrontendOnly ToBackend Msg, { joinEvent : Maybe EventId, requestUserData : SeqSet (Id UserId) } )
 update texts config group maybeLoggedIn msg model =
     let
         canEdit_ =
@@ -844,7 +844,7 @@ update texts config group maybeLoggedIn msg model =
 
         PressedShowAttendees eventId ->
             let
-                attendees : Set (Id UserId)
+                attendees : SeqSet (Id UserId)
                 attendees =
                     case Group.getEvent config.time eventId group of
                         Just ( event, _ ) ->
@@ -1075,7 +1075,7 @@ view :
     -> Time.Posix
     -> Time.Zone
     -> FrontendUser
-    -> Dict (Id UserId) (Cache FrontendUser)
+    -> SeqDict (Id UserId) (Cache FrontendUser)
     -> Group
     -> Model
     -> Maybe LoggedInData
@@ -1226,7 +1226,7 @@ groupView :
     -> Time.Posix
     -> Time.Zone
     -> FrontendUser
-    -> Dict (Id UserId) (Cache FrontendUser)
+    -> SeqDict (Id UserId) (Cache FrontendUser)
     -> Group
     -> Model
     -> Maybe LoggedInData
@@ -1544,13 +1544,13 @@ createNewEventId =
 ongoingEventView :
     UserConfig
     -> Bool
-    -> Dict (Id UserId) (Cache FrontendUser)
+    -> SeqDict (Id UserId) (Cache FrontendUser)
     -> Time.Posix
     -> Time.Zone
     -> Bool
     -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus }
-    -> Dict EventId EventJoinOrLeaveStatus
-    -> Set EventId
+    -> SeqDict EventId EventJoinOrLeaveStatus
+    -> SeqSet EventId
     -> ( EventId, Event )
     -> Element Msg
 ongoingEventView ({ theme, texts } as userConfig) isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn pendingJoinOrLeaveStatuses showAttendees ( eventId, event ) =
@@ -1645,11 +1645,11 @@ ongoingEventView ({ theme, texts } as userConfig) isMobile cachedUsers currentTi
 pastEventView :
     UserConfig
     -> Bool
-    -> Dict (Id UserId) (Cache FrontendUser)
+    -> SeqDict (Id UserId) (Cache FrontendUser)
     -> Time.Posix
     -> Time.Zone
     -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus }
-    -> Set EventId
+    -> SeqSet EventId
     -> ( EventId, Event )
     -> Element Msg
 pastEventView ({ theme, texts } as userConfig) isMobile cachedUsers currentTime timezone maybeLoggedIn showAttendees ( eventId, event ) =
@@ -1694,7 +1694,7 @@ pastEventView ({ theme, texts } as userConfig) isMobile cachedUsers currentTime 
         ]
 
 
-attendeesView : UserConfig -> Dict (Id UserId) (Cache FrontendUser) -> Event -> Element msg
+attendeesView : UserConfig -> SeqDict (Id UserId) (Cache FrontendUser) -> Event -> Element msg
 attendeesView ({ texts } as userConfig) cachedUsers event =
     let
         visibleAttendees : List (Element msg)
@@ -1843,13 +1843,13 @@ eventCardHeader texts isMobile currentTime timezone eventStatus event =
 futureEventView :
     UserConfig
     -> Bool
-    -> Dict (Id UserId) (Cache FrontendUser)
+    -> SeqDict (Id UserId) (Cache FrontendUser)
     -> Time.Posix
     -> Time.Zone
     -> Bool
     -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus }
-    -> Dict EventId EventJoinOrLeaveStatus
-    -> Set EventId
+    -> SeqDict EventId EventJoinOrLeaveStatus
+    -> SeqSet EventId
     -> ( EventId, Event )
     -> Element Msg
 futureEventView ({ theme, texts } as userConfig) isMobile cachedUsers currentTime timezone isOwner maybeLoggedIn pendingJoinOrLeaveStatuses showAttendees ( eventId, event ) =

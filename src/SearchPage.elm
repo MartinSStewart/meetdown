@@ -1,6 +1,5 @@
 module SearchPage exposing (getGroupsFromIds, groupPreview, view)
 
-import AssocList as Dict
 import Cache exposing (Cache(..))
 import Description
 import Element exposing (Element)
@@ -12,6 +11,7 @@ import Group exposing (Group)
 import GroupName
 import Id exposing (GroupId, Id)
 import Route exposing (Route(..))
+import SeqDict as Dict
 import Time
 import Types exposing (FrontendMsg, LoadedFrontend)
 import Ui

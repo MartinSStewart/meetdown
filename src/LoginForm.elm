@@ -1,6 +1,5 @@
 module LoginForm exposing (emailAddressInputId, submitButtonId, submitForm, typedEmail, view)
 
-import AssocList as Dict exposing (Dict)
 import Cache exposing (Cache(..))
 import Effect.Browser.Dom as Dom exposing (HtmlId)
 import Effect.Command as Command exposing (Command, FrontendOnly)
@@ -14,6 +13,7 @@ import GroupName
 import HtmlId
 import Id exposing (GroupId, Id)
 import Route exposing (Route)
+import SeqDict as Dict exposing (SeqDict)
 import Types exposing (FrontendMsg(..), LoginForm, ToBackend(..))
 import Ui
 import Untrusted
@@ -43,7 +43,7 @@ emailInput userConfig id onSubmit onChange text labelText maybeError =
         ]
 
 
-view : UserConfig -> Maybe ( Id GroupId, EventId ) -> Dict (Id GroupId) (Cache Group) -> LoginForm -> Element FrontendMsg
+view : UserConfig -> Maybe ( Id GroupId, EventId ) -> SeqDict (Id GroupId) (Cache Group) -> LoginForm -> Element FrontendMsg
 view ({ texts } as userConfig) joiningEvent cachedGroups { email, pressedSubmitEmail, emailSent } =
     Element.column
         [ Element.centerX
