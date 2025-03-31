@@ -111,15 +111,10 @@ handleFilesRequest _ =
     TF.CancelMultipleFilesUpload
 
 
-type alias Action toBackend frontendMsg frontendModel toFrontend backendMsg backendModel =
-    TF.Instructions toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
-    -> TF.Instructions toBackend frontendMsg frontendModel toFrontend backendMsg backendModel
-
-
 checkLoadedFrontend :
     ClientId
     -> (LoadedFrontend -> Result String ())
-    -> Action ToBackend FrontendMsg FrontendModel toFrontend backendMsg backendModel
+    -> TF.Action ToBackend FrontendMsg FrontendModel toFrontend backendMsg backendModel
 checkLoadedFrontend clientId checkFunc =
     TF.checkState
         100
@@ -145,9 +140,9 @@ loginFromHomepage :
         ({ client : TF.FrontendActions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
          , clientFromEmail : TF.FrontendActions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
          }
-         -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+         -> TF.Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
         )
-    -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+    -> TF.Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 loginFromHomepage loginWithEnterKey sessionId sessionIdFromEmail emailAddress stateFunc =
     TF.connectFrontend
         100
@@ -175,18 +170,18 @@ handleLoginForm :
         ({ client : TF.FrontendActions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
          , clientFromEmail : TF.FrontendActions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
          }
-         -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+         -> TF.Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
         )
-    -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+    -> TF.Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 handleLoginForm takeSnapshots loginWithEnterKey client sessionIdFromEmail emailAddress andThenFunc =
     let
-        takeSnapshot : String -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+        takeSnapshot : String -> TF.Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
         takeSnapshot name =
             if takeSnapshots then
                 client.snapshotView 100 { name = name }
 
             else
-                identity
+                TF.group []
     in
     [ takeSnapshot "Login page"
     , client.input 100 LoginForm.emailAddressInputId (EmailAddress.toString emailAddress)
@@ -237,9 +232,9 @@ loginFromHomepageWithSnapshots :
         ({ client : TF.FrontendActions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
          , clientFromEmail : TF.FrontendActions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
          }
-         -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+         -> TF.Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
         )
-    -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+    -> TF.Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 loginFromHomepageWithSnapshots sessionId sessionIdFromEmail emailAddress stateFunc =
     TF.connectFrontend
         100
@@ -467,7 +462,7 @@ startTime =
     Time.millisToPosix 0
 
 
-tests : List (TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel)
+tests : List (TF.EndToEndTest ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel)
 tests =
     [ let
         sessionId =
@@ -1200,9 +1195,9 @@ tests =
 
 findSingleGroup :
     (Id GroupId
-     -> List (Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel)
+     -> List (TF.Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel)
     )
-    -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+    -> TF.Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 findSingleGroup continueWith =
     TF.andThen
         100
@@ -1227,9 +1222,9 @@ findUser :
     Name
     ->
         (Id UserId
-         -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+         -> TF.Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
         )
-    -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+    -> TF.Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 findUser name continueWith =
     TF.andThen
         100
@@ -1246,7 +1241,7 @@ findUser name continueWith =
         )
 
 
-createEventAndAnotherUserNotLoggedInJoinsIt : TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+createEventAndAnotherUserNotLoggedInJoinsIt : TF.EndToEndTest ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 createEventAndAnotherUserNotLoggedInJoinsIt =
     let
         session0 =
@@ -1313,7 +1308,7 @@ createEventAndAnotherUserNotLoggedInJoinsIt =
         ]
 
 
-createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt : TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt : TF.EndToEndTest ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 createEventAndAnotherUserNotLoggedInButWithAnExistingAccountJoinsIt =
     let
         session0 =
@@ -1391,7 +1386,7 @@ createGroup :
     TF.FrontendActions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
     -> String
     -> String
-    -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+    -> TF.Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 createGroup loggedInClient groupName groupDescription =
     [ loggedInClient.clickLink 100 (Route.encode Route.CreateGroupRoute)
     , loggedInClient.input 100 CreateGroupPage.nameInputId groupName
@@ -1414,7 +1409,7 @@ createGroupAndEvent :
         , eventMinute : Int
         , eventDuration : String
         }
-    -> Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+    -> TF.Action ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 createGroupAndEvent loggedInClient { groupName, groupDescription, eventName, eventDescription, eventDate, eventHour, eventMinute, eventDuration } =
     [ createGroup loggedInClient groupName groupDescription
     , loggedInClient.click 100 GroupPage.createNewEventId
@@ -1429,7 +1424,7 @@ createGroupAndEvent loggedInClient { groupName, groupDescription, eventName, eve
         |> TF.group
 
 
-snapshotPages : TF.Instructions ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
+snapshotPages : TF.EndToEndTest ToBackend FrontendMsg FrontendModel ToFrontend BackendMsg BackendModel
 snapshotPages =
     let
         emailAddress : EmailAddress
