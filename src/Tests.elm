@@ -107,8 +107,9 @@ handleFileRequest _ =
         |> TF.UploadFile
 
 
+handleFilesRequest : { a | mimeTypes : List String } -> TF.MultipleFilesUpload
 handleFilesRequest _ =
-    TF.CancelMultipleFilesUpload
+    TF.UnhandledMultiFileUpload
 
 
 checkLoadedFrontend :
