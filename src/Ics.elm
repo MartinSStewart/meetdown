@@ -3,6 +3,7 @@ module Ics exposing (generateEventIcs)
 {-| Generate a simple iCalendar (.ics) string for an event.
 -}
 
+
 generateEventIcs : { summary : String, description : String, location : String, startUtc : String, endUtc : String } -> String
 generateEventIcs event =
     """BEGIN:VCALENDAR
