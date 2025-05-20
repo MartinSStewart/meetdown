@@ -46,6 +46,9 @@ import String.Nonempty exposing (NonemptyString(..))
 import Toop exposing (T5(..))
 import Types exposing (..)
 import Untrusted
+import Ics
+import SendGrid
+import Bytes.Encode as Encode
 
 
 app =
@@ -386,16 +389,19 @@ sendNewEventNotificationEmail :
 sendNewEventNotificationEmail msg groupId groupName event currentTime timezone emailAddress =
     case noReplyEmailAddress of
         Just sender ->
-            { from = { name = "Meetdown", email = sender }
-            , to = List.Nonempty.fromElement { name = "", email = emailAddress }
-            , subject = newEventNotificationEmailSubject groupName event currentTime timezone
-            , body =
-                newEventNotificationEmailContent groupId groupName event currentTime timezone
-                    |> Postmark.BodyHtml
-            , messageStream = "broadcast"
-            }
-                |> Postmark.sendEmail msg Env.postmarkServerToken
-
+            let
+                baseEmail =
+                    { from = { name = "Meetdown", email = sender }
+                    , to = List.Nonempty.fromElement { name = "", email = emailAddress }
+                    , subject = newEventNotificationEmailSubject groupName event currentTime timezone
+                    , body = Postmark.BodyHtml (newEventNotificationEmailContent groupId groupName event currentTime timezone)
+                    , messageStream = "broadcast"
+                    }
+                icsAttachment = icsAttachmentForEvent groupName event currentTime timezone
+                emailWithAttachment =
+                    SendGrid.addAttachments (Dict.fromList [ icsAttachment ]) baseEmail
+            in
+            Postmark.sendEmail msg Env.postmarkServerToken emailWithAttachment
         Nothing ->
             Command.none
 
@@ -1650,3 +1656,29 @@ newEventNotificationEmailContent groupId groupName event currentTime timezone =
                     [ Email.Html.text "Click here to go to their group page" ]
                ]
         )
+
+
+-- Helper to generate ICS attachment for an event
+icsAttachmentForEvent : GroupName -> Event -> Time.Posix -> Time.Zone -> ( String, { content : Bytes.Bytes, mimeType : String } )
+icsAttachmentForEvent groupName event currentTime timezone =
+    let
+        summary = EventName.toString (Event.name event)
+        description = Description.toString (Event.description event)
+        location =
+            case Event.eventType event of
+                Event.MeetOnline (Just link) -> Link.toString link
+                Event.MeetInPerson (Just address) -> Address.toString address
+                Event.MeetOnlineAndInPerson _ (Just address) -> Address.toString address
+                _ -> ""
+        startUtc =
+            Time.posixToMillis (Event.startTime event)
+                |> TimeExtra.toUtcIcsString timezone
+        endUtc =
+            Event.endTime event
+                |> Time.posixToMillis
+                |> TimeExtra.toUtcIcsString timezone
+        icsString =
+            Ics.generateEventIcs { summary = summary, description = description, location = location, startUtc = startUtc, endUtc = endUtc }
+        bytes = Encode.string icsString |> Encode.encode
+    in
+    ( "event.ics", { content = bytes, mimeType = "text/calendar" } )
