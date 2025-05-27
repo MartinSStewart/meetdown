@@ -1474,15 +1474,7 @@ eventReminderEmailContent groupId groupName event =
         (Email.Html.b [] [ Event.name event |> EventName.toString |> Email.Html.text ]
             :: Email.Html.text " will be taking place "
             :: (case Event.eventType event of
-                    Event.MeetOnline (Just meetingLink) ->
-                        [ Email.Html.text "online tomorrow. The event will be accessible with this link "
-                        , Email.Html.a
-                            [ Email.Html.Attributes.href (Link.toString meetingLink) ]
-                            [ Email.Html.text (Link.toString meetingLink) ]
-                        , Email.Html.text ". "
-                        ]
-
-                    Event.MeetOnline Nothing ->
+                    Event.MeetOnline _ ->
                         [ Email.Html.text "online tomorrow." ]
 
                     Event.MeetInPerson (Just address) ->
@@ -1491,32 +1483,15 @@ eventReminderEmailContent groupId groupName event =
                     Event.MeetInPerson Nothing ->
                         [ Email.Html.text " in person tomorrow." ]
 
-                    Event.MeetOnlineAndInPerson (Just meetingLink) (Just address) ->
-                        [ Email.Html.text " online and in person tomorrow. The event will be accessible with this link "
-                        , Email.Html.a
-                            [ Email.Html.Attributes.href (Link.toString meetingLink) ]
-                            [ Email.Html.text (Link.toString meetingLink) ]
-                        , Email.Html.text " and will be taking place at "
-                        , Email.Html.text (Address.toString address)
-                        , Email.Html.text ". "
+                    Event.MeetOnlineAndInPerson _ Nothing ->
+                        [ Email.Html.text " online and in person tomorrow."
                         ]
 
-                    Event.MeetOnlineAndInPerson (Just meetingLink) Nothing ->
-                        [ Email.Html.text " online and in person tomorrow. The event will be accessible with this link "
-                        , Email.Html.a
-                            [ Email.Html.Attributes.href (Link.toString meetingLink) ]
-                            [ Email.Html.text (Link.toString meetingLink) ]
-                        , Email.Html.text ". "
-                        ]
-
-                    Event.MeetOnlineAndInPerson Nothing (Just address) ->
+                    Event.MeetOnlineAndInPerson _ (Just address) ->
                         [ Email.Html.text " online and in person tomorrow. The event will be taking place at "
                         , Email.Html.text (Address.toString address)
                         , Email.Html.text ". "
                         ]
-
-                    Event.MeetOnlineAndInPerson Nothing Nothing ->
-                        [ Email.Html.text " online and in person tomorrow." ]
                )
             ++ [ Email.Html.br [] []
                , Email.Html.br [] []
