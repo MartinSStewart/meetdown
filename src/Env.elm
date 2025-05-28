@@ -28,7 +28,7 @@ domain =
 
 postmarkServerToken : String
 postmarkServerToken =
-    ""
+    "5602c97d-28a5-4823-a487-d93e6915bb93"
 
 
 isProduction_ : String

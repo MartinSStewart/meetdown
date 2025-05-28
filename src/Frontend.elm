@@ -140,7 +140,7 @@ initLoadedFrontend :
     -> Route
     -> Route.Token
     -> Time.Posix
-    -> Time.Zone
+    -> Result () Time.Zone
     -> ( LoadedFrontend, Command FrontendOnly ToBackend FrontendMsg )
 initLoadedFrontend navigationKey windowWidth windowHeight theme route maybeLoginToken time timezone =
     let
@@ -216,14 +216,14 @@ tryInitLoadedFrontend loading =
         |> Maybe.withDefault ( Loading loading, Command.none )
 
 
-gotTimeZone : Result error ( a, Time.Zone ) -> { b | timezone : Maybe Time.Zone } -> { b | timezone : Maybe Time.Zone }
+gotTimeZone : Result error ( a, Time.Zone ) -> { b | timezone : Maybe (Result () Time.Zone) } -> { b | timezone : Maybe (Result () Time.Zone) }
 gotTimeZone result model =
     case result of
         Ok ( _, timezone ) ->
-            { model | timezone = Just timezone }
+            { model | timezone = Just (Ok timezone) }
 
         Err _ ->
-            { model | timezone = Just Time.utc }
+            { model | timezone = Just (Err ()) }
 
 
 update : FrontendMsg -> FrontendModel -> ( FrontendModel, Command FrontendOnly ToBackend FrontendMsg )

@@ -3,7 +3,7 @@
     "source-directories": [
         "src",
         "send-grid",
-        "vendored/justinmimbs/timezone-data/11.0.0/src",
+        "vendored/justinmimbs/timezone-data/11.1.0/src",
         "snapshot-runner",
         "vendored/janiczek/elm-bidict/3.1.1/src"
     ],
