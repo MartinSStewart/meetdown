@@ -15,6 +15,7 @@ import Bytes.Encode as Encode
 import CreateGroupPage exposing (CreateGroupError(..))
 import Date
 import Description exposing (Description)
+import Dict as RegularDict
 import Duration
 import Effect.Command as Command exposing (BackendOnly, Command)
 import Effect.Http as Http
@@ -31,19 +32,17 @@ import EventName
 import Group exposing (EventId, Group, GroupVisibility)
 import GroupName exposing (GroupName)
 import GroupPage exposing (CreateEventError(..))
-import Ics
 import Id exposing (DeleteUserToken, GroupId, Id, LoginToken, UserId)
 import Lamdera
 import Link
 import List.Extra as List
 import List.Nonempty
-import Name
+import Name exposing (Name)
 import Postmark
 import ProfileImage
 import ProfilePage
 import Quantity
 import Route exposing (Route(..))
-import SendGrid
 import SeqDict as Dict
 import SeqSet as Set
 import String.Nonempty exposing (NonemptyString(..))
@@ -222,6 +221,7 @@ handleNotifications lastCheck currentTime backendModel =
                                                     (SentEventReminderEmail userId groupId eventId)
                                                     groupId
                                                     (Group.name group)
+                                                    user.name
                                                     event
                                                     user.timezone
                                                     user.emailAddress
@@ -329,6 +329,7 @@ sendLoginEmail msg emailAddress route loginToken maybeJoinEvent =
             , subject = loginEmailSubject
             , body = Postmark.BodyHtml (loginEmailContent route loginToken maybeJoinEvent)
             , messageStream = "outbound"
+            , attachments = RegularDict.empty
             }
                 |> Postmark.sendEmail msg Env.postmarkServerToken
 
@@ -349,6 +350,7 @@ sendDeleteUserEmail msg emailAddress deleteUserToken =
             , subject = deleteAccountEmailSubject
             , body = Postmark.BodyHtml (deleteAccountEmailContent deleteUserToken)
             , messageStream = "outbound"
+            , attachments = RegularDict.empty
             }
                 |> Postmark.sendEmail msg Env.postmarkServerToken
 
@@ -360,11 +362,12 @@ sendEventReminderEmail :
     (Result Http.Error Postmark.PostmarkSendResponse -> backendMsg)
     -> Id GroupId
     -> GroupName
+    -> Name
     -> Event
     -> Time.Zone
     -> EmailAddress
     -> Command BackendOnly toFrontend backendMsg
-sendEventReminderEmail msg groupId groupName event timezone emailAddress =
+sendEventReminderEmail msg groupId groupName organizer event timezone emailAddress =
     case noReplyEmailAddress of
         Just sender ->
             { from = { name = "Meetdown", email = sender }
@@ -372,7 +375,10 @@ sendEventReminderEmail msg groupId groupName event timezone emailAddress =
             , subject = eventReminderEmailSubject groupName event timezone
             , body = Postmark.BodyHtml (eventReminderEmailContent groupId groupName event)
             , messageStream = "broadcast"
+            , attachments = RegularDict.empty
             }
+                |> Postmark.addAttachments
+                    (RegularDict.fromList [ icsAttachmentForEvent groupId groupName organizer event Time.utc ])
                 |> Postmark.sendEmail msg Env.postmarkServerToken
 
         Nothing ->
@@ -396,6 +402,7 @@ sendNewEventNotificationEmail msg groupId groupName event currentTime timezone e
             , subject = newEventNotificationEmailSubject groupName event currentTime timezone
             , body = Postmark.BodyHtml (newEventNotificationEmailContent groupId groupName event currentTime timezone)
             , messageStream = "broadcast"
+            , attachments = RegularDict.empty
             }
                 |> Postmark.sendEmail msg Env.postmarkServerToken
 
@@ -1655,32 +1662,30 @@ newEventNotificationEmailContent groupId groupName event currentTime timezone =
         )
 
 
-
--- Helper to generate ICS attachment for an event
-
-
-icsAttachmentForEvent : GroupName -> Event -> Time.Posix -> Time.Zone -> ( String, { content : Bytes.Bytes, mimeType : String } )
-icsAttachmentForEvent groupName event currentTime timezone =
+icsAttachmentForEvent : Id GroupId -> GroupName -> Name -> Event -> Time.Zone -> ( String, { content : Bytes.Bytes, mimeType : String } )
+icsAttachmentForEvent groupId groupName organizer event timezone =
     let
-        summary =
-            EventName.toString (Event.name event)
+        route : String
+        route =
+            "https://meetdown.app" ++ Route.encode (Route.GroupRoute groupId groupName)
 
-        description =
-            Description.toString (Event.description event)
-
+        location : String
         location =
             case Event.eventType event of
-                Event.MeetOnline (Just link) ->
-                    Link.toString link
-
                 Event.MeetInPerson (Just address) ->
                     Address.toString address
+
+                Event.MeetInPerson Nothing ->
+                    route
 
                 Event.MeetOnlineAndInPerson _ (Just address) ->
                     Address.toString address
 
-                _ ->
-                    ""
+                Event.MeetOnlineAndInPerson _ Nothing ->
+                    route
+
+                Event.MeetOnline _ ->
+                    route
 
         startUtc =
             Time.posixToMillis (Event.startTime event)
@@ -1691,10 +1696,35 @@ icsAttachmentForEvent groupName event currentTime timezone =
                 |> Time.posixToMillis
                 |> TimeExtra.toUtcIcsString timezone
 
-        icsString =
-            Ics.generateEventIcs { summary = summary, description = description, location = location, startUtc = startUtc, endUtc = endUtc }
-
-        bytes =
-            Encode.string icsString |> Encode.encode
+        content =
+            """BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//meetdown.app//EN
+BEGIN:VEVENT
+SUMMARY:"""
+                ++ EventName.toString (Event.name event)
+                ++ """
+ORGANIZER;CN="""
+                ++ Name.toString organizer
+                ++ ":MAILTO:noemail@placeholder.com"
+                ++ """
+DETAILS:"""
+                ++ Description.toString (Event.description event)
+                ++ """
+LOCATION:"""
+                ++ location
+                ++ """
+DTSTART:"""
+                ++ startUtc
+                ++ """
+DTEND:"""
+                ++ endUtc
+                ++ """
+SPROP:https://meetdown.app"""
+                ++ """
+END:VEVENT
+END:VCALENDAR"""
+                |> Encode.string
+                |> Encode.encode
     in
-    ( "event.ics", { content = bytes, mimeType = "text/calendar" } )
+    ( "event.ics", { content = content, mimeType = "text/calendar" } )

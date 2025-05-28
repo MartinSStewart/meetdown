@@ -1,5 +1,8 @@
 module Postmark exposing (..)
 
+import Base64
+import Bytes exposing (Bytes)
+import Dict exposing (Dict)
 import Effect.Command exposing (BackendOnly, Command)
 import Effect.Http as Http
 import Effect.Task as Task exposing (Task)
@@ -36,21 +39,33 @@ type alias PostmarkSend =
     , subject : NonemptyString
     , body : PostmarkEmailBody
     , messageStream : String
+    , attachments : Dict String { content : String, mimeType : String }
     }
+
+
+attachmentEncoder : ( String, { content : String, mimeType : String } ) -> E.Value
+attachmentEncoder ( name, data ) =
+    E.object
+        [ ( "Name", E.string name )
+        , ( "Content", E.string data.content )
+        , ( "ContentType", E.string data.mimeType )
+        ]
 
 
 sendEmailTask : PostmarkServerToken -> PostmarkSend -> Task restriction Http.Error PostmarkSendResponse
 sendEmailTask token d =
     let
+        httpBody : Http.Body
         httpBody =
-            Http.jsonBody <|
-                E.object <|
-                    [ ( "From", E.string <| emailToString d.from )
-                    , ( "To", E.string <| emailsToString d.to )
-                    , ( "Subject", E.string <| String.Nonempty.toString d.subject )
-                    , ( "MessageStream", E.string d.messageStream )
-                    ]
-                        ++ bodyToJsonValues d.body
+            [ ( "From", E.string (emailToString d.from) )
+            , ( "To", E.string (emailsToString d.to) )
+            , ( "Subject", E.string (String.Nonempty.toString d.subject) )
+            , ( "MessageStream", E.string d.messageStream )
+            , ( "Attachments", E.list attachmentEncoder (Dict.toList d.attachments) )
+            ]
+                ++ bodyToJsonValues d.body
+                |> E.object
+                |> Http.jsonBody
     in
     Http.task
         { method = "POST"
@@ -69,6 +84,44 @@ sendEmail :
     -> Command restriction toMsg msg
 sendEmail msg token d =
     sendEmailTask token d |> Task.attempt msg
+
+
+{-| Attach files to the email. These will usually appear at the bottom of the email.
+
+    import Bytes exposing (Bytes)
+    import SendGrid
+
+    attachPngImage : String -> Bytes -> Email -> Email
+    attachPngImage name image email =
+        SendGrid.addAttachments
+            (Dict.fromList
+                [ ( name ++ ".png"
+                  , { content = image
+                    , mimeType = "image/png"
+                    }
+                  )
+                ]
+            )
+            email
+
+If you want to include an image file within the body of your email, use `Email.Html.inlinePngImg`, `Email.Html.inlineJpegImg`, or `Email.Html.inlineGifImg` instead.
+
+-}
+addAttachments : Dict String { content : Bytes, mimeType : String } -> PostmarkSend -> PostmarkSend
+addAttachments attachments email =
+    { email
+        | attachments =
+            Dict.union
+                (Dict.map
+                    (\_ attachment ->
+                        { content = Base64.fromBytes attachment.content |> Maybe.withDefault ""
+                        , mimeType = attachment.mimeType
+                        }
+                    )
+                    attachments
+                )
+                email.attachments
+    }
 
 
 emailsToString : List.Nonempty.Nonempty { name : String, email : EmailAddress } -> String
