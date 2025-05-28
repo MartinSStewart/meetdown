@@ -589,7 +589,7 @@ dateTimeInput :
         , timeChanged : String -> msg
         , labelText : String
         , minTime : Time.Posix
-        , timezone : Time.Zone
+        , timezone : Result () Time.Zone
         , dateText : String
         , timeText : String
         , isDisabled : Bool
@@ -601,8 +601,20 @@ dateTimeInput theme { dateInputId, timeInputId, dateChanged, timeChanged, labelT
         [ Element.spacing 4 ]
         [ formLabelAboveEl theme labelText
         , Element.wrappedRow [ Element.spacing 8 ]
-            [ dateInput theme dateInputId dateChanged (Date.fromPosix timezone minTime) dateText isDisabled
+            [ dateInput
+                theme
+                dateInputId
+                dateChanged
+                (Date.fromPosix (Result.withDefault Time.utc timezone) minTime)
+                dateText
+                isDisabled
             , timeInput theme timeInputId timeChanged timeText isDisabled
+            , case timezone of
+                Ok _ ->
+                    Element.none
+
+                Err () ->
+                    Element.text "⚠️ Couldn't detect your timezone, assuming GMT+0"
             ]
         , maybeError |> Maybe.map (error theme) |> Maybe.withDefault Element.none
         ]

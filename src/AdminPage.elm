@@ -11,7 +11,7 @@ import Ui
 import UserConfig exposing (UserConfig)
 
 
-view : UserConfig -> Time.Zone -> { a | adminState : AdminCache, adminStatus : AdminStatus } -> Element FrontendMsg
+view : UserConfig -> Result () Time.Zone -> { a | adminState : AdminCache, adminStatus : AdminStatus } -> Element FrontendMsg
 view userConfig timezone loggedIn =
     case loggedIn.adminStatus of
         IsNotAdmin ->
@@ -24,7 +24,7 @@ view userConfig timezone loggedIn =
             adminView userConfig False timezone loggedIn
 
 
-adminView : UserConfig -> Bool -> Time.Zone -> { a | adminState : AdminCache } -> Element FrontendMsg
+adminView : UserConfig -> Bool -> Result () Time.Zone -> { a | adminState : AdminCache } -> Element FrontendMsg
 adminView ({ theme, texts } as userConfig) adminEnabled timezone loggedIn =
     case loggedIn.adminState of
         AdminCached model ->
@@ -39,10 +39,10 @@ adminView ({ theme, texts } as userConfig) adminEnabled timezone loggedIn =
                 , Element.paragraph
                     []
                     [ Element.text "Logs last updated at: "
-                    , Element.text (Ui.timeToString timezone model.lastLogCheck)
+                    , Element.text (Ui.timeToString Time.utc model.lastLogCheck ++ " (UTC)")
                     ]
                 , Array.toList model.logs
-                    |> List.map (logView userConfig timezone model)
+                    |> List.map (logView userConfig Time.utc model)
                     |> Element.column [ Element.spacing 16 ]
                 ]
 

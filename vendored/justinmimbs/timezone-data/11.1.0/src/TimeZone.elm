@@ -82,7 +82,7 @@ getZone =
             (\nameOrOffset ->
                 case nameOrOffset of
                     Effect.Time.Name zoneName ->
-                        case Dict.get zoneName zones of
+                        case Dict.get (Debug.log "b" zoneName) zones of
                             Just zone ->
                                 Task.succeed ( zoneName, zone () )
 

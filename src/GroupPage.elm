@@ -345,7 +345,7 @@ type ToBackend
 
 update :
     Texts
-    -> { a | time : Time.Posix, timezone : Time.Zone, cachedUsers : SeqDict (Id UserId) (Cache FrontendUser) }
+    -> { a | time : Time.Posix, timezone : Result () Time.Zone, cachedUsers : SeqDict (Id UserId) (Cache FrontendUser) }
     -> Group
     -> Maybe LoggedInData
     -> Msg
@@ -656,11 +656,11 @@ update texts config group maybeLoggedIn msg model =
 
                                             Event.MeetOnlineAndInPerson _ Nothing ->
                                                 ""
-                                    , startDate = Event.startTime event |> Date.fromPosix config.timezone |> Ui.datestamp
+                                    , startDate = Event.startTime event |> Date.fromPosix (Result.withDefault Time.utc config.timezone) |> Ui.datestamp
                                     , startTime =
                                         Ui.timestamp
-                                            (Time.toHour config.timezone (Event.startTime event))
-                                            (Time.toMinute config.timezone (Event.startTime event))
+                                            (Time.toHour (Result.withDefault Time.utc config.timezone) (Event.startTime event))
+                                            (Time.toMinute (Result.withDefault Time.utc config.timezone) (Event.startTime event))
                                     , duration =
                                         Event.duration event
                                             |> EventDuration.toDuration
@@ -948,7 +948,7 @@ latestEvent group =
         |> List.head
 
 
-fillInEmptyNewEventInputs : Time.Zone -> Event -> NewEvent -> NewEvent
+fillInEmptyNewEventInputs : Result () Time.Zone -> Event -> NewEvent -> NewEvent
 fillInEmptyNewEventInputs timezone copyFrom newEvent =
     { submitStatus = newEvent.submitStatus
     , eventName =
@@ -996,8 +996,8 @@ fillInEmptyNewEventInputs timezone copyFrom newEvent =
     , startTime =
         fillEmptyInput
             (Ui.timestamp
-                (Time.toHour timezone (Event.startTime copyFrom))
-                (Time.toMinute timezone (Event.startTime copyFrom))
+                (Time.toHour (Result.withDefault Time.utc timezone) (Event.startTime copyFrom))
+                (Time.toMinute (Result.withDefault Time.utc timezone) (Event.startTime copyFrom))
             )
             newEvent.startTime
     , duration =
@@ -1096,7 +1096,7 @@ view :
     UserConfig
     -> Bool
     -> Time.Posix
-    -> Time.Zone
+    -> Result () Time.Zone
     -> FrontendUser
     -> SeqDict (Id UserId) (Cache FrontendUser)
     -> Group
@@ -1247,7 +1247,7 @@ groupView :
     UserConfig
     -> Bool
     -> Time.Posix
-    -> Time.Zone
+    -> Result () Time.Zone
     -> FrontendUser
     -> SeqDict (Id UserId) (Cache FrontendUser)
     -> Group
@@ -1416,7 +1416,7 @@ groupView ({ theme, texts } as userConfig) isMobile currentTime timezone owner c
             texts.info
             (Element.paragraph
                 [ Element.alignRight ]
-                [ Element.text (texts.thisGroupWasCreatedOn ++ dateToString texts (Just timezone) (Group.createdAt group)) ]
+                [ Element.text (texts.thisGroupWasCreatedOn ++ dateToString texts (Result.toMaybe timezone) (Group.createdAt group)) ]
             )
         , if canEdit_ then
             Element.el []
@@ -1569,7 +1569,7 @@ ongoingEventView :
     -> Bool
     -> SeqDict (Id UserId) (Cache FrontendUser)
     -> Time.Posix
-    -> Time.Zone
+    -> Result () Time.Zone
     -> Bool
     -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus }
     -> SeqDict EventId EventJoinOrLeaveStatus
@@ -1670,7 +1670,7 @@ pastEventView :
     -> Bool
     -> SeqDict (Id UserId) (Cache FrontendUser)
     -> Time.Posix
-    -> Time.Zone
+    -> Result () Time.Zone
     -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus }
     -> SeqSet EventId
     -> ( EventId, Event )
@@ -1832,7 +1832,7 @@ hideAttendeesButtonId =
     Dom.id "groupPage_hideAttendeesButton"
 
 
-eventCardHeader : Texts -> Bool -> Time.Posix -> Time.Zone -> PastOngoingOrFuture -> Event -> Element msg
+eventCardHeader : Texts -> Bool -> Time.Posix -> Result () Time.Zone -> PastOngoingOrFuture -> Event -> Element msg
 eventCardHeader texts isMobile currentTime timezone eventStatus event =
     Element.wrappedRow
         [ Element.spacing 16
@@ -1846,7 +1846,7 @@ eventCardHeader texts isMobile currentTime timezone eventStatus event =
         [ eventTitle event
         , Element.column
             [ Element.spacing 4, Element.alignTop ]
-            [ Ui.datetimeToString texts timezone (Event.startTime event) |> Element.text
+            [ Ui.datetimeToString texts (Result.withDefault Time.utc timezone) (Event.startTime event) |> Element.text
             , (case eventStatus of
                 IsOngoingEvent ->
                     texts.endsIn ++ texts.timeDiffToString currentTime (Event.endTime event)
@@ -1868,7 +1868,7 @@ futureEventView :
     -> Bool
     -> SeqDict (Id UserId) (Cache FrontendUser)
     -> Time.Posix
-    -> Time.Zone
+    -> Result () Time.Zone
     -> Bool
     -> Maybe { a | userId : Id UserId, adminStatus : AdminStatus }
     -> SeqDict EventId EventJoinOrLeaveStatus
@@ -2253,7 +2253,7 @@ eventMeetingInPersonInputId =
 editEventView :
     UserConfig
     -> Time.Posix
-    -> Time.Zone
+    -> Result () Time.Zone
     -> Maybe ( Event.CancellationStatus, Time.Posix )
     -> Group.PastOngoingOrFuture
     -> EditEvent
@@ -2522,7 +2522,7 @@ editEventView { theme, texts } currentTime timezone maybeCancellationStatus even
         ]
 
 
-newEventView : UserConfig -> Time.Posix -> Time.Zone -> Group -> NewEvent -> Element Msg
+newEventView : UserConfig -> Time.Posix -> Result () Time.Zone -> Group -> NewEvent -> Element Msg
 newEventView { theme, texts } currentTime timezone group event =
     let
         pressedSubmit =
@@ -2795,7 +2795,7 @@ validateDuration texts text =
             Err texts.invalidInput
 
 
-validateDateTime : Texts -> Time.Posix -> Time.Zone -> String -> String -> Result String Time.Posix
+validateDateTime : Texts -> Time.Posix -> Result () Time.Zone -> String -> String -> Result String Time.Posix
 validateDateTime texts currentTime timezone date time =
     if String.trim date == "" then
         Err texts.dateValueMissing
@@ -2814,7 +2814,7 @@ validateDateTime texts currentTime timezone date time =
                                     let
                                         timePosix =
                                             Time.partsToPosix
-                                                timezone
+                                                (Result.withDefault Time.utc timezone)
                                                 { year = year
                                                 , month = month
                                                 , day = day
